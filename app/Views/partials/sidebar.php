@@ -115,7 +115,7 @@ $navIcon = static fn (string $name): string => IconHelper::svg($name, 'w-[18px] 
     </div>
     <?php else: ?>
     <div class="p-3 m-3 space-y-2">
-        <a href="<?= ProductHelper::url('/login') ?>" class="block w-full text-center bg-accent-500 hover:bg-accent-400 text-white font-display font-bold py-2.5 rounded-xl text-xs uppercase tracking-wide transition"><?= htmlspecialchars(t('nav.login')) ?></a>
+        <a href="<?= ProductHelper::url('/login') ?>" class="block w-full text-center bg-brand-500 hover:bg-brand-600 text-white font-display font-bold py-2.5 rounded-xl text-xs uppercase tracking-wide transition"><?= htmlspecialchars(t('nav.login')) ?></a>
         <a href="<?= ProductHelper::url('/register') ?>" class="block w-full text-center text-[11px] font-semibold text-ink-700/60 dark:text-white/60 hover:text-accent-500"><?= htmlspecialchars(t('nav.register')) ?></a>
     </div>
     <?php endif; ?>
