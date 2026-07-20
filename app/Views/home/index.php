@@ -73,13 +73,17 @@ $streams = $streams ?? [];
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2.5 sm:gap-3">
         <?php
         $cats = [
+            ['url' => '/catalog/new', 'label' => t('home.cat_new'), 'tone' => 'from-blue-50 to-indigo-50', 'color' => 'text-blue-500', 'icon' => 'bag'],
             ['url' => '/catalog/used', 'label' => t('home.cat_used'), 'tone' => 'from-orange-50 to-amber-50', 'color' => 'text-orange-500', 'icon' => 'package'],
             ['url' => '/auctions', 'label' => t('home.cat_auctions'), 'tone' => 'from-accent-50 to-orange-50', 'color' => 'text-accent-500', 'icon' => 'gavel'],
-            ['url' => '/catalog/free', 'label' => t('home.cat_free'), 'tone' => 'from-sky-50 to-blue-50', 'color' => 'text-sky-500', 'icon' => 'gift'],
-            ['url' => '/catalog/exchange', 'label' => t('home.cat_exchange'), 'tone' => 'from-brand-50 to-sky-50', 'color' => 'text-brand-500', 'icon' => 'exchange'],
             ['url' => '/catalog/services', 'label' => t('home.cat_services'), 'tone' => 'from-slate-50 to-brand-50', 'color' => 'text-slate-600 dark:text-slate-300', 'icon' => 'wrench'],
             ['url' => '/catalog/courses', 'label' => t('home.cat_courses'), 'tone' => 'from-violet-50 to-indigo-50', 'color' => 'text-violet-500', 'icon' => 'graduation'],
-            ['url' => '/catalog/new', 'label' => t('home.cat_new'), 'tone' => 'from-blue-50 to-indigo-50', 'color' => 'text-blue-500', 'icon' => 'bag'],
+            ['url' => '/catalog/exchange', 'label' => t('home.cat_exchange'), 'tone' => 'from-brand-50 to-sky-50', 'color' => 'text-brand-500', 'icon' => 'exchange'],
+            ['url' => '/catalog/free', 'label' => t('home.cat_free'), 'tone' => 'from-sky-50 to-blue-50', 'color' => 'text-sky-500', 'icon' => 'gift'],
+
+
+
+
         ];
         foreach ($cats as $c): ?>
             <a href="<?= ProductHelper::url($c['url']) ?>" class="group bg-gradient-to-br <?= $c['tone'] ?> dark:from-white/[0.06] dark:to-white/[0.02] p-3.5 sm:p-4 rounded-2xl border border-black/[0.05] dark:border-white/10 text-center hover:border-brand-400/50 hover:shadow-soft hover:-translate-y-0.5 transition duration-300 block">
