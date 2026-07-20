@@ -86,6 +86,7 @@ return [
         'cat_free' => 'Тегін',
         'cat_exchange' => 'Айырбас',
         'cat_services' => 'Қызмет',
+        'cat_courses' => 'Курстар',
         'cat_new' => 'Жаңа',
         'streams' => 'Стримдер',
         'streams_hint' => 'Тікелей эфир — аяқталғаннан кейін сақталмайды',

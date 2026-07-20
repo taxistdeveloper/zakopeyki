@@ -86,6 +86,7 @@ return [
         'cat_free' => 'Даром',
         'cat_exchange' => 'Обмен',
         'cat_services' => 'Услуги',
+        'cat_courses' => 'Курсы',
         'cat_new' => 'Новые',
         'streams' => 'Стримы',
         'streams_hint' => 'Прямой эфир — после завершения не сохраняется',
