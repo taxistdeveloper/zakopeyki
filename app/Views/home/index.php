@@ -72,16 +72,18 @@ $streams = $streams ?? [];
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 sm:gap-3">
         <?php
         $cats = [
-            ['url' => '/catalog/used', 'icon' => '📦', 'label' => t('home.cat_used'), 'tone' => 'from-amber-50 to-orange-50'],
-            ['url' => '/auctions', 'icon' => '🔥', 'label' => t('home.cat_auctions'), 'tone' => 'from-red-50 to-orange-50'],
-            ['url' => '/catalog/free', 'icon' => '🎁', 'label' => t('home.cat_free'), 'tone' => 'from-violet-50 to-fuchsia-50'],
-            ['url' => '/catalog/exchange', 'icon' => '🔄', 'label' => t('home.cat_exchange'), 'tone' => 'from-sky-50 to-indigo-50'],
-            ['url' => '/catalog/services', 'icon' => '💼', 'label' => t('home.cat_services'), 'tone' => 'from-emerald-50 to-teal-50'],
-            ['url' => '/catalog/new', 'icon' => '🛍️', 'label' => t('home.cat_new'), 'tone' => 'from-brand-50 to-yellow-50'],
+            ['url' => '/catalog/used', 'icon' => 'cat-used.png', 'label' => t('home.cat_used'), 'tone' => 'from-amber-50 to-orange-50'],
+            ['url' => '/auctions', 'icon' => 'cat-auctions.png', 'label' => t('home.cat_auctions'), 'tone' => 'from-red-50 to-orange-50'],
+            ['url' => '/catalog/free', 'icon' => 'cat-free.png', 'label' => t('home.cat_free'), 'tone' => 'from-violet-50 to-fuchsia-50'],
+            ['url' => '/catalog/exchange', 'icon' => 'cat-exchange.png', 'label' => t('home.cat_exchange'), 'tone' => 'from-sky-50 to-indigo-50'],
+            ['url' => '/catalog/services', 'icon' => 'cat-services.png', 'label' => t('home.cat_services'), 'tone' => 'from-emerald-50 to-teal-50'],
+            ['url' => '/catalog/new', 'icon' => 'cat-new.png', 'label' => t('home.cat_new'), 'tone' => 'from-brand-50 to-yellow-50'],
         ];
         foreach ($cats as $c): ?>
             <a href="<?= ProductHelper::url($c['url']) ?>" class="group bg-gradient-to-br <?= $c['tone'] ?> dark:from-white/[0.06] dark:to-white/[0.02] p-3.5 sm:p-4 rounded-2xl border border-black/[0.05] dark:border-white/10 text-center hover:border-brand-400/50 hover:shadow-soft hover:-translate-y-0.5 transition duration-300 block">
-                <span class="text-2xl block mb-1.5 transition group-hover:scale-110"><?= $c['icon'] ?></span>
+                <span class="block mb-1.5 transition group-hover:scale-110">
+                    <img src="<?= ProductHelper::url('public/assets/icons/categories/' . $c['icon']) ?>" alt="" class="mx-auto h-12 w-12 sm:h-14 sm:w-14 object-contain drop-shadow-sm" width="56" height="56" loading="lazy">
+                </span>
                 <span class="text-[11px] font-semibold text-ink-800 dark:text-gray-200"><?= $c['label'] ?></span>
             </a>
         <?php endforeach; ?>
