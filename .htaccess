@@ -1,12 +1,15 @@
 DirectoryIndex index.php
 
-# Не отдавать листинг папки
-Options -Indexes
+# Не отдавать листинг папки (на части хостингов может быть запрещён Options — тогда закомментируйте строку)
+# Options -Indexes
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteBase /zakapeiku/
 
+    # Корень домена (zakopeyki.kz). Для локальной папки /zakapeiku/ поставьте: RewriteBase /zakapeiku/
+    RewriteBase /
+
+    RewriteRule ^index\.php$ - [L]
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^ index.php [QSA,L]
