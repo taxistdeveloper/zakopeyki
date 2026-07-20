@@ -28,6 +28,6 @@
         <p class="text-center text-xs text-gray-400 mt-6">
             <?= htmlspecialchars(t('auth.no_account')) ?> <a href="<?= ProductHelper::url('/register') ?>" class="text-brand-600 font-semibold"><?= htmlspecialchars(t('auth.register_link')) ?></a>
         </p>
-        <p class="text-center text-[10px] text-gray-300 mt-4"><?= htmlspecialchars(t('auth.demo')) ?></p>
+
     </div>
 </div>
