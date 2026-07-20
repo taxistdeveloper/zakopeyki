@@ -71,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body class="min-h-screen bg-amber-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl shadow-xl p-8 w-full max-w-lg space-y-4">
-        <h1 class="text-2xl font-black">⚙ Установка MySQL</h1>
+        <h1 class="text-2xl font-black">⚙ Установка MySQLs</h1>
         <p class="text-sm text-gray-500">MAMP: обычно host=127.0.0.1, user=root, password=root. Порт часто 3306 или 8889.</p>
 
         <?php if ($message): ?>
