@@ -1,6 +1,7 @@
 <?php
 use App\Helpers\ProductHelper;
 use App\Helpers\AvatarHelper;
+use App\Helpers\IconHelper;
 use App\Core\View;
 use App\Core\Auth;
 
@@ -72,17 +73,17 @@ $streams = $streams ?? [];
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 sm:gap-3">
         <?php
         $cats = [
-            ['url' => '/catalog/used', 'icon' => 'cat-used.png', 'label' => t('home.cat_used'), 'tone' => 'from-orange-50 to-amber-50'],
-            ['url' => '/auctions', 'icon' => 'cat-auctions.png', 'label' => t('home.cat_auctions'), 'tone' => 'from-accent-50 to-orange-50'],
-            ['url' => '/catalog/free', 'icon' => 'cat-free.png', 'label' => t('home.cat_free'), 'tone' => 'from-sky-50 to-blue-50'],
-            ['url' => '/catalog/exchange', 'icon' => 'cat-exchange.png', 'label' => t('home.cat_exchange'), 'tone' => 'from-brand-50 to-sky-50'],
-            ['url' => '/catalog/services', 'icon' => 'cat-services.png', 'label' => t('home.cat_services'), 'tone' => 'from-slate-50 to-brand-50'],
-            ['url' => '/catalog/new', 'icon' => 'cat-new.png', 'label' => t('home.cat_new'), 'tone' => 'from-blue-50 to-indigo-50'],
+            ['url' => '/catalog/used', 'label' => t('home.cat_used'), 'tone' => 'from-orange-50 to-amber-50', 'color' => 'text-orange-500', 'icon' => 'package'],
+            ['url' => '/auctions', 'label' => t('home.cat_auctions'), 'tone' => 'from-accent-50 to-orange-50', 'color' => 'text-accent-500', 'icon' => 'gavel'],
+            ['url' => '/catalog/free', 'label' => t('home.cat_free'), 'tone' => 'from-sky-50 to-blue-50', 'color' => 'text-sky-500', 'icon' => 'gift'],
+            ['url' => '/catalog/exchange', 'label' => t('home.cat_exchange'), 'tone' => 'from-brand-50 to-sky-50', 'color' => 'text-brand-500', 'icon' => 'exchange'],
+            ['url' => '/catalog/services', 'label' => t('home.cat_services'), 'tone' => 'from-slate-50 to-brand-50', 'color' => 'text-slate-600 dark:text-slate-300', 'icon' => 'wrench'],
+            ['url' => '/catalog/new', 'label' => t('home.cat_new'), 'tone' => 'from-blue-50 to-indigo-50', 'color' => 'text-blue-500', 'icon' => 'bag'],
         ];
         foreach ($cats as $c): ?>
             <a href="<?= ProductHelper::url($c['url']) ?>" class="group bg-gradient-to-br <?= $c['tone'] ?> dark:from-white/[0.06] dark:to-white/[0.02] p-3.5 sm:p-4 rounded-2xl border border-black/[0.05] dark:border-white/10 text-center hover:border-brand-400/50 hover:shadow-soft hover:-translate-y-0.5 transition duration-300 block">
-                <span class="block mb-1.5 transition group-hover:scale-110">
-                    <img src="<?= ProductHelper::url('public/assets/icons/categories/' . $c['icon']) ?>" alt="" class="mx-auto h-12 w-12 sm:h-14 sm:w-14 object-contain drop-shadow-sm" width="56" height="56" loading="lazy">
+                <span class="flex items-center justify-center mb-1.5 <?= $c['color'] ?> transition duration-300 group-hover:scale-110">
+                    <?= IconHelper::svg($c['icon'], 'h-8 w-8 sm:h-9 sm:w-9') ?>
                 </span>
                 <span class="text-[11px] font-semibold text-ink-800 dark:text-gray-200"><?= $c['label'] ?></span>
             </a>
@@ -216,7 +217,9 @@ $streams = $streams ?? [];
             <div class="story-footer">
                 <a id="story-product-card" href="#" class="hidden story-product-card">
                     <img id="story-product-img" src="" alt="" class="hidden">
-                    <div id="story-product-ph" class="story-product-ph">🛍</div>
+                    <div id="story-product-ph" class="story-product-ph">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                    </div>
                     <div class="min-w-0 flex-1">
                         <p id="story-product-title" class="text-[12px] font-semibold leading-tight line-clamp-2"></p>
                         <p id="story-product-price" class="text-[12px] text-gray-500 mt-0.5"></p>
@@ -264,7 +267,9 @@ $streams = $streams ?? [];
                         </div>
                     </div>
                     <div class="flex items-center gap-1">
-                        <button type="button" id="stream-mute-btn" onclick="toggleStreamMute()" class="text-white text-base w-8 h-8">🔊</button>
+                        <button type="button" id="stream-mute-btn" onclick="toggleStreamMute()" class="text-white w-8 h-8 flex items-center justify-center" aria-label="Mute">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                        </button>
                         <button type="button" class="sm:hidden text-white text-xl w-8 h-8" onclick="closeStreamViewer()">✕</button>
                     </div>
                 </div>
@@ -291,7 +296,9 @@ $streams = $streams ?? [];
                 </form>
             </div>
             <div id="stream-paused" class="hidden absolute inset-0 z-[25] flex items-center justify-center pointer-events-none">
-                <span class="w-14 h-14 rounded-full bg-black/40 backdrop-blur flex items-center justify-center text-white text-2xl">▶</span>
+                <span class="w-14 h-14 rounded-full bg-black/40 backdrop-blur flex items-center justify-center text-white">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+                </span>
             </div>
         </div>
         <button type="button" id="stream-nav-next" class="story-nav-btn" onclick="event.stopPropagation(); nextStream()" aria-label="Next">›</button>

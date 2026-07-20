@@ -1,18 +1,25 @@
 <?php
 use App\Core\View;
 use App\Helpers\ProductHelper;
+use App\Helpers\IconHelper;
 
 $hasCategoryFilters = !empty($hasCategoryFilters);
 $categoryTree = $categoryTree ?? ProductHelper::PRODUCT_CATEGORY_TREE;
 $selectedParent = $selectedParent ?? '';
 $selectedChild = $selectedChild ?? '';
 $section = $section ?? '';
+$type = $type ?? '';
 $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm';
 ?>
 <section class="space-y-6 fade-up">
     <div>
         <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-brand-600 mb-1"><?= htmlspecialchars(t('catalog.eyebrow')) ?></p>
-        <h2 class="font-display text-xl sm:text-2xl font-bold tracking-tight text-ink-900 dark:text-white"><?= htmlspecialchars($heading) ?></h2>
+        <h2 class="font-display text-xl sm:text-2xl font-bold tracking-tight text-ink-900 dark:text-white flex items-center gap-2.5">
+            <?php if ($type !== ''): ?>
+                <span class="inline-flex text-brand-500"><?= IconHelper::type($type, 'w-6 h-6 sm:w-7 sm:h-7') ?></span>
+            <?php endif; ?>
+            <span><?= htmlspecialchars($heading) ?></span>
+        </h2>
     </div>
 
     <?php if ($hasCategoryFilters): ?>

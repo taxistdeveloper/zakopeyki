@@ -73,6 +73,7 @@ class CatalogController extends Controller
             'heading' => t($page['titleKey']),
             'currentNav' => $page['nav'],
             'section' => $section,
+            'type' => $type,
             'items' => $items,
             'hasCategoryFilters' => $hasCategoryFilters,
             'categoryTree' => ProductHelper::PRODUCT_CATEGORY_TREE,

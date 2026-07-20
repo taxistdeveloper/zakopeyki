@@ -4,7 +4,6 @@ use App\Helpers\ProductHelper;
 
 $badge = ProductHelper::badge($item['type']);
 $price = ProductHelper::formatPrice($item);
-$icon = ProductHelper::icon($item['type']);
 $imageUrls = ProductHelper::imageUrls($item);
 $imageUrl = $imageUrls[0] ?? null;
 $phone = preg_replace('/\D/', '', $item['seller_phone'] ?? '77000000000') ?: '77000000000';
@@ -17,11 +16,11 @@ unset($_SESSION['flash']);
     <?php endif; ?>
 
     <div class="bg-white/90 dark:bg-white/[0.04] rounded-[28px] border border-black/[0.06] dark:border-white/10 overflow-hidden shadow-soft backdrop-blur">
-        <div class="h-52 sm:h-72 bg-gradient-to-br from-ink-100 via-brand-50 to-orange-50 dark:from-white/10 dark:via-brand-900/20 dark:to-ink-900 flex items-center justify-center text-7xl relative overflow-hidden">
+        <div class="h-52 sm:h-72 bg-gradient-to-br from-ink-100 via-brand-50 to-orange-50 dark:from-white/10 dark:via-brand-900/20 dark:to-ink-900 flex items-center justify-center relative overflow-hidden">
             <?php if ($imageUrl): ?>
                 <img id="product-main-image" src="<?= htmlspecialchars($imageUrl) ?>" alt="<?= htmlspecialchars($item['title']) ?>" class="absolute inset-0 w-full h-full object-cover">
             <?php else: ?>
-                <?= $icon ?>
+                <?= ProductHelper::icon($item['type'], 'w-24 h-24 text-brand-500/60') ?>
             <?php endif; ?>
 <span class="absolute top-4 left-4 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-xl shadow-sm <?= $badge['class'] ?>">
                 <?= $badge['text'] ?>

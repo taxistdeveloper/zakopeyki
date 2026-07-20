@@ -1,6 +1,7 @@
 <?php
 use App\Helpers\ProductHelper;
 use App\Helpers\AvatarHelper;
+use App\Helpers\IconHelper;
 
 $user = $user ?? [];
 $tab = $tab ?? 'personal';
@@ -19,14 +20,14 @@ if ($login === '' && !empty($user['email'])) {
 }
 
 $tabs = [
-    'personal' => ['label' => t('profile.tab_personal'), 'icon' => '👤'],
-    'photo' => ['label' => t('profile.tab_photo'), 'icon' => '📷'],
-    'bio' => ['label' => t('profile.tab_bio'), 'icon' => '📄'],
-    'reviews' => ['label' => t('profile.tab_reviews'), 'icon' => '⭐'],
-    'notifications' => ['label' => t('profile.tab_notifications'), 'icon' => '🔔'],
-    'password' => ['label' => t('profile.tab_password'), 'icon' => '🔒'],
-    'favorites' => ['label' => t('profile.tab_favorites'), 'icon' => '❤️'],
-    'lots' => ['label' => t('profile.tab_lots'), 'icon' => '📦'],
+    'personal' => ['label' => t('profile.tab_personal'), 'icon' => 'user'],
+    'photo' => ['label' => t('profile.tab_photo'), 'icon' => 'camera'],
+    'bio' => ['label' => t('profile.tab_bio'), 'icon' => 'file'],
+    'reviews' => ['label' => t('profile.tab_reviews'), 'icon' => 'star'],
+    'notifications' => ['label' => t('profile.tab_notifications'), 'icon' => 'bell'],
+    'password' => ['label' => t('profile.tab_password'), 'icon' => 'lock'],
+    'favorites' => ['label' => t('profile.tab_favorites'), 'icon' => 'heart'],
+    'lots' => ['label' => t('profile.tab_lots'), 'icon' => 'package'],
 ];
 
 $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm';
@@ -66,7 +67,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                        <?= $active
                            ? 'bg-white dark:bg-ink-800 text-ink-900 dark:text-white shadow-sm'
                            : 'text-gray-500 hover:text-ink-800 dark:hover:text-gray-200' ?>">
-                        <span class="opacity-80"><?= $meta['icon'] ?></span>
+                        <span class="opacity-80"><?= IconHelper::svg($meta['icon'], 'w-3.5 h-3.5') ?></span>
                         <span><?= $meta['label'] ?></span>
                     </a>
                 <?php endforeach; ?>
@@ -186,7 +187,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
 
             <?php elseif ($tab === 'password'): ?>
                 <div class="mb-6 flex items-start gap-3">
-                    <div class="w-11 h-11 rounded-2xl bg-ink-900 text-white flex items-center justify-center text-lg">🔒</div>
+                    <div class="w-11 h-11 rounded-2xl bg-ink-900 text-white flex items-center justify-center"><?= IconHelper::svg('lock', 'w-5 h-5') ?></div>
                     <div>
                         <h2 class="font-display text-xl font-bold"><?= htmlspecialchars(t('profile.change_password')) ?></h2>
                         <p class="text-sm text-gray-400 mt-1"><?= htmlspecialchars(t('profile.change_password_hint')) ?></p>
@@ -200,7 +201,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         <label class="block text-[13px] font-semibold mb-1.5"><?= htmlspecialchars(t('profile.new_password')) ?> <span class="text-red-500">*</span></label>
                         <div class="relative">
                             <input type="password" name="password" id="pass1" required minlength="8" class="<?= $input ?> pr-11">
-                            <button type="button" onclick="togglePass('pass1', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-ink-800 text-sm">👁</button>
+                            <button type="button" onclick="togglePass('pass1')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-ink-800"><?= IconHelper::svg('eye', 'w-4 h-4') ?></button>
                         </div>
                         <p class="text-xs text-gray-400 mt-1.5"><?= htmlspecialchars(t('profile.min_8')) ?></p>
                     </div>
@@ -208,7 +209,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         <label class="block text-[13px] font-semibold mb-1.5"><?= htmlspecialchars(t('profile.confirm_password')) ?> <span class="text-red-500">*</span></label>
                         <div class="relative">
                             <input type="password" name="password_confirm" id="pass2" required minlength="8" class="<?= $input ?> pr-11">
-                            <button type="button" onclick="togglePass('pass2', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-ink-800 text-sm">👁</button>
+                            <button type="button" onclick="togglePass('pass2')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-ink-800"><?= IconHelper::svg('eye', 'w-4 h-4') ?></button>
                         </div>
                     </div>
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-black/[0.05]">
@@ -221,13 +222,14 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                     const el = document.getElementById(id);
                     if (!el) return;
                     el.type = el.type === 'password' ? 'text' : 'password';
-                    btn.textContent = el.type === 'password' ? '👁' : '🙈';
                 }
                 </script>
 
                 <div class="mt-10 pt-8 border-t border-red-200/60 dark:border-red-900/40">
                     <div class="mb-5 flex items-start gap-3">
-                        <div class="w-11 h-11 rounded-2xl bg-red-600 text-white flex items-center justify-center text-lg">⚠</div>
+                        <div class="w-11 h-11 rounded-2xl bg-red-600 text-white flex items-center justify-center">
+                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        </div>
                         <div>
                             <h2 class="font-display text-xl font-bold text-red-600 dark:text-red-400"><?= htmlspecialchars(t('profile.delete_account')) ?></h2>
                             <p class="text-sm text-gray-400 mt-1"><?= htmlspecialchars(t('profile.delete_account_hint')) ?></p>
@@ -602,11 +604,11 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         ?>
                             <div class="flex flex-col sm:flex-row sm:items-center gap-3 bg-white dark:bg-white/5 border border-black/[0.06] dark:border-white/10 rounded-2xl px-4 py-3.5 <?= !empty($editing) && (int) $editing['id'] === (int) $p['id'] ? 'border-brand-400/60 shadow-soft' : '' ?>">
                                 <a href="<?= ProductHelper::url('/product/' . $p['id']) ?>" class="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition">
-                                    <div class="w-12 h-12 rounded-xl overflow-hidden bg-brand-50 dark:bg-white/5 flex-shrink-0 flex items-center justify-center text-lg">
+                                    <div class="w-12 h-12 rounded-xl overflow-hidden bg-brand-50 dark:bg-white/5 flex-shrink-0 flex items-center justify-center">
                                         <?php if ($thumb): ?>
                                             <img src="<?= htmlspecialchars($thumb) ?>" alt="" class="w-full h-full object-cover">
                                         <?php else: ?>
-                                            <?= ProductHelper::icon($p['type']) ?>
+                                            <?= ProductHelper::icon($p['type'], 'w-6 h-6 text-brand-500/80') ?>
                                         <?php endif; ?>
                                     </div>
                                     <div class="min-w-0">

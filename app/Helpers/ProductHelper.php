@@ -169,17 +169,9 @@ class ProductHelper
         ];
     }
 
-    public static function icon(string $type): string
+    public static function icon(string $type, string $class = 'w-10 h-10 text-brand-500/80'): string
     {
-        return match ($type) {
-            'service' => '💼',
-            'free' => '🎁',
-            'auction' => '🔥',
-            'exchange' => '🔄',
-            'course' => '🎓',
-            'new' => '🛍️',
-            default => '📦',
-        };
+        return IconHelper::type($type, $class);
     }
 
     public static function decodeImages(?array $item): array

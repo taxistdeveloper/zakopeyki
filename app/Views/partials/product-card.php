@@ -4,7 +4,6 @@ use App\Helpers\ProductHelper;
 
 $badge = ProductHelper::badge($item['type']);
 $price = ProductHelper::formatPrice($item);
-$icon = ProductHelper::icon($item['type']);
 $imageUrl = ProductHelper::imageUrl($item);
 $showUrl = ProductHelper::url('/product/' . $item['id']);
 $favorited = !empty($favorited);
@@ -13,11 +12,11 @@ $canFavorite = Auth::check();
 $ctaBase = 'block w-full text-center font-display font-bold text-[10px] py-2.5 rounded-xl transition uppercase tracking-wider';
 ?>
 <article class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 overflow-hidden shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition duration-300 flex flex-col justify-between h-[360px] cursor-pointer group backdrop-blur-sm relative">
-    <a href="<?= $showUrl ?>" class="h-32 bg-gradient-to-br from-ink-100 via-brand-50 to-accent-50 dark:from-white/10 dark:via-brand-900/20 dark:to-transparent relative flex items-center justify-center text-4xl overflow-hidden">
+    <a href="<?= $showUrl ?>" class="h-32 bg-gradient-to-br from-ink-100 via-brand-50 to-accent-50 dark:from-white/10 dark:via-brand-900/20 dark:to-transparent relative flex items-center justify-center overflow-hidden">
         <?php if ($imageUrl): ?>
             <img src="<?= htmlspecialchars($imageUrl) ?>" alt="" class="absolute inset-0 w-full h-full object-cover transition duration-300 group-hover:scale-105">
         <?php else: ?>
-            <span class="transition duration-300 group-hover:scale-110"><?= $icon ?></span>
+            <span class="transition duration-300 group-hover:scale-110"><?= ProductHelper::icon($item['type'], 'w-14 h-14 text-brand-500/70') ?></span>
         <?php endif; ?>
         <span class="absolute top-2.5 left-2.5 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg shadow-sm <?= $badge['class'] ?>">
             <?= htmlspecialchars($badge['text']) ?>

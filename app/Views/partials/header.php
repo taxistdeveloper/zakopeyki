@@ -2,6 +2,7 @@
 use App\Core\Auth;
 use App\Core\Lang;
 use App\Helpers\ProductHelper;
+use App\Helpers\IconHelper;
 
 $lang = Lang::current();
 $langSwitchUrl = static function (string $code) use ($lang): string {
@@ -22,11 +23,13 @@ $langSwitchUrl = static function (string $code) use ($lang): string {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
         <div class="hidden md:flex items-center gap-1.5 text-[11px] font-semibold text-ink-700/60 dark:text-gray-400 whitespace-nowrap bg-white/70 dark:bg-white/5 border border-black/[0.05] dark:border-white/10 px-3 py-2 rounded-xl flex-shrink-0">
-            <span>📍</span> <?= htmlspecialchars(t('header.city')) ?>
+            <?= IconHelper::svg('map-pin', 'w-3.5 h-3.5 text-brand-500') ?> <?= htmlspecialchars(t('header.city')) ?>
         </div>
         <form method="get" action="<?= ProductHelper::url('/') ?>" class="relative w-full">
             <input type="text" name="q" value="<?= htmlspecialchars($search ?? '') ?>" class="ui-input w-full border border-black/[0.08] dark:border-white/10 bg-white/80 dark:bg-white/5 h-11 pl-4 pr-11 rounded-2xl text-sm placeholder:text-gray-400 shadow-sm" placeholder="<?= htmlspecialchars(t('header.search_placeholder')) ?>">
-            <button type="submit" class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-xl bg-ink-900 text-white dark:bg-brand-500 dark:text-white flex items-center justify-center text-xs hover:opacity-90 transition">🔍</button>
+            <button type="submit" class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-xl bg-ink-900 text-white dark:bg-brand-500 dark:text-white flex items-center justify-center hover:opacity-90 transition">
+                <?= IconHelper::svg('search', 'w-4 h-4') ?>
+            </button>
         </form>
     </div>
 
@@ -41,12 +44,13 @@ $langSwitchUrl = static function (string $code) use ($lang): string {
                 <span class="hidden sm:inline"><?= htmlspecialchars(t('header.add_listing')) ?></span>
             </a>
         <?php endif; ?>
-        <button onclick="toggleDarkMode()" class="p-2.5 rounded-xl bg-white/70 dark:bg-white/5 border border-black/[0.06] dark:border-white/10 hover:border-brand-400/50 transition text-sm shadow-sm" title="<?= htmlspecialchars(t('header.theme')) ?>">
-            <span class="dark:hidden">🌙</span><span class="hidden dark:inline">☀️</span>
+        <button onclick="toggleDarkMode()" class="p-2.5 rounded-xl bg-white/70 dark:bg-white/5 border border-black/[0.06] dark:border-white/10 hover:border-brand-400/50 transition shadow-sm text-ink-700 dark:text-gray-200" title="<?= htmlspecialchars(t('header.theme')) ?>">
+            <span class="dark:hidden"><?= IconHelper::svg('moon', 'w-4 h-4') ?></span>
+            <span class="hidden dark:inline"><?= IconHelper::svg('sun', 'w-4 h-4') ?></span>
         </button>
         <div class="relative">
-            <button onclick="toggleNotifications()" class="p-2.5 rounded-xl bg-white/70 dark:bg-white/5 border border-black/[0.06] dark:border-white/10 hover:border-brand-400/50 transition flex items-center gap-1 shadow-sm">
-                <span>🔔</span>
+            <button onclick="toggleNotifications()" class="p-2.5 rounded-xl bg-white/70 dark:bg-white/5 border border-black/[0.06] dark:border-white/10 hover:border-brand-400/50 transition flex items-center gap-1 shadow-sm text-ink-700 dark:text-gray-200">
+                <?= IconHelper::svg('bell', 'w-4 h-4') ?>
                 <?php if (($unread ?? 0) > 0): ?>
                     <span id="notification-badge" class="bg-accent-500 text-white text-[10px] min-w-[18px] h-[18px] px-1 rounded-full font-extrabold inline-flex items-center justify-center"><?= (int) $unread ?></span>
                 <?php endif; ?>
