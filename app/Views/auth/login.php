@@ -3,7 +3,7 @@
     <div class="text-center mb-8">
         <a href="<?= ProductHelper::url('/') ?>" class="inline-flex items-baseline gap-0.5">
             <span class="font-display text-4xl font-extrabold text-brand-500">za</span>
-            <span class="font-display text-3xl font-bold text-ink-900">kopeyki<span class="text-brand-500">.kz</span></span>
+            <span class="font-display text-3xl font-bold text-ink-900">kopeyki<span class="text-brand-500"></span></span>
         </a>
         <p class="text-sm text-gray-500 mt-3"><?= htmlspecialchars(t('auth.login_heading')) ?></p>
     </div>

@@ -16,7 +16,7 @@ return [
         'about' => 'Біз туралы',
         'idea' => 'Идея',
         'support' => 'Қолдау',
-        'stats_title' => 'zakapeiku санмен',
+        'stats_title' => 'zakopeyki санмен',
         'listings' => 'Хабарландыру',
         'users' => 'Пайдаланушы',
         'login' => 'Кіру',

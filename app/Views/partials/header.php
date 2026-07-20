@@ -27,7 +27,7 @@ $langSwitchUrl = static function (string $code) use ($lang): string {
         </div>
         <form method="get" action="<?= ProductHelper::url('/') ?>" class="relative w-full">
             <input type="text" name="q" value="<?= htmlspecialchars($search ?? '') ?>" class="ui-input w-full border border-black/[0.08] dark:border-white/10 bg-white/80 dark:bg-white/5 h-11 pl-4 pr-11 rounded-2xl text-sm placeholder:text-gray-400 shadow-sm" placeholder="<?= htmlspecialchars(t('header.search_placeholder')) ?>">
-            <button type="submit" class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-xl bg-ink-900 text-white dark:bg-brand-500 dark:text-white flex items-center justify-center hover:opacity-90 transition">
+            <button type="submit" class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-xl text-ink-700/50 dark:text-white/50 hover:text-accent-500 dark:hover:text-brand-400 flex items-center justify-center transition">
                 <?= IconHelper::svg('search', 'w-4 h-4') ?>
             </button>
         </form>

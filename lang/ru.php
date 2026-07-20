@@ -16,7 +16,7 @@ return [
         'about' => 'О нас',
         'idea' => 'Идея',
         'support' => 'Поддержать',
-        'stats_title' => 'zakapeiku в цифрах',
+        'stats_title' => 'zakopeyki в цифрах',
         'listings' => 'Объявлений',
         'users' => 'Пользователей',
         'login' => 'Войти',

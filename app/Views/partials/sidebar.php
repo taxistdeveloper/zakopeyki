@@ -19,12 +19,12 @@ function navClass(string $key, string $nav): string
 $navIcon = static fn (string $name): string => IconHelper::svg($name, 'w-[18px] h-[18px] flex-shrink-0 opacity-80');
 ?>
 <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-[272px] glass border-r border-black/[0.06] dark:border-white/10 flex flex-col h-full transition-transform duration-300 transform -translate-x-full lg:translate-x-0 shadow-soft">
-    <div class="h-[72px] flex items-center justify-between px-5 border-b border-black/[0.06] dark:border-white/10">
+    <div class="relative h-[72px] flex items-center justify-center px-5 border-b border-black/[0.06] dark:border-white/10">
         <a href="<?= ProductHelper::url('/') ?>" class="flex items-baseline gap-0.5 flex-shrink-0 group">
             <span class="font-display text-3xl font-extrabold tracking-tight text-brand-500 group-hover:text-brand-600 transition">za</span>
-            <span class="font-display text-2xl font-bold tracking-tight text-ink-900 dark:text-white">kopeyki<span class="text-brand-500">.kz</span></span>
+            <span class="font-display text-2xl font-bold tracking-tight text-ink-900 dark:text-white">kopeyki<span class="text-brand-500"></span></span>
         </a>
-        <button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-xl text-gray-400 hover:bg-black/5 hover:text-ink-800">✕</button>
+        <button onclick="toggleSidebar()" class="lg:hidden absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-xl text-gray-400 hover:bg-black/5 hover:text-ink-800">✕</button>
     </div>
 
     <nav class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto scrollbar-hide">
@@ -102,21 +102,21 @@ $navIcon = static fn (string $name): string => IconHelper::svg($name, 'w-[18px] 
         <?php endif; ?>
     </nav>
 
+    <?php if ($user): ?>
     <div class="p-3 m-3 rounded-2xl bg-ink-900 text-white dark:bg-white/5 dark:border dark:border-white/10">
-        <?php if ($user): ?>
-            <div class="flex items-center gap-3 overflow-hidden mb-3">
-                <?= AvatarHelper::html($user, 'w-10 h-10', 'text-sm', 'rounded-xl') ?>
-                <div class="min-w-0">
-                    <h4 class="text-sm font-semibold truncate"><?= htmlspecialchars($user['name']) ?></h4>
-                    <span class="text-[11px] text-white/50"><?= htmlspecialchars($user['role'] === 'admin' ? t('nav.role_admin') : t('nav.role_user')) ?></span>
-                </div>
+        <div class="flex items-center gap-3 overflow-hidden mb-3">
+            <?= AvatarHelper::html($user, 'w-10 h-10', 'text-sm', 'rounded-xl') ?>
+            <div class="min-w-0">
+                <h4 class="text-sm font-semibold truncate"><?= htmlspecialchars($user['name']) ?></h4>
+                <span class="text-[11px] text-white/50"><?= htmlspecialchars($user['role'] === 'admin' ? t('nav.role_admin') : t('nav.role_user')) ?></span>
             </div>
-            <a href="<?= ProductHelper::url('/logout') ?>" class="block text-center text-[11px] font-semibold text-white/60 hover:text-white transition py-2 rounded-xl hover:bg-white/10"><?= htmlspecialchars(t('nav.logout')) ?></a>
-        <?php else: ?>
-            <div class="space-y-2 p-1">
-                <a href="<?= ProductHelper::url('/login') ?>" class="block w-full text-center bg-accent-500 hover:bg-accent-400 text-white font-display font-bold py-2.5 rounded-xl text-xs uppercase tracking-wide transition"><?= htmlspecialchars(t('nav.login')) ?></a>
-                <a href="<?= ProductHelper::url('/register') ?>" class="block w-full text-center text-[11px] font-semibold text-white/60 hover:text-accent-400"><?= htmlspecialchars(t('nav.register')) ?></a>
-            </div>
-        <?php endif; ?>
+        </div>
+        <a href="<?= ProductHelper::url('/logout') ?>" class="block text-center text-[11px] font-semibold text-white/60 hover:text-white transition py-2 rounded-xl hover:bg-white/10"><?= htmlspecialchars(t('nav.logout')) ?></a>
     </div>
+    <?php else: ?>
+    <div class="p-3 m-3 space-y-2">
+        <a href="<?= ProductHelper::url('/login') ?>" class="block w-full text-center bg-accent-500 hover:bg-accent-400 text-white font-display font-bold py-2.5 rounded-xl text-xs uppercase tracking-wide transition"><?= htmlspecialchars(t('nav.login')) ?></a>
+        <a href="<?= ProductHelper::url('/register') ?>" class="block w-full text-center text-[11px] font-semibold text-ink-700/60 dark:text-white/60 hover:text-accent-500"><?= htmlspecialchars(t('nav.register')) ?></a>
+    </div>
+    <?php endif; ?>
 </aside>
