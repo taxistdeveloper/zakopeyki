@@ -451,14 +451,14 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                             <input type="hidden" name="cover" id="lot-cover" value="">
                             <div id="lot-keep-inputs"></div>
                             <label id="lot-add-btn" class="inline-flex items-center gap-2 cursor-pointer text-xs font-bold text-ink-800 dark:text-gray-200">
-                                <span class="px-3 py-2 rounded-xl bg-brand-500 text-ink-900">+ Добавить фото</span>
+                                <span class="px-3 py-2 rounded-xl bg-accent-500 text-white">+ Добавить фото</span>
                                 <input type="file" id="lot-images-input" name="images[]" accept="image/jpeg,image/png,image/webp,image/gif" multiple class="hidden">
                             </label>
                             <p class="text-[11px] text-gray-400">JPG, PNG, WEBP, GIF · до 5 МБ каждое</p>
                         </div>
                     </div>
                     <div class="flex flex-col sm:flex-row gap-2">
-                        <button type="submit" class="flex-1 bg-brand-500 hover:bg-brand-400 text-ink-900 font-display font-bold py-3.5 rounded-2xl text-xs uppercase tracking-wider transition shadow-soft">
+                        <button type="submit" class="flex-1 bg-accent-500 hover:bg-accent-400 text-white font-display font-bold py-3.5 rounded-2xl text-xs uppercase tracking-wider transition shadow-soft">
                             <?= htmlspecialchars($editing ? t('profile.update') : t('profile.publish')) ?>
                         </button>
                         <?php if ($editing): ?>
@@ -533,7 +533,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                             card.title = 'Сделать обложкой';
                             card.innerHTML =
                                 '<img src="' + item.url + '" alt="" class="w-full h-full object-cover">' +
-                                (item.cover ? '<span class="absolute top-1.5 left-1.5 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-brand-500 text-ink-900">Обложка</span>' : '') +
+                                (item.cover ? '<span class="absolute top-1.5 left-1.5 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-accent-500 text-white">Обложка</span>' : '') +
                                 '<span data-remove class="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-ink-900/70 text-white text-sm leading-6 hover:bg-red-600">×</span>';
                             card.addEventListener('click', function (e) {
                                 if (e.target.closest('[data-remove]')) {

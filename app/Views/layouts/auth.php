@@ -12,8 +12,18 @@
             theme: {
                 extend: {
                     colors: {
-                        brand: { 400: '#fbbf24', 500: '#f5a524', 600: '#e08808' },
-                        ink: { 900: '#1a1916' }
+                        brand: {
+                            400: '#3B82F6',
+                            500: '#2563EB',
+                            600: '#1D4ED8',
+                            700: '#1E3A8A',
+                        },
+                        accent: {
+                            400: '#FB923C',
+                            500: '#F97316',
+                            600: '#EA580C',
+                        },
+                        ink: { 900: '#0F172A' }
                     },
                     fontFamily: {
                         sans: ['"DM Sans"', 'sans-serif'],
@@ -24,7 +34,7 @@
         }
     </script>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4" style="background: radial-gradient(900px 500px at 20% 0%, rgba(245,165,36,.22), transparent 55%), linear-gradient(160deg,#fff9eb,#f0ece6 50%,#ebe4d8); font-family:'DM Sans',sans-serif;">
+<body class="min-h-screen flex items-center justify-center p-4" style="background: radial-gradient(900px 500px at 20% 0%, rgba(37,99,235,.14), transparent 55%), radial-gradient(700px 400px at 90% 10%, rgba(249,115,22,.1), transparent 50%), linear-gradient(160deg,#F8FAFC,#EFF6FF 50%,#DBEAFE); font-family:'DM Sans',sans-serif;">
     <?= $content ?>
 </body>
 </html>

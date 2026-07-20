@@ -30,7 +30,7 @@
                 <label class="block text-[13px] font-semibold mb-1.5"><?= htmlspecialchars(t('auth.password')) ?></label>
                 <input type="password" name="password" required minlength="6" class="w-full h-11 px-4 rounded-xl border border-black/10 bg-white text-sm focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20">
             </div>
-            <button class="w-full bg-brand-500 hover:bg-brand-400 text-ink-900 font-display font-bold py-3.5 rounded-2xl text-xs uppercase tracking-wider transition"><?= htmlspecialchars(t('auth.register_btn')) ?></button>
+            <button class="w-full bg-accent-500 hover:bg-accent-400 text-white font-display font-bold py-3.5 rounded-2xl text-xs uppercase tracking-wider transition"><?= htmlspecialchars(t('auth.register_btn')) ?></button>
         </form>
 
         <p class="text-center text-xs text-gray-400 mt-6">

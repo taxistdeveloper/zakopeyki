@@ -148,10 +148,10 @@ class ProductHelper
     public static function badge(string $type): array
     {
         $classes = [
-            'used' => 'bg-amber-400 text-gray-900',
-            'new' => 'bg-sky-500 text-white',
+            'used' => 'bg-orange-500 text-white',
+            'new' => 'bg-blue-600 text-white',
             'auction' => 'bg-red-500 text-white',
-            'free' => 'bg-purple-500 text-white',
+            'free' => 'bg-sky-500 text-white',
             'exchange' => 'bg-indigo-500 text-white',
             'service' => 'bg-emerald-500 text-white',
             'course' => 'bg-blue-500 text-white',
@@ -165,7 +165,7 @@ class ProductHelper
 
         return [
             'text' => $text,
-            'class' => $classes[$type] ?? 'bg-yellow-400 text-gray-900',
+            'class' => $classes[$type] ?? 'bg-amber-500 text-white',
         ];
     }
 

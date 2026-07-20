@@ -24,21 +24,33 @@ function url(string $path = ''): string
                 extend: {
                     colors: {
                         brand: {
-                            50: '#fff9eb',
-                            100: '#ffefc6',
-                            200: '#ffdb88',
-                            400: '#fbbf24',
-                            500: '#f5a524',
-                            600: '#e08808',
-                            700: '#b96807',
-                            900: '#6b3d0c',
+                            50: '#EFF6FF',
+                            100: '#DBEAFE',
+                            200: '#BFDBFE',
+                            300: '#93C5FD',
+                            400: '#3B82F6',
+                            500: '#2563EB',
+                            600: '#1D4ED8',
+                            700: '#1E3A8A',
+                            900: '#172554',
+                        },
+                        accent: {
+                            50: '#FFF7ED',
+                            100: '#FFEDD5',
+                            400: '#FB923C',
+                            500: '#F97316',
+                            600: '#EA580C',
+                            700: '#C2410C',
+                        },
+                        gold: {
+                            500: '#F59E0B',
                         },
                         ink: {
-                            50: '#f6f5f3',
-                            100: '#ebe8e2',
-                            700: '#3d3a35',
-                            800: '#2a2824',
-                            900: '#1a1916',
+                            50: '#F8FAFC',
+                            100: '#F1F5F9',
+                            700: '#334155',
+                            800: '#1E293B',
+                            900: '#0F172A',
                         }
                     },
                     fontFamily: {
@@ -46,8 +58,8 @@ function url(string $path = ''): string
                         display: ['Sora', 'system-ui', 'sans-serif'],
                     },
                     boxShadow: {
-                        soft: '0 1px 2px rgba(26,25,22,0.04), 0 8px 24px rgba(26,25,22,0.06)',
-                        lift: '0 12px 40px rgba(26,25,22,0.12)',
+                        soft: '0 1px 2px rgba(37,99,235,0.06), 0 8px 24px rgba(147,197,253,0.35)',
+                        lift: '0 12px 40px rgba(30,58,138,0.14)',
                     }
                 }
             }
@@ -78,7 +90,7 @@ function url(string $path = ''): string
             letter-spacing: -0.03em;
             text-decoration: none;
         }
-        .story-brand span { color: #f5a524; }
+        .story-brand span { color: #F97316; }
         .story-stage {
             display: flex;
             align-items: center;
@@ -171,7 +183,7 @@ function url(string $path = ''): string
         .story-text-bg {
             background:
                 radial-gradient(ellipse 100% 70% at 50% 30%, rgba(255,255,255,0.2), transparent 55%),
-                linear-gradient(165deg, var(--story-c1, #f5a524) 0%, var(--story-c2, #ea580c) 45%, #1a0a00 100%);
+                linear-gradient(165deg, var(--story-c1, #2563EB) 0%, var(--story-c2, #F97316) 45%, #0F172A 100%);
         }
         .story-vignette {
             background: linear-gradient(180deg, rgba(0,0,0,.4) 0%, transparent 18%, transparent 65%, rgba(0,0,0,.5) 100%);
@@ -290,39 +302,39 @@ function url(string $path = ''): string
 
         .app-shell {
             background:
-                radial-gradient(1200px 600px at 10% -10%, rgba(245, 165, 36, 0.18), transparent 55%),
-                radial-gradient(900px 500px at 100% 0%, rgba(245, 165, 36, 0.08), transparent 50%),
-                linear-gradient(180deg, #f7f5f1 0%, #f0ece6 100%);
+                radial-gradient(1200px 600px at 10% -10%, rgba(37, 99, 235, 0.12), transparent 55%),
+                radial-gradient(900px 500px at 100% 0%, rgba(249, 115, 22, 0.08), transparent 50%),
+                linear-gradient(180deg, #F8FAFC 0%, #EFF6FF 100%);
         }
         .dark .app-shell {
             background:
-                radial-gradient(1000px 500px at 0% 0%, rgba(245, 165, 36, 0.12), transparent 50%),
-                linear-gradient(180deg, #151412 0%, #1c1a17 100%);
+                radial-gradient(1000px 500px at 0% 0%, rgba(37, 99, 235, 0.16), transparent 50%),
+                linear-gradient(180deg, #0F172A 0%, #1E293B 100%);
         }
         .glass {
-            background: rgba(255,255,255,0.78);
+            background: rgba(255,255,255,0.82);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
         }
         .dark .glass {
-            background: rgba(32, 30, 27, 0.82);
+            background: rgba(30, 41, 59, 0.88);
         }
         .nav-pill-active {
-            background: linear-gradient(135deg, #fff9eb, #ffefc6);
-            color: #b96807;
-            box-shadow: inset 0 0 0 1px rgba(245, 165, 36, 0.35);
+            background: linear-gradient(135deg, #EFF6FF, #DBEAFE);
+            color: #1E3A8A;
+            box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.28);
         }
         .dark .nav-pill-active {
-            background: linear-gradient(135deg, rgba(245,165,36,0.2), rgba(245,165,36,0.08));
-            color: #fbbf24;
-            box-shadow: inset 0 0 0 1px rgba(245, 165, 36, 0.25);
+            background: linear-gradient(135deg, rgba(37,99,235,0.28), rgba(37,99,235,0.1));
+            color: #93C5FD;
+            box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.3);
         }
         .ui-input {
             transition: border-color .2s, box-shadow .2s, background .2s;
         }
         .ui-input:focus {
-            border-color: #f5a524;
-            box-shadow: 0 0 0 3px rgba(245, 165, 36, 0.2);
+            border-color: #2563EB;
+            box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.55);
             outline: none;
         }
         .fade-up {
@@ -335,7 +347,7 @@ function url(string $path = ''): string
             to { opacity: 1; transform: none; }
         }
         .ai-msg-user {
-            background: linear-gradient(135deg, #1a1916, #2a2824);
+            background: linear-gradient(135deg, #1E3A8A, #2563EB);
             color: #fff;
             border-radius: 16px 16px 4px 16px;
         }
@@ -385,7 +397,7 @@ function url(string $path = ''): string
             <form id="ai-chat-form" class="p-3 border-t border-ink-900/10 dark:border-white/10 flex gap-2 shrink-0">
                 <input id="ai-chat-input" type="text" maxlength="500" placeholder="<?= htmlspecialchars(t('ai.placeholder')) ?>" autocomplete="off"
                     class="ui-input flex-1 min-w-0 rounded-xl border border-ink-900/10 dark:border-white/10 bg-white/80 dark:bg-ink-900/40 px-3 py-2.5 text-sm text-ink-900 dark:text-gray-100 placeholder:text-ink-700/40">
-                <button type="submit" class="shrink-0 rounded-xl bg-brand-500 hover:bg-brand-600 text-ink-900 font-display font-semibold text-sm px-3.5 py-2.5 transition cursor-pointer">
+                <button type="submit" class="shrink-0 rounded-xl bg-accent-500 hover:bg-accent-600 text-white font-display font-semibold text-sm px-3.5 py-2.5 transition cursor-pointer">
                     <?= htmlspecialchars(t('ai.send')) ?>
                 </button>
             </form>

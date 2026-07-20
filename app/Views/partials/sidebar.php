@@ -111,8 +111,8 @@ function navClass(string $key, string $nav): string
             <a href="<?= ProductHelper::url('/logout') ?>" class="block text-center text-[11px] font-semibold text-white/60 hover:text-white transition py-2 rounded-xl hover:bg-white/10"><?= htmlspecialchars(t('nav.logout')) ?></a>
         <?php else: ?>
             <div class="space-y-2 p-1">
-                <a href="<?= ProductHelper::url('/login') ?>" class="block w-full text-center bg-brand-500 hover:bg-brand-400 text-ink-900 font-display font-bold py-2.5 rounded-xl text-xs uppercase tracking-wide transition"><?= htmlspecialchars(t('nav.login')) ?></a>
-                <a href="<?= ProductHelper::url('/register') ?>" class="block w-full text-center text-[11px] font-semibold text-white/60 hover:text-brand-400"><?= htmlspecialchars(t('nav.register')) ?></a>
+                <a href="<?= ProductHelper::url('/login') ?>" class="block w-full text-center bg-accent-500 hover:bg-accent-400 text-white font-display font-bold py-2.5 rounded-xl text-xs uppercase tracking-wide transition"><?= htmlspecialchars(t('nav.login')) ?></a>
+                <a href="<?= ProductHelper::url('/register') ?>" class="block w-full text-center text-[11px] font-semibold text-white/60 hover:text-accent-400"><?= htmlspecialchars(t('nav.register')) ?></a>
             </div>
         <?php endif; ?>
     </div>

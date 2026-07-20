@@ -13,7 +13,7 @@ $canFavorite = Auth::check();
 $ctaBase = 'block w-full text-center font-display font-bold text-[10px] py-2.5 rounded-xl transition uppercase tracking-wider';
 ?>
 <article class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 overflow-hidden shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition duration-300 flex flex-col justify-between h-[360px] cursor-pointer group backdrop-blur-sm relative">
-    <a href="<?= $showUrl ?>" class="h-32 bg-gradient-to-br from-ink-100 via-brand-50 to-orange-50 dark:from-white/10 dark:via-brand-900/20 dark:to-transparent relative flex items-center justify-center text-4xl overflow-hidden">
+    <a href="<?= $showUrl ?>" class="h-32 bg-gradient-to-br from-ink-100 via-brand-50 to-accent-50 dark:from-white/10 dark:via-brand-900/20 dark:to-transparent relative flex items-center justify-center text-4xl overflow-hidden">
         <?php if ($imageUrl): ?>
             <img src="<?= htmlspecialchars($imageUrl) ?>" alt="" class="absolute inset-0 w-full h-full object-cover transition duration-300 group-hover:scale-105">
         <?php else: ?>
@@ -70,11 +70,11 @@ $ctaBase = 'block w-full text-center font-display font-bold text-[10px] py-2.5 r
                     <a href="<?= $showUrl ?>" class="<?= $ctaBase ?> bg-blue-600 hover:bg-blue-700 text-white"><?= htmlspecialchars(t('card.order')) ?></a>
                 <?php elseif ($type === 'used'): ?>
                     <div class="grid grid-cols-2 gap-1.5">
-                        <a href="<?= $showUrl ?>" class="<?= $ctaBase ?> bg-brand-500 hover:bg-brand-400 text-ink-900"><?= htmlspecialchars(t('card.buy')) ?></a>
+                        <a href="<?= $showUrl ?>" class="<?= $ctaBase ?> bg-accent-500 hover:bg-accent-400 text-white"><?= htmlspecialchars(t('card.buy')) ?></a>
                         <a href="https://wa.me/77000000000?text=<?= urlencode(t('card.wa_bargain', ['title' => $item['title']])) ?>" target="_blank" class="<?= $ctaBase ?> bg-ink-800 hover:bg-ink-900 text-white"><?= htmlspecialchars(t('card.bargain')) ?></a>
                     </div>
                 <?php elseif ($type === 'new'): ?>
-                    <a href="<?= $showUrl ?>" class="<?= $ctaBase ?> bg-brand-500 hover:bg-brand-400 text-ink-900"><?= htmlspecialchars(t('card.buy')) ?></a>
+                    <a href="<?= $showUrl ?>" class="<?= $ctaBase ?> bg-accent-500 hover:bg-accent-400 text-white"><?= htmlspecialchars(t('card.buy')) ?></a>
                 <?php elseif ($type === 'service'): ?>
                     <a href="<?= $showUrl ?>" class="<?= $ctaBase ?> bg-emerald-600 hover:bg-emerald-700 text-white"><?= htmlspecialchars(t('card.order')) ?></a>
                 <?php elseif ($type === 'free'): ?>

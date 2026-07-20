@@ -28,7 +28,7 @@ $streams = $streams ?? [];
                             <?= htmlspecialchars(AvatarHelper::initial($me)) ?>
                         <?php endif; ?>
                     </div>
-                    <span class="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-brand-500 text-ink-900 text-xs font-bold flex items-center justify-center border-2 border-[#f7f5f1] dark:border-ink-900">+</span>
+                    <span class="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-accent-500 text-white text-xs font-bold flex items-center justify-center border-2 border-ink-50 dark:border-ink-900">+</span>
                 </div>
                 <span class="text-[10px] text-ink-700/70 dark:text-gray-300 truncate w-14 text-center font-semibold"><?= htmlspecialchars(t('home.your_story')) ?></span>
             </button>
@@ -49,7 +49,7 @@ $streams = $streams ?? [];
             <button type="button"
                 onclick='openStoryViewer(<?= (int) $gi ?>)'
                 class="flex flex-col items-center flex-shrink-0 space-y-1.5">
-                <div class="w-[58px] h-[58px] rounded-full p-[2.5px] bg-gradient-to-tr from-brand-400 via-orange-400 to-brand-600 shadow-soft">
+                <div class="w-[58px] h-[58px] rounded-full p-[2.5px] bg-gradient-to-tr from-brand-500 via-accent-500 to-gold-500 shadow-soft">
                     <div class="w-full h-full rounded-full bg-white dark:bg-ink-800 p-[2px]">
                         <div class="w-full h-full rounded-full bg-ink-50 dark:bg-white/10 flex items-center justify-center text-sm font-bold overflow-hidden">
                             <?php if ($avatarUrl): ?>
@@ -72,12 +72,12 @@ $streams = $streams ?? [];
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 sm:gap-3">
         <?php
         $cats = [
-            ['url' => '/catalog/used', 'icon' => 'cat-used.png', 'label' => t('home.cat_used'), 'tone' => 'from-amber-50 to-orange-50'],
-            ['url' => '/auctions', 'icon' => 'cat-auctions.png', 'label' => t('home.cat_auctions'), 'tone' => 'from-red-50 to-orange-50'],
-            ['url' => '/catalog/free', 'icon' => 'cat-free.png', 'label' => t('home.cat_free'), 'tone' => 'from-violet-50 to-fuchsia-50'],
-            ['url' => '/catalog/exchange', 'icon' => 'cat-exchange.png', 'label' => t('home.cat_exchange'), 'tone' => 'from-sky-50 to-indigo-50'],
-            ['url' => '/catalog/services', 'icon' => 'cat-services.png', 'label' => t('home.cat_services'), 'tone' => 'from-emerald-50 to-teal-50'],
-            ['url' => '/catalog/new', 'icon' => 'cat-new.png', 'label' => t('home.cat_new'), 'tone' => 'from-brand-50 to-yellow-50'],
+            ['url' => '/catalog/used', 'icon' => 'cat-used.png', 'label' => t('home.cat_used'), 'tone' => 'from-orange-50 to-amber-50'],
+            ['url' => '/auctions', 'icon' => 'cat-auctions.png', 'label' => t('home.cat_auctions'), 'tone' => 'from-accent-50 to-orange-50'],
+            ['url' => '/catalog/free', 'icon' => 'cat-free.png', 'label' => t('home.cat_free'), 'tone' => 'from-sky-50 to-blue-50'],
+            ['url' => '/catalog/exchange', 'icon' => 'cat-exchange.png', 'label' => t('home.cat_exchange'), 'tone' => 'from-brand-50 to-sky-50'],
+            ['url' => '/catalog/services', 'icon' => 'cat-services.png', 'label' => t('home.cat_services'), 'tone' => 'from-slate-50 to-brand-50'],
+            ['url' => '/catalog/new', 'icon' => 'cat-new.png', 'label' => t('home.cat_new'), 'tone' => 'from-blue-50 to-indigo-50'],
         ];
         foreach ($cats as $c): ?>
             <a href="<?= ProductHelper::url($c['url']) ?>" class="group bg-gradient-to-br <?= $c['tone'] ?> dark:from-white/[0.06] dark:to-white/[0.02] p-3.5 sm:p-4 rounded-2xl border border-black/[0.05] dark:border-white/10 text-center hover:border-brand-400/50 hover:shadow-soft hover:-translate-y-0.5 transition duration-300 block">
@@ -165,7 +165,7 @@ $streams = $streams ?? [];
             </div>
             <div>
                 <label class="block text-[13px] font-semibold mb-1.5"><?= htmlspecialchars(t('home.story_photo')) ?></label>
-                <input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif" class="w-full text-xs file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-brand-500 file:text-ink-900 file:font-bold file:text-xs">
+                <input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif" class="w-full text-xs file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-accent-500 file:text-white file:font-bold file:text-xs">
             </div>
             <div class="grid grid-cols-2 gap-3">
                 <div>
@@ -174,11 +174,11 @@ $streams = $streams ?? [];
                 </div>
                 <div>
                     <label class="block text-[13px] font-semibold mb-1.5"><?= htmlspecialchars(t('home.story_color')) ?></label>
-                    <input type="color" name="bg_color" value="#f5a524" class="w-full h-11 rounded-xl border border-black/10 dark:border-white/10 cursor-pointer bg-transparent">
+                    <input type="color" name="bg_color" value="#2563EB" class="w-full h-11 rounded-xl border border-black/10 dark:border-white/10 cursor-pointer bg-transparent">
                 </div>
             </div>
             <p class="text-[10px] text-gray-400"><?= htmlspecialchars(t('home.story_ttl')) ?></p>
-            <button type="submit" class="w-full bg-brand-500 hover:bg-brand-400 text-ink-900 font-display font-bold py-3.5 rounded-2xl text-xs uppercase tracking-wider transition"><?= htmlspecialchars(t('home.publish')) ?></button>
+            <button type="submit" class="w-full bg-accent-500 hover:bg-accent-400 text-white font-display font-bold py-3.5 rounded-2xl text-xs uppercase tracking-wider transition"><?= htmlspecialchars(t('home.publish')) ?></button>
         </form>
     </div>
 </div>

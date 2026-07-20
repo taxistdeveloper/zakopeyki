@@ -128,7 +128,7 @@ function peekStoryHtml(group) {
     if (s.image) {
         bg = 'background-image:url(\'' + (window.__storyUploadBase || '') + s.image + '\')';
     } else {
-        const c1 = s.bg_color || '#f5a524';
+        const c1 = s.bg_color || '#2563EB';
         bg = 'background:linear-gradient(160deg,' + c1 + ',#111)';
         emoji = '<span class="story-peek-emoji">' + (s.emoji || '✨') + '</span>';
     }
@@ -207,7 +207,7 @@ function renderStory() {
     } else {
         img.classList.add('hidden');
         img.removeAttribute('src');
-        const c1 = story.bg_color || '#f5a524';
+        const c1 = story.bg_color || '#2563EB';
         const c2 = shadeHex(c1, -38);
         bg.classList.add('story-text-bg');
         bg.style.background = '';

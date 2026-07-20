@@ -46,7 +46,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                 </div>
             </div>
             <div class="flex flex-wrap items-center gap-2 mt-3">
-                <button type="submit" class="bg-brand-500 hover:bg-brand-400 text-ink-900 font-display font-bold text-xs uppercase tracking-wider px-5 py-2.5 rounded-xl transition shadow-soft">
+                <button type="submit" class="bg-accent-500 hover:bg-accent-400 text-white font-display font-bold text-xs uppercase tracking-wider px-5 py-2.5 rounded-xl transition shadow-soft">
                     <?= htmlspecialchars(t('catalog.apply')) ?>
                 </button>
                 <?php if ($selectedParent !== '' || $selectedChild !== ''): ?>
