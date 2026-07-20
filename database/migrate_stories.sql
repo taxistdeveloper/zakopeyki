@@ -1,0 +1,14 @@
+USE zakapeiku;
+
+CREATE TABLE IF NOT EXISTS stories (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    caption VARCHAR(280) DEFAULT NULL,
+    image VARCHAR(255) DEFAULT NULL,
+    bg_color VARCHAR(20) NOT NULL DEFAULT '#f59e0b',
+    emoji VARCHAR(16) DEFAULT '✨',
+    expires_at DATETIME NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_expires (expires_at)
+) ENGINE=InnoDB;
