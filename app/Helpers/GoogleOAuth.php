@@ -31,7 +31,7 @@ class GoogleOAuth
         $scheme = $https ? 'https' : 'http';
         $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
 
-        return $scheme . '://' . $host . ProductHelper::url('/auth/google/callback');
+        return $scheme . '://' . $host . ProductHelper::url('/login');
     }
 
     public function authorizationUrl(string $state): string

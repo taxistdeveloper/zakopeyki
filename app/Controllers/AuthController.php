@@ -11,6 +11,12 @@ class AuthController extends Controller
 {
     public function loginForm(): void
     {
+        // Google OAuth callback приходит на /login (redirect_uri в Console)
+        if (isset($_GET['code']) || isset($_GET['error'])) {
+            $this->googleCallback();
+            return;
+        }
+
         if (Auth::check()) {
             $this->redirect('/');
         }
