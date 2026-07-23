@@ -414,6 +414,7 @@ function url(string $path = ''): string
         window.__loginUrl = <?= json_encode(url('/login')) ?>;
         window.__favoritesToggleBase = <?= json_encode(rtrim(url('/favorites'), '/') . '/') ?>;
         window.__aiChatUrl = <?= json_encode(url('/ai/chat')) ?>;
+        window.__lang = <?= json_encode(\App\Core\Lang::current()) ?>;
         window.__i18n = <?= json_encode(\App\Core\Lang::forJs([
             'ai.welcome', 'ai.suggest_free', 'ai.suggest_exchange', 'ai.suggest_services', 'ai.suggest_sell',
             'ai.suggest_auctions', 'ai.msg_free', 'ai.msg_exchange', 'ai.msg_services', 'ai.msg_sell',
@@ -421,6 +422,7 @@ function url(string $path = ''): string
             'js.live_host', 'js.login_to_stream', 'js.stream_fail', 'js.stream_desc',
             'js.you', 'js.stream_error', 'card.favorite', 'card.unfavorite',
             'home.story_link_copied',
+            'header.city', 'header.city_choose', 'header.city_detect', 'header.city_detecting', 'header.city_denied',
         ]), JSON_UNESCAPED_UNICODE) ?>;
     </script>
     <script src="<?= url('public/assets/js/app.js') ?>"></script>

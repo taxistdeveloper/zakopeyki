@@ -28,6 +28,10 @@ return [
     ],
     'header' => [
         'city' => 'Қарағанды',
+        'city_choose' => 'Қаланы таңдау',
+        'city_detect' => 'Қаламды анықтау',
+        'city_detecting' => 'Анықталуда…',
+        'city_denied' => 'Геолокацияға рұқсат жоқ',
         'search_placeholder' => 'Хабарландыру, қызмет, курс іздеу...',
         'add_listing' => 'Хабарландыру',
         'add_listing_title' => 'Хабарландыру қосу',

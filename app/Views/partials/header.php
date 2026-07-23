@@ -22,8 +22,19 @@ $langSwitchUrl = static function (string $code) use ($lang): string {
         <button onclick="toggleSidebar()" class="p-2.5 rounded-xl bg-white/70 dark:bg-white/5 border border-black/[0.06] dark:border-white/10 hover:border-brand-400/50 text-ink-700 dark:text-gray-200 transition flex-shrink-0 shadow-sm">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
-        <div class="hidden md:flex items-center gap-1.5 text-[11px] font-semibold text-ink-700/60 dark:text-gray-400 whitespace-nowrap bg-white/70 dark:bg-white/5 border border-black/[0.05] dark:border-white/10 px-3 py-2 rounded-xl flex-shrink-0">
-            <?= IconHelper::svg('map-pin', 'w-3.5 h-3.5 text-brand-500') ?> <?= htmlspecialchars(t('header.city')) ?>
+        <div class="relative flex-shrink-0" id="city-picker">
+            <button type="button" id="city-picker-btn" onclick="toggleCityPicker()" class="hidden sm:inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full bg-white dark:bg-white/5 border border-black/[0.08] dark:border-white/10 text-[13px] font-medium text-ink-700/70 dark:text-gray-300 whitespace-nowrap shadow-sm hover:border-brand-400/40 transition" title="<?= htmlspecialchars(t('header.city_choose')) ?>" aria-haspopup="listbox" aria-expanded="false">
+                <?= IconHelper::svg('map-pin', 'w-3.5 h-3.5 text-brand-500') ?>
+                <span id="city-picker-label"><?= htmlspecialchars(t('header.city')) ?></span>
+            </button>
+            <div id="city-picker-dropdown" class="hidden absolute left-0 mt-2 w-56 max-h-72 overflow-y-auto glass border border-black/[0.08] dark:border-white/10 rounded-2xl shadow-lift py-1.5 z-30" role="listbox">
+                <button type="button" onclick="detectUserCity(true)" class="w-full text-left px-3.5 py-2 text-xs font-semibold text-brand-600 hover:bg-brand-50/80 dark:hover:bg-white/5 transition flex items-center gap-2">
+                    <?= IconHelper::svg('map-pin', 'w-3.5 h-3.5') ?>
+                    <?= htmlspecialchars(t('header.city_detect')) ?>
+                </button>
+                <div class="my-1 border-t border-black/[0.06] dark:border-white/10"></div>
+                <div id="city-picker-list" class="py-0.5"></div>
+            </div>
         </div>
         <form method="get" action="<?= ProductHelper::url('/') ?>" class="relative w-full">
             <input type="text" name="q" value="<?= htmlspecialchars($search ?? '') ?>" class="ui-input w-full border border-black/[0.08] dark:border-white/10 bg-white/80 dark:bg-white/5 h-11 pl-4 pr-11 rounded-2xl text-sm placeholder:text-gray-400 shadow-sm" placeholder="<?= htmlspecialchars(t('header.search_placeholder')) ?>">

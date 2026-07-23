@@ -40,11 +40,162 @@ function toggleNotifications() {
     }
 })();
 
+/* ===== City picker (Kazakhstan) ===== */
+const KZ_CITIES = [
+    { id: 'almaty', lat: 43.238, lon: 76.945, ru: 'Алматы', kk: 'Алматы' },
+    { id: 'astana', lat: 51.169, lon: 71.449, ru: 'Астана', kk: 'Астана' },
+    { id: 'shymkent', lat: 42.342, lon: 69.590, ru: 'Шымкент', kk: 'Шымкент' },
+    { id: 'karaganda', lat: 49.805, lon: 73.109, ru: 'Караганда', kk: 'Қарағанды' },
+    { id: 'aktobe', lat: 50.284, lon: 57.167, ru: 'Актобе', kk: 'Ақтөбе' },
+    { id: 'taraz', lat: 42.900, lon: 71.366, ru: 'Тараз', kk: 'Тараз' },
+    { id: 'pavlodar', lat: 52.287, lon: 76.967, ru: 'Павлодар', kk: 'Павлодар' },
+    { id: 'ust-kamenogorsk', lat: 49.948, lon: 82.628, ru: 'Усть-Каменогорск', kk: 'Өскемен' },
+    { id: 'semey', lat: 50.411, lon: 80.227, ru: 'Семей', kk: 'Семей' },
+    { id: 'atyrau', lat: 47.116, lon: 51.920, ru: 'Атырау', kk: 'Атырау' },
+    { id: 'kostanay', lat: 53.220, lon: 63.635, ru: 'Костанай', kk: 'Қостанай' },
+    { id: 'kyzylorda', lat: 44.849, lon: 65.482, ru: 'Кызылорда', kk: 'Қызылорда' },
+    { id: 'uralsk', lat: 51.230, lon: 51.367, ru: 'Уральск', kk: 'Орал' },
+    { id: 'petropavl', lat: 54.875, lon: 69.163, ru: 'Петропавловск', kk: 'Петропавл' },
+    { id: 'aktau', lat: 43.651, lon: 51.197, ru: 'Актау', kk: 'Ақтау' },
+    { id: 'turkestan', lat: 43.297, lon: 68.252, ru: 'Туркестан', kk: 'Түркістан' },
+    { id: 'kokshetau', lat: 53.283, lon: 69.383, ru: 'Кокшетау', kk: 'Көкшетау' },
+    { id: 'temirtau', lat: 50.055, lon: 72.965, ru: 'Темиртау', kk: 'Теміртау' },
+    { id: 'ekibastuz', lat: 51.730, lon: 75.323, ru: 'Экибастуз', kk: 'Екібастұз' },
+    { id: 'zhezkazgan', lat: 47.783, lon: 67.767, ru: 'Жезказган', kk: 'Жезқазған' },
+    { id: 'balkhash', lat: 46.848, lon: 74.995, ru: 'Балхаш', kk: 'Балқаш' },
+    { id: 'taldykorgan', lat: 45.016, lon: 78.374, ru: 'Талдыкорган', kk: 'Талдықорған' },
+];
+
+const CITY_STORAGE_KEY = 'zakopeyki_city';
+
+function cityLabel(city) {
+    if (!city) return (window.__i18n && window.__i18n['header.city']) || 'Караганда';
+    return (window.__lang === 'kk' ? city.kk : city.ru) || city.ru;
+}
+
+function findCityById(id) {
+    return KZ_CITIES.find(function (c) { return c.id === id; }) || null;
+}
+
+function nearestKzCity(lat, lon) {
+    let best = KZ_CITIES[0];
+    let bestDist = Infinity;
+    for (let i = 0; i < KZ_CITIES.length; i++) {
+        const c = KZ_CITIES[i];
+        const dLat = (c.lat - lat) * Math.PI / 180;
+        const dLon = (c.lon - lon) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) ** 2
+            + Math.cos(lat * Math.PI / 180) * Math.cos(c.lat * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+        const dist = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        if (dist < bestDist) {
+            bestDist = dist;
+            best = c;
+        }
+    }
+    return best;
+}
+
+function setSelectedCity(city, persist) {
+    if (!city) return;
+    const label = document.getElementById('city-picker-label');
+    if (label) label.textContent = cityLabel(city);
+    if (persist !== false) {
+        try { localStorage.setItem(CITY_STORAGE_KEY, city.id); } catch (e) { /* ignore */ }
+    }
+    window.__selectedCity = city;
+    document.querySelectorAll('#city-picker-list [data-city-id]').forEach(function (btn) {
+        const active = btn.getAttribute('data-city-id') === city.id;
+        btn.classList.toggle('bg-brand-50', active);
+        btn.classList.toggle('dark:bg-brand-500/15', active);
+        btn.classList.toggle('font-semibold', active);
+        btn.classList.toggle('text-brand-700', active);
+        btn.classList.toggle('dark:text-brand-300', active);
+    });
+}
+
+function toggleCityPicker(force) {
+    const dropdown = document.getElementById('city-picker-dropdown');
+    const btn = document.getElementById('city-picker-btn');
+    if (!dropdown) return;
+    const willOpen = force === true ? true : force === false ? false : dropdown.classList.contains('hidden');
+    dropdown.classList.toggle('hidden', !willOpen);
+    btn?.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+}
+
+function selectCity(id) {
+    const city = findCityById(id);
+    if (!city) return;
+    setSelectedCity(city, true);
+    toggleCityPicker(false);
+}
+
+function detectUserCity(manual) {
+    const label = document.getElementById('city-picker-label');
+    const i18n = window.__i18n || {};
+    if (!navigator.geolocation) {
+        if (manual && label) label.textContent = i18n['header.city_denied'] || 'Нет доступа к геолокации';
+        return;
+    }
+    if (label) label.textContent = i18n['header.city_detecting'] || 'Определение…';
+    toggleCityPicker(false);
+    navigator.geolocation.getCurrentPosition(
+        function (pos) {
+            const city = nearestKzCity(pos.coords.latitude, pos.coords.longitude);
+            setSelectedCity(city, true);
+        },
+        function () {
+            if (label) {
+                const fallback = findCityById(localStorage.getItem(CITY_STORAGE_KEY)) || findCityById('karaganda');
+                setSelectedCity(fallback || KZ_CITIES[3], false);
+                if (manual) {
+                    label.textContent = i18n['header.city_denied'] || 'Нет доступа к геолокации';
+                    setTimeout(function () { setSelectedCity(fallback || KZ_CITIES[3], false); }, 1800);
+                }
+            }
+        },
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 }
+    );
+}
+
+function initCityPicker() {
+    const list = document.getElementById('city-picker-list');
+    if (!list) return;
+
+    const sorted = KZ_CITIES.slice().sort(function (a, b) {
+        return cityLabel(a).localeCompare(cityLabel(b), window.__lang === 'kk' ? 'kk' : 'ru');
+    });
+    list.innerHTML = '';
+    sorted.forEach(function (city) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.setAttribute('role', 'option');
+        btn.setAttribute('data-city-id', city.id);
+        btn.className = 'w-full text-left px-3.5 py-2 text-xs text-ink-800 dark:text-gray-200 hover:bg-black/[0.04] dark:hover:bg-white/5 transition';
+        btn.textContent = cityLabel(city);
+        btn.addEventListener('click', function () { selectCity(city.id); });
+        list.appendChild(btn);
+    });
+
+    let saved = null;
+    try { saved = localStorage.getItem(CITY_STORAGE_KEY); } catch (e) { /* ignore */ }
+    const city = findCityById(saved) || findCityById('karaganda');
+    setSelectedCity(city, false);
+
+    if (!saved) {
+        detectUserCity(false);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', initCityPicker);
+
 document.addEventListener('click', function (e) {
     const dropdown = document.getElementById('notification-dropdown');
-    if (!dropdown || dropdown.classList.contains('hidden')) return;
-    if (!e.target.closest('.relative')) {
+    if (dropdown && !dropdown.classList.contains('hidden') && !e.target.closest('.relative')) {
         dropdown.classList.add('hidden');
+    }
+    const cityDrop = document.getElementById('city-picker-dropdown');
+    if (cityDrop && !cityDrop.classList.contains('hidden') && !e.target.closest('#city-picker')) {
+        toggleCityPicker(false);
     }
 });
 

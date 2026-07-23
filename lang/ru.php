@@ -28,6 +28,10 @@ return [
     ],
     'header' => [
         'city' => 'Караганда',
+        'city_choose' => 'Выбрать город',
+        'city_detect' => 'Определить мой город',
+        'city_detecting' => 'Определение…',
+        'city_denied' => 'Нет доступа к геолокации',
         'search_placeholder' => 'Поиск объявлений, услуг, курсов...',
         'add_listing' => 'Объявление',
         'add_listing_title' => 'Добавить объявление',
