@@ -6,6 +6,7 @@ use App\Controllers\AuctionController;
 use App\Controllers\AuthController;
 use App\Controllers\CheckoutController;
 use App\Controllers\CatalogController;
+use App\Controllers\ChatController;
 use App\Controllers\FavoriteController;
 use App\Controllers\HomeController;
 use App\Controllers\OrderController;
@@ -39,6 +40,12 @@ $router->post('/orders/{id}/reject-dispute', [OrderController::class, 'rejectDis
 $router->get('/wallet', [WalletController::class, 'index']);
 $router->post('/wallet/deposit', [WalletController::class, 'deposit']);
 $router->post('/wallet/withdraw', [WalletController::class, 'withdraw']);
+$router->get('/chat', [ChatController::class, 'index']);
+$router->get('/chat/start', [ChatController::class, 'start']);
+$router->post('/chat/start', [ChatController::class, 'start']);
+$router->get('/chat/{id}', [ChatController::class, 'show']);
+$router->post('/chat/{id}/send', [ChatController::class, 'send']);
+$router->get('/chat/{id}/poll', [ChatController::class, 'poll']);
 $router->post('/favorites/{id}/toggle', [FavoriteController::class, 'toggle']);
 $router->post('/ai/chat', [AiAssistantController::class, 'chat']);
 

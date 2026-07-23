@@ -130,28 +130,57 @@ unset($_SESSION['flash']);
             <?php endif; ?>
 
             <?php if ($purchasable): ?>
-                <div class="pt-1">
+                <div class="pt-1 space-y-2">
                     <?php if (Auth::check()): ?>
                         <a href="<?= $checkoutUrl ?>" class="block w-full text-center bg-accent-500 hover:bg-accent-400 text-white font-display font-bold py-3.5 rounded-2xl text-sm uppercase tracking-wider transition shadow-soft">
                             <?= htmlspecialchars(t('card.buy')) ?>
                         </a>
+                        <?php if ((int) ($item['user_id'] ?? 0) !== (int) Auth::id()): ?>
+                            <form method="post" action="<?= ProductHelper::url('/chat/start') ?>">
+                                <input type="hidden" name="product_id" value="<?= (int) $item['id'] ?>">
+                                <button type="submit" class="w-full text-center bg-ink-900 hover:bg-ink-800 text-white font-display font-bold py-3 rounded-2xl text-xs uppercase tracking-wider transition">
+                                    <?= htmlspecialchars(t('chat.write_seller')) ?>
+                                </button>
+                            </form>
+                        <?php endif; ?>
                     <?php else: ?>
                         <a href="<?= ProductHelper::url('/login') ?>" class="block w-full text-center bg-accent-500 hover:bg-accent-400 text-white font-display font-bold py-3.5 rounded-2xl text-sm uppercase tracking-wider transition shadow-soft">
                             <?= htmlspecialchars(t('product.login_to_buy')) ?>
                         </a>
                     <?php endif; ?>
                 </div>
-            <?php elseif (($item['type'] ?? '') === 'free'): ?>
-                <div class="pt-1">
-                    <p class="text-sm text-center text-gray-500 bg-violet-50/80 dark:bg-violet-950/20 border border-violet-100 dark:border-violet-900/40 rounded-2xl px-4 py-3">
-                        <?= htmlspecialchars(t('product.free_contact', ['phone' => $item['seller_phone'] ?: t('product.no_phone')])) ?>
-                    </p>
+            <?php elseif (($item['type'] ?? '') === 'free' || ($item['type'] ?? '') === 'exchange'): ?>
+                <div class="pt-1 space-y-2">
+                    <?php if (($item['type'] ?? '') === 'free'): ?>
+                        <p class="text-sm text-center text-gray-500 bg-violet-50/80 dark:bg-violet-950/20 border border-violet-100 dark:border-violet-900/40 rounded-2xl px-4 py-3">
+                            <?= htmlspecialchars(t('product.free_contact', ['phone' => $item['seller_phone'] ?: t('product.no_phone')])) ?>
+                        </p>
+                    <?php else: ?>
+                        <p class="text-sm text-center text-gray-500 bg-indigo-50/80 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 rounded-2xl px-4 py-3">
+                            <?= htmlspecialchars(t('product.exchange_contact', ['phone' => $item['seller_phone'] ?: t('product.no_phone')])) ?>
+                        </p>
+                    <?php endif; ?>
+                    <?php if (Auth::check() && (int) ($item['user_id'] ?? 0) !== (int) Auth::id()): ?>
+                        <form method="post" action="<?= ProductHelper::url('/chat/start') ?>">
+                            <input type="hidden" name="product_id" value="<?= (int) $item['id'] ?>">
+                            <button type="submit" class="w-full text-center bg-ink-900 hover:bg-ink-800 text-white font-display font-bold py-3 rounded-2xl text-xs uppercase tracking-wider transition">
+                                <?= htmlspecialchars(t('chat.write_seller')) ?>
+                            </button>
+                        </form>
+                    <?php elseif (!Auth::check()): ?>
+                        <a href="<?= ProductHelper::url('/login') ?>" class="block w-full text-center border border-black/[0.08] dark:border-white/10 font-semibold py-3 rounded-2xl text-xs uppercase tracking-wider transition hover:bg-black/[0.03]">
+                            <?= htmlspecialchars(t('chat.login_to_write')) ?>
+                        </a>
+                    <?php endif; ?>
                 </div>
-            <?php elseif (($item['type'] ?? '') === 'exchange'): ?>
+            <?php elseif (Auth::check() && (int) ($item['user_id'] ?? 0) !== (int) Auth::id()): ?>
                 <div class="pt-1">
-                    <p class="text-sm text-center text-gray-500 bg-indigo-50/80 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 rounded-2xl px-4 py-3">
-                        <?= htmlspecialchars(t('product.exchange_contact', ['phone' => $item['seller_phone'] ?: t('product.no_phone')])) ?>
-                    </p>
+                    <form method="post" action="<?= ProductHelper::url('/chat/start') ?>">
+                        <input type="hidden" name="product_id" value="<?= (int) $item['id'] ?>">
+                        <button type="submit" class="w-full text-center bg-ink-900 hover:bg-ink-800 text-white font-display font-bold py-3 rounded-2xl text-xs uppercase tracking-wider transition">
+                            <?= htmlspecialchars(t('chat.write_seller')) ?>
+                        </button>
+                    </form>
                 </div>
             <?php endif; ?>
         </div>

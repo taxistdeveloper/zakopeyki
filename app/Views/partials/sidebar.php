@@ -58,6 +58,20 @@ $navIcon = static fn (string $name): string => IconHelper::svg($name, 'w-[18px] 
             <?= $navIcon('user') ?> <span><?= htmlspecialchars(t('nav.profile')) ?></span>
         </a>
         <?php if ($user): ?>
+        <?php
+            $chatUnreadBadge = 0;
+            try {
+                $chatUnreadBadge = (new \App\Models\Chat())->unreadCount((int) $user['id']);
+            } catch (\Throwable $e) {
+                $chatUnreadBadge = 0;
+            }
+        ?>
+        <a href="<?= ProductHelper::url('/chat') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('chat', $nav) ?>">
+            <span class="flex items-center gap-3 flex-1 min-w-0"><?= $navIcon('message') ?> <span><?= htmlspecialchars(t('nav.chat')) ?></span></span>
+            <?php if ($chatUnreadBadge > 0): ?>
+                <span class="min-w-[1.25rem] h-5 px-1.5 rounded-full bg-accent-500 text-white text-[10px] font-bold flex items-center justify-center"><?= $chatUnreadBadge > 99 ? '99+' : $chatUnreadBadge ?></span>
+            <?php endif; ?>
+        </a>
         <a href="<?= ProductHelper::url('/wallet') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('wallet', $nav) ?>">
             <?= $navIcon('wallet') ?> <span><?= htmlspecialchars(t('nav.wallet')) ?></span>
         </a>

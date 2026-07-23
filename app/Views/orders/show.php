@@ -207,6 +207,15 @@ $btn = 'inline-flex items-center justify-center w-full font-display font-bold py
                 <?= htmlspecialchars(t('escrow.done_refund')) ?>
             </div>
         <?php endif; ?>
+
+        <?php if (!empty($isBuyer) || !empty($isSeller)): ?>
+            <form method="post" action="<?= ProductHelper::url('/chat/start') ?>">
+                <input type="hidden" name="order_id" value="<?= (int) $order['id'] ?>">
+                <button type="submit" class="<?= $btn ?> bg-ink-900 hover:bg-ink-800 text-white">
+                    <?= htmlspecialchars(t('chat.write_party')) ?>
+                </button>
+            </form>
+        <?php endif; ?>
     </div>
 
     <a href="<?= ProductHelper::url('/orders') ?>" class="inline-flex text-sm text-gray-400 hover:text-brand-600 font-medium transition"><?= htmlspecialchars(t('escrow.back_deals')) ?></a>
