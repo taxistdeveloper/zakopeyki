@@ -136,12 +136,12 @@ unset($_SESSION['flash']);
                             <?= htmlspecialchars(t('card.buy')) ?>
                         </a>
                         <?php if ((int) ($item['user_id'] ?? 0) !== (int) Auth::id()): ?>
-                            <form method="post" action="<?= ProductHelper::url('/chat/start') ?>">
-                                <input type="hidden" name="product_id" value="<?= (int) $item['id'] ?>">
-                                <button type="submit" class="w-full text-center bg-ink-900 hover:bg-ink-800 text-white font-display font-bold py-3 rounded-2xl text-xs uppercase tracking-wider transition">
-                                    <?= htmlspecialchars(t('chat.write_seller')) ?>
-                                </button>
-                            </form>
+                            <button type="button"
+                                    data-chat-open
+                                    data-product-id="<?= (int) $item['id'] ?>"
+                                    class="w-full text-center bg-ink-900 hover:bg-ink-800 text-white font-display font-bold py-3 rounded-2xl text-xs uppercase tracking-wider transition">
+                                <?= htmlspecialchars(t('chat.write_seller')) ?>
+                            </button>
                         <?php endif; ?>
                     <?php else: ?>
                         <a href="<?= ProductHelper::url('/login') ?>" class="block w-full text-center bg-accent-500 hover:bg-accent-400 text-white font-display font-bold py-3.5 rounded-2xl text-sm uppercase tracking-wider transition shadow-soft">
@@ -161,12 +161,12 @@ unset($_SESSION['flash']);
                         </p>
                     <?php endif; ?>
                     <?php if (Auth::check() && (int) ($item['user_id'] ?? 0) !== (int) Auth::id()): ?>
-                        <form method="post" action="<?= ProductHelper::url('/chat/start') ?>">
-                            <input type="hidden" name="product_id" value="<?= (int) $item['id'] ?>">
-                            <button type="submit" class="w-full text-center bg-ink-900 hover:bg-ink-800 text-white font-display font-bold py-3 rounded-2xl text-xs uppercase tracking-wider transition">
-                                <?= htmlspecialchars(t('chat.write_seller')) ?>
-                            </button>
-                        </form>
+                        <button type="button"
+                                data-chat-open
+                                data-product-id="<?= (int) $item['id'] ?>"
+                                class="w-full text-center bg-ink-900 hover:bg-ink-800 text-white font-display font-bold py-3 rounded-2xl text-xs uppercase tracking-wider transition">
+                            <?= htmlspecialchars(t('chat.write_seller')) ?>
+                        </button>
                     <?php elseif (!Auth::check()): ?>
                         <a href="<?= ProductHelper::url('/login') ?>" class="block w-full text-center border border-black/[0.08] dark:border-white/10 font-semibold py-3 rounded-2xl text-xs uppercase tracking-wider transition hover:bg-black/[0.03]">
                             <?= htmlspecialchars(t('chat.login_to_write')) ?>
@@ -175,12 +175,12 @@ unset($_SESSION['flash']);
                 </div>
             <?php elseif (Auth::check() && (int) ($item['user_id'] ?? 0) !== (int) Auth::id()): ?>
                 <div class="pt-1">
-                    <form method="post" action="<?= ProductHelper::url('/chat/start') ?>">
-                        <input type="hidden" name="product_id" value="<?= (int) $item['id'] ?>">
-                        <button type="submit" class="w-full text-center bg-ink-900 hover:bg-ink-800 text-white font-display font-bold py-3 rounded-2xl text-xs uppercase tracking-wider transition">
-                            <?= htmlspecialchars(t('chat.write_seller')) ?>
-                        </button>
-                    </form>
+                    <button type="button"
+                            data-chat-open
+                            data-product-id="<?= (int) $item['id'] ?>"
+                            class="w-full text-center bg-ink-900 hover:bg-ink-800 text-white font-display font-bold py-3 rounded-2xl text-xs uppercase tracking-wider transition">
+                        <?= htmlspecialchars(t('chat.write_seller')) ?>
+                    </button>
                 </div>
             <?php endif; ?>
         </div>

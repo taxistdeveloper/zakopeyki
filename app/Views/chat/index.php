@@ -25,7 +25,10 @@ $conversations = $conversations ?? [];
                 ];
                 $unread = (int) ($c['unread_count'] ?? 0);
             ?>
-                <a href="<?= ProductHelper::url('/chat/' . (int) $c['id']) ?>" class="flex gap-3 p-4 hover:bg-brand-50/40 dark:hover:bg-white/[0.03] transition">
+                <a href="<?= ProductHelper::url('/chat/' . (int) $c['id']) ?>"
+                   data-chat-open
+                   data-conversation-id="<?= (int) $c['id'] ?>"
+                   class="flex gap-3 p-4 hover:bg-brand-50/40 dark:hover:bg-white/[0.03] transition">
                     <?= AvatarHelper::html($peer, 'w-12 h-12', 'text-sm', 'rounded-2xl') ?>
                     <div class="min-w-0 flex-1">
                         <div class="flex items-start justify-between gap-2">

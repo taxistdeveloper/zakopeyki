@@ -85,10 +85,14 @@ class ChatController extends Controller
         $productId = (int) ($_POST['product_id'] ?? $_GET['product_id'] ?? 0);
         $orderId = (int) ($_POST['order_id'] ?? $_GET['order_id'] ?? 0);
         $otherId = (int) ($_POST['user_id'] ?? $_GET['user_id'] ?? 0);
+        $wantsJson = $this->wantsJson();
 
         if ($orderId > 0) {
             $order = (new Order())->find($orderId);
             if (!$order || ((int) $order['buyer_id'] !== $uid && (int) $order['seller_id'] !== $uid)) {
+                if ($wantsJson) {
+                    $this->json(['ok' => false, 'error' => t('chat.forbidden')], 403);
+                }
                 $_SESSION['error'] = t('chat.forbidden');
                 $this->redirect('/chat');
                 return;
@@ -100,6 +104,9 @@ class ChatController extends Controller
         } elseif ($productId > 0) {
             $product = (new Product())->find($productId);
             if (!$product) {
+                if ($wantsJson) {
+                    $this->json(['ok' => false, 'error' => t('product.not_found')], 404);
+                }
                 $_SESSION['error'] = t('product.not_found');
                 $this->redirect('/');
                 return;
@@ -107,23 +114,45 @@ class ChatController extends Controller
             $otherId = (int) $product['user_id'];
         }
 
-        $result = (new Chat())->start($uid, $otherId, $productId, $orderId);
+        $chat = new Chat();
+        $result = $chat->start($uid, $otherId, $productId, $orderId);
         if (!$result['ok']) {
+            if ($wantsJson) {
+                $this->json(['ok' => false, 'error' => $result['error'] ?? t('chat.start_failed')], 422);
+            }
             $_SESSION['error'] = $result['error'] ?? t('chat.start_failed');
             $this->redirect('/chat');
             return;
         }
 
-        $this->redirect('/chat/' . (int) $result['conversation_id']);
+        $conversationId = (int) $result['conversation_id'];
+
+        if ($wantsJson) {
+            $this->json($this->threadPayload($chat, $conversationId, $uid));
+        }
+
+        $this->redirect('/chat/' . $conversationId);
+    }
+
+    public function thread(string $id): void
+    {
+        Auth::requireLogin();
+        $uid = Auth::id();
+        $chat = new Chat();
+        $conversationId = (int) $id;
+
+        if (!$chat->findForUser($conversationId, $uid)) {
+            $this->json(['ok' => false, 'error' => t('chat.forbidden')], 403);
+        }
+
+        $this->json($this->threadPayload($chat, $conversationId, $uid));
     }
 
     public function send(string $id): void
     {
         Auth::requireLogin();
         $result = (new Chat())->send((int) $id, Auth::id(), (string) ($_POST['body'] ?? ''));
-
-        $wantsJson = !empty($_SERVER['HTTP_X_REQUESTED_WITH'])
-            || str_contains((string) ($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json');
+        $wantsJson = $this->wantsJson();
 
         if ($wantsJson) {
             if (!$result['ok']) {
@@ -159,6 +188,45 @@ class ChatController extends Controller
             'messages' => $messages,
             'unread' => $chat->unreadCount($uid),
         ]);
+    }
+
+    private function wantsJson(): bool
+    {
+        return !empty($_SERVER['HTTP_X_REQUESTED_WITH'])
+            || str_contains((string) ($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json');
+    }
+
+    /** @return array<string, mixed> */
+    private function threadPayload(Chat $chat, int $conversationId, int $uid): array
+    {
+        $conversation = $chat->findForUser($conversationId, $uid);
+        if (!$conversation) {
+            return ['ok' => false, 'error' => t('chat.not_found')];
+        }
+
+        $chat->markRead($conversationId, $uid);
+        $messages = array_map(fn ($m) => $this->formatMessage($m), $chat->messages($conversationId));
+
+        $peerId = (int) $conversation['user_low_id'] === $uid
+            ? (int) $conversation['user_high_id']
+            : (int) $conversation['user_low_id'];
+        $peerName = (int) $conversation['user_low_id'] === $uid
+            ? (string) $conversation['high_name']
+            : (string) $conversation['low_name'];
+
+        return [
+            'ok' => true,
+            'conversation_id' => $conversationId,
+            'peer' => [
+                'id' => $peerId,
+                'name' => $peerName,
+            ],
+            'product_title' => (string) ($conversation['product_title'] ?? ''),
+            'product_id' => (int) ($conversation['product_id'] ?? 0),
+            'order_id' => (int) ($conversation['order_id'] ?? 0),
+            'messages' => $messages,
+            'unread' => $chat->unreadCount($uid),
+        ];
     }
 
     /** @param array|null $m */

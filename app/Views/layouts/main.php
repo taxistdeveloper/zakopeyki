@@ -409,11 +409,15 @@ function url(string $path = ''): string
         </button>
     </div>
 
+    <?php \App\Core\View::partial('partials/chat-drawer'); ?>
+
     <script>
         window.__isLoggedIn = <?= \App\Core\Auth::check() ? 'true' : 'false' ?>;
         window.__loginUrl = <?= json_encode(url('/login')) ?>;
         window.__favoritesToggleBase = <?= json_encode(rtrim(url('/favorites'), '/') . '/') ?>;
         window.__aiChatUrl = <?= json_encode(url('/ai/chat')) ?>;
+        window.__chatStartUrl = <?= json_encode(url('/chat/start')) ?>;
+        window.__chatBaseUrl = <?= json_encode(rtrim(url('/chat'), '/') . '/') ?>;
         window.__lang = <?= json_encode(\App\Core\Lang::current()) ?>;
         window.__i18n = <?= json_encode(\App\Core\Lang::forJs([
             'ai.welcome', 'ai.suggest_free', 'ai.suggest_exchange', 'ai.suggest_services', 'ai.suggest_sell',
@@ -423,6 +427,7 @@ function url(string $path = ''): string
             'js.you', 'js.stream_error', 'card.favorite', 'card.unfavorite',
             'home.story_link_copied',
             'header.city', 'header.city_choose', 'header.city_detect', 'header.city_detecting', 'header.city_denied',
+            'chat.title', 'chat.start_hint', 'chat.send_failed', 'chat.start_failed',
         ]), JSON_UNESCAPED_UNICODE) ?>;
     </script>
     <script src="<?= url('public/assets/js/app.js') ?>"></script>

@@ -319,6 +319,7 @@ return [
         'no_messages' => 'Хабарлама жоқ',
         'with' => ':name-мен чат',
         'back' => 'Артқа',
+        'close' => 'Жабу',
         'open_deal' => 'Мәміле',
         'start_hint' => 'Бірінші хабарламаны жазыңыз',
         'placeholder' => 'Хабарлама…',

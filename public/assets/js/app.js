@@ -1333,3 +1333,259 @@ document.addEventListener('keydown', function (e) {
     }
 });
 
+
+
+/* ===== Seller chat drawer ===== */
+(function initChatDrawer() {
+    const root = document.getElementById("chat-drawer-root");
+    const overlay = document.getElementById("chat-drawer-overlay");
+    const drawer = document.getElementById("chat-drawer");
+    const peerEl = document.getElementById("chat-drawer-peer");
+    const productEl = document.getElementById("chat-drawer-product");
+    const messagesEl = document.getElementById("chat-drawer-messages");
+    const form = document.getElementById("chat-drawer-form");
+    const input = document.getElementById("chat-drawer-input");
+    const closeBtn = document.getElementById("chat-drawer-close");
+    if (!root || !drawer) return;
+
+    let conversationId = 0;
+    let lastId = 0;
+    let pollTimer = null;
+    let open = false;
+
+    function t(key, fallback) {
+        return (window.__i18n && window.__i18n[key]) || fallback || key;
+    }
+
+    function chatUrl(path) {
+        const base = (window.__chatBaseUrl || "/chat/").replace(/\/?$/, "/");
+        return base + String(path).replace(/^\//, "");
+    }
+
+    function setOpen(next) {
+        open = !!next;
+        root.setAttribute("aria-hidden", open ? "false" : "true");
+        root.classList.toggle("pointer-events-none", !open);
+        overlay.classList.toggle("opacity-0", !open);
+        overlay.classList.toggle("pointer-events-none", !open);
+        overlay.classList.toggle("pointer-events-auto", open);
+        drawer.classList.toggle("translate-x-full", !open);
+        document.body.classList.toggle("overflow-hidden", open);
+        if (!open && pollTimer) {
+            clearInterval(pollTimer);
+            pollTimer = null;
+        }
+    }
+
+    function scrollBottom() {
+        if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function escapeHtml(s) {
+        return String(s || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+    }
+
+    function appendMessage(m, clearEmpty) {
+        if (!messagesEl || !m || !m.id) return;
+        if (messagesEl.querySelector("[data-id=\"" + m.id + "\"]")) return;
+        if (clearEmpty) {
+            const empty = document.getElementById("chat-drawer-empty");
+            if (empty) empty.remove();
+        }
+        const mine = !!m.is_mine;
+        const wrap = document.createElement("div");
+        wrap.className = "flex " + (mine ? "justify-end" : "justify-start");
+        wrap.dataset.id = String(m.id);
+        const time = (m.created_at || "").substr(11, 5);
+        const bubble = mine
+            ? "bg-brand-600 text-white rounded-br-md"
+            : "bg-ink-100 dark:bg-white/10 text-ink-800 dark:text-gray-200 rounded-bl-md";
+        const timeCls = mine ? "text-white/60" : "text-gray-400";
+        const body = escapeHtml(m.body).replace(/\n/g, "<br>");
+        wrap.innerHTML =
+            "<div class=\"max-w-[82%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed " + bubble + "\">" +
+            "<p class=\"whitespace-pre-wrap break-words\">" + body + "</p>" +
+            "<p class=\"text-[10px] mt-1 " + timeCls + "\">" + escapeHtml(time) + "</p></div>";
+        messagesEl.appendChild(wrap);
+        lastId = Math.max(lastId, Number(m.id) || 0);
+        scrollBottom();
+    }
+
+    function renderThread(data) {
+        conversationId = Number(data.conversation_id) || 0;
+        lastId = 0;
+        if (peerEl) peerEl.textContent = (data.peer && data.peer.name) || t("chat.title", "Chat");
+        if (productEl) {
+            if (data.product_title) {
+                productEl.textContent = data.product_title;
+                productEl.classList.remove("hidden");
+            } else {
+                productEl.textContent = "";
+                productEl.classList.add("hidden");
+            }
+        }
+        if (messagesEl) {
+            messagesEl.innerHTML = "";
+            const list = Array.isArray(data.messages) ? data.messages : [];
+            if (!list.length) {
+                messagesEl.innerHTML =
+                    "<p id=\"chat-drawer-empty\" class=\"text-center text-sm text-gray-400 py-12\">" +
+                    escapeHtml(t("chat.start_hint", "Write the first message")) +
+                    "</p>";
+            } else {
+                list.forEach(function (m) { appendMessage(m, false); });
+            }
+        }
+        scrollBottom();
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = setInterval(poll, 3000);
+    }
+
+    async function poll() {
+        if (!open || !conversationId) return;
+        try {
+            const res = await fetch(chatUrl(conversationId + "/poll?after=" + lastId), {
+                headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" },
+                credentials: "same-origin"
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (!data.ok || !Array.isArray(data.messages)) return;
+            data.messages.forEach(function (m) { appendMessage(m, true); });
+        } catch (e) {}
+    }
+
+    async function openFromStart(payload) {
+        if (!window.__isLoggedIn) {
+            window.location.href = window.__loginUrl || "/login";
+            return;
+        }
+        setOpen(true);
+        if (peerEl) peerEl.textContent = "...";
+        if (messagesEl) {
+            messagesEl.innerHTML = "<p class=\"text-center text-sm text-gray-400 py-12\">...</p>";
+        }
+        try {
+            const body = new URLSearchParams();
+            if (payload.product_id) body.set("product_id", String(payload.product_id));
+            if (payload.order_id) body.set("order_id", String(payload.order_id));
+            if (payload.user_id) body.set("user_id", String(payload.user_id));
+            const res = await fetch(window.__chatStartUrl || chatUrl("start"), {
+                method: "POST",
+                headers: {
+                    Accept: "application/json",
+                    "X-Requested-With": "XMLHttpRequest",
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                credentials: "same-origin",
+                body: body.toString()
+            });
+            const data = await res.json();
+            if (!data.ok) {
+                alert(data.error || t("chat.start_failed", "Failed to open chat"));
+                setOpen(false);
+                return;
+            }
+            renderThread(data);
+            input && input.focus();
+        } catch (e) {
+            alert(t("chat.start_failed", "Failed to open chat"));
+            setOpen(false);
+        }
+    }
+
+    async function openConversation(id) {
+        if (!window.__isLoggedIn) {
+            window.location.href = window.__loginUrl || "/login";
+            return;
+        }
+        setOpen(true);
+        try {
+            const res = await fetch(chatUrl(id + "/thread"), {
+                headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" },
+                credentials: "same-origin"
+            });
+            const data = await res.json();
+            if (!data.ok) {
+                alert(data.error || t("chat.start_failed", "Failed to open chat"));
+                setOpen(false);
+                return;
+            }
+            renderThread(data);
+            input && input.focus();
+        } catch (e) {
+            alert(t("chat.start_failed", "Failed to open chat"));
+            setOpen(false);
+        }
+    }
+
+    window.openSellerChat = function (opts) {
+        opts = opts || {};
+        if (opts.conversation_id) {
+            openConversation(opts.conversation_id);
+            return;
+        }
+        openFromStart(opts);
+    };
+
+    closeBtn && closeBtn.addEventListener("click", function () { setOpen(false); });
+    overlay && overlay.addEventListener("click", function () { setOpen(false); });
+
+    document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && open) setOpen(false);
+    });
+
+    document.addEventListener("click", function (e) {
+        const btn = e.target.closest("[data-chat-open]");
+        if (!btn) return;
+        e.preventDefault();
+        openSellerChat({
+            product_id: btn.getAttribute("data-product-id"),
+            order_id: btn.getAttribute("data-order-id"),
+            user_id: btn.getAttribute("data-user-id"),
+            conversation_id: btn.getAttribute("data-conversation-id")
+        });
+    });
+
+    form && form.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        const text = (input && input.value || "").trim();
+        if (!text || !conversationId) return;
+        input.value = "";
+        input.style.height = "auto";
+        try {
+            const body = new URLSearchParams({ body: text });
+            const res = await fetch(chatUrl(conversationId + "/send"), {
+                method: "POST",
+                headers: {
+                    Accept: "application/json",
+                    "X-Requested-With": "XMLHttpRequest",
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                credentials: "same-origin",
+                body: body.toString()
+            });
+            const data = await res.json();
+            if (data.ok && data.message) appendMessage(data.message, true);
+            else if (data.error) alert(data.error);
+        } catch (err) {
+            alert(t("chat.send_failed", "Failed to send"));
+        }
+    });
+
+    input && input.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            form && form.requestSubmit();
+        }
+    });
+
+    input && input.addEventListener("input", function () {
+        this.style.height = "auto";
+        this.style.height = Math.min(this.scrollHeight, 112) + "px";
+    });
+})();

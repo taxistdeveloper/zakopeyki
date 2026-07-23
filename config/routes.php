@@ -43,9 +43,10 @@ $router->post('/wallet/withdraw', [WalletController::class, 'withdraw']);
 $router->get('/chat', [ChatController::class, 'index']);
 $router->get('/chat/start', [ChatController::class, 'start']);
 $router->post('/chat/start', [ChatController::class, 'start']);
-$router->get('/chat/{id}', [ChatController::class, 'show']);
-$router->post('/chat/{id}/send', [ChatController::class, 'send']);
+$router->get('/chat/{id}/thread', [ChatController::class, 'thread']);
 $router->get('/chat/{id}/poll', [ChatController::class, 'poll']);
+$router->post('/chat/{id}/send', [ChatController::class, 'send']);
+$router->get('/chat/{id}', [ChatController::class, 'show']);
 $router->post('/favorites/{id}/toggle', [FavoriteController::class, 'toggle']);
 $router->post('/ai/chat', [AiAssistantController::class, 'chat']);
 

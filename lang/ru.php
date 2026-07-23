@@ -319,6 +319,7 @@ return [
         'no_messages' => 'Нет сообщений',
         'with' => 'Чат с :name',
         'back' => 'Назад',
+        'close' => 'Закрыть',
         'open_deal' => 'Сделка',
         'start_hint' => 'Напишите первое сообщение',
         'placeholder' => 'Сообщение…',
