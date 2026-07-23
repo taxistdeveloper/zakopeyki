@@ -103,15 +103,15 @@ $navIcon = static fn (string $name): string => IconHelper::svg($name, 'w-[18px] 
     </nav>
 
     <?php if ($user): ?>
-    <div class="p-3 m-3 rounded-2xl bg-ink-900 text-white dark:bg-white/5 dark:border dark:border-white/10">
+    <div class="p-3 m-3 rounded-2xl bg-white dark:bg-white/5 border border-black/[0.06] dark:border-white/10 shadow-soft">
         <div class="flex items-center gap-3 overflow-hidden mb-3">
             <?= AvatarHelper::html($user, 'w-10 h-10', 'text-sm', 'rounded-xl') ?>
             <div class="min-w-0">
-                <h4 class="text-sm font-semibold truncate"><?= htmlspecialchars($user['name']) ?></h4>
-                <span class="text-[11px] text-white/50"><?= htmlspecialchars($user['role'] === 'admin' ? t('nav.role_admin') : t('nav.role_user')) ?></span>
+                <h4 class="text-sm font-semibold truncate text-ink-900 dark:text-white"><?= htmlspecialchars($user['name']) ?></h4>
+                <span class="text-[11px] text-gray-400"><?= htmlspecialchars($user['role'] === 'admin' ? t('nav.role_admin') : t('nav.role_user')) ?></span>
             </div>
         </div>
-        <a href="<?= ProductHelper::url('/logout') ?>" class="block text-center text-[11px] font-semibold text-white/60 hover:text-white transition py-2 rounded-xl hover:bg-white/10"><?= htmlspecialchars(t('nav.logout')) ?></a>
+        <a href="<?= ProductHelper::url('/logout') ?>" class="block text-center text-[11px] font-semibold text-gray-400 hover:text-ink-900 dark:hover:text-white transition py-2 rounded-xl hover:bg-black/[0.04] dark:hover:bg-white/10"><?= htmlspecialchars(t('nav.logout')) ?></a>
     </div>
     <?php else: ?>
     <div class="p-3 m-3 space-y-2">
