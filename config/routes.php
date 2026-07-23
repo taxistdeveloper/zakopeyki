@@ -27,6 +27,8 @@ $router->get('/login', [AuthController::class, 'loginForm']);
 $router->post('/login', [AuthController::class, 'login']);
 $router->get('/register', [AuthController::class, 'registerForm']);
 $router->post('/register', [AuthController::class, 'register']);
+$router->get('/auth/google', [AuthController::class, 'googleRedirect']);
+$router->get('/auth/google/callback', [AuthController::class, 'googleCallback']);
 $router->get('/logout', [AuthController::class, 'logout']);
 
 $router->get('/profile', [ProfileController::class, 'index']);

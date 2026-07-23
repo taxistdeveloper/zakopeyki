@@ -173,6 +173,10 @@ return [
         'have_account' => 'Аккаунт бар ма?',
         'fill_fields' => 'Өрістерді толтырыңыз. Құпиясөз кемінде 6 таңба.',
         'email_taken' => 'Бұл email тіркелген',
+        'google_continue' => 'Google арқылы жалғастыру',
+        'or_email' => 'немесе email арқылы',
+        'google_failed' => 'Google арқылы кіру сәтсіз аяқталды. Қайта көріңіз.',
+        'google_not_configured' => 'Google арқылы кіру әлі бапталмаған.',
     ],
     'profile' => [
         'title' => 'Жеке кабинет',

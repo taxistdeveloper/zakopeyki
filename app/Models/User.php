@@ -28,6 +28,7 @@ class User extends Model
             'login' => 'VARCHAR(50) DEFAULT NULL AFTER last_name',
             'bio' => 'TEXT DEFAULT NULL AFTER phone',
             'phone_visible' => 'TINYINT(1) NOT NULL DEFAULT 1 AFTER bio',
+            'google_id' => 'VARCHAR(64) DEFAULT NULL AFTER email',
         ];
 
         foreach ($needed as $col => $def) {
@@ -37,9 +38,25 @@ class User extends Model
             }
         }
 
+        // OAuth-пользователи могут не иметь пароля
+        try {
+            $col = $this->db->query("SHOW COLUMNS FROM users LIKE 'password'")->fetch();
+            if ($col && strtoupper((string) ($col['Null'] ?? '')) === 'NO') {
+                $this->db->exec('ALTER TABLE users MODIFY COLUMN password VARCHAR(255) NULL');
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
         // unique login if column exists and index missing — soft, ignore fail
         try {
             $this->db->exec('CREATE UNIQUE INDEX users_login_unique ON users (login)');
+        } catch (\Throwable $e) {
+            // index may already exist
+        }
+
+        try {
+            $this->db->exec('CREATE UNIQUE INDEX users_google_id_unique ON users (google_id)');
         } catch (\Throwable $e) {
             // index may already exist
         }
@@ -49,8 +66,16 @@ class User extends Model
 
     public function findByEmail(string $email): ?array
     {
-        $stmt = $this->db->prepare('SELECT * FROM users WHERE email = ?');
+        $stmt = $this->db->prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)');
         $stmt->execute([$email]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
+    public function findByGoogleId(string $googleId): ?array
+    {
+        $stmt = $this->db->prepare('SELECT * FROM users WHERE google_id = ?');
+        $stmt->execute([$googleId]);
         $row = $stmt->fetch();
         return $row ?: null;
     }
@@ -70,9 +95,12 @@ class User extends Model
         $first = $parts[0] ?? $name;
         $last = $parts[1] ?? '';
         $login = $data['login'] ?? strtolower(preg_replace('/[^a-zA-Z0-9_]/', '', $first . ($data['id'] ?? rand(100, 999))));
+        $passwordHash = array_key_exists('password', $data) && $data['password'] !== null && $data['password'] !== ''
+            ? password_hash($data['password'], PASSWORD_DEFAULT)
+            : null;
 
         $stmt = $this->db->prepare(
-            'INSERT INTO users (name, first_name, last_name, login, email, password, role, avatar, phone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO users (name, first_name, last_name, login, email, google_id, password, role, avatar, phone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([
             $name,
@@ -80,12 +108,19 @@ class User extends Model
             $last,
             $login,
             $data['email'],
-            password_hash($data['password'], PASSWORD_DEFAULT),
+            $data['google_id'] ?? null,
+            $passwordHash,
             $data['role'] ?? 'user',
             mb_strtoupper(mb_substr($name, 0, 1)),
             $data['phone'] ?? null,
         ]);
         return (int) $this->db->lastInsertId();
+    }
+
+    public function linkGoogleId(int $userId, string $googleId): bool
+    {
+        $stmt = $this->db->prepare('UPDATE users SET google_id = ? WHERE id = ? AND (google_id IS NULL OR google_id = "")');
+        return $stmt->execute([$googleId, $userId]);
     }
 
     public function updateProfile(int $userId, array $data): bool

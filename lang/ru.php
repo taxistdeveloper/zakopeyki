@@ -173,6 +173,10 @@ return [
         'have_account' => 'Уже есть аккаунт?',
         'fill_fields' => 'Заполните поля. Пароль не короче 6 символов.',
         'email_taken' => 'Этот email уже зарегистрирован',
+        'google_continue' => 'Продолжить с Google',
+        'or_email' => 'или через email',
+        'google_failed' => 'Не удалось войти через Google. Попробуйте ещё раз.',
+        'google_not_configured' => 'Вход через Google пока не настроен.',
     ],
     'profile' => [
         'title' => 'Личный кабинет',
