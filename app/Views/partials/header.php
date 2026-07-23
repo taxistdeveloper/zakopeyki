@@ -86,5 +86,8 @@ $langSwitchUrl = static function (string $code) use ($lang): string {
                 </div>
             </div>
         </div>
+        <a href="<?= ProductHelper::url(Auth::check() ? '/profile' : '/login') ?>" class="p-2.5 rounded-xl bg-white/70 dark:bg-white/5 border border-black/[0.06] dark:border-white/10 hover:border-brand-400/50 transition shadow-sm text-ink-700 dark:text-gray-200" title="<?= htmlspecialchars(t('header.profile')) ?>">
+            <?= IconHelper::svg('user', 'w-4 h-4') ?>
+        </a>
     </div>
 </header>

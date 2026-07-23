@@ -37,6 +37,7 @@ return [
         'add_listing_title' => 'Хабарландыру қосу',
         'theme' => 'Тақырып',
         'notifications' => 'Хабарламалар',
+        'profile' => 'Профиль',
         'clear' => 'Тазалау',
         'no_notifications' => 'Хабарлама жоқ',
         'no_notifications_guest' => 'Хабарлама жоқ — аккаунтқа кіріңіз',

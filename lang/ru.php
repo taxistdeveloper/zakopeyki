@@ -37,6 +37,7 @@ return [
         'add_listing_title' => 'Добавить объявление',
         'theme' => 'Тема',
         'notifications' => 'Уведомления',
+        'profile' => 'Профиль',
         'clear' => 'Очистить',
         'no_notifications' => 'Нет уведомлений',
         'no_notifications_guest' => 'Нет уведомлений — войдите в аккаунт',
