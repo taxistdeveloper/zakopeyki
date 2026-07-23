@@ -9,6 +9,26 @@
         <div class="bg-emerald-50 dark:bg-emerald-900/25 text-emerald-800 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800/40 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars($flash) ?></div>
     <?php endif; ?>
 
+    <?php if (!empty($disputes)): ?>
+        <div class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-violet-200/70 dark:border-violet-900/40 shadow-soft overflow-hidden">
+            <div class="px-4 py-3.5 border-b border-violet-100 dark:border-violet-900/30 bg-violet-50/50 dark:bg-violet-950/20">
+                <h3 class="font-display font-bold text-violet-800 dark:text-violet-300"><?= htmlspecialchars(t('admin.disputes')) ?> (<?= count($disputes) ?>)</h3>
+                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.disputes_hint')) ?></p>
+            </div>
+            <div class="divide-y divide-black/[0.04] dark:divide-white/5">
+                <?php foreach ($disputes as $d): ?>
+                    <a href="<?= ProductHelper::url('/orders/' . (int) $d['id']) ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 hover:bg-violet-50/40 dark:hover:bg-white/[0.03] transition">
+                        <div class="min-w-0">
+                            <p class="text-xs font-semibold text-ink-900 dark:text-white">#<?= (int) $d['id'] ?> · <?= htmlspecialchars($d['product_title']) ?></p>
+                            <p class="text-[11px] text-gray-400 mt-0.5"><?= htmlspecialchars($d['buyer_name']) ?> ↔ <?= htmlspecialchars($d['seller_name']) ?></p>
+                        </div>
+                        <span class="text-xs font-bold text-violet-600"><?= htmlspecialchars(t('admin.resolve')) ?> →</span>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft">
             <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.users')) ?></div>

@@ -236,6 +236,25 @@ class ProductHelper
         return $urls;
     }
 
+    /** Типы объявлений, которые можно оплатить на платформе. */
+    public const PURCHASABLE_TYPES = ['used', 'new', 'service', 'course'];
+
+    public static function isPurchasable(array $item): bool
+    {
+        if (($item['status'] ?? 'active') !== 'active') {
+            return false;
+        }
+        if (!in_array($item['type'] ?? '', self::PURCHASABLE_TYPES, true)) {
+            return false;
+        }
+        return (int) ($item['price'] ?? 0) > 0;
+    }
+
+    public static function checkoutUrl(int|string $productId): string
+    {
+        return self::url('/checkout/' . (int) $productId);
+    }
+
     public static function formatPrice(array $item): string
     {
         if ($item['type'] === 'auction') {

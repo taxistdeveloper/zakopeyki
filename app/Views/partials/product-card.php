@@ -6,6 +6,11 @@ $badge = ProductHelper::badge($item['type']);
 $price = ProductHelper::formatPrice($item);
 $imageUrl = ProductHelper::imageUrl($item);
 $showUrl = ProductHelper::url('/product/' . $item['id']);
+$purchasable = ProductHelper::isPurchasable($item);
+$checkoutUrl = ProductHelper::checkoutUrl($item['id']);
+$buyUrl = $purchasable
+    ? (Auth::check() ? $checkoutUrl : ProductHelper::url('/login'))
+    : $showUrl;
 $favorited = !empty($favorited);
 $canFavorite = Auth::check();
 
@@ -66,16 +71,13 @@ $ctaBase = 'block w-full text-center font-display font-bold text-[10px] py-2.5 r
                 <?php
                 $type = $item['type'];
                 if ($type === 'course'): ?>
-                    <a href="<?= $showUrl ?>" class="<?= $ctaBase ?> bg-blue-600 hover:bg-blue-700 text-white"><?= htmlspecialchars(t('card.order')) ?></a>
+                    <a href="<?= $buyUrl ?>" class="<?= $ctaBase ?> bg-blue-600 hover:bg-blue-700 text-white"><?= htmlspecialchars(t('card.order')) ?></a>
                 <?php elseif ($type === 'used'): ?>
-                    <div class="grid grid-cols-2 gap-1.5">
-                        <a href="<?= $showUrl ?>" class="<?= $ctaBase ?> bg-accent-500 hover:bg-accent-400 text-white"><?= htmlspecialchars(t('card.buy')) ?></a>
-                        <a href="https://wa.me/77000000000?text=<?= urlencode(t('card.wa_bargain', ['title' => $item['title']])) ?>" target="_blank" class="<?= $ctaBase ?> bg-ink-800 hover:bg-ink-900 text-white"><?= htmlspecialchars(t('card.bargain')) ?></a>
-                    </div>
+                    <a href="<?= $buyUrl ?>" class="<?= $ctaBase ?> bg-accent-500 hover:bg-accent-400 text-white"><?= htmlspecialchars(t('card.buy')) ?></a>
                 <?php elseif ($type === 'new'): ?>
-                    <a href="<?= $showUrl ?>" class="<?= $ctaBase ?> bg-accent-500 hover:bg-accent-400 text-white"><?= htmlspecialchars(t('card.buy')) ?></a>
+                    <a href="<?= $buyUrl ?>" class="<?= $ctaBase ?> bg-accent-500 hover:bg-accent-400 text-white"><?= htmlspecialchars(t('card.buy')) ?></a>
                 <?php elseif ($type === 'service'): ?>
-                    <a href="<?= $showUrl ?>" class="<?= $ctaBase ?> bg-emerald-600 hover:bg-emerald-700 text-white"><?= htmlspecialchars(t('card.order')) ?></a>
+                    <a href="<?= $buyUrl ?>" class="<?= $ctaBase ?> bg-emerald-600 hover:bg-emerald-700 text-white"><?= htmlspecialchars(t('card.order')) ?></a>
                 <?php elseif ($type === 'free'): ?>
                     <a href="<?= $showUrl ?>" class="<?= $ctaBase ?> bg-violet-600 hover:bg-violet-700 text-white"><?= htmlspecialchars(t('card.take')) ?></a>
                 <?php elseif ($type === 'auction'): ?>

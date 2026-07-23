@@ -57,6 +57,11 @@ $navIcon = static fn (string $name): string => IconHelper::svg($name, 'w-[18px] 
         <a href="<?= ProductHelper::url('/profile') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('profile', $nav) ?>">
             <?= $navIcon('user') ?> <span><?= htmlspecialchars(t('nav.profile')) ?></span>
         </a>
+        <?php if ($user): ?>
+        <a href="<?= ProductHelper::url('/orders') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('orders', $nav) ?>">
+            <?= $navIcon('bag') ?> <span><?= htmlspecialchars(t('nav.deals')) ?></span>
+        </a>
+        <?php endif; ?>
 
         <?php
         $fmtStat = static fn (int $n): string => number_format($n, 0, '', ' ');

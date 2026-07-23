@@ -6,8 +6,9 @@ $badge = ProductHelper::badge($item['type']);
 $price = ProductHelper::formatPrice($item);
 $imageUrls = ProductHelper::imageUrls($item);
 $imageUrl = $imageUrls[0] ?? null;
-$phone = preg_replace('/\D/', '', $item['seller_phone'] ?? '77000000000') ?: '77000000000';
 $flash = $_SESSION['flash'] ?? null;
+$purchasable = ProductHelper::isPurchasable($item);
+$checkoutUrl = ProductHelper::checkoutUrl($item['id']);
 unset($_SESSION['flash']);
 ?>
 <section class="max-w-3xl mx-auto space-y-5 fade-up pb-8">
@@ -128,14 +129,31 @@ unset($_SESSION['flash']);
                 </div>
             <?php endif; ?>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-                <a href="https://wa.me/<?= $phone ?>?text=<?= urlencode(t('product.wa_interest', ['title' => $item['title']])) ?>" target="_blank" class="bg-[#25D366] hover:bg-[#1ebe57] text-white font-semibold py-3 rounded-2xl text-xs flex items-center justify-center gap-2 transition shadow-soft">
-                    WhatsApp
-                </a>
-                <a href="https://t.me/share/url?url=<?= urlencode(ProductHelper::url('/product/' . $item['id'])) ?>&text=<?= urlencode(t('product.tg_share', ['title' => $item['title']])) ?>" target="_blank" class="bg-[#2AABEE] hover:bg-[#229ed9] text-white font-semibold py-3 rounded-2xl text-xs flex items-center justify-center gap-2 transition shadow-soft">
-                    Telegram
-                </a>
-            </div>
+            <?php if ($purchasable): ?>
+                <div class="pt-1">
+                    <?php if (Auth::check()): ?>
+                        <a href="<?= $checkoutUrl ?>" class="block w-full text-center bg-accent-500 hover:bg-accent-400 text-white font-display font-bold py-3.5 rounded-2xl text-sm uppercase tracking-wider transition shadow-soft">
+                            <?= htmlspecialchars(t('card.buy')) ?>
+                        </a>
+                    <?php else: ?>
+                        <a href="<?= ProductHelper::url('/login') ?>" class="block w-full text-center bg-accent-500 hover:bg-accent-400 text-white font-display font-bold py-3.5 rounded-2xl text-sm uppercase tracking-wider transition shadow-soft">
+                            <?= htmlspecialchars(t('product.login_to_buy')) ?>
+                        </a>
+                    <?php endif; ?>
+                </div>
+            <?php elseif (($item['type'] ?? '') === 'free'): ?>
+                <div class="pt-1">
+                    <p class="text-sm text-center text-gray-500 bg-violet-50/80 dark:bg-violet-950/20 border border-violet-100 dark:border-violet-900/40 rounded-2xl px-4 py-3">
+                        <?= htmlspecialchars(t('product.free_contact', ['phone' => $item['seller_phone'] ?: t('product.no_phone')])) ?>
+                    </p>
+                </div>
+            <?php elseif (($item['type'] ?? '') === 'exchange'): ?>
+                <div class="pt-1">
+                    <p class="text-sm text-center text-gray-500 bg-indigo-50/80 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 rounded-2xl px-4 py-3">
+                        <?= htmlspecialchars(t('product.exchange_contact', ['phone' => $item['seller_phone'] ?: t('product.no_phone')])) ?>
+                    </p>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 
