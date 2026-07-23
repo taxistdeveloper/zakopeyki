@@ -1,9 +1,13 @@
 <?php
 use App\Helpers\ProductHelper;
+use App\Models\Wallet;
 
 $price = ProductHelper::formatPrice($item);
 $imageUrl = ProductHelper::imageUrl($item);
 $checkoutPayUrl = ProductHelper::url('/checkout/' . (int) $item['id'] . '/pay');
+$walletBalance = (int) ($walletBalance ?? 0);
+$need = (int) ($item['price'] ?? 0);
+$canWallet = $walletBalance >= $need;
 ?>
 <section class="max-w-lg mx-auto space-y-5 fade-up pb-8">
     <div>
@@ -37,6 +41,14 @@ $checkoutPayUrl = ProductHelper::url('/checkout/' . (int) $item['id'] . '/pay');
                 <?= htmlspecialchars(t('checkout.escrow_notice')) ?>
             </div>
 
+            <div class="flex items-center justify-between gap-3 rounded-2xl border border-black/[0.06] dark:border-white/10 bg-ink-50/60 dark:bg-white/[0.03] px-4 py-3">
+                <div>
+                    <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400"><?= htmlspecialchars(t('wallet.available')) ?></p>
+                    <p class="font-display font-bold text-ink-900 dark:text-white mt-0.5"><?= htmlspecialchars(Wallet::formatMoney($walletBalance)) ?></p>
+                </div>
+                <a href="<?= ProductHelper::url('/wallet') ?>" class="text-xs font-semibold text-brand-600 hover:underline"><?= htmlspecialchars(t('wallet.top_up')) ?></a>
+            </div>
+
             <div class="space-y-2">
                 <h3 class="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400"><?= htmlspecialchars(t('checkout.delivery')) ?></h3>
                 <?php
@@ -52,8 +64,17 @@ $checkoutPayUrl = ProductHelper::url('/checkout/' . (int) $item['id'] . '/pay');
 
             <div class="space-y-2">
                 <h3 class="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400"><?= htmlspecialchars(t('checkout.method')) ?></h3>
+                <label class="flex items-center gap-3 p-3.5 rounded-2xl border border-black/[0.08] dark:border-white/10 cursor-pointer has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50/50 dark:has-[:checked]:bg-brand-500/10 transition <?= !$canWallet ? 'opacity-60' : '' ?>">
+                    <input type="radio" name="payment_method" value="wallet" <?= $canWallet ? 'checked' : 'disabled' ?> class="accent-brand-600">
+                    <span class="text-sm font-semibold text-ink-800 dark:text-gray-200 flex-1">
+                        <?= htmlspecialchars(t('checkout.method_wallet')) ?>
+                        <?php if (!$canWallet): ?>
+                            <span class="block text-[11px] font-medium text-red-500 mt-0.5"><?= htmlspecialchars(t('wallet.need_more', ['need' => Wallet::formatMoney(max(0, $need - $walletBalance))])) ?></span>
+                        <?php endif; ?>
+                    </span>
+                </label>
                 <label class="flex items-center gap-3 p-3.5 rounded-2xl border border-black/[0.08] dark:border-white/10 cursor-pointer has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50/50 dark:has-[:checked]:bg-brand-500/10 transition">
-                    <input type="radio" name="payment_method" value="card" checked class="accent-brand-600">
+                    <input type="radio" name="payment_method" value="card" <?= !$canWallet ? 'checked' : '' ?> class="accent-brand-600">
                     <span class="text-sm font-semibold text-ink-800 dark:text-gray-200"><?= htmlspecialchars(t('checkout.method_card')) ?></span>
                 </label>
                 <label class="flex items-center gap-3 p-3.5 rounded-2xl border border-black/[0.08] dark:border-white/10 cursor-pointer has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50/50 dark:has-[:checked]:bg-brand-500/10 transition">

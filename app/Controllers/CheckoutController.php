@@ -9,6 +9,7 @@ use App\Models\Favorite;
 use App\Models\Notification;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\Wallet;
 
 class CheckoutController extends Controller
 {
@@ -36,10 +37,12 @@ class CheckoutController extends Controller
         }
 
         $n = new Notification();
+        $walletBalance = (new Wallet())->balance(Auth::id());
         $this->view('checkout/index', [
             'title' => t('checkout.title'),
             'currentNav' => '',
             'item' => $product,
+            'walletBalance' => $walletBalance,
             'notifications' => $n->forUser(Auth::id()),
             'unread' => $n->unreadCount(Auth::id()),
             'isFavorite' => (new Favorite())->isFavorite(Auth::id(), (int) $id),

@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Core\Database;
 use App\Models\Notification;
 use App\Models\Order;
+use App\Models\Wallet;
 
 /**
  * Эскроу-арбитр: деньги на «сейфе» до выполнения условий сделки.
@@ -293,19 +295,40 @@ class EscrowService
         if (!in_array($status, ['delivered', 'dispute', 'shipped'], true)) {
             return ['ok' => false, 'error' => t('escrow.bad_status')];
         }
+        if (($order['escrow_hold'] ?? '') === 'released_seller') {
+            return ['ok' => true];
+        }
 
-        $this->orders->updateFields($orderId, [
-            'status' => 'completed',
-            'escrow_hold' => 'released_seller',
-            'confirmed_at' => date('Y-m-d H:i:s'),
-            'released_at' => date('Y-m-d H:i:s'),
-        ]);
+        $amount = (int) $order['amount'];
+        $sellerId = (int) $order['seller_id'];
+
+        try {
+            $db = Database::connect();
+            $db->beginTransaction();
+
+            $this->orders->updateFields($orderId, [
+                'status' => 'completed',
+                'escrow_hold' => 'released_seller',
+                'confirmed_at' => date('Y-m-d H:i:s'),
+                'released_at' => date('Y-m-d H:i:s'),
+            ]);
+
+            (new Wallet())->releaseFromEscrow($sellerId, $amount, $orderId);
+
+            $db->commit();
+        } catch (\Throwable $e) {
+            $db = Database::connect();
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            return ['ok' => false, 'error' => t('wallet.op_failed')];
+        }
 
         $msg = $auto
-            ? t('escrow.notify_auto_released', ['id' => $orderId, 'amount' => number_format((int) $order['amount'], 0, '', ' ')])
-            : t('escrow.notify_released', ['id' => $orderId, 'amount' => number_format((int) $order['amount'], 0, '', ' ')]);
+            ? t('escrow.notify_auto_released', ['id' => $orderId, 'amount' => number_format($amount, 0, '', ' ')])
+            : t('escrow.notify_released', ['id' => $orderId, 'amount' => number_format($amount, 0, '', ' ')]);
 
-        (new Notification())->createFor((int) $order['seller_id'], $msg);
+        (new Notification())->createFor($sellerId, $msg);
         if ($actorId === null || $actorId !== (int) $order['buyer_id']) {
             (new Notification())->createFor(
                 (int) $order['buyer_id'],
@@ -323,18 +346,39 @@ class EscrowService
         if (!$order) {
             return ['ok' => false, 'error' => t('escrow.not_found')];
         }
+        if (($order['escrow_hold'] ?? '') === 'refunded_buyer' || ($order['status'] ?? '') === 'refunded') {
+            return ['ok' => true];
+        }
 
-        $this->orders->updateFields($orderId, [
-            'status' => 'refunded',
-            'escrow_hold' => 'refunded_buyer',
-            'refunded_at' => date('Y-m-d H:i:s'),
-        ]);
+        $amount = (int) $order['amount'];
+        $buyerId = (int) $order['buyer_id'];
+
+        try {
+            $db = Database::connect();
+            $db->beginTransaction();
+
+            $this->orders->updateFields($orderId, [
+                'status' => 'refunded',
+                'escrow_hold' => 'refunded_buyer',
+                'refunded_at' => date('Y-m-d H:i:s'),
+            ]);
+
+            (new Wallet())->refundFromEscrow($buyerId, $amount, $orderId);
+
+            $db->commit();
+        } catch (\Throwable $e) {
+            $db = Database::connect();
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            return ['ok' => false, 'error' => t('wallet.op_failed')];
+        }
 
         (new Notification())->createFor(
-            (int) $order['buyer_id'],
+            $buyerId,
             t('escrow.notify_refunded', [
                 'id' => $orderId,
-                'amount' => number_format((int) $order['amount'], 0, '', ' '),
+                'amount' => number_format($amount, 0, '', ' '),
             ])
         );
         (new Notification())->createFor(

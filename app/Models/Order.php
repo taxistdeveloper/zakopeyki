@@ -232,10 +232,15 @@ class Order extends Model
             return ['ok' => false, 'error' => t('checkout.invalid_price')];
         }
 
-        $method = in_array($paymentMethod, ['card', 'kaspi'], true) ? $paymentMethod : 'card';
+        $method = in_array($paymentMethod, ['wallet', 'card', 'kaspi'], true) ? $paymentMethod : 'wallet';
         $delivery = in_array($deliveryMethod, EscrowService::DELIVERY_METHODS, true)
             ? $deliveryMethod
             : 'kazpost';
+
+        $wallet = new Wallet();
+        if ($method === 'wallet' && $wallet->balance($buyerId) < $amount) {
+            return ['ok' => false, 'error' => t('wallet.insufficient_checkout')];
+        }
 
         try {
             $this->db->beginTransaction();
@@ -263,6 +268,16 @@ class Order extends Model
                 $delivery,
             ]);
             $orderId = (int) $this->db->lastInsertId();
+
+            if ($method === 'wallet') {
+                $pay = $wallet->holdForEscrow($buyerId, $amount, $orderId);
+            } else {
+                $pay = $wallet->payExternalToEscrow($buyerId, $amount, $orderId, $method);
+            }
+            if (!$pay['ok']) {
+                $this->db->rollBack();
+                return ['ok' => false, 'error' => $pay['error'] ?? t('checkout.payment_failed')];
+            }
 
             $sold = $this->db->prepare("UPDATE products SET status = 'sold' WHERE id = ? AND status = 'active'");
             $sold->execute([$productId]);

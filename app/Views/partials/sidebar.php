@@ -58,6 +58,9 @@ $navIcon = static fn (string $name): string => IconHelper::svg($name, 'w-[18px] 
             <?= $navIcon('user') ?> <span><?= htmlspecialchars(t('nav.profile')) ?></span>
         </a>
         <?php if ($user): ?>
+        <a href="<?= ProductHelper::url('/wallet') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('wallet', $nav) ?>">
+            <?= $navIcon('wallet') ?> <span><?= htmlspecialchars(t('nav.wallet')) ?></span>
+        </a>
         <a href="<?= ProductHelper::url('/orders') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('orders', $nav) ?>">
             <?= $navIcon('bag') ?> <span><?= htmlspecialchars(t('nav.deals')) ?></span>
         </a>

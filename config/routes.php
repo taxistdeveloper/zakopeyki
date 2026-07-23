@@ -13,6 +13,7 @@ use App\Controllers\ProductController;
 use App\Controllers\ProfileController;
 use App\Controllers\StoryController;
 use App\Controllers\StreamController;
+use App\Controllers\WalletController;
 use App\Core\Router;
 
 $router = new Router();
@@ -35,6 +36,9 @@ $router->post('/orders/{id}/return-ship', [OrderController::class, 'returnShip']
 $router->post('/orders/{id}/return-received', [OrderController::class, 'returnReceived']);
 $router->post('/orders/{id}/approve-return', [OrderController::class, 'approveReturn']);
 $router->post('/orders/{id}/reject-dispute', [OrderController::class, 'rejectDispute']);
+$router->get('/wallet', [WalletController::class, 'index']);
+$router->post('/wallet/deposit', [WalletController::class, 'deposit']);
+$router->post('/wallet/withdraw', [WalletController::class, 'withdraw']);
 $router->post('/favorites/{id}/toggle', [FavoriteController::class, 'toggle']);
 $router->post('/ai/chat', [AiAssistantController::class, 'chat']);
 
