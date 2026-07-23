@@ -1,16 +1,27 @@
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
+    const main = document.getElementById('main-container');
     if (!sidebar) return;
 
-    const isHidden = sidebar.classList.contains('-translate-x-full');
     if (window.innerWidth < 1024) {
+        const willOpen = sidebar.classList.contains('-translate-x-full');
         sidebar.classList.toggle('-translate-x-full');
-        overlay?.classList.toggle('hidden', !isHidden);
+        overlay?.classList.toggle('hidden', !willOpen);
+        return;
+    }
+
+    // Desktop: lg:translate-x-0 overrides -translate-x-full, so toggling both
+    // leaves the sidebar stuck open. Close = keep -translate-x-full, drop lg:translate-x-0.
+    const isOpen = sidebar.classList.contains('lg:translate-x-0');
+    if (isOpen) {
+        sidebar.classList.remove('lg:translate-x-0');
+        sidebar.classList.add('-translate-x-full');
+        main?.classList.remove('lg:pl-64');
     } else {
-        sidebar.classList.toggle('-translate-x-full');
-        sidebar.classList.toggle('lg:translate-x-0');
-        document.getElementById('main-container')?.classList.toggle('lg:pl-64');
+        sidebar.classList.add('lg:translate-x-0');
+        sidebar.classList.remove('-translate-x-full');
+        main?.classList.add('lg:pl-64');
     }
 }
 
