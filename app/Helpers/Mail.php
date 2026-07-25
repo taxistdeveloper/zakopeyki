@@ -12,6 +12,14 @@ class Mail
         $this->config = $config ?? (require dirname(__DIR__, 2) . '/config/mail.php');
     }
 
+    public function render(string $view, array $data = []): string
+    {
+        extract($data, EXTR_SKIP);
+        ob_start();
+        require dirname(__DIR__) . '/Views/' . $view . '.php';
+        return (string) ob_get_clean();
+    }
+
     public function send(string $to, string $subject, string $textBody, ?string $htmlBody = null): bool
     {
         $to = trim($to);

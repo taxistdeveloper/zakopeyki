@@ -320,11 +320,16 @@ class AuthController extends Controller
                 'url' => $resetUrl,
                 'minutes' => '60',
             ]);
-            $html = '<p>' . htmlspecialchars(t('auth.reset_mail_greeting', ['name' => $name])) . '</p>'
-                . '<p>' . htmlspecialchars(t('auth.reset_mail_body')) . '</p>'
-                . '<p><a href="' . htmlspecialchars($resetUrl) . '">' . htmlspecialchars(t('auth.reset_mail_cta')) . '</a></p>'
-                . '<p style="color:#666;font-size:13px">' . htmlspecialchars(t('auth.reset_mail_expiry', ['minutes' => '60'])) . '</p>'
-                . '<p style="color:#999;font-size:12px;word-break:break-all">' . htmlspecialchars($resetUrl) . '</p>';
+            $html = $mail->render('emails/password-reset', [
+                'name' => $name,
+                'resetUrl' => $resetUrl,
+                'greeting' => t('auth.reset_mail_greeting', ['name' => $name]),
+                'body' => t('auth.reset_mail_body'),
+                'cta' => t('auth.reset_mail_cta'),
+                'expiry' => t('auth.reset_mail_expiry', ['minutes' => '60']),
+                'linkHint' => t('auth.reset_mail_link_hint'),
+                'footer' => t('auth.reset_mail_footer'),
+            ]);
             $mail->send($email, $subject, $text, $html);
         }
 
