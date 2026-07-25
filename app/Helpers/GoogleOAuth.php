@@ -31,29 +31,34 @@ class GoogleOAuth
         $scheme = $https ? 'https' : 'http';
         $host = $this->trustedHost();
 
+        // На проде за прокси SERVER_NAME часто localhost — не отдаём его в Google.
+        if (in_array($host, ['localhost', '127.0.0.1'], true) && $scheme === 'https') {
+            return 'https://zakopeyki.kz' . ProductHelper::url('/login');
+        }
+
         return $scheme . '://' . $host . ProductHelper::url('/login');
     }
 
     /** Host only from allowlist / SERVER_NAME — not raw Host header. */
     private function trustedHost(): string
     {
-        $allowed = $this->config['allowed_hosts'] ?? [];
-        if (!is_array($allowed)) {
-            $allowed = [];
+        $allowed = $this->config['allowed_hosts'] ?? ['zakopeyki.kz', 'localhost', '127.0.0.1'];
+        if (!is_array($allowed) || $allowed === []) {
+            $allowed = ['zakopeyki.kz', 'localhost', '127.0.0.1'];
         }
 
         $candidates = array_filter([
-            $_SERVER['SERVER_NAME'] ?? null,
+            $_SERVER['HTTP_X_FORWARDED_HOST'] ?? null,
             $_SERVER['HTTP_HOST'] ?? null,
+            $_SERVER['SERVER_NAME'] ?? null,
         ]);
 
         foreach ($candidates as $candidate) {
-            $host = strtolower(trim(preg_replace('/:\d+$/', '', (string) $candidate)));
+            // X-Forwarded-Host может быть списком: "a.com, b.com"
+            $candidate = trim(explode(',', (string) $candidate)[0]);
+            $host = strtolower(trim(preg_replace('/:\d+$/', '', $candidate)));
             if ($host === '') {
                 continue;
-            }
-            if ($allowed === [] && in_array($host, ['localhost', '127.0.0.1'], true)) {
-                return $host;
             }
             foreach ($allowed as $pattern) {
                 $pattern = strtolower(trim((string) $pattern));
@@ -63,7 +68,7 @@ class GoogleOAuth
             }
         }
 
-        return 'localhost';
+        return 'zakopeyki.kz';
     }
 
     public function authorizationUrl(string $state): string
