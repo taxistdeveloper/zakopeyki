@@ -5,9 +5,9 @@
  *
  * driver: log | mail | smtp
  *
- * Gmail: нужен «Пароль приложения» (не обычный пароль аккаунта):
+ * Gmail: «Пароль приложения» (не обычный пароль):
  *   https://myaccount.google.com/apppasswords
- * Вставьте его в smtp.password или в переменную MAIL_PASSWORD.
+ * Вставьте в smtp.password или MAIL_PASSWORD.
  */
 return [
     'driver' => getenv('MAIL_DRIVER') ?: 'smtp',
@@ -18,10 +18,8 @@ return [
     'smtp' => [
         'host' => getenv('MAIL_SMTP_HOST') ?: 'smtp.gmail.com',
         'port' => (int) (getenv('MAIL_SMTP_PORT') ?: 587),
-        // tls (порт 587) или ssl (порт 465)
         'encryption' => getenv('MAIL_SMTP_ENCRYPTION') ?: 'tls',
         'username' => getenv('MAIL_SMTP_USER') ?: 'official.zakopeyki@gmail.com',
-        // Пароль приложения Gmail (16 символов без пробелов)
         'password' => getenv('MAIL_PASSWORD') ?: '',
         'timeout' => 20,
     ],

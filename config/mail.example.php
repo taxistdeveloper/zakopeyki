@@ -2,9 +2,7 @@
 
 /**
  * Скопируйте в config/mail.php и вставьте пароль приложения Gmail.
- *
- * Пароль приложения: https://myaccount.google.com/apppasswords
- * (нужна 2FA на аккаунте Google)
+ * https://myaccount.google.com/apppasswords
  */
 return [
     'driver' => 'smtp',
@@ -17,7 +15,7 @@ return [
         'port' => 587,
         'encryption' => 'tls',
         'username' => 'official.zakopeyki@gmail.com',
-        'password' => '', // ← сюда 16-символьный App Password
+        'password' => '', // ← App Password
         'timeout' => 20,
     ],
 ];
