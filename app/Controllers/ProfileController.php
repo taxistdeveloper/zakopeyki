@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Controller;
 use App\Helpers\ProductHelper;
+use App\Helpers\Totp;
 use App\Models\Favorite;
 use App\Models\Notification;
 use App\Models\Product;
@@ -31,6 +32,24 @@ class ProfileController extends Controller
         if (!in_array($tab, $allowed, true)) {
             $tab = 'personal';
         }
+
+        $twoFactorSetup = null;
+        if ($tab === 'password' && !empty($_SESSION['two_factor_setup'])) {
+            $setup = $_SESSION['two_factor_setup'];
+            if (is_array($setup) && (int) ($setup['user_id'] ?? 0) === Auth::id()) {
+                $secret = (string) ($setup['secret'] ?? '');
+                $issuer = (string) (($GLOBALS['appConfig']['name'] ?? 'zakopeyki.kz'));
+                $account = (string) (($dbUser ?: Auth::user())['email'] ?? '');
+                $uri = Totp::provisioningUri($secret, $account, $issuer);
+                $twoFactorSetup = [
+                    'secret' => $secret,
+                    'qr' => Totp::qrImageUrl($uri),
+                ];
+            }
+        }
+
+        $recoveryCodes = $_SESSION['two_factor_recovery_codes'] ?? null;
+        unset($_SESSION['two_factor_recovery_codes']);
 
         $editProduct = null;
         if ($tab === 'lots' && !empty($_GET['edit'])) {
@@ -66,6 +85,8 @@ class ProfileController extends Controller
             'search' => '',
             'flash' => $_SESSION['flash'] ?? null,
             'error' => $_SESSION['error'] ?? null,
+            'twoFactorSetup' => $twoFactorSetup,
+            'recoveryCodes' => is_array($recoveryCodes) ? $recoveryCodes : null,
         ]);
         unset($_SESSION['flash'], $_SESSION['error']);
     }
@@ -150,6 +171,81 @@ class ProfileController extends Controller
 
         $users->updatePassword($userId, $pass);
         $_SESSION['flash'] = t('flash.password_changed');
+        $this->redirect('/profile?tab=password');
+    }
+
+    public function twoFactorSetup(): void
+    {
+        Auth::requireLogin();
+        $users = new User();
+        $user = $users->find(Auth::id());
+        if (!$user) {
+            $this->redirect('/profile?tab=password');
+        }
+        if ($users->hasTwoFactor($user)) {
+            $_SESSION['error'] = t('flash.two_factor_already');
+            $this->redirect('/profile?tab=password');
+        }
+
+        $_SESSION['two_factor_setup'] = [
+            'user_id' => Auth::id(),
+            'secret' => Totp::generateSecret(),
+        ];
+        $this->redirect('/profile?tab=password');
+    }
+
+    public function twoFactorConfirm(): void
+    {
+        Auth::requireLogin();
+        $setup = $_SESSION['two_factor_setup'] ?? null;
+        if (!is_array($setup) || (int) ($setup['user_id'] ?? 0) !== Auth::id() || empty($setup['secret'])) {
+            $_SESSION['error'] = t('flash.two_factor_setup_expired');
+            $this->redirect('/profile?tab=password');
+        }
+
+        $code = trim((string) ($_POST['code'] ?? ''));
+        $secret = (string) $setup['secret'];
+        if (!Totp::verify($secret, $code)) {
+            $_SESSION['error'] = t('flash.two_factor_invalid');
+            $this->redirect('/profile?tab=password');
+        }
+
+        $recovery = Totp::generateRecoveryCodes();
+        (new User())->enableTwoFactor(Auth::id(), $secret, $recovery);
+        unset($_SESSION['two_factor_setup']);
+        $_SESSION['two_factor_recovery_codes'] = $recovery;
+        $_SESSION['flash'] = t('flash.two_factor_enabled');
+        $this->redirect('/profile?tab=password');
+    }
+
+    public function twoFactorDisable(): void
+    {
+        Auth::requireLogin();
+        $users = new User();
+        $user = $users->find(Auth::id());
+        if (!$user || !$users->hasTwoFactor($user)) {
+            $this->redirect('/profile?tab=password');
+        }
+
+        $password = (string) ($_POST['password'] ?? '');
+        $code = trim((string) ($_POST['code'] ?? ''));
+        $hasPassword = !empty($user['password']);
+
+        if ($hasPassword && ($password === '' || !$users->verifyPassword(Auth::id(), $password))) {
+            $_SESSION['error'] = t('flash.wrong_password');
+            $this->redirect('/profile?tab=password');
+        }
+
+        $ok = Totp::verify((string) $user['two_factor_secret'], $code)
+            || $users->consumeRecoveryCode(Auth::id(), $code);
+        if (!$ok) {
+            $_SESSION['error'] = t('flash.two_factor_invalid');
+            $this->redirect('/profile?tab=password');
+        }
+
+        $users->disableTwoFactor(Auth::id());
+        unset($_SESSION['two_factor_setup']);
+        $_SESSION['flash'] = t('flash.two_factor_disabled');
         $this->redirect('/profile?tab=password');
     }
 

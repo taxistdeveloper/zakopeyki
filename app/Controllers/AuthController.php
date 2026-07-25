@@ -5,10 +5,13 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Controller;
 use App\Helpers\GoogleOAuth;
+use App\Helpers\Totp;
 use App\Models\User;
 
 class AuthController extends Controller
 {
+    private const PENDING_2FA_TTL = 300;
+
     public function loginForm(): void
     {
         // Google OAuth callback приходит на /login (redirect_uri в Console)
@@ -20,6 +23,7 @@ class AuthController extends Controller
         if (Auth::check()) {
             $this->redirect('/');
         }
+        unset($_SESSION['pending_2fa']);
         $this->view('auth/login', [
             'title' => t('auth.login_title'),
             'layout' => 'layouts/auth',
@@ -43,6 +47,65 @@ class AuthController extends Controller
             return;
         }
 
+        if ((new User())->hasTwoFactor($user)) {
+            $this->beginTwoFactorChallenge((int) $user['id']);
+            $this->redirect('/login/2fa');
+        }
+
+        Auth::login($user);
+        $this->redirect('/');
+    }
+
+    public function twoFactorForm(): void
+    {
+        if (Auth::check()) {
+            $this->redirect('/');
+        }
+        if (!$this->pendingTwoFactorUserId()) {
+            $this->redirect('/login');
+        }
+
+        $this->view('auth/two-factor', [
+            'title' => t('auth.two_factor_title'),
+            'error' => $_SESSION['auth_error'] ?? null,
+        ], 'layouts/auth');
+        unset($_SESSION['auth_error']);
+    }
+
+    public function twoFactorVerify(): void
+    {
+        if (Auth::check()) {
+            $this->redirect('/');
+        }
+
+        $userId = $this->pendingTwoFactorUserId();
+        if (!$userId) {
+            $_SESSION['auth_error'] = t('auth.two_factor_expired');
+            $this->redirect('/login');
+        }
+
+        $code = trim((string) ($_POST['code'] ?? ''));
+        $users = new User();
+        $user = $users->find($userId);
+
+        if (!$user || !$users->hasTwoFactor($user)) {
+            $this->clearTwoFactorChallenge();
+            $_SESSION['auth_error'] = t('auth.two_factor_expired');
+            $this->redirect('/login');
+        }
+
+        $ok = Totp::verify((string) $user['two_factor_secret'], $code)
+            || $users->consumeRecoveryCode($userId, $code);
+
+        if (!$ok) {
+            $this->view('auth/two-factor', [
+                'title' => t('auth.two_factor_title'),
+                'error' => t('auth.two_factor_invalid'),
+            ], 'layouts/auth');
+            return;
+        }
+
+        $this->clearTwoFactorChallenge();
         Auth::login($user);
         $this->redirect('/');
     }
@@ -196,6 +259,11 @@ class AuthController extends Controller
             $this->redirect('/login');
         }
 
+        if ($users->hasTwoFactor($user)) {
+            $this->beginTwoFactorChallenge((int) $user['id']);
+            $this->redirect('/login/2fa');
+        }
+
         Auth::login($user);
         $this->redirect('/');
     }
@@ -204,5 +272,33 @@ class AuthController extends Controller
     {
         Auth::logout();
         $this->redirect('/');
+    }
+
+    private function beginTwoFactorChallenge(int $userId): void
+    {
+        $_SESSION['pending_2fa'] = [
+            'user_id' => $userId,
+            'expires' => time() + self::PENDING_2FA_TTL,
+        ];
+    }
+
+    private function pendingTwoFactorUserId(): ?int
+    {
+        $pending = $_SESSION['pending_2fa'] ?? null;
+        if (!is_array($pending)) {
+            return null;
+        }
+        $userId = (int) ($pending['user_id'] ?? 0);
+        $expires = (int) ($pending['expires'] ?? 0);
+        if ($userId < 1 || $expires < time()) {
+            $this->clearTwoFactorChallenge();
+            return null;
+        }
+        return $userId;
+    }
+
+    private function clearTwoFactorChallenge(): void
+    {
+        unset($_SESSION['pending_2fa']);
     }
 }

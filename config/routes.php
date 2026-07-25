@@ -52,6 +52,8 @@ $router->post('/ai/chat', [AiAssistantController::class, 'chat']);
 
 $router->get('/login', [AuthController::class, 'loginForm']);
 $router->post('/login', [AuthController::class, 'login']);
+$router->get('/login/2fa', [AuthController::class, 'twoFactorForm']);
+$router->post('/login/2fa', [AuthController::class, 'twoFactorVerify']);
 $router->get('/register', [AuthController::class, 'registerForm']);
 $router->post('/register', [AuthController::class, 'register']);
 $router->get('/auth/google', [AuthController::class, 'googleRedirect']);
@@ -66,6 +68,9 @@ $router->post('/profile/avatar', [ProfileController::class, 'avatar']);
 $router->post('/profile/personal', [ProfileController::class, 'updatePersonal']);
 $router->post('/profile/bio', [ProfileController::class, 'updateBio']);
 $router->post('/profile/password', [ProfileController::class, 'updatePassword']);
+$router->post('/profile/2fa/setup', [ProfileController::class, 'twoFactorSetup']);
+$router->post('/profile/2fa/confirm', [ProfileController::class, 'twoFactorConfirm']);
+$router->post('/profile/2fa/disable', [ProfileController::class, 'twoFactorDisable']);
 $router->post('/profile/delete', [ProfileController::class, 'deleteAccount']);
 $router->post('/notifications/clear', [ProfileController::class, 'clearNotifications']);
 $router->get('/orders/{id}/evidence/{file}', [OrderController::class, 'evidence']);

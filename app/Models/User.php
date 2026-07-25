@@ -29,6 +29,9 @@ class User extends Model
             'bio' => 'TEXT DEFAULT NULL AFTER phone',
             'phone_visible' => 'TINYINT(1) NOT NULL DEFAULT 1 AFTER bio',
             'google_id' => 'VARCHAR(64) DEFAULT NULL AFTER email',
+            'two_factor_secret' => 'VARCHAR(64) DEFAULT NULL AFTER password',
+            'two_factor_enabled' => 'TINYINT(1) NOT NULL DEFAULT 0 AFTER two_factor_secret',
+            'two_factor_recovery_codes' => 'TEXT DEFAULT NULL AFTER two_factor_enabled',
         ];
 
         foreach ($needed as $col => $def) {
@@ -174,6 +177,51 @@ class User extends Model
             return false;
         }
         return password_verify($password, $user['password']);
+    }
+
+    public function hasTwoFactor(array $user): bool
+    {
+        return !empty($user['two_factor_enabled']) && !empty($user['two_factor_secret']);
+    }
+
+    public function enableTwoFactor(int $userId, string $secret, array $plainRecoveryCodes): bool
+    {
+        $hashed = array_map(
+            static fn (string $code) => \App\Helpers\Totp::hashRecoveryCode($code),
+            $plainRecoveryCodes
+        );
+        $stmt = $this->db->prepare(
+            'UPDATE users SET two_factor_secret = ?, two_factor_enabled = 1, two_factor_recovery_codes = ? WHERE id = ?'
+        );
+        return $stmt->execute([$secret, json_encode($hashed, JSON_UNESCAPED_UNICODE), $userId]);
+    }
+
+    public function disableTwoFactor(int $userId): bool
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE users SET two_factor_secret = NULL, two_factor_enabled = 0, two_factor_recovery_codes = NULL WHERE id = ?'
+        );
+        return $stmt->execute([$userId]);
+    }
+
+    public function consumeRecoveryCode(int $userId, string $code): bool
+    {
+        $user = $this->find($userId);
+        if (!$user) {
+            return false;
+        }
+        $codes = json_decode((string) ($user['two_factor_recovery_codes'] ?? '[]'), true);
+        if (!is_array($codes) || $codes === []) {
+            return false;
+        }
+        $index = \App\Helpers\Totp::verifyRecoveryCode($code, $codes);
+        if ($index === null) {
+            return false;
+        }
+        unset($codes[$index]);
+        $codes = array_values($codes);
+        $stmt = $this->db->prepare('UPDATE users SET two_factor_recovery_codes = ? WHERE id = ?');
+        return $stmt->execute([json_encode($codes, JSON_UNESCAPED_UNICODE), $userId]);
     }
 
     public function deleteAccount(int $userId): bool

@@ -189,6 +189,11 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                 <?php endif; ?>
 
             <?php elseif ($tab === 'password'): ?>
+                <?php
+                $twoFactorEnabled = !empty($user['two_factor_enabled']) && !empty($user['two_factor_secret']);
+                $twoFactorSetup = $twoFactorSetup ?? null;
+                $recoveryCodes = $recoveryCodes ?? null;
+                ?>
                 <div class="mb-6 flex items-start gap-3">
                     <div class="w-11 h-11 rounded-2xl bg-ink-900 text-white flex items-center justify-center"><?= IconHelper::svg('lock', 'w-5 h-5') ?></div>
                     <div>
@@ -233,6 +238,80 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                     el.type = el.type === 'password' ? 'text' : 'password';
                 }
                 </script>
+
+                <div class="mt-10 pt-8 border-t border-black/[0.08] dark:border-white/10">
+                    <div class="mb-5 flex items-start gap-3">
+                        <div class="w-11 h-11 rounded-2xl bg-brand-500 text-white flex items-center justify-center">
+                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1"/></svg>
+                        </div>
+                        <div>
+                            <h2 class="font-display text-xl font-bold"><?= htmlspecialchars(t('profile.two_factor_title')) ?></h2>
+                            <p class="text-sm text-gray-400 mt-1"><?= htmlspecialchars(t('profile.two_factor_hint')) ?></p>
+                        </div>
+                    </div>
+
+                    <?php if (!empty($recoveryCodes)): ?>
+                        <div class="mb-5 rounded-2xl border border-amber-200 bg-amber-50 text-amber-950 px-4 py-4">
+                            <p class="text-sm font-semibold mb-2"><?= htmlspecialchars(t('profile.two_factor_recovery_once')) ?></p>
+                            <ul class="grid grid-cols-2 gap-2 font-mono text-sm">
+                                <?php foreach ($recoveryCodes as $rc): ?>
+                                    <li class="bg-white/80 rounded-xl px-3 py-2 text-center tracking-wider"><?= htmlspecialchars($rc) ?></li>
+                                <?php endforeach; ?>
+                            </ul>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if ($twoFactorEnabled): ?>
+                        <div class="mb-4 rounded-2xl border border-emerald-200/80 bg-emerald-50 text-emerald-900 text-sm px-4 py-3.5">
+                            <?= htmlspecialchars(t('profile.two_factor_on')) ?>
+                        </div>
+                        <form method="post" action="<?= ProductHelper::url('/profile/2fa/disable') ?>" class="space-y-4 max-w-md">
+                            <?= csrf_field() ?>
+                            <?php if (!empty($user['password'])): ?>
+                                <div>
+                                    <label class="block text-[13px] font-semibold mb-1.5"><?= htmlspecialchars(t('profile.current_password')) ?></label>
+                                    <input type="password" name="password" required autocomplete="current-password" class="<?= $input ?>">
+                                </div>
+                            <?php endif; ?>
+                            <div>
+                                <label class="block text-[13px] font-semibold mb-1.5"><?= htmlspecialchars(t('profile.two_factor_code')) ?></label>
+                                <input type="text" name="code" required autocomplete="one-time-code" maxlength="19" class="<?= $input ?>" placeholder="000000">
+                            </div>
+                            <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold text-sm px-6 py-3 rounded-2xl transition">
+                                <?= htmlspecialchars(t('profile.two_factor_disable')) ?>
+                            </button>
+                        </form>
+                    <?php elseif ($twoFactorSetup): ?>
+                        <div class="space-y-5 max-w-md">
+                            <p class="text-sm text-gray-500 leading-relaxed"><?= htmlspecialchars(t('profile.two_factor_scan')) ?></p>
+                            <div class="flex justify-center">
+                                <img src="<?= htmlspecialchars($twoFactorSetup['qr']) ?>" alt="QR" width="200" height="200" class="rounded-2xl border border-black/10 bg-white p-2">
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-400 mb-1.5"><?= htmlspecialchars(t('profile.two_factor_manual')) ?></p>
+                                <code class="block text-sm font-mono tracking-widest bg-gray-50 dark:bg-white/5 rounded-xl px-4 py-3 break-all"><?= htmlspecialchars($twoFactorSetup['secret']) ?></code>
+                            </div>
+                            <form method="post" action="<?= ProductHelper::url('/profile/2fa/confirm') ?>" class="space-y-4">
+                                <?= csrf_field() ?>
+                                <div>
+                                    <label class="block text-[13px] font-semibold mb-1.5"><?= htmlspecialchars(t('profile.two_factor_code')) ?></label>
+                                    <input type="text" name="code" required autocomplete="one-time-code" inputmode="numeric" maxlength="8" class="<?= $input ?>" placeholder="000000">
+                                </div>
+                                <button type="submit" class="bg-ink-900 hover:bg-ink-800 text-white font-semibold text-sm px-6 py-3 rounded-2xl transition">
+                                    <?= htmlspecialchars(t('profile.two_factor_confirm')) ?>
+                                </button>
+                            </form>
+                        </div>
+                    <?php else: ?>
+                        <p class="text-sm text-gray-500 mb-4 leading-relaxed"><?= htmlspecialchars(t('profile.two_factor_off')) ?></p>
+                        <form method="post" action="<?= ProductHelper::url('/profile/2fa/setup') ?>">
+                            <?= csrf_field() ?>
+                            <button type="submit" class="bg-ink-900 hover:bg-ink-800 text-white font-semibold text-sm px-6 py-3 rounded-2xl transition">
+                                <?= htmlspecialchars(t('profile.two_factor_enable')) ?>
+                            </button>
+                        </form>
+                    <?php endif; ?>
+                </div>
 
                 <div class="mt-10 pt-8 border-t border-red-200/60 dark:border-red-900/40">
                     <div class="mb-5 flex items-start gap-3">
