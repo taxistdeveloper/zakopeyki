@@ -285,8 +285,9 @@ class AuthController extends Controller
             'title' => t('auth.forgot_title'),
             'error' => $_SESSION['auth_error'] ?? null,
             'success' => $_SESSION['auth_success'] ?? null,
+            'resetUrl' => $_SESSION['auth_reset_url'] ?? null,
         ], 'layouts/auth');
-        unset($_SESSION['auth_error'], $_SESSION['auth_success']);
+        unset($_SESSION['auth_error'], $_SESSION['auth_success'], $_SESSION['auth_reset_url']);
     }
 
     public function forgotPassword(): void
@@ -307,6 +308,7 @@ class AuthController extends Controller
 
         $users = new User();
         $user = $users->findByEmail($email);
+        $resetUrl = null;
         if ($user) {
             $token = $users->createPasswordResetToken((int) $user['id'], 3600);
             $mail = new Mail();
@@ -328,6 +330,14 @@ class AuthController extends Controller
 
         // Одинаковый ответ — не раскрываем, существует ли email
         $_SESSION['auth_success'] = t('auth.forgot_sent');
+
+        // На локали без рабочего SMTP показываем ссылку на экране
+        $host = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
+        $isLocal = str_contains($host, 'localhost') || str_contains($host, '127.0.0.1');
+        if ($isLocal && $resetUrl) {
+            $_SESSION['auth_reset_url'] = $resetUrl;
+        }
+
         $this->redirect('/forgot-password');
     }
 

@@ -15,6 +15,14 @@
         <?php if (!empty($success)): ?>
             <div class="mb-4 bg-emerald-50 text-emerald-700 text-sm font-semibold px-4 py-3 rounded-2xl"><?= htmlspecialchars($success) ?></div>
         <?php endif; ?>
+        <?php if (!empty($resetUrl)): ?>
+            <div class="mb-4 bg-amber-50 text-amber-900 text-sm px-4 py-3 rounded-2xl space-y-2">
+                <p class="font-semibold"><?= htmlspecialchars(t('auth.forgot_dev_link_title')) ?></p>
+                <a href="<?= htmlspecialchars($resetUrl) ?>" class="block break-all text-brand-600 font-semibold underline">
+                    <?= htmlspecialchars($resetUrl) ?>
+                </a>
+            </div>
+        <?php endif; ?>
 
         <p class="text-sm text-gray-500 mb-5 leading-relaxed"><?= htmlspecialchars(t('auth.forgot_hint')) ?></p>
 
