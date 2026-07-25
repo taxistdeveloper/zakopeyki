@@ -23,6 +23,11 @@ class Mail
 
         if ($driver === 'log') {
             $ok = $this->log($to, $subject, $textBody, $htmlBody);
+        } elseif ($driver === 'resend') {
+            $ok = $this->sendViaResend($to, $subject, $textBody, $htmlBody);
+            if (!$ok && trim((string) (($this->config['resend']['api_key'] ?? '') ?: '')) === '') {
+                $this->log($to, $subject, $textBody, $htmlBody, 'resend: empty api_key');
+            }
         } elseif ($driver === 'smtp') {
             $ok = $this->sendViaSmtp($to, $subject, $textBody, $htmlBody);
             if (!$ok) {
@@ -124,6 +129,83 @@ class Mail
         ));
 
         return (bool) @mail($to, $msg['subject'], $msg['body'], implode("\r\n", $headers));
+    }
+
+    private function sendViaResend(string $to, string $subject, string $textBody, ?string $htmlBody): bool
+    {
+        $apiKey = trim((string) (($this->config['resend']['api_key'] ?? '') ?: ''));
+        if ($apiKey === '') {
+            return false;
+        }
+
+        $fromAddress = trim((string) ($this->config['from_address'] ?? 'onboarding@resend.dev'));
+        $fromName = trim((string) ($this->config['from_name'] ?? 'zakopeyki.kz'));
+        $from = $fromName !== ''
+            ? $this->encodeHeader($fromName) . ' <' . $fromAddress . '>'
+            : $fromAddress;
+
+        $payload = [
+            'from' => $from,
+            'to' => [$to],
+            'subject' => $subject,
+            'text' => $textBody,
+        ];
+        if ($htmlBody !== null && $htmlBody !== '') {
+            $payload['html'] = $htmlBody;
+        }
+
+        $json = json_encode($payload, JSON_UNESCAPED_UNICODE);
+        if ($json === false) {
+            return false;
+        }
+
+        $url = 'https://api.resend.com/emails';
+        $responseBody = '';
+        $status = 0;
+
+        if (function_exists('curl_init')) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_POST => true,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER => [
+                    'Authorization: Bearer ' . $apiKey,
+                    'Content-Type: application/json',
+                ],
+                CURLOPT_POSTFIELDS => $json,
+                CURLOPT_TIMEOUT => 20,
+            ]);
+            $responseBody = (string) curl_exec($ch);
+            $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+        } else {
+            $ctx = stream_context_create([
+                'http' => [
+                    'method' => 'POST',
+                    'header' => "Authorization: Bearer {$apiKey}\r\nContent-Type: application/json\r\n",
+                    'content' => $json,
+                    'timeout' => 20,
+                    'ignore_errors' => true,
+                ],
+            ]);
+            $responseBody = (string) @file_get_contents($url, false, $ctx);
+            if (isset($http_response_header[0]) && preg_match('/\s(\d{3})\s/', $http_response_header[0], $m)) {
+                $status = (int) $m[1];
+            }
+        }
+
+        if ($status < 200 || $status >= 300) {
+            $this->log(
+                $to,
+                $subject,
+                $textBody,
+                $htmlBody,
+                'resend HTTP ' . $status . ': ' . mb_substr($responseBody, 0, 500)
+            );
+            return false;
+        }
+
+        return true;
     }
 
     private function sendViaSmtp(string $to, string $subject, string $textBody, ?string $htmlBody): bool
