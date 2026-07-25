@@ -50,4 +50,12 @@ class HomeController extends Controller
             'flash' => $flash,
         ]);
     }
+
+    public function about(): void
+    {
+        $this->view('about/index', [
+            'title' => t('about.title'),
+            'currentNav' => 'about',
+        ]);
+    }
 }
