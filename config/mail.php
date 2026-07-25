@@ -1,18 +1,28 @@
 <?php
 
 /**
- * Почта для сброса пароля и системных писем.
+ * Почта для сброса пароля.
  *
- * driver:
- *   - mail  — PHP mail() (прод; нужен настроенный sendmail/SMTP на сервере)
- *   - log   — пишет письмо в storage/mail.log (удобно на локали MAMP)
+ * driver: log | mail | smtp
  *
- * На локали: MAIL_DRIVER=log или debug=true в config/app.php (дублирует в лог).
- * Для продакшена: MAIL_DRIVER=mail и MAIL_FROM через окружение.
+ * Gmail: нужен «Пароль приложения» (не обычный пароль аккаунта):
+ *   https://myaccount.google.com/apppasswords
+ * Вставьте его в smtp.password или в переменную MAIL_PASSWORD.
  */
 return [
-    'driver' => getenv('MAIL_DRIVER') ?: 'log',
-    'from_address' => getenv('MAIL_FROM') ?: 'noreply@zakopeyki.kz',
+    'driver' => getenv('MAIL_DRIVER') ?: 'smtp',
+    'from_address' => getenv('MAIL_FROM') ?: 'official.zakopeyki@gmail.com',
     'from_name' => getenv('MAIL_FROM_NAME') ?: 'zakopeyki.kz',
     'allowed_hosts' => ['zakopeyki.kz', 'localhost', '127.0.0.1'],
+
+    'smtp' => [
+        'host' => getenv('MAIL_SMTP_HOST') ?: 'smtp.gmail.com',
+        'port' => (int) (getenv('MAIL_SMTP_PORT') ?: 587),
+        // tls (порт 587) или ssl (порт 465)
+        'encryption' => getenv('MAIL_SMTP_ENCRYPTION') ?: 'tls',
+        'username' => getenv('MAIL_SMTP_USER') ?: 'official.zakopeyki@gmail.com',
+        // Пароль приложения Gmail (16 символов без пробелов)
+        'password' => getenv('MAIL_PASSWORD') ?: '',
+        'timeout' => 20,
+    ],
 ];
