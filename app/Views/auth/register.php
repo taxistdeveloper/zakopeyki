@@ -1,4 +1,7 @@
-<?php use App\Helpers\ProductHelper; ?>
+<?php
+use App\Helpers\IconHelper;
+use App\Helpers\ProductHelper;
+?>
 <div class="w-full max-w-md">
     <div class="text-center mb-8">
         <a href="<?= ProductHelper::url('/') ?>" class="inline-flex items-baseline gap-0.5">
@@ -45,10 +48,20 @@
             </div>
             <div>
                 <label class="block text-[13px] font-semibold mb-1.5"><?= htmlspecialchars(t('auth.password')) ?></label>
-                <input type="password" name="password" required minlength="8" class="w-full h-11 px-4 rounded-xl border border-black/10 bg-white text-sm focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20">
+                <div class="relative">
+                    <input type="password" name="password" id="register-password" required minlength="8" class="w-full h-11 px-4 pr-11 rounded-xl border border-black/10 bg-white text-sm focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20">
+                    <button type="button" onclick="togglePass('register-password')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-ink-800" aria-label="Toggle password"><?= IconHelper::svg('eye', 'w-4 h-4') ?></button>
+                </div>
             </div>
             <button class="w-full bg-accent-500 hover:bg-accent-400 text-white font-display font-bold py-3.5 rounded-2xl text-xs uppercase tracking-wider transition"><?= htmlspecialchars(t('auth.register_btn')) ?></button>
         </form>
+        <script>
+        function togglePass(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.type = el.type === 'password' ? 'text' : 'password';
+        }
+        </script>
 
         <p class="text-center text-xs text-gray-400 mt-6">
             <?= htmlspecialchars(t('auth.have_account')) ?> <a href="<?= ProductHelper::url('/login') ?>" class="text-brand-600 font-semibold"><?= htmlspecialchars(t('auth.login_btn')) ?></a>

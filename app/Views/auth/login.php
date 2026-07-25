@@ -1,4 +1,7 @@
-<?php use App\Helpers\ProductHelper; ?>
+<?php
+use App\Helpers\IconHelper;
+use App\Helpers\ProductHelper;
+?>
 <div class="w-full max-w-md">
     <div class="text-center mb-8">
         <a href="<?= ProductHelper::url('/') ?>" class="inline-flex items-baseline gap-0.5">
@@ -43,10 +46,20 @@
                     <label class="block text-[13px] font-semibold"><?= htmlspecialchars(t('auth.password')) ?></label>
                     <a href="<?= ProductHelper::url('/forgot-password') ?>" class="text-[12px] font-semibold text-brand-600 hover:text-brand-500 shrink-0"><?= htmlspecialchars(t('auth.forgot_link')) ?></a>
                 </div>
-                <input type="password" name="password" required class="w-full h-11 px-4 rounded-xl border border-black/10 bg-white text-sm focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20">
+                <div class="relative">
+                    <input type="password" name="password" id="login-password" required class="w-full h-11 px-4 pr-11 rounded-xl border border-black/10 bg-white text-sm focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20">
+                    <button type="button" onclick="togglePass('login-password')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-ink-800" aria-label="Toggle password"><?= IconHelper::svg('eye', 'w-4 h-4') ?></button>
+                </div>
             </div>
             <button class="w-full bg-ink-900 hover:bg-black text-white font-display font-bold py-3.5 rounded-2xl text-xs uppercase tracking-wider transition"><?= htmlspecialchars(t('auth.login_btn')) ?></button>
         </form>
+        <script>
+        function togglePass(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.type = el.type === 'password' ? 'text' : 'password';
+        }
+        </script>
 
         <p class="text-center text-xs text-gray-400 mt-6">
             <?= htmlspecialchars(t('auth.no_account')) ?> <a href="<?= ProductHelper::url('/register') ?>" class="text-brand-600 font-semibold"><?= htmlspecialchars(t('auth.register_link')) ?></a>
