@@ -100,7 +100,7 @@ $navIcon = static fn (string $name): string => IconHelper::svg($name, 'w-[18px] 
                 </div>
             </div>
             <div class="flex flex-col gap-1 w-[98px] flex-shrink-0">
-                <a href="#" class="inline-flex items-center gap-1 h-6 px-2 rounded-full border border-black/[0.08] dark:border-white/10 bg-white/70 dark:bg-white/[0.04] text-[10px] font-medium text-ink-800 dark:text-gray-200 hover:border-brand-400/50 transition">
+                <a href="#" class="inline-flex items-center gap-1 h-6 px-2 rounded-full border border-black/[0.08] dark:border-white/10 bg-white/70 dark:bg-white/[0.04] text-[10px] font-medium whitespace-nowrap text-ink-800 dark:text-gray-200 hover:border-brand-400/50 transition">
                     <svg class="w-2.5 h-2.5 flex-shrink-0 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r="0.7" fill="currentColor" stroke="none"/></svg>
                     <?= htmlspecialchars(t('nav.about')) ?>
                 </a>
