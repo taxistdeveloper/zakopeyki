@@ -5,6 +5,7 @@ namespace App\Helpers;
 class Mail
 {
     private array $config;
+    private string $lastSmtpError = '';
 
     public function __construct(?array $config = null)
     {
@@ -31,7 +32,8 @@ class Mail
         } elseif ($driver === 'smtp') {
             $ok = $this->sendViaSmtp($to, $subject, $textBody, $htmlBody);
             if (!$ok) {
-                $this->log($to, $subject, $textBody, $htmlBody, 'smtp failed — saved to log');
+                $reason = $this->lastSmtpError !== '' ? $this->lastSmtpError : 'smtp failed';
+                $this->log($to, $subject, $textBody, $htmlBody, $reason);
             }
         } else {
             $ok = $this->sendViaMail($to, $subject, $textBody, $htmlBody);
@@ -219,24 +221,45 @@ class Mail
         $port = (int) ($smtp['port'] ?? 587);
         $encryption = strtolower((string) ($smtp['encryption'] ?? 'tls'));
         $username = trim((string) ($smtp['username'] ?? ''));
-        $password = (string) ($smtp['password'] ?? '');
+        // пароль приложения Яндекса иногда копируют с пробелами
+        $password = preg_replace('/\s+/', '', (string) ($smtp['password'] ?? '')) ?? '';
         $timeout = max(5, (int) ($smtp['timeout'] ?? 20));
 
         if ($host === '' || $username === '' || $password === '') {
+            $this->lastSmtpError = 'empty host/username/password in config/mail.php';
             return false;
         }
 
         $msg = $this->buildMessage($to, $subject, $textBody, $htmlBody);
-        $remote = ($encryption === 'ssl' ? 'ssl://' : '') . $host . ':' . $port;
+        $remote = ($encryption === 'ssl' ? 'ssl://' : 'tcp://') . $host . ':' . $port;
+
+        $context = stream_context_create([
+            'ssl' => [
+                'crypto_method' => STREAM_CRYPTO_METHOD_TLS_CLIENT,
+                'verify_peer' => true,
+                'verify_peer_name' => true,
+                'SNI_enabled' => true,
+                'peer_name' => $host,
+            ],
+        ]);
 
         $errno = 0;
         $errstr = '';
-        $fp = @stream_socket_client($remote, $errno, $errstr, $timeout, STREAM_CLIENT_CONNECT);
+        $fp = @stream_socket_client(
+            $remote,
+            $errno,
+            $errstr,
+            $timeout,
+            STREAM_CLIENT_CONNECT,
+            $context
+        );
         if (!$fp) {
+            $this->lastSmtpError = "connect failed {$remote}: [{$errno}] {$errstr}";
             return false;
         }
 
         stream_set_timeout($fp, $timeout);
+        $this->lastSmtpError = '';
 
         try {
             if (!$this->smtpExpect($fp, [220])) {
@@ -259,6 +282,7 @@ class Mail
                     $crypto |= STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT;
                 }
                 if (!@stream_socket_enable_crypto($fp, true, $crypto)) {
+                    $this->lastSmtpError = 'STARTTLS crypto handshake failed';
                     return false;
                 }
                 if (!$this->smtpCommand($fp, 'EHLO ' . $ehloHost, [250])) {
@@ -273,6 +297,9 @@ class Mail
                 return false;
             }
             if (!$this->smtpCommand($fp, base64_encode($password), [235])) {
+                if ($this->lastSmtpError === '') {
+                    $this->lastSmtpError = 'AUTH failed — check app password';
+                }
                 return false;
             }
 
@@ -321,7 +348,11 @@ class Mail
         }
 
         $code = (int) substr($response, 0, 3);
-        return in_array($code, $okCodes, true);
+        if (!in_array($code, $okCodes, true)) {
+            $this->lastSmtpError = trim(preg_replace('/\s+/', ' ', $response));
+            return false;
+        }
+        return true;
     }
 
     private function log(string $to, string $subject, string $textBody, ?string $htmlBody, string $note = ''): bool
