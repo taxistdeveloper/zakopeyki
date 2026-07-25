@@ -63,7 +63,7 @@ $sendUrl = ProductHelper::url('/chat/' . (int) $conversation['id'] . '/send');
     const thread = document.getElementById('chat-thread');
     const form = document.getElementById('chat-form');
     const input = document.getElementById('chat-input');
-    const pollUrl = <?= json_encode($pollUrl, JSON_UNESCAPED_UNICODE) ?>;
+    const pollUrl = <?= js_encode($pollUrl) ?>;
     const meId = <?= (int) $meId ?>;
     let lastId = <?= (int) $lastId ?>;
 

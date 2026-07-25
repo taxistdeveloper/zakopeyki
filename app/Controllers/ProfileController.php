@@ -23,7 +23,7 @@ class ProfileController extends Controller
 
         $dbUser = (new User())->find(Auth::id());
         if ($dbUser) {
-            Auth::login($dbUser);
+            Auth::refresh($dbUser);
         }
 
         $tab = $_GET['tab'] ?? 'personal';
@@ -104,7 +104,7 @@ class ProfileController extends Controller
 
         $fresh = $users->find(Auth::id());
         if ($fresh) {
-            Auth::login($fresh);
+            Auth::refresh($fresh);
         }
 
         $_SESSION['flash'] = t('flash.personal_saved');
@@ -117,7 +117,7 @@ class ProfileController extends Controller
         (new User())->updateBio(Auth::id(), trim($_POST['bio'] ?? ''));
         $fresh = (new User())->find(Auth::id());
         if ($fresh) {
-            Auth::login($fresh);
+            Auth::refresh($fresh);
         }
         $_SESSION['flash'] = t('flash.bio_saved');
         $this->redirect('/profile?tab=bio');
@@ -126,8 +126,11 @@ class ProfileController extends Controller
     public function updatePassword(): void
     {
         Auth::requireLogin();
+        $current = $_POST['current_password'] ?? '';
         $pass = $_POST['password'] ?? '';
         $confirm = $_POST['password_confirm'] ?? '';
+        $users = new User();
+        $userId = Auth::id();
 
         if (strlen($pass) < 8) {
             $_SESSION['error'] = t('flash.password_min');
@@ -138,7 +141,14 @@ class ProfileController extends Controller
             $this->redirect('/profile?tab=password');
         }
 
-        (new User())->updatePassword(Auth::id(), $pass);
+        $dbUser = $users->find($userId);
+        $hasPassword = !empty($dbUser['password']);
+        if ($hasPassword && ($current === '' || !$users->verifyPassword($userId, $current))) {
+            $_SESSION['error'] = t('flash.wrong_password');
+            $this->redirect('/profile?tab=password');
+        }
+
+        $users->updatePassword($userId, $pass);
         $_SESSION['flash'] = t('flash.password_changed');
         $this->redirect('/profile?tab=password');
     }
@@ -377,7 +387,11 @@ class ProfileController extends Controller
             if (!in_array($ext, self::PRODUCT_EXT, true)) {
                 return ['error' => t('flash.photo_formats')];
             }
+            if (!\App\Helpers\UploadHelper::isAllowedUpload((string) $tmps[$i], (string) $name, self::PRODUCT_EXT)) {
+                return ['error' => t('flash.photo_formats')];
+            }
 
+            $ext = \App\Helpers\UploadHelper::normalizeExt((string) $name);
             $filename = 'product_' . Auth::id() . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
             if (!move_uploaded_file($tmps[$i], $dir . '/' . $filename)) {
                 return ['error' => t('flash.photo_save_fail')];
@@ -408,6 +422,12 @@ class ProfileController extends Controller
             $_SESSION['error'] = t('flash.avatar_formats');
             $this->redirect('/profile?tab=photo');
         }
+        if (!\App\Helpers\UploadHelper::isAllowedUpload((string) $file['tmp_name'], (string) $file['name'], self::AVATAR_EXT)) {
+            $_SESSION['error'] = t('flash.avatar_formats');
+            $this->redirect('/profile?tab=photo');
+        }
+
+        $ext = \App\Helpers\UploadHelper::normalizeExt((string) $file['name']);
 
         $dir = __DIR__ . '/../../public/uploads/avatars';
         if (!is_dir($dir)) {
@@ -423,7 +443,7 @@ class ProfileController extends Controller
             }
         }
 
-        $name = 'avatar_' . Auth::id() . '_' . time() . '.' . $ext;
+        $name = 'avatar_' . Auth::id() . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
         if (!move_uploaded_file($file['tmp_name'], $dir . '/' . $name)) {
             $_SESSION['error'] = t('flash.avatar_save_fail');
             $this->redirect('/profile?tab=photo');
@@ -432,7 +452,7 @@ class ProfileController extends Controller
         $users->updateAvatar(Auth::id(), $name);
         $fresh = $users->find(Auth::id());
         if ($fresh) {
-            Auth::login($fresh);
+            Auth::refresh($fresh);
         }
 
         $_SESSION['flash'] = t('flash.avatar_updated');

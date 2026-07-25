@@ -30,5 +30,22 @@ spl_autoload_register(function (string $class): void {
 \App\Core\Auth::start();
 \App\Core\Lang::boot();
 
+if (!function_exists('js_encode')) {
+    function js_encode(mixed $data): string
+    {
+        return json_encode(
+            $data,
+            JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+        ) ?: 'null';
+    }
+}
+
+if (!function_exists('csrf_field')) {
+    function csrf_field(): string
+    {
+        return \App\Core\Csrf::field();
+    }
+}
+
 $router = require __DIR__ . '/config/routes.php';
 $router->dispatch($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI']);

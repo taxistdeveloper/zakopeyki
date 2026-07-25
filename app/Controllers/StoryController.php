@@ -83,12 +83,16 @@ class StoryController extends Controller
         if (!in_array($ext, self::ALLOWED_EXT, true)) {
             return null;
         }
+        if (!\App\Helpers\UploadHelper::isAllowedUpload((string) $file['tmp_name'], (string) $file['name'], self::ALLOWED_EXT)) {
+            return null;
+        }
 
         $dir = __DIR__ . '/../../public/uploads/stories';
         if (!is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
 
+        $ext = \App\Helpers\UploadHelper::normalizeExt((string) $file['name']);
         $name = 'story_' . Auth::id() . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
         $dest = $dir . '/' . $name;
 

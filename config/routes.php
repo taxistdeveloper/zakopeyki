@@ -56,7 +56,7 @@ $router->get('/register', [AuthController::class, 'registerForm']);
 $router->post('/register', [AuthController::class, 'register']);
 $router->get('/auth/google', [AuthController::class, 'googleRedirect']);
 $router->get('/auth/google/callback', [AuthController::class, 'googleCallback']);
-$router->get('/logout', [AuthController::class, 'logout']);
+$router->post('/logout', [AuthController::class, 'logout']);
 
 $router->get('/profile', [ProfileController::class, 'index']);
 $router->post('/profile/store', [ProfileController::class, 'store']);
@@ -67,7 +67,8 @@ $router->post('/profile/personal', [ProfileController::class, 'updatePersonal'])
 $router->post('/profile/bio', [ProfileController::class, 'updateBio']);
 $router->post('/profile/password', [ProfileController::class, 'updatePassword']);
 $router->post('/profile/delete', [ProfileController::class, 'deleteAccount']);
-$router->get('/notifications/clear', [ProfileController::class, 'clearNotifications']);
+$router->post('/notifications/clear', [ProfileController::class, 'clearNotifications']);
+$router->get('/orders/{id}/evidence/{file}', [OrderController::class, 'evidence']);
 
 $router->post('/stories', [StoryController::class, 'store']);
 $router->post('/stories/{id}/delete', [StoryController::class, 'delete']);

@@ -29,9 +29,41 @@ class GoogleOAuth
             || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
 
         $scheme = $https ? 'https' : 'http';
-        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        $host = $this->trustedHost();
 
         return $scheme . '://' . $host . ProductHelper::url('/login');
+    }
+
+    /** Host only from allowlist / SERVER_NAME — not raw Host header. */
+    private function trustedHost(): string
+    {
+        $allowed = $this->config['allowed_hosts'] ?? [];
+        if (!is_array($allowed)) {
+            $allowed = [];
+        }
+
+        $candidates = array_filter([
+            $_SERVER['SERVER_NAME'] ?? null,
+            $_SERVER['HTTP_HOST'] ?? null,
+        ]);
+
+        foreach ($candidates as $candidate) {
+            $host = strtolower(trim(preg_replace('/:\d+$/', '', (string) $candidate)));
+            if ($host === '') {
+                continue;
+            }
+            if ($allowed === [] && in_array($host, ['localhost', '127.0.0.1'], true)) {
+                return $host;
+            }
+            foreach ($allowed as $pattern) {
+                $pattern = strtolower(trim((string) $pattern));
+                if ($pattern !== '' && ($host === $pattern || str_ends_with($host, '.' . $pattern))) {
+                    return $host;
+                }
+            }
+        }
+
+        return 'localhost';
     }
 
     public function authorizationUrl(string $state): string

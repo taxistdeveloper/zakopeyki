@@ -170,7 +170,10 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         <p class="text-sm text-gray-400 mt-1"><?= htmlspecialchars(t('profile.notifications_hint')) ?></p>
                     </div>
                     <?php if (!empty($notifications)): ?>
-                        <a href="<?= ProductHelper::url('/notifications/clear') ?>" class="text-xs font-semibold text-brand-600 hover:underline"><?= htmlspecialchars(t('profile.clear')) ?></a>
+                        <form method="post" action="<?= ProductHelper::url('/notifications/clear') ?>" class="inline">
+                            <?= csrf_field() ?>
+                            <button type="submit" class="text-xs font-semibold text-brand-600 hover:underline"><?= htmlspecialchars(t('profile.clear')) ?></button>
+                        </form>
                     <?php endif; ?>
                 </div>
                 <?php if (empty($notifications)): ?>
@@ -197,6 +200,12 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                     <?= htmlspecialchars(t('profile.password_info')) ?>
                 </div>
                 <form method="post" action="<?= ProductHelper::url('/profile/password') ?>" class="space-y-5">
+                    <?= csrf_field() ?>
+                    <div>
+                        <label class="block text-[13px] font-semibold mb-1.5"><?= htmlspecialchars(t('profile.current_password')) ?></label>
+                        <input type="password" name="current_password" autocomplete="current-password" class="<?= $input ?>">
+                        <p class="text-xs text-gray-400 mt-1.5"><?= htmlspecialchars(t('profile.current_password_hint')) ?></p>
+                    </div>
                     <div>
                         <label class="block text-[13px] font-semibold mb-1.5"><?= htmlspecialchars(t('profile.new_password')) ?> <span class="text-red-500">*</span></label>
                         <div class="relative">
@@ -358,15 +367,15 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         const parentSelect = document.getElementById('lot-category-parent');
                         const categorySelect = document.getElementById('lot-category');
                         const noPrice = ['free', 'exchange'];
-                        const withCategory = <?= json_encode($productTypesWithCategory, JSON_UNESCAPED_UNICODE) ?>;
-                        const tree = <?= json_encode($categoryTree, JSON_UNESCAPED_UNICODE) ?>;
-                        const labels = <?= json_encode(array_combine(array_keys($categoryTree), array_map(
+                        const withCategory = <?= js_encode($productTypesWithCategory) ?>;
+                        const tree = <?= js_encode($categoryTree) ?>;
+                        const labels = <?= js_encode(array_combine(array_keys($categoryTree), array_map(
                             static fn ($parent) => ProductHelper::categoryLabel($parent),
                             array_keys($categoryTree)
                         )) + array_reduce($categoryTree, static function (array $labels, array $children): array {
                             foreach ($children as $child) $labels[$child] = ProductHelper::categoryLabel($child);
                             return $labels;
-                        }, []), JSON_UNESCAPED_UNICODE) ?>;
+                        }, [])) ?>;
                         if (!typeSelect || !priceWrap || !priceInput) return;
 
                         function syncPriceField() {

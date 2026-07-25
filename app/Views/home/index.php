@@ -347,14 +347,14 @@ $streamsForJs = array_map(static function ($s) {
     ];
 }, $streams);
 ?>
-window.__storyGroups = <?= json_encode($storyGroupsForJs, JSON_UNESCAPED_UNICODE) ?>;
-window.__storyUploadBase = <?= json_encode(ProductHelper::url('public/uploads/stories/')) ?>;
-window.__storyDeleteBase = <?= json_encode(ProductHelper::url('/stories/')) ?>;
-window.__streams = <?= json_encode($streamsForJs, JSON_UNESCAPED_UNICODE) ?>;
-window.__streamDeleteBase = <?= json_encode(ProductHelper::url('/streams/')) ?>;
-window.__streamLiveStart = <?= json_encode(ProductHelper::url('/streams/live/start')) ?>;
-window.__streamLiveHeartbeat = <?= json_encode(ProductHelper::url('/streams/live/heartbeat')) ?>;
-window.__streamLiveEnd = <?= json_encode(ProductHelper::url('/streams/live/end')) ?>;
+window.__storyGroups = <?= js_encode($storyGroupsForJs) ?>;
+window.__storyUploadBase = <?= js_encode(ProductHelper::url('public/uploads/stories/')) ?>;
+window.__storyDeleteBase = <?= js_encode(ProductHelper::url('/stories/')) ?>;
+window.__streams = <?= js_encode($streamsForJs) ?>;
+window.__streamDeleteBase = <?= js_encode(ProductHelper::url('/streams/')) ?>;
+window.__streamLiveStart = <?= js_encode(ProductHelper::url('/streams/live/start')) ?>;
+window.__streamLiveHeartbeat = <?= js_encode(ProductHelper::url('/streams/live/heartbeat')) ?>;
+window.__streamLiveEnd = <?= js_encode(ProductHelper::url('/streams/live/end')) ?>;
 window.__currentUserId = <?= (int) (Auth::id() ?? 0) ?>;
 window.__isAdmin = <?= Auth::isAdmin() ? 'true' : 'false' ?>;
 </script>

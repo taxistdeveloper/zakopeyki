@@ -149,6 +149,56 @@ class OrderController extends Controller
         $this->flashResult($result, (int) $id);
     }
 
+    public function evidence(string $id, string $file): void
+    {
+        Auth::requireLogin();
+        $orderId = (int) $id;
+        $order = (new Order())->find($orderId);
+        if (!$order) {
+            http_response_code(404);
+            exit;
+        }
+
+        $uid = Auth::id();
+        $isParty = (int) $order['buyer_id'] === $uid || (int) $order['seller_id'] === $uid;
+        if (!$isParty && !Auth::isAdmin()) {
+            http_response_code(403);
+            exit;
+        }
+
+        $safe = basename($file);
+        if ($safe === '' || $safe !== $file || !preg_match('/^d_\d{14}_[a-f0-9]+\.(jpe?g|png|webp|gif|mp4|webm)$/i', $safe)) {
+            http_response_code(404);
+            exit;
+        }
+
+        $evidence = [];
+        if (!empty($order['dispute_evidence'])) {
+            $decoded = json_decode((string) $order['dispute_evidence'], true);
+            if (is_array($decoded)) {
+                $evidence = $decoded;
+            }
+        }
+        if (!in_array($safe, $evidence, true)) {
+            http_response_code(404);
+            exit;
+        }
+
+        $path = __DIR__ . '/../../public/uploads/disputes/' . $safe;
+        if (!is_file($path)) {
+            http_response_code(404);
+            exit;
+        }
+
+        $mime = \App\Helpers\UploadHelper::detectMime($path) ?: 'application/octet-stream';
+        header('Content-Type: ' . $mime);
+        header('X-Content-Type-Options: nosniff');
+        header('Content-Length: ' . (string) filesize($path));
+        header('Content-Disposition: inline; filename="' . $safe . '"');
+        readfile($path);
+        exit;
+    }
+
     /** @param array{ok: bool, error?: string} $result */
     private function flashResult(array $result, int $orderId): void
     {
@@ -205,6 +255,10 @@ class OrderController extends Controller
             if (!in_array($ext, $allowed, true)) {
                 return ['error' => t('escrow.evidence_type')];
             }
+            if (!\App\Helpers\UploadHelper::isAllowedUpload((string) $tmps[$i], (string) $names[$i], $allowed)) {
+                return ['error' => t('escrow.evidence_type')];
+            }
+            $ext = \App\Helpers\UploadHelper::normalizeExt((string) $names[$i]);
             $filename = 'd_' . date('YmdHis') . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
             if (!move_uploaded_file((string) $tmps[$i], $dir . '/' . $filename)) {
                 return ['error' => t('flash.upload_error')];

@@ -88,14 +88,14 @@ class EscrowService
         return ['ok' => true];
     }
 
-    /** Покупатель (или продавец) отмечает «доставлено». */
+    /** Только покупатель отмечает «доставлено». */
     public function markDelivered(int $orderId, int $actorId): array
     {
         $order = $this->orders->find($orderId);
         if (!$order) {
             return ['ok' => false, 'error' => t('escrow.not_found')];
         }
-        if (!$this->isParty($order, $actorId)) {
+        if ((int) $order['buyer_id'] !== $actorId) {
             return ['ok' => false, 'error' => t('escrow.forbidden')];
         }
         if (($order['status'] ?? '') !== 'shipped') {

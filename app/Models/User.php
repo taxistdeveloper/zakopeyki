@@ -110,7 +110,7 @@ class User extends Model
             $data['email'],
             $data['google_id'] ?? null,
             $passwordHash,
-            $data['role'] ?? 'user',
+            'user',
             mb_strtoupper(mb_substr($name, 0, 1)),
             $data['phone'] ?? null,
         ]);

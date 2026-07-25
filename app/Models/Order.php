@@ -237,6 +237,11 @@ class Order extends Model
             ? $deliveryMethod
             : 'kazpost';
 
+        $allowSimulated = (bool) ($GLOBALS['appConfig']['allow_simulated_payments'] ?? false);
+        if ($method !== 'wallet' && !$allowSimulated) {
+            return ['ok' => false, 'error' => t('wallet.payments_disabled')];
+        }
+
         $wallet = new Wallet();
         if ($method === 'wallet' && $wallet->balance($buyerId) < $amount) {
             return ['ok' => false, 'error' => t('wallet.insufficient_checkout')];

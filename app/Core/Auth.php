@@ -6,14 +6,41 @@ class Auth
 {
     public static function start(): void
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
+        if (session_status() !== PHP_SESSION_NONE) {
+            return;
         }
+
+        $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || (($_SERVER['SERVER_PORT'] ?? null) == 443)
+            || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+
+        session_set_cookie_params([
+            'lifetime' => 0,
+            'path' => '/',
+            'secure' => $https,
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+
+        session_start();
     }
 
     public static function login(array $user): void
     {
         self::start();
+        session_regenerate_id(true);
+        self::setUser($user);
+    }
+
+    /** Обновить данные в сессии без ротации session id (например после правки профиля). */
+    public static function refresh(array $user): void
+    {
+        self::start();
+        self::setUser($user);
+    }
+
+    private static function setUser(array $user): void
+    {
         $_SESSION['user'] = [
             'id' => $user['id'],
             'name' => $user['name'],
@@ -32,7 +59,12 @@ class Auth
     public static function logout(): void
     {
         self::start();
-        unset($_SESSION['user']);
+        $_SESSION = [];
+        if (ini_get('session.use_cookies')) {
+            $params = session_get_cookie_params();
+            setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'] ?? '', (bool) $params['secure'], (bool) $params['httponly']);
+        }
+        session_destroy();
     }
 
     public static function check(): bool

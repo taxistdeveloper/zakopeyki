@@ -120,7 +120,7 @@ $btn = 'inline-flex items-center justify-center w-full font-display font-bold py
                     <?php if ($evidence): ?>
                         <div class="flex flex-wrap gap-2 pt-1">
                             <?php foreach ($evidence as $file): ?>
-                                <a href="<?= ProductHelper::url('public/uploads/disputes/' . $file) ?>" target="_blank" class="text-xs font-semibold text-brand-600 hover:underline"><?= htmlspecialchars($file) ?></a>
+                                <a href="<?= ProductHelper::url('/orders/' . (int) $order['id'] . '/evidence/' . rawurlencode(basename((string) $file))) ?>" target="_blank" rel="noopener" class="text-xs font-semibold text-brand-600 hover:underline"><?= htmlspecialchars(basename((string) $file)) ?></a>
                             <?php endforeach; ?>
                         </div>
                     <?php endif; ?>
@@ -139,8 +139,9 @@ $btn = 'inline-flex items-center justify-center w-full font-display font-bold py
             </form>
         <?php endif; ?>
 
-        <?php if ($status === 'shipped' && (!empty($isBuyer) || !empty($isSeller))): ?>
+        <?php if ($status === 'shipped' && !empty($isBuyer)): ?>
             <form method="post" action="<?= ProductHelper::url('/orders/' . (int) $order['id'] . '/delivered') ?>" class="bg-white/90 dark:bg-white/[0.04] rounded-[24px] border border-black/[0.06] dark:border-white/10 p-5 space-y-3 shadow-soft">
+                <?= csrf_field() ?>
                 <h3 class="font-display font-bold"><?= htmlspecialchars(t('escrow.delivered_title')) ?></h3>
                 <p class="text-xs text-gray-500"><?= htmlspecialchars(t('escrow.delivered_hint')) ?></p>
                 <button type="submit" class="<?= $btn ?> bg-brand-600 hover:bg-brand-500 text-white"><?= htmlspecialchars(t('escrow.delivered_btn')) ?></button>

@@ -5,6 +5,7 @@ use App\Models\Wallet;
 $balanceFmt = Wallet::formatMoney((int) $balance);
 $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm';
 $btn = 'w-full font-display font-bold py-3 rounded-2xl text-xs uppercase tracking-wider transition';
+$simPayments = (bool) ($GLOBALS['appConfig']['allow_simulated_payments'] ?? false);
 ?>
 <section class="max-w-2xl mx-auto space-y-5 fade-up pb-8">
     <div>
@@ -30,10 +31,12 @@ $btn = 'w-full font-display font-bold py-3 rounded-2xl text-xs uppercase trackin
         </div>
     </div>
 
+    <?php if ($simPayments): ?>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <form method="post" action="<?= ProductHelper::url('/wallet/deposit') ?>" class="bg-white/90 dark:bg-white/[0.04] rounded-[24px] border border-black/[0.06] dark:border-white/10 p-5 space-y-3 shadow-soft">
+            <?= csrf_field() ?>
             <h2 class="font-display font-bold text-ink-900 dark:text-white"><?= htmlspecialchars(t('wallet.deposit_title')) ?></h2>
-            <p class="text-xs text-gray-500"><?= htmlspecialchars(t('wallet.deposit_hint')) ?></p>
+            <p class="text-xs text-amber-700 dark:text-amber-300"><?= htmlspecialchars(t('wallet.deposit_hint')) ?></p>
             <input type="text" name="amount" inputmode="numeric" required placeholder="<?= htmlspecialchars(t('wallet.amount_placeholder')) ?>" class="<?= $input ?>">
             <div class="flex gap-2">
                 <label class="flex-1 flex items-center gap-2 p-2.5 rounded-xl border border-black/[0.08] dark:border-white/10 text-xs font-semibold cursor-pointer has-[:checked]:border-brand-500">
@@ -47,6 +50,7 @@ $btn = 'w-full font-display font-bold py-3 rounded-2xl text-xs uppercase trackin
         </form>
 
         <form method="post" action="<?= ProductHelper::url('/wallet/withdraw') ?>" class="bg-white/90 dark:bg-white/[0.04] rounded-[24px] border border-black/[0.06] dark:border-white/10 p-5 space-y-3 shadow-soft">
+            <?= csrf_field() ?>
             <h2 class="font-display font-bold text-ink-900 dark:text-white"><?= htmlspecialchars(t('wallet.withdraw_title')) ?></h2>
             <p class="text-xs text-gray-500"><?= htmlspecialchars(t('wallet.withdraw_hint')) ?></p>
             <input type="text" name="amount" inputmode="numeric" required placeholder="<?= htmlspecialchars(t('wallet.amount_placeholder')) ?>" class="<?= $input ?>">
@@ -61,6 +65,9 @@ $btn = 'w-full font-display font-bold py-3 rounded-2xl text-xs uppercase trackin
             <button type="submit" class="<?= $btn ?> bg-ink-900 hover:bg-ink-800 text-white"><?= htmlspecialchars(t('wallet.withdraw_btn')) ?></button>
         </form>
     </div>
+    <?php else: ?>
+        <div class="bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200 border border-amber-200/70 dark:border-amber-800/40 px-4 py-3 rounded-2xl text-sm"><?= htmlspecialchars(t('wallet.payments_disabled')) ?></div>
+    <?php endif; ?>
 
     <div class="bg-white/90 dark:bg-white/[0.04] rounded-[24px] border border-black/[0.06] dark:border-white/10 overflow-hidden shadow-soft">
         <div class="px-5 py-4 border-b border-black/[0.05] dark:border-white/10">

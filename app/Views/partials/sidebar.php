@@ -133,7 +133,10 @@ $navIcon = static fn (string $name): string => IconHelper::svg($name, 'w-[18px] 
                 <span class="text-[11px] text-gray-400"><?= htmlspecialchars($user['role'] === 'admin' ? t('nav.role_admin') : t('nav.role_user')) ?></span>
             </div>
         </div>
-        <a href="<?= ProductHelper::url('/logout') ?>" class="block text-center text-[11px] font-semibold text-gray-400 hover:text-ink-900 dark:hover:text-white transition py-2 rounded-xl hover:bg-black/[0.04] dark:hover:bg-white/10"><?= htmlspecialchars(t('nav.logout')) ?></a>
+        <form method="post" action="<?= ProductHelper::url('/logout') ?>" class="block">
+            <?= csrf_field() ?>
+            <button type="submit" class="w-full text-center text-[11px] font-semibold text-gray-400 hover:text-ink-900 dark:hover:text-white transition py-2 rounded-xl hover:bg-black/[0.04] dark:hover:bg-white/10"><?= htmlspecialchars(t('nav.logout')) ?></button>
+        </form>
     </div>
     <?php else: ?>
     <div class="p-3 m-3 space-y-2">

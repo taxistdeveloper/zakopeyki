@@ -1,3 +1,73 @@
+function csrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return (meta && meta.content) || window.__csrfToken || '';
+}
+
+function escapeHtml(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function escapeAttr(value) {
+    return escapeHtml(value).replace(/`/g, '&#96;');
+}
+
+(function installCsrf() {
+    function injectForms(root) {
+        const token = csrfToken();
+        if (!token) return;
+        (root || document).querySelectorAll('form').forEach(function (form) {
+            const method = (form.getAttribute('method') || 'get').toLowerCase();
+            if (method !== 'post') return;
+            let input = form.querySelector('input[name="_csrf"]');
+            if (!input) {
+                input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = '_csrf';
+                form.prepend(input);
+            }
+            input.value = token;
+        });
+    }
+
+    injectForms(document);
+    document.addEventListener('DOMContentLoaded', function () { injectForms(document); });
+    document.addEventListener('submit', function (e) {
+        const form = e.target;
+        if (!(form instanceof HTMLFormElement)) return;
+        injectForms(form.parentNode || document);
+    }, true);
+
+    const originalFetch = window.fetch;
+    window.fetch = function (input, init) {
+        init = init ? Object.assign({}, init) : {};
+        const method = String(init.method || 'GET').toUpperCase();
+        if (method !== 'GET' && method !== 'HEAD') {
+            const token = csrfToken();
+            if (token) {
+                const headers = new Headers(init.headers || {});
+                if (!headers.has('X-CSRF-Token')) {
+                    headers.set('X-CSRF-Token', token);
+                }
+                init.headers = headers;
+
+                if (init.body instanceof FormData && !init.body.has('_csrf')) {
+                    init.body.append('_csrf', token);
+                } else if (init.body instanceof URLSearchParams && !init.body.has('_csrf')) {
+                    init.body.append('_csrf', token);
+                } else if (typeof init.body === 'string' && headers.get('Content-Type')?.includes('application/x-www-form-urlencoded') && !/[?&]_csrf=/.test(init.body)) {
+                    init.body += (init.body ? '&' : '') + '_csrf=' + encodeURIComponent(token);
+                }
+            }
+        }
+        return originalFetch.call(this, input, init);
+    };
+})();
+
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
@@ -288,14 +358,15 @@ function peekStoryHtml(group) {
     let bg = '';
     let emoji = '';
     if (s.image) {
-        bg = 'background-image:url(\'' + (window.__storyUploadBase || '') + s.image + '\')';
+        const src = escapeAttr((window.__storyUploadBase || '') + s.image);
+        bg = 'background-image:url(\'' + src + '\')';
     } else {
-        const c1 = s.bg_color || '#2563EB';
+        const c1 = /^#[0-9A-Fa-f]{6}$/.test(String(s.bg_color || '')) ? s.bg_color : '#2563EB';
         bg = 'background:linear-gradient(160deg,' + c1 + ',#111)';
-        emoji = '<span class="story-peek-emoji">' + (s.emoji || '✨') + '</span>';
+        emoji = '<span class="story-peek-emoji">' + escapeHtml(s.emoji || '✨') + '</span>';
     }
     return '<div class="story-peek-bg" style="' + bg + '"></div>' + emoji +
-        '<span class="story-peek-name">' + (group.user_name || '') + '</span>';
+        '<span class="story-peek-name">' + escapeHtml(group.user_name || '') + '</span>';
 }
 
 function renderStoryPeeks() {
@@ -336,7 +407,7 @@ function renderStory() {
 
     const avatarEl = document.getElementById('story-viewer-avatar');
     if (group.avatar_url) {
-        avatarEl.innerHTML = '<img src="' + group.avatar_url + '" alt="" class="w-full h-full object-cover">';
+        avatarEl.innerHTML = '<img src="' + escapeAttr(group.avatar_url) + '" alt="" class="w-full h-full object-cover">';
     } else {
         avatarEl.innerHTML = '';
         avatarEl.textContent = group.user_avatar || '?';

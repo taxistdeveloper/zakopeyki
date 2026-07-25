@@ -37,6 +37,9 @@ class Router
             $pattern = '#^' . $pattern . '$#';
 
             if (preg_match($pattern, $path, $matches)) {
+                if (strtoupper($method) === 'POST') {
+                    Csrf::enforce();
+                }
                 $params = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY);
                 [$class, $action] = $handler;
                 $controller = new $class();

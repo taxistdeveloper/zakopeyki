@@ -66,7 +66,7 @@ class AuthController extends Controller
         $password = $_POST['password'] ?? '';
         $phone = trim($_POST['phone'] ?? '');
 
-        if ($name === '' || $email === '' || strlen($password) < 6) {
+        if ($name === '' || $email === '' || strlen($password) < 8) {
             $this->view('auth/register', [
                 'title' => t('auth.register_title'),
                 'error' => t('auth.fill_fields'),
@@ -155,6 +155,14 @@ class AuthController extends Controller
 
         $googleId = (string) $info['sub'];
         $email = strtolower(trim((string) $info['email']));
+        $emailVerified = filter_var($info['email_verified'] ?? false, FILTER_VALIDATE_BOOLEAN)
+            || $info['email_verified'] === true
+            || $info['email_verified'] === 'true';
+        if (!$emailVerified) {
+            $_SESSION['auth_error'] = t('auth.google_email_unverified');
+            $this->redirect('/login');
+        }
+
         $name = trim((string) ($info['name'] ?? ''));
         if ($name === '') {
             $name = trim(($info['given_name'] ?? '') . ' ' . ($info['family_name'] ?? ''));
@@ -177,6 +185,7 @@ class AuthController extends Controller
                     'email' => $email,
                     'password' => null,
                     'google_id' => $googleId,
+                    'role' => 'user',
                 ]);
                 $user = $users->find($id);
             }

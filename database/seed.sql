@@ -1,6 +1,7 @@
 USE zakapeiku;
 
--- password for all demo users: password
+-- DEMO ONLY. Change passwords before any production use.
+-- Default password for seeded users: password
 INSERT INTO users (id, name, email, password, role, avatar, phone) VALUES
 (1, 'Радик', 'admin@zakopeyki.kz', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', 'R', '77000000000'),
 (2, 'Алина', 'user@zakopeyki.kz', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'user', 'A', '77001112233');

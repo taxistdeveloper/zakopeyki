@@ -8,6 +8,7 @@ $checkoutPayUrl = ProductHelper::url('/checkout/' . (int) $item['id'] . '/pay');
 $walletBalance = (int) ($walletBalance ?? 0);
 $need = (int) ($item['price'] ?? 0);
 $canWallet = $walletBalance >= $need;
+$simPayments = (bool) ($GLOBALS['appConfig']['allow_simulated_payments'] ?? false);
 ?>
 <section class="max-w-lg mx-auto space-y-5 fade-up pb-8">
     <div>
@@ -37,6 +38,7 @@ $canWallet = $walletBalance >= $need;
         </div>
 
         <form method="post" action="<?= $checkoutPayUrl ?>" class="p-5 sm:p-6 space-y-5">
+            <?= csrf_field() ?>
             <div class="rounded-2xl bg-amber-50/90 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/40 px-4 py-3 text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
                 <?= htmlspecialchars(t('checkout.escrow_notice')) ?>
             </div>
@@ -73,6 +75,7 @@ $canWallet = $walletBalance >= $need;
                         <?php endif; ?>
                     </span>
                 </label>
+                <?php if ($simPayments): ?>
                 <label class="flex items-center gap-3 p-3.5 rounded-2xl border border-black/[0.08] dark:border-white/10 cursor-pointer has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50/50 dark:has-[:checked]:bg-brand-500/10 transition">
                     <input type="radio" name="payment_method" value="card" <?= !$canWallet ? 'checked' : '' ?> class="accent-brand-600">
                     <span class="text-sm font-semibold text-ink-800 dark:text-gray-200"><?= htmlspecialchars(t('checkout.method_card')) ?></span>
@@ -81,6 +84,9 @@ $canWallet = $walletBalance >= $need;
                     <input type="radio" name="payment_method" value="kaspi" class="accent-brand-600">
                     <span class="text-sm font-semibold text-ink-800 dark:text-gray-200"><?= htmlspecialchars(t('checkout.method_kaspi')) ?></span>
                 </label>
+                <?php elseif (!$canWallet): ?>
+                    <p class="text-xs text-red-500 px-1"><?= htmlspecialchars(t('wallet.payments_disabled')) ?></p>
+                <?php endif; ?>
             </div>
 
             <div class="flex justify-between items-center pt-2 border-t border-black/[0.05] dark:border-white/10">
@@ -88,7 +94,7 @@ $canWallet = $walletBalance >= $need;
                 <span class="font-display text-2xl font-extrabold text-ink-900 dark:text-white"><?= htmlspecialchars($price) ?></span>
             </div>
 
-            <button type="submit" class="w-full bg-accent-500 hover:bg-accent-400 text-white font-display font-bold py-3.5 rounded-2xl text-sm uppercase tracking-wider transition shadow-soft">
+            <button type="submit" <?= (!$canWallet && !$simPayments) ? 'disabled' : '' ?> class="w-full bg-accent-500 hover:bg-accent-400 disabled:opacity-50 disabled:cursor-not-allowed text-white font-display font-bold py-3.5 rounded-2xl text-sm uppercase tracking-wider transition shadow-soft">
                 <?= htmlspecialchars(t('checkout.pay_escrow_btn')) ?>
             </button>
             <a href="<?= ProductHelper::url('/product/' . (int) $item['id']) ?>" class="block w-full text-center text-sm text-gray-400 hover:text-brand-600 font-medium transition">

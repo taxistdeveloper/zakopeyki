@@ -70,7 +70,10 @@ $langSwitchUrl = static function (string $code) use ($lang): string {
                 <div class="px-4 py-2.5 border-b border-black/[0.06] dark:border-white/10 flex justify-between items-center">
                     <h5 class="font-display font-semibold text-sm"><?= htmlspecialchars(t('header.notifications')) ?></h5>
                     <?php if (Auth::check()): ?>
-                        <a href="<?= ProductHelper::url('/notifications/clear') ?>" class="text-xs font-semibold text-brand-600 hover:underline"><?= htmlspecialchars(t('header.clear')) ?></a>
+                        <form method="post" action="<?= ProductHelper::url('/notifications/clear') ?>" class="inline">
+                            <?= csrf_field() ?>
+                            <button type="submit" class="text-xs font-semibold text-brand-600 hover:underline"><?= htmlspecialchars(t('header.clear')) ?></button>
+                        </form>
                     <?php endif; ?>
                 </div>
                 <div class="max-h-64 overflow-y-auto text-xs divide-y divide-black/[0.04] dark:divide-white/5">

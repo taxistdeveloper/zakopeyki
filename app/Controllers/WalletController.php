@@ -33,6 +33,11 @@ class WalletController extends Controller
     public function deposit(): void
     {
         Auth::requireLogin();
+        if (!($GLOBALS['appConfig']['allow_simulated_payments'] ?? false)) {
+            $_SESSION['error'] = t('wallet.payments_disabled');
+            $this->redirect('/wallet');
+        }
+
         $amount = (int) preg_replace('/\D/', '', (string) ($_POST['amount'] ?? '0'));
         $source = (string) ($_POST['source'] ?? 'card');
         if (!in_array($source, ['card', 'kaspi'], true)) {
@@ -54,6 +59,11 @@ class WalletController extends Controller
     public function withdraw(): void
     {
         Auth::requireLogin();
+        if (!($GLOBALS['appConfig']['allow_simulated_payments'] ?? false)) {
+            $_SESSION['error'] = t('wallet.payments_disabled');
+            $this->redirect('/wallet');
+        }
+
         $amount = (int) preg_replace('/\D/', '', (string) ($_POST['amount'] ?? '0'));
         $dest = (string) ($_POST['dest'] ?? 'card');
         if (!in_array($dest, ['card', 'kaspi'], true)) {

@@ -12,6 +12,7 @@ function url(string $path = ''): string
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?= \App\Core\Csrf::meta() ?>
     <title><?= htmlspecialchars($title ?? 'Zakopeyki') ?> — zakopeyki.kz</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -413,13 +414,14 @@ function url(string $path = ''): string
 
     <script>
         window.__isLoggedIn = <?= \App\Core\Auth::check() ? 'true' : 'false' ?>;
-        window.__loginUrl = <?= json_encode(url('/login')) ?>;
-        window.__favoritesToggleBase = <?= json_encode(rtrim(url('/favorites'), '/') . '/') ?>;
-        window.__aiChatUrl = <?= json_encode(url('/ai/chat')) ?>;
-        window.__chatStartUrl = <?= json_encode(url('/chat/start')) ?>;
-        window.__chatBaseUrl = <?= json_encode(rtrim(url('/chat'), '/') . '/') ?>;
-        window.__lang = <?= json_encode(\App\Core\Lang::current()) ?>;
-        window.__i18n = <?= json_encode(\App\Core\Lang::forJs([
+        window.__csrfToken = <?= js_encode(\App\Core\Csrf::token()) ?>;
+        window.__loginUrl = <?= js_encode(url('/login')) ?>;
+        window.__favoritesToggleBase = <?= js_encode(rtrim(url('/favorites'), '/') . '/') ?>;
+        window.__aiChatUrl = <?= js_encode(url('/ai/chat')) ?>;
+        window.__chatStartUrl = <?= js_encode(url('/chat/start')) ?>;
+        window.__chatBaseUrl = <?= js_encode(rtrim(url('/chat'), '/') . '/') ?>;
+        window.__lang = <?= js_encode(\App\Core\Lang::current()) ?>;
+        window.__i18n = <?= js_encode(\App\Core\Lang::forJs([
             'ai.welcome', 'ai.suggest_free', 'ai.suggest_exchange', 'ai.suggest_services', 'ai.suggest_sell',
             'ai.suggest_auctions', 'ai.msg_free', 'ai.msg_exchange', 'ai.msg_services', 'ai.msg_sell',
             'ai.msg_auctions', 'ai.error_reply', 'ai.error_network', 'js.now',
@@ -428,7 +430,7 @@ function url(string $path = ''): string
             'home.story_link_copied',
             'header.city', 'header.city_choose', 'header.city_detect', 'header.city_detecting', 'header.city_denied',
             'chat.title', 'chat.start_hint', 'chat.send_failed', 'chat.start_failed',
-        ]), JSON_UNESCAPED_UNICODE) ?>;
+        ])) ?>;
     </script>
     <script src="<?= url('public/assets/js/app.js') ?>"></script>
 </body>

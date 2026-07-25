@@ -66,14 +66,14 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
         </form>
         <script>
         (function () {
-            const tree = <?= json_encode($categoryTree, JSON_UNESCAPED_UNICODE) ?>;
-            const labels = <?= json_encode(array_combine(array_keys($categoryTree), array_map(
+            const tree = <?= js_encode($categoryTree) ?>;
+            const labels = <?= js_encode(array_combine(array_keys($categoryTree), array_map(
                 static fn ($parent) => ProductHelper::categoryLabel($parent),
                 array_keys($categoryTree)
             )) + array_reduce($categoryTree, static function (array $labels, array $children): array {
                 foreach ($children as $child) $labels[$child] = ProductHelper::categoryLabel($child);
                 return $labels;
-            }, []), JSON_UNESCAPED_UNICODE) ?>;
+            }, [])) ?>;
             const parentSelect = document.getElementById('catalog-parent');
             const subSelect = document.getElementById('catalog-sub');
             const form = document.getElementById('catalog-category-filters');
