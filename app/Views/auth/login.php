@@ -12,6 +12,9 @@
         <?php if (!empty($error)): ?>
             <div class="mb-4 bg-red-50 text-red-600 text-sm font-semibold px-4 py-3 rounded-2xl"><?= htmlspecialchars($error) ?></div>
         <?php endif; ?>
+        <?php if (!empty($success)): ?>
+            <div class="mb-4 bg-emerald-50 text-emerald-700 text-sm font-semibold px-4 py-3 rounded-2xl"><?= htmlspecialchars($success) ?></div>
+        <?php endif; ?>
 
         <a href="<?= ProductHelper::url('/auth/google') ?>"
            class="w-full inline-flex items-center justify-center gap-3 h-12 rounded-2xl border border-black/10 bg-white hover:bg-gray-50 text-sm font-semibold text-ink-900 transition">
@@ -36,7 +39,10 @@
                 <input type="email" name="email" value="<?= htmlspecialchars($email ?? '') ?>" required class="w-full h-11 px-4 rounded-xl border border-black/10 bg-white text-sm focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20">
             </div>
             <div>
-                <label class="block text-[13px] font-semibold mb-1.5"><?= htmlspecialchars(t('auth.password')) ?></label>
+                <div class="flex items-center justify-between mb-1.5 gap-3">
+                    <label class="block text-[13px] font-semibold"><?= htmlspecialchars(t('auth.password')) ?></label>
+                    <a href="<?= ProductHelper::url('/forgot-password') ?>" class="text-[12px] font-semibold text-brand-600 hover:text-brand-500 shrink-0"><?= htmlspecialchars(t('auth.forgot_link')) ?></a>
+                </div>
                 <input type="password" name="password" required class="w-full h-11 px-4 rounded-xl border border-black/10 bg-white text-sm focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20">
             </div>
             <button class="w-full bg-ink-900 hover:bg-black text-white font-display font-bold py-3.5 rounded-2xl text-xs uppercase tracking-wider transition"><?= htmlspecialchars(t('auth.login_btn')) ?></button>

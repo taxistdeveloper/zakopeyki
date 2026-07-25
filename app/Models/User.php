@@ -32,6 +32,8 @@ class User extends Model
             'two_factor_secret' => 'VARCHAR(64) DEFAULT NULL AFTER password',
             'two_factor_enabled' => 'TINYINT(1) NOT NULL DEFAULT 0 AFTER two_factor_secret',
             'two_factor_recovery_codes' => 'TEXT DEFAULT NULL AFTER two_factor_enabled',
+            'password_reset_token' => 'VARCHAR(64) DEFAULT NULL AFTER two_factor_recovery_codes',
+            'password_reset_expires' => 'DATETIME DEFAULT NULL AFTER password_reset_token',
         ];
 
         foreach ($needed as $col => $def) {
@@ -157,6 +159,56 @@ class User extends Model
     {
         $stmt = $this->db->prepare('UPDATE users SET password = ? WHERE id = ?');
         return $stmt->execute([password_hash($password, PASSWORD_DEFAULT), $userId]);
+    }
+
+    /** Создаёт одноразовый токен сброса (plain возвращается один раз). TTL в секундах. */
+    public function createPasswordResetToken(int $userId, int $ttlSeconds = 3600): string
+    {
+        $plain = bin2hex(random_bytes(32));
+        $hash = hash('sha256', $plain);
+        $expires = date('Y-m-d H:i:s', time() + max(60, $ttlSeconds));
+        $stmt = $this->db->prepare(
+            'UPDATE users SET password_reset_token = ?, password_reset_expires = ? WHERE id = ?'
+        );
+        $stmt->execute([$hash, $expires, $userId]);
+        return $plain;
+    }
+
+    public function findByPasswordResetToken(string $plainToken): ?array
+    {
+        $plainToken = trim($plainToken);
+        if ($plainToken === '' || !preg_match('/^[a-f0-9]{64}$/', $plainToken)) {
+            return null;
+        }
+        $hash = hash('sha256', $plainToken);
+        $stmt = $this->db->prepare(
+            'SELECT * FROM users WHERE password_reset_token = ? AND password_reset_expires IS NOT NULL AND password_reset_expires >= NOW()'
+        );
+        $stmt->execute([$hash]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
+    public function clearPasswordResetToken(int $userId): bool
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE users SET password_reset_token = NULL, password_reset_expires = NULL WHERE id = ?'
+        );
+        return $stmt->execute([$userId]);
+    }
+
+    public function resetPasswordWithToken(string $plainToken, string $password): bool
+    {
+        $user = $this->findByPasswordResetToken($plainToken);
+        if (!$user) {
+            return false;
+        }
+        $userId = (int) $user['id'];
+        $ok = $this->updatePassword($userId, $password);
+        if ($ok) {
+            $this->clearPasswordResetToken($userId);
+        }
+        return $ok;
     }
 
     public function togglePhoneVisible(int $userId): bool

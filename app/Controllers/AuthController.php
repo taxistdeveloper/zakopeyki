@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Controller;
 use App\Helpers\GoogleOAuth;
+use App\Helpers\Mail;
 use App\Helpers\Totp;
 use App\Models\User;
 
@@ -28,8 +29,9 @@ class AuthController extends Controller
             'title' => t('auth.login_title'),
             'layout' => 'layouts/auth',
             'error' => $_SESSION['auth_error'] ?? null,
+            'success' => $_SESSION['auth_success'] ?? null,
         ], 'layouts/auth');
-        unset($_SESSION['auth_error']);
+        unset($_SESSION['auth_error'], $_SESSION['auth_success']);
     }
 
     public function login(): void
@@ -272,6 +274,143 @@ class AuthController extends Controller
     {
         Auth::logout();
         $this->redirect('/');
+    }
+
+    public function forgotPasswordForm(): void
+    {
+        if (Auth::check()) {
+            $this->redirect('/');
+        }
+        $this->view('auth/forgot-password', [
+            'title' => t('auth.forgot_title'),
+            'error' => $_SESSION['auth_error'] ?? null,
+            'success' => $_SESSION['auth_success'] ?? null,
+        ], 'layouts/auth');
+        unset($_SESSION['auth_error'], $_SESSION['auth_success']);
+    }
+
+    public function forgotPassword(): void
+    {
+        if (Auth::check()) {
+            $this->redirect('/');
+        }
+
+        $email = trim((string) ($_POST['email'] ?? ''));
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->view('auth/forgot-password', [
+                'title' => t('auth.forgot_title'),
+                'error' => t('auth.forgot_invalid_email'),
+                'email' => $email,
+            ], 'layouts/auth');
+            return;
+        }
+
+        $users = new User();
+        $user = $users->findByEmail($email);
+        if ($user) {
+            $token = $users->createPasswordResetToken((int) $user['id'], 3600);
+            $mail = new Mail();
+            $resetUrl = $mail->absoluteUrl('/reset-password/' . $token);
+            $name = trim((string) ($user['name'] ?? '')) ?: $email;
+            $subject = t('auth.reset_mail_subject');
+            $text = t('auth.reset_mail_text', [
+                'name' => $name,
+                'url' => $resetUrl,
+                'minutes' => '60',
+            ]);
+            $html = '<p>' . htmlspecialchars(t('auth.reset_mail_greeting', ['name' => $name])) . '</p>'
+                . '<p>' . htmlspecialchars(t('auth.reset_mail_body')) . '</p>'
+                . '<p><a href="' . htmlspecialchars($resetUrl) . '">' . htmlspecialchars(t('auth.reset_mail_cta')) . '</a></p>'
+                . '<p style="color:#666;font-size:13px">' . htmlspecialchars(t('auth.reset_mail_expiry', ['minutes' => '60'])) . '</p>'
+                . '<p style="color:#999;font-size:12px;word-break:break-all">' . htmlspecialchars($resetUrl) . '</p>';
+            $mail->send($email, $subject, $text, $html);
+        }
+
+        // Одинаковый ответ — не раскрываем, существует ли email
+        $_SESSION['auth_success'] = t('auth.forgot_sent');
+        $this->redirect('/forgot-password');
+    }
+
+    public function resetPasswordForm(string $token): void
+    {
+        if (Auth::check()) {
+            $this->redirect('/');
+        }
+
+        $users = new User();
+        $user = $users->findByPasswordResetToken($token);
+        if (!$user) {
+            $this->view('auth/reset-password', [
+                'title' => t('auth.reset_title'),
+                'token' => $token,
+                'invalid' => true,
+                'error' => t('auth.reset_invalid'),
+            ], 'layouts/auth');
+            return;
+        }
+
+        $this->view('auth/reset-password', [
+            'title' => t('auth.reset_title'),
+            'token' => $token,
+            'invalid' => false,
+            'error' => $_SESSION['auth_error'] ?? null,
+        ], 'layouts/auth');
+        unset($_SESSION['auth_error']);
+    }
+
+    public function resetPassword(string $token): void
+    {
+        if (Auth::check()) {
+            $this->redirect('/');
+        }
+
+        $password = (string) ($_POST['password'] ?? '');
+        $confirm = (string) ($_POST['password_confirm'] ?? '');
+        $users = new User();
+        $user = $users->findByPasswordResetToken($token);
+
+        if (!$user) {
+            $this->view('auth/reset-password', [
+                'title' => t('auth.reset_title'),
+                'token' => $token,
+                'invalid' => true,
+                'error' => t('auth.reset_invalid'),
+            ], 'layouts/auth');
+            return;
+        }
+
+        if (strlen($password) < 8) {
+            $this->view('auth/reset-password', [
+                'title' => t('auth.reset_title'),
+                'token' => $token,
+                'invalid' => false,
+                'error' => t('flash.password_min'),
+            ], 'layouts/auth');
+            return;
+        }
+
+        if ($password !== $confirm) {
+            $this->view('auth/reset-password', [
+                'title' => t('auth.reset_title'),
+                'token' => $token,
+                'invalid' => false,
+                'error' => t('flash.password_mismatch'),
+            ], 'layouts/auth');
+            return;
+        }
+
+        if (!$users->resetPasswordWithToken($token, $password)) {
+            $this->view('auth/reset-password', [
+                'title' => t('auth.reset_title'),
+                'token' => $token,
+                'invalid' => true,
+                'error' => t('auth.reset_invalid'),
+            ], 'layouts/auth');
+            return;
+        }
+
+        $_SESSION['auth_success'] = t('auth.reset_success');
+        $this->redirect('/login');
     }
 
     private function beginTwoFactorChallenge(int $userId): void
