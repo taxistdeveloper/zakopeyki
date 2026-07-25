@@ -2,6 +2,13 @@
 <!DOCTYPE html>
 <html lang="<?= \App\Core\Lang::htmlLang() ?>">
 <head>
+    <!-- Google Tag Manager -->
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-5ZJNMVQ2');</script>
+    <!-- End Google Tag Manager -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <?= \App\Core\Csrf::meta() ?>
@@ -36,6 +43,10 @@
     </script>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4" style="background: radial-gradient(900px 500px at 20% 0%, rgba(37,99,235,.14), transparent 55%), radial-gradient(700px 400px at 90% 10%, rgba(249,115,22,.1), transparent 50%), linear-gradient(160deg,#F8FAFC,#EFF6FF 50%,#DBEAFE); font-family:'DM Sans',sans-serif;">
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5ZJNMVQ2"
+    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
     <?= $content ?>
     <script>
         window.__csrfToken = <?= js_encode(\App\Core\Csrf::token()) ?>;
