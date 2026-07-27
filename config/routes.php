@@ -14,6 +14,7 @@ use App\Controllers\ProductController;
 use App\Controllers\ProfileController;
 use App\Controllers\StoryController;
 use App\Controllers\StreamController;
+use App\Controllers\SupportController;
 use App\Controllers\WalletController;
 use App\Core\Router;
 
@@ -48,6 +49,11 @@ $router->get('/chat/{id}/thread', [ChatController::class, 'thread']);
 $router->get('/chat/{id}/poll', [ChatController::class, 'poll']);
 $router->post('/chat/{id}/send', [ChatController::class, 'send']);
 $router->get('/chat/{id}', [ChatController::class, 'show']);
+$router->get('/support', [SupportController::class, 'index']);
+$router->get('/support/new', [SupportController::class, 'createForm']);
+$router->post('/support', [SupportController::class, 'store']);
+$router->get('/support/{id}', [SupportController::class, 'show']);
+$router->post('/support/{id}/reply', [SupportController::class, 'reply']);
 $router->post('/favorites/{id}/toggle', [FavoriteController::class, 'toggle']);
 $router->post('/ai/chat', [AiAssistantController::class, 'chat']);
 
@@ -89,6 +95,11 @@ $router->post('/streams/live/end', [StreamController::class, 'endLive']);
 $router->post('/streams/{id}/delete', [StreamController::class, 'delete']);
 
 $router->get('/admin', [AdminController::class, 'index']);
+$router->get('/admin/tickets', [AdminController::class, 'tickets']);
+$router->get('/admin/tickets/{id}', [AdminController::class, 'ticketShow']);
+$router->post('/admin/tickets/{id}/reply', [AdminController::class, 'ticketReply']);
+$router->post('/admin/tickets/{id}/close', [AdminController::class, 'ticketClose']);
+$router->post('/admin/tickets/{id}/reopen', [AdminController::class, 'ticketReopen']);
 $router->post('/admin/delete/{id}', [AdminController::class, 'delete']);
 $router->post('/admin/toggle/{id}', [AdminController::class, 'toggleStatus']);
 

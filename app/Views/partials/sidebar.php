@@ -72,6 +72,20 @@ $navIcon = static fn (string $name): string => IconHelper::svg($name, 'w-[18px] 
                 <span class="min-w-[1.25rem] h-5 px-1.5 rounded-full bg-accent-500 text-white text-[10px] font-bold flex items-center justify-center"><?= $chatUnreadBadge > 99 ? '99+' : $chatUnreadBadge ?></span>
             <?php endif; ?>
         </a>
+        <?php
+            $supportUnreadBadge = 0;
+            try {
+                $supportUnreadBadge = (new \App\Models\SupportTicket())->unreadCountForUser((int) $user['id']);
+            } catch (\Throwable $e) {
+                $supportUnreadBadge = 0;
+            }
+        ?>
+        <a href="<?= ProductHelper::url('/support') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('help', $nav) ?>">
+            <span class="flex items-center gap-3 flex-1 min-w-0"><?= $navIcon('shield') ?> <span><?= htmlspecialchars(t('nav.help')) ?></span></span>
+            <?php if ($supportUnreadBadge > 0): ?>
+                <span class="min-w-[1.25rem] h-5 px-1.5 rounded-full bg-accent-500 text-white text-[10px] font-bold flex items-center justify-center"><?= $supportUnreadBadge > 99 ? '99+' : $supportUnreadBadge ?></span>
+            <?php endif; ?>
+        </a>
         <a href="<?= ProductHelper::url('/wallet') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('wallet', $nav) ?>">
             <?= $navIcon('wallet') ?> <span><?= htmlspecialchars(t('nav.wallet')) ?></span>
         </a>
@@ -104,13 +118,13 @@ $navIcon = static fn (string $name): string => IconHelper::svg($name, 'w-[18px] 
                     <svg class="w-2.5 h-2.5 flex-shrink-0 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r="0.7" fill="currentColor" stroke="none"/></svg>
                     <?= htmlspecialchars(t('nav.about')) ?>
                 </a>
-                <a href="#" class="inline-flex items-center gap-1 h-6 px-2 rounded-full border border-black/[0.08] dark:border-white/10 bg-white/70 dark:bg-white/[0.04] text-[10px] font-medium text-ink-800 dark:text-gray-200 hover:border-brand-400/50 transition">
+                <a href="<?= ProductHelper::url('/support/new?category=idea') ?>" class="inline-flex items-center gap-1 h-6 px-2 rounded-full border border-black/[0.08] dark:border-white/10 bg-white/70 dark:bg-white/[0.04] text-[10px] font-medium text-ink-800 dark:text-gray-200 hover:border-brand-400/50 transition <?= $nav === 'help' ? 'border-brand-400/50 text-brand-700 dark:text-brand-300' : '' ?>">
                     <svg class="w-2.5 h-2.5 flex-shrink-0 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a5.5 5.5 0 0 0-3.5 9.7c.7.6 1.1 1.3 1.2 2.3h4.6c.1-1 .5-1.7 1.2-2.3A5.5 5.5 0 0 0 12 3z"/></svg>
                     <?= htmlspecialchars(t('nav.idea')) ?>
                 </a>
-                <a href="#" class="inline-flex items-center gap-1 h-6 px-2 rounded-full border border-black/[0.08] dark:border-white/10 bg-white/70 dark:bg-white/[0.04] text-[10px] font-medium text-ink-800 dark:text-gray-200 hover:border-brand-400/50 transition">
+                <a href="<?= ProductHelper::url('/support') ?>" class="inline-flex items-center gap-1 h-6 px-2 rounded-full border border-black/[0.08] dark:border-white/10 bg-white/70 dark:bg-white/[0.04] text-[10px] font-medium text-ink-800 dark:text-gray-200 hover:border-brand-400/50 transition <?= $nav === 'help' ? 'border-brand-400/50 text-brand-700 dark:text-brand-300' : '' ?>">
                     <svg class="w-2.5 h-2.5 flex-shrink-0 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 5.6a4.6 4.6 0 0 0-6.5 0L12 7.9l-2.3-2.3a4.6 4.6 0 0 0-6.5 6.5l2.3 2.3L12 21l6.5-6.6 2.3-2.3a4.6 4.6 0 0 0 0-6.5z"/></svg>
-                    <?= htmlspecialchars(t('nav.support')) ?>
+                    <?= htmlspecialchars(t('nav.help')) ?>
                 </a>
             </div>
         </div>

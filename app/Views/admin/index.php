@@ -9,6 +9,21 @@
         <div class="bg-emerald-50 dark:bg-emerald-900/25 text-emerald-800 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800/40 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars($flash) ?></div>
     <?php endif; ?>
 
+    <div class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-brand-200/70 dark:border-brand-900/40 shadow-soft overflow-hidden">
+        <a href="<?= ProductHelper::url('/admin/tickets') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 hover:bg-brand-50/40 dark:hover:bg-white/[0.03] transition">
+            <div class="min-w-0">
+                <h3 class="font-display font-bold text-brand-800 dark:text-brand-300"><?= htmlspecialchars(t('admin.tickets')) ?></h3>
+                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.tickets_hint')) ?></p>
+            </div>
+            <div class="flex items-center gap-2">
+                <?php if (!empty($ticketUnread)): ?>
+                    <span class="min-w-[1.25rem] h-5 px-1.5 rounded-full bg-accent-500 text-white text-[10px] font-bold flex items-center justify-center"><?= (int) $ticketUnread > 99 ? '99+' : (int) $ticketUnread ?></span>
+                <?php endif; ?>
+                <span class="text-xs font-bold text-brand-600"><?= (int) ($openTickets ?? 0) ?> →</span>
+            </div>
+        </a>
+    </div>
+
     <?php if (!empty($disputes)): ?>
         <div class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-violet-200/70 dark:border-violet-900/40 shadow-soft overflow-hidden">
             <div class="px-4 py-3.5 border-b border-violet-100 dark:border-violet-900/30 bg-violet-50/50 dark:bg-violet-950/20">
