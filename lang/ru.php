@@ -122,6 +122,9 @@ return [
         'story_like' => 'Нравится',
         'story_share' => 'Поделиться',
         'story_link_copied' => 'Ссылка скопирована',
+        'whats_new_title' => 'Что нового',
+        'whats_new_hint' => 'Обновление от :date',
+        'whats_new_ok' => 'Понятно',
     ],
     'catalog' => [
         'eyebrow' => 'Каталог',

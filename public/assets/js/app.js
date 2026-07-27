@@ -273,7 +273,7 @@ document.addEventListener('click', function (e) {
 // Переносим полноэкранные модалки в body: внутри анимированных/overflow-обёрток
 // position:fixed позиционируется неверно, и просмотрщик уезжает вниз страницы.
 function portalStoryModals() {
-    ['story-viewer', 'stream-viewer', 'story-create-modal'].forEach(function (id) {
+    ['story-viewer', 'stream-viewer', 'story-create-modal', 'whats-new-modal'].forEach(function (id) {
         const el = document.getElementById(id);
         if (el && el.parentElement !== document.body) {
             document.body.appendChild(el);
@@ -282,6 +282,33 @@ function portalStoryModals() {
 }
 document.addEventListener('DOMContentLoaded', portalStoryModals);
 portalStoryModals();
+
+/* ===== What's new (после git pull / deploy) ===== */
+var WHATS_NEW_KEY = 'whats_new_seen';
+
+function closeWhatsNew() {
+    var data = window.__whatsNew;
+    if (data && data.version) {
+        try { localStorage.setItem(WHATS_NEW_KEY, data.version); } catch (e) { /* ignore */ }
+    }
+    document.getElementById('whats-new-modal')?.classList.add('hidden');
+    document.body.style.overflow = '';
+}
+
+function initWhatsNew() {
+    var data = window.__whatsNew;
+    var modal = document.getElementById('whats-new-modal');
+    if (!data || !data.version || !modal) return;
+    var seen = null;
+    try { seen = localStorage.getItem(WHATS_NEW_KEY); } catch (e) { /* ignore */ }
+    if (seen === data.version) return;
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    modal.addEventListener('click', function (e) {
+        if (e.target === modal) closeWhatsNew();
+    });
+}
+document.addEventListener('DOMContentLoaded', initWhatsNew);
 
 let storyGroupIndex = 0;
 let storyItemIndex = 0;

@@ -122,6 +122,9 @@ return [
         'story_like' => 'Ұнайды',
         'story_share' => 'Бөлісу',
         'story_link_copied' => 'Сілтеме көшірілді',
+        'whats_new_title' => 'Не жаңалық',
+        'whats_new_hint' => 'Жаңарту: :date',
+        'whats_new_ok' => 'Түсінікті',
     ],
     'catalog' => [
         'eyebrow' => 'Каталог',

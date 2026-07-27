@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Core\Auth;
 use App\Core\Controller;
+use App\Helpers\ChangelogHelper;
 use App\Models\Favorite;
 use App\Models\Notification;
 use App\Models\Product;
@@ -48,6 +49,7 @@ class HomeController extends Controller
             'unread' => $unread,
             'favoriteIds' => $favoriteIds,
             'flash' => $flash,
+            'changelog' => ChangelogHelper::load(),
         ]);
     }
 

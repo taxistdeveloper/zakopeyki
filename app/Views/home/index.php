@@ -7,6 +7,7 @@ use App\Core\Auth;
 
 $storyGroups = $storyGroups ?? [];
 $streams = $streams ?? [];
+$changelog = $changelog ?? null;
 ?>
 
 <section class="space-y-9 fade-up">
@@ -155,6 +156,33 @@ $streams = $streams ?? [];
         <?php endif; ?>
     </div>
 </section>
+
+<?php if (!empty($changelog)): ?>
+<div id="whats-new-modal" class="hidden fixed inset-0 z-[80] flex items-center justify-center bg-ink-900/55 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="whats-new-title">
+    <div class="bg-white dark:bg-ink-800 w-full max-w-md rounded-[28px] overflow-hidden shadow-lift border border-white/60 dark:border-white/10" onclick="event.stopPropagation()">
+        <div class="p-4 sm:p-5 border-b border-black/[0.06] dark:border-white/10 flex justify-between items-start gap-3">
+            <div>
+                <h3 id="whats-new-title" class="font-display font-bold text-sm"><?= htmlspecialchars(t('home.whats_new_title')) ?></h3>
+                <?php if (!empty($changelog['date'])): ?>
+                    <p class="text-[11px] text-gray-400 mt-1"><?= htmlspecialchars(t('home.whats_new_hint', ['date' => $changelog['date']])) ?></p>
+                <?php endif; ?>
+            </div>
+            <button type="button" onclick="closeWhatsNew()" class="w-8 h-8 rounded-xl text-gray-400 hover:bg-black/5 hover:text-ink-800 dark:hover:bg-white/10 transition flex-shrink-0" aria-label="<?= htmlspecialchars(t('home.whats_new_ok')) ?>">✕</button>
+        </div>
+        <ul class="p-5 sm:p-6 space-y-2.5 max-h-[50vh] overflow-y-auto text-sm text-ink-800 dark:text-gray-200">
+            <?php foreach ($changelog['items'] as $item): ?>
+                <li class="flex gap-2.5 leading-snug">
+                    <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-accent-500 flex-shrink-0" aria-hidden="true"></span>
+                    <span><?= htmlspecialchars($item) ?></span>
+                </li>
+            <?php endforeach; ?>
+        </ul>
+        <div class="px-5 sm:px-6 pb-5 sm:pb-6">
+            <button type="button" onclick="closeWhatsNew()" class="w-full bg-accent-500 hover:bg-accent-400 text-white font-display font-bold py-3.5 rounded-2xl text-xs uppercase tracking-wider transition"><?= htmlspecialchars(t('home.whats_new_ok')) ?></button>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 
 <!-- CREATE STORY MODAL -->
 <?php if (Auth::check()): ?>
@@ -357,4 +385,5 @@ window.__streamLiveHeartbeat = <?= js_encode(ProductHelper::url('/streams/live/h
 window.__streamLiveEnd = <?= js_encode(ProductHelper::url('/streams/live/end')) ?>;
 window.__currentUserId = <?= (int) (Auth::id() ?? 0) ?>;
 window.__isAdmin = <?= Auth::isAdmin() ? 'true' : 'false' ?>;
+window.__whatsNew = <?= js_encode($changelog) ?>;
 </script>
