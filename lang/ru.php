@@ -125,6 +125,7 @@ return [
         'whats_new_title' => 'Что нового',
         'whats_new_hint' => 'Обновление от :date',
         'whats_new_ok' => 'Понятно',
+        'whats_new_code' => 'В коде есть изменения — смотрите список ниже',
     ],
     'catalog' => [
         'eyebrow' => 'Каталог',

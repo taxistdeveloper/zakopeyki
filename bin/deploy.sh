@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Деплой на сервере: pull + авто-changelog для модалки на главной.
+# Деплой: pull. Changelog на главной обновится сам при первом заходе.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 git pull "$@"
-php bin/update-changelog.php
+php bin/update-changelog.php --force || true
 
 echo "Deploy done."
