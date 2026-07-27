@@ -14,7 +14,9 @@ $changelog = $changelog ?? null;
     <?php if (!empty($flash)): ?>
         <div class="bg-emerald-50 dark:bg-emerald-900/25 text-emerald-800 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800/40 px-4 py-3 rounded-2xl text-sm font-semibold shadow-sm"><?= htmlspecialchars($flash) ?></div>
     <?php endif; ?>
-
+<div>
+    test
+</div>
     <!-- STORIES -->
     <div class="flex items-center gap-4 overflow-x-auto pb-1 scrollbar-hide">
         <?php if (Auth::check()):
