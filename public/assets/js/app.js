@@ -293,15 +293,24 @@ function closeWhatsNew() {
     }
     document.getElementById('whats-new-modal')?.classList.add('hidden');
     document.body.style.overflow = '';
+    try {
+        var url = new URL(window.location.href);
+        if (url.searchParams.has('whats_new')) {
+            url.searchParams.delete('whats_new');
+            window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+        }
+    } catch (e) { /* ignore */ }
 }
 
 function initWhatsNew() {
     var data = window.__whatsNew;
     var modal = document.getElementById('whats-new-modal');
     if (!data || !data.version || !modal) return;
+    var force = false;
+    try { force = new URLSearchParams(window.location.search).get('whats_new') === '1'; } catch (e) { /* ignore */ }
     var seen = null;
     try { seen = localStorage.getItem(WHATS_NEW_KEY); } catch (e) { /* ignore */ }
-    if (seen === data.version) return;
+    if (!force && seen === data.version) return;
     modal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
     modal.addEventListener('click', function (e) {

@@ -9,12 +9,31 @@ class ChangelogHelper
         return dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'changelog.json';
     }
 
+    public static function fallbackPath(): string
+    {
+        return dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'changelog.json';
+    }
+
     /**
      * @return array{version: string, date: string, items: list<string>}|null
      */
     public static function load(): ?array
     {
-        $path = self::path();
+        foreach ([self::path(), self::fallbackPath()] as $path) {
+            $data = self::readFile($path);
+            if ($data !== null) {
+                return $data;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{version: string, date: string, items: list<string>}|null
+     */
+    private static function readFile(string $path): ?array
+    {
         if (!is_file($path)) {
             return null;
         }

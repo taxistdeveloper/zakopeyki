@@ -5,11 +5,14 @@ declare(strict_types=1);
 /**
  * Собирает changelog из git log после деплоя.
  * Использование: php bin/update-changelog.php
+ * Принудительно: php bin/update-changelog.php --force
  * Или: git pull && php bin/update-changelog.php
  */
 
 $root = dirname(__DIR__);
 chdir($root);
+
+$force = in_array('--force', $argv ?? [], true);
 
 $appConfig = is_file($root . '/config/app.php') ? require $root . '/config/app.php' : [];
 if (!empty($appConfig['timezone'])) {
@@ -36,6 +39,19 @@ function git(string $args): ?string
     return implode("\n", $out);
 }
 
+/** Первое предложение / укороченная тема коммита для модалки. */
+function shortenCommit(string $line): string
+{
+    $line = trim($line);
+    if (preg_match('/^(.+?[.!?])(\s|$)/u', $line, $m) && mb_strlen($m[1]) >= 20) {
+        $line = $m[1];
+    }
+    if (mb_strlen($line) > 120) {
+        $line = rtrim(mb_substr($line, 0, 117)) . '…';
+    }
+    return $line;
+}
+
 if (git('rev-parse --is-inside-work-tree') === null) {
     fwrite(STDERR, "Not a git repository.\n");
     exit(1);
@@ -50,19 +66,22 @@ if ($head === '') {
 $prev = null;
 if (is_file($outFile)) {
     $old = json_decode((string) file_get_contents($outFile), true);
-    if (is_array($old) && !empty($old['version']) && preg_match('/^[0-9a-f]{4,40}$/i', (string) $old['version'])) {
-        $prev = (string) $old['version'];
+    if (is_array($old) && !empty($old['version']) && preg_match('/^[0-9a-f]{4,40}/i', (string) $old['version'])) {
+        // version может быть "abc1234" или "abc1234-ru1"
+        if (preg_match('/^([0-9a-f]{4,40})/i', (string) $old['version'], $vm)) {
+            $prev = $vm[1];
+        }
     }
 }
 
-if ($prev !== null && $prev === $head) {
+if (!$force && $prev !== null && $prev === $head) {
     echo "Changelog already at {$head}, skip.\n";
     exit(0);
 }
 
-$logArgs = ($prev !== null && git('rev-parse --verify ' . $prev) !== null)
+$logArgs = ($prev !== null && !$force && git('rev-parse --verify ' . $prev) !== null)
     ? "log {$prev}..{$head} --pretty=format:%s --no-merges"
-    : 'log -12 --pretty=format:%s --no-merges';
+    : 'log -8 --pretty=format:%s --no-merges';
 
 $rawLog = git($logArgs);
 $subjects = [];
@@ -72,12 +91,11 @@ if ($rawLog !== null && trim($rawLog) !== '') {
         if ($line === '' || preg_match('/^Merge\b/i', $line)) {
             continue;
         }
-        // Одна строка для UI
-        if (mb_strlen($line) > 140) {
-            $line = rtrim(mb_substr($line, 0, 137)) . '…';
+        if (preg_match('/\btest div\b/i', $line)) {
+            continue;
         }
-        $subjects[] = $line;
-        if (count($subjects) >= 12) {
+        $subjects[] = shortenCommit($line);
+        if (count($subjects) >= 10) {
             break;
         }
     }
