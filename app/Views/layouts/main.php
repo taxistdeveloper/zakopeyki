@@ -422,7 +422,7 @@ function url(string $path = ''): string
             <div class="px-4 py-3 border-b border-ink-900/10 dark:border-white/10 flex items-center justify-between shrink-0 bg-gradient-to-r from-brand-100/90 to-transparent dark:from-brand-500/15">
                 <div class="min-w-0">
                     <p class="font-display font-bold text-sm text-ink-900 dark:text-white truncate"><?= htmlspecialchars(t('ai.title')) ?></p>
-                    <p class="text-[11px] text-ink-700/70 dark:text-gray-400 truncate"><?= htmlspecialchars(t('ai.subtitle')) ?></p>
+                    <p class="text-[11px] text-ink-700/70 dark:text-gray-400 truncate" id="ai-status-text"><?= htmlspecialchars(t('ai.status_ai')) ?></p>
                 </div>
                 <button type="button" id="ai-assistant-close" class="shrink-0 w-8 h-8 rounded-xl hover:bg-ink-900/5 dark:hover:bg-white/10 text-ink-700 dark:text-gray-300 cursor-pointer" aria-label="<?= htmlspecialchars(t('ai.close')) ?>">✕</button>
             </div>
@@ -451,13 +451,17 @@ function url(string $path = ''): string
         window.__loginUrl = <?= js_encode(url('/login')) ?>;
         window.__favoritesToggleBase = <?= js_encode(rtrim(url('/favorites'), '/') . '/') ?>;
         window.__aiChatUrl = <?= js_encode(url('/ai/chat')) ?>;
+        window.__aiMessagesUrl = <?= js_encode(url('/ai/chat/messages')) ?>;
+        window.__aiFeedbackUrl = <?= js_encode(url('/ai/chat/feedback')) ?>;
         window.__chatStartUrl = <?= js_encode(url('/chat/start')) ?>;
         window.__chatBaseUrl = <?= js_encode(rtrim(url('/chat'), '/') . '/') ?>;
         window.__lang = <?= js_encode(\App\Core\Lang::current()) ?>;
         window.__i18n = <?= js_encode(\App\Core\Lang::forJs([
             'ai.welcome', 'ai.suggest_free', 'ai.suggest_exchange', 'ai.suggest_services', 'ai.suggest_sell',
             'ai.suggest_auctions', 'ai.msg_free', 'ai.msg_exchange', 'ai.msg_services', 'ai.msg_sell',
-            'ai.msg_auctions', 'ai.error_reply', 'ai.error_network', 'js.now',
+            'ai.msg_auctions', 'ai.error_reply', 'ai.error_network', 'ai.status_ai', 'ai.status_human',
+            'ai.status_closed', 'ai.csat_ask', 'ai.csat_thanks', 'ai.waiting_operator', 'ai.pending',
+            'js.now',
             'js.live_host', 'js.login_to_stream', 'js.stream_fail', 'js.stream_desc',
             'js.you', 'js.stream_error', 'card.favorite', 'card.unfavorite',
             'home.story_link_copied',

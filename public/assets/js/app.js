@@ -1198,12 +1198,32 @@ document.addEventListener('click', function (e) {
         });
 });
 
-/* ===== AI Assistant ===== */
+/* ===== AI Assistant (Support + Catalog + Self-learning) ===== */
 let aiAssistantReady = false;
 let aiChatBusy = false;
+let aiConversationId = localStorage.getItem('zk_ai_conv_id') || null;
+let aiGuestToken = localStorage.getItem('zk_ai_guest_token') || null;
+let aiLastMessageId = 0;
+let aiPollTimer = null;
+let aiConversationStatus = 'ai_active';
 
 function tJs(key, fallback) {
     return (window.__i18n && window.__i18n[key]) || fallback;
+}
+
+function aiCsrfHeaders() {
+    const headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+    };
+    if (window.__csrfToken) {
+        headers['X-CSRF-TOKEN'] = window.__csrfToken;
+    }
+    if (aiGuestToken) {
+        headers['X-Guest-Token'] = aiGuestToken;
+    }
+    return headers;
 }
 
 function toggleAiAssistant(force) {
@@ -1222,9 +1242,12 @@ function toggleAiAssistant(force) {
 
     if (open) {
         initAiAssistant();
+        startAiPolling();
         setTimeout(function () {
             document.getElementById('ai-chat-input')?.focus();
         }, 40);
+    } else {
+        stopAiPolling();
     }
 }
 
@@ -1244,17 +1267,21 @@ function initAiAssistant() {
         sendAiMessage(text);
     });
 
-    appendAiBot(
-        tJs('ai.welcome', 'Привет! Я помощник Zakopeyki. Ищу товары и услуги в каталоге. Что нужно?'),
-        [],
-        [
-            { label: tJs('ai.suggest_free', 'Бесплатно'), message: tJs('ai.msg_free', 'что отдают бесплатно') },
-            { label: tJs('ai.suggest_exchange', 'Обмен'), message: tJs('ai.msg_exchange', 'ищу обмен') },
-            { label: tJs('ai.suggest_services', 'Услуги'), message: tJs('ai.msg_services', 'ищу услуги') },
-            { label: tJs('ai.suggest_sell', 'Как продать?'), message: tJs('ai.msg_sell', 'как разместить объявление') },
-            { label: tJs('ai.suggest_auctions', 'Аукционы'), message: tJs('ai.msg_auctions', 'аукционы') }
-        ]
-    );
+    if (aiConversationId) {
+        loadAiHistory();
+    } else {
+        appendAiBot(
+            tJs('ai.welcome', 'Привет! Я помощник Zakopeyki. Ищу товары и услуги в каталоге, отвечаю по безопасной сделке и доставке. Что нужно?'),
+            [],
+            [
+                { label: tJs('ai.suggest_free', 'Бесплатно'), message: tJs('ai.msg_free', 'что отдают бесплатно') },
+                { label: tJs('ai.suggest_exchange', 'Обмен'), message: tJs('ai.msg_exchange', 'ищу обмен') },
+                { label: tJs('ai.suggest_services', 'Услуги'), message: tJs('ai.msg_services', 'ищу услуги') },
+                { label: tJs('ai.suggest_sell', 'Как продать?'), message: tJs('ai.msg_sell', 'как разместить объявление') },
+                { label: tJs('ai.suggest_auctions', 'Аукционы'), message: tJs('ai.msg_auctions', 'аукционы') }
+            ]
+        );
+    }
 }
 
 function sendAiSuggestion(message) {
@@ -1269,15 +1296,19 @@ function sendAiMessage(text) {
     renderAiSuggestions([]);
     const typingId = appendAiTyping();
 
+    const body = {
+        message: text,
+        guest_token: aiGuestToken
+    };
+    if (window.__isLoggedIn) {
+        body.user_id = true;
+    }
+
     fetch(window.__aiChatUrl || '/ai/chat', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-        },
+        headers: aiCsrfHeaders(),
         credentials: 'same-origin',
-        body: JSON.stringify({ message: text })
+        body: JSON.stringify(body)
     })
         .then(function (r) {
             return r.json().catch(function () {
@@ -1286,11 +1317,46 @@ function sendAiMessage(text) {
         })
         .then(function (data) {
             removeAiTyping(typingId);
+
+            if (data && data.guest_token) {
+                aiGuestToken = data.guest_token;
+                localStorage.setItem('zk_ai_guest_token', aiGuestToken);
+            }
+            if (data && data.conversation_id) {
+                aiConversationId = String(data.conversation_id);
+                localStorage.setItem('zk_ai_conv_id', aiConversationId);
+            }
+            if (data && data.message_id) {
+                aiLastMessageId = Math.max(aiLastMessageId, parseInt(data.message_id, 10) || 0);
+            }
+            if (data && data.ai_message_id) {
+                aiLastMessageId = Math.max(aiLastMessageId, parseInt(data.ai_message_id, 10) || 0);
+            }
+            if (data && data.conversation_status) {
+                updateAiHeaderStatus(data.conversation_status);
+            }
+
             if (!data || data.ok === false) {
                 appendAiBot(data?.reply || tJs('ai.error_reply', 'Не удалось получить ответ. Попробуйте ещё раз.'), [], []);
                 return;
             }
-            appendAiBot(data.reply || '', data.products || [], data.suggestions || []);
+
+            if (data.pending) {
+                appendAiBot(tJs('ai.pending', 'AI готовит ответ…'), [], []);
+                startAiPolling();
+                return;
+            }
+
+            appendAiBot(
+                data.reply || '',
+                data.products || [],
+                data.suggestions || [],
+                data.ai_message_id || null
+            );
+
+            if (data.conversation_status === 'human_escalated') {
+                startAiPolling();
+            }
         })
         .catch(function () {
             removeAiTyping(typingId);
@@ -1299,6 +1365,92 @@ function sendAiMessage(text) {
         .finally(function () {
             aiChatBusy = false;
         });
+}
+
+function loadAiHistory() {
+    if (!aiConversationId) return;
+    const url = (window.__aiMessagesUrl || '/ai/chat/messages')
+        + '?conversation_id=' + encodeURIComponent(aiConversationId)
+        + (aiGuestToken ? '&guest_token=' + encodeURIComponent(aiGuestToken) : '');
+
+    fetch(url, {
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin'
+    })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (!data || !data.ok) return;
+            const box = aiMessagesEl();
+            if (box) box.innerHTML = '';
+            if (data.conversation && data.conversation.status) {
+                updateAiHeaderStatus(data.conversation.status);
+            }
+            (data.messages || []).forEach(function (msg) {
+                aiLastMessageId = Math.max(aiLastMessageId, msg.id || 0);
+                if (msg.sender_type === 'user') {
+                    appendAiUser(msg.message);
+                } else {
+                    const products = (msg.meta && msg.meta.products) ? msg.meta.products : [];
+                    appendAiBot(msg.message, products, [], msg.sender_type === 'ai' ? msg.id : null);
+                }
+            });
+        })
+        .catch(function () { /* ignore */ });
+}
+
+function pollAiMessages() {
+    if (!aiConversationId) return;
+    const url = (window.__aiMessagesUrl || '/ai/chat/messages')
+        + '?conversation_id=' + encodeURIComponent(aiConversationId)
+        + '&after_id=' + encodeURIComponent(String(aiLastMessageId))
+        + (aiGuestToken ? '&guest_token=' + encodeURIComponent(aiGuestToken) : '');
+
+    fetch(url, {
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin'
+    })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (!data || !data.ok) return;
+            if (data.conversation && data.conversation.status) {
+                updateAiHeaderStatus(data.conversation.status);
+            }
+            const news = data.messages || [];
+            if (!news.length) return;
+            news.forEach(function (msg) {
+                aiLastMessageId = Math.max(aiLastMessageId, msg.id || 0);
+                if (msg.sender_type === 'user') return;
+                const products = (msg.meta && msg.meta.products) ? msg.meta.products : [];
+                appendAiBot(msg.message, products, [], msg.sender_type === 'ai' ? msg.id : null);
+            });
+            aiChatBusy = false;
+        })
+        .catch(function () { /* ignore */ });
+}
+
+function startAiPolling() {
+    if (aiPollTimer) return;
+    pollAiMessages();
+    aiPollTimer = setInterval(pollAiMessages, 3000);
+}
+
+function stopAiPolling() {
+    if (!aiPollTimer) return;
+    clearInterval(aiPollTimer);
+    aiPollTimer = null;
+}
+
+function updateAiHeaderStatus(status) {
+    aiConversationStatus = status || 'ai_active';
+    const el = document.getElementById('ai-status-text');
+    if (!el) return;
+    if (status === 'human_escalated') {
+        el.textContent = tJs('ai.status_human', 'Подключён оператор');
+    } else if (status === 'closed') {
+        el.textContent = tJs('ai.status_closed', 'Диалог завершён');
+    } else {
+        el.textContent = tJs('ai.status_ai', 'Онлайн · AI-помощник');
+    }
 }
 
 function aiMessagesEl() {
@@ -1336,7 +1488,7 @@ function removeAiTyping(id) {
     document.getElementById(id)?.remove();
 }
 
-function appendAiBot(text, products, suggestions) {
+function appendAiBot(text, products, suggestions, msgId) {
     const box = aiMessagesEl();
     if (!box) return;
 
@@ -1397,10 +1549,51 @@ function appendAiBot(text, products, suggestions) {
         bubble.appendChild(list);
     }
 
+    if (msgId) {
+        const csat = document.createElement('div');
+        csat.className = 'flex items-center gap-2 pt-1 border-t border-ink-900/5 dark:border-white/5 text-[11px] text-ink-700/60 dark:text-gray-400';
+        const label = document.createElement('span');
+        label.textContent = tJs('ai.csat_ask', 'Полезен ответ?');
+        const up = document.createElement('button');
+        up.type = 'button';
+        up.className = 'cursor-pointer hover:scale-110 transition';
+        up.textContent = '👍';
+        up.addEventListener('click', function () { sendAiFeedback(msgId, 5, csat); });
+        const down = document.createElement('button');
+        down.type = 'button';
+        down.className = 'cursor-pointer hover:scale-110 transition';
+        down.textContent = '👎';
+        down.addEventListener('click', function () { sendAiFeedback(msgId, 1, csat); });
+        csat.appendChild(label);
+        csat.appendChild(up);
+        csat.appendChild(down);
+        bubble.appendChild(csat);
+    }
+
     wrap.appendChild(bubble);
     box.appendChild(wrap);
     box.scrollTop = box.scrollHeight;
     renderAiSuggestions(suggestions || []);
+}
+
+function sendAiFeedback(msgId, rating, csatEl) {
+    fetch(window.__aiFeedbackUrl || '/ai/chat/feedback', {
+        method: 'POST',
+        headers: aiCsrfHeaders(),
+        credentials: 'same-origin',
+        body: JSON.stringify({
+            message_id: msgId,
+            rating: rating,
+            guest_token: aiGuestToken
+        })
+    })
+        .then(function () {
+            if (csatEl) {
+                csatEl.textContent = tJs('ai.csat_thanks', 'Спасибо за отзыв!');
+                csatEl.className = 'pt-1 text-[11px] text-emerald-600';
+            }
+        })
+        .catch(function () { /* ignore */ });
 }
 
 function renderAiSuggestions(suggestions) {

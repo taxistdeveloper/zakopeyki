@@ -56,6 +56,8 @@ $router->get('/support/{id}', [SupportController::class, 'show']);
 $router->post('/support/{id}/reply', [SupportController::class, 'reply']);
 $router->post('/favorites/{id}/toggle', [FavoriteController::class, 'toggle']);
 $router->post('/ai/chat', [AiAssistantController::class, 'chat']);
+$router->get('/ai/chat/messages', [AiAssistantController::class, 'messages']);
+$router->post('/ai/chat/feedback', [AiAssistantController::class, 'feedback']);
 
 $router->get('/login', [AuthController::class, 'loginForm']);
 $router->post('/login', [AuthController::class, 'login']);
@@ -100,6 +102,11 @@ $router->get('/admin/tickets/{id}', [AdminController::class, 'ticketShow']);
 $router->post('/admin/tickets/{id}/reply', [AdminController::class, 'ticketReply']);
 $router->post('/admin/tickets/{id}/close', [AdminController::class, 'ticketClose']);
 $router->post('/admin/tickets/{id}/reopen', [AdminController::class, 'ticketReopen']);
+$router->get('/admin/ai-chats', [AdminController::class, 'aiChats']);
+$router->get('/admin/ai-chats/{id}', [AdminController::class, 'aiChatShow']);
+$router->post('/admin/ai-chats/{id}/reply', [AdminController::class, 'aiChatReply']);
+$router->post('/admin/ai-chats/{id}/close', [AdminController::class, 'aiChatClose']);
+$router->get('/admin/ai-export-dataset', [AdminController::class, 'aiExportDataset']);
 $router->post('/admin/delete/{id}', [AdminController::class, 'delete']);
 $router->post('/admin/toggle/{id}', [AdminController::class, 'toggleStatus']);
 

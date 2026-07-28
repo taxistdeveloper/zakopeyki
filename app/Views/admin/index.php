@@ -22,6 +22,18 @@
                 <span class="text-xs font-bold text-brand-600"><?= (int) ($openTickets ?? 0) ?> →</span>
             </div>
         </a>
+        <a href="<?= ProductHelper::url('/admin/ai-chats') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 border-t border-brand-100 dark:border-brand-900/30 hover:bg-violet-50/40 dark:hover:bg-white/[0.03] transition">
+            <div class="min-w-0">
+                <h3 class="font-display font-bold text-violet-800 dark:text-violet-300"><?= htmlspecialchars(t('admin.ai_chats')) ?></h3>
+                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.ai_chats_hint')) ?></p>
+            </div>
+            <div class="flex items-center gap-2">
+                <?php if (!empty($aiEscalated)): ?>
+                    <span class="min-w-[1.25rem] h-5 px-1.5 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center"><?= (int) $aiEscalated > 99 ? '99+' : (int) $aiEscalated ?></span>
+                <?php endif; ?>
+                <span class="text-xs font-bold text-violet-600"><?= (int) ($aiEscalated ?? 0) ?> →</span>
+            </div>
+        </a>
     </div>
 
     <?php if (!empty($disputes)): ?>
