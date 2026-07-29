@@ -61,9 +61,11 @@ use App\Helpers\ProductHelper;
         }
         </script>
 
+        <?php if (empty($GLOBALS['appConfig']['stub_mode'])): ?>
         <p class="text-center text-xs text-gray-400 mt-6">
             <?= htmlspecialchars(t('auth.no_account')) ?> <a href="<?= ProductHelper::url('/register') ?>" class="text-brand-600 font-semibold"><?= htmlspecialchars(t('auth.register_link')) ?></a>
         </p>
+        <?php endif; ?>
 
     </div>
 </div>

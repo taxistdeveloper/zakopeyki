@@ -13,4 +13,8 @@ return [
     'allow_simulated_payments' => true,
     'locale' => 'ru',
     'locales' => ['ru', 'kk'],
+    // Заглушка «скоро открытие»: полный сайт только для админа.
+    // Выключить: false. Дата открытия — для таймера (Asia/Almaty).
+    'stub_mode' => true,
+    'stub_opens_at' => '2026-08-30 00:00:00',
 ];

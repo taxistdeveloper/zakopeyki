@@ -30,6 +30,39 @@ spl_autoload_register(function (string $class): void {
 \App\Core\Auth::start();
 \App\Core\Lang::boot();
 
+// Режим заглушки: сайт открыт только авторизованному админу.
+if (!empty($appConfig['stub_mode']) && !\App\Core\Auth::isAdmin()) {
+    $stubPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+    $stubBase = rtrim((string) ($appConfig['url'] ?? ''), '/');
+    if ($stubBase !== '' && str_starts_with($stubPath, $stubBase)) {
+        $stubPath = substr($stubPath, strlen($stubBase)) ?: '/';
+    }
+    $stubPath = '/' . trim($stubPath, '/');
+    if ($stubPath !== '/') {
+        $stubPath = rtrim($stubPath, '/');
+    }
+
+    $stubAllowed = [
+        '/login',
+        '/login/2fa',
+        '/logout',
+        '/forgot-password',
+        '/auth/google',
+        '/auth/google/callback',
+    ];
+    $stubAllowedPrefix = '/reset-password/';
+    $stubOk = in_array($stubPath, $stubAllowed, true)
+        || str_starts_with($stubPath, $stubAllowedPrefix);
+
+    if (!$stubOk) {
+        \App\Core\View::render('stub/coming-soon', [
+            'title' => 'Скоро открытие',
+            'opensAt' => (string) ($appConfig['stub_opens_at'] ?? '2026-08-06 00:00:00'),
+        ], '');
+        exit;
+    }
+}
+
 if (!function_exists('js_encode')) {
     function js_encode(mixed $data): string
     {
