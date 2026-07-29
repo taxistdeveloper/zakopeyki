@@ -13,8 +13,9 @@ $logoutUrl = ProductHelper::url('/logout');
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="robots" content="noindex,nofollow" />
+  <meta name="theme-color" content="#12021F" />
   <title><?= htmlspecialchars($title ?? 'Скоро открытие') ?> — Zakopeyki.kz</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -26,59 +27,60 @@ $logoutUrl = ProductHelper::url('/logout');
   box-sizing: border-box;
 }
 
-html,
+html {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  background: #12021F;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
   padding: 0;
   width: 100%;
-  height: 100%;
-  background: #12021F;
-}
-
-body {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   min-height: 100vh;
-  overflow: hidden;
+  min-height: 100dvh;
+  background: #12021F;
   font-family: "Montserrat", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .stage {
-  width: min(100vw, 1920px);
-  height: min(100vh, 1080px);
-  aspect-ratio: 16 / 9;
+  width: 100%;
   max-width: 1920px;
-  max-height: 1080px;
+  margin: 0 auto;
+  min-height: 100vh;
+  min-height: 100dvh;
   background: #12021F;
-  position: relative;
-}
-
-@media (min-width: 1920px) and (min-height: 1080px) {
-  .stage {
-    width: 1920px;
-    height: 1080px;
-    aspect-ratio: auto;
-  }
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding:
+    max(0px, env(safe-area-inset-top))
+    max(0px, env(safe-area-inset-right))
+    max(0px, env(safe-area-inset-bottom))
+    max(0px, env(safe-area-inset-left));
 }
 
 .hero {
   width: 100%;
-  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   background: #1A0528;
-  overflow: hidden;
 }
 
 .art {
   position: relative;
   width: 100%;
   aspect-ratio: 1920 / 1003;
-  max-height: 100%;
   line-height: 0;
+  container-type: inline-size;
+  container-name: art;
 }
 
 .art-img {
@@ -91,6 +93,55 @@ body {
   -webkit-user-drag: none;
 }
 
+/* Desktop / large: fit art into viewport without crop */
+@media (min-width: 900px) {
+  body {
+    overflow: hidden;
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  .stage {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+  }
+
+  .hero {
+    height: 100%;
+  }
+
+  .art {
+    width: min(100%, calc((100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * 1920 / 1003));
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+}
+
+/* Short landscape phones / tablets */
+@media (orientation: landscape) and (max-height: 560px) {
+  body {
+    overflow: hidden;
+    height: 100dvh;
+  }
+
+  .stage {
+    height: 100dvh;
+    min-height: 0;
+    padding: 0;
+  }
+
+  .hero {
+    height: 100%;
+  }
+
+  .art {
+    width: auto;
+    height: 100dvh;
+    max-height: 100dvh;
+    aspect-ratio: 1920 / 1003;
+  }
+}
+
 .hit {
   position: absolute;
   margin: 0;
@@ -100,11 +151,15 @@ body {
   cursor: pointer;
   z-index: 2;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .countdown-slot {
   position: absolute;
   left: 52.1%;
+  top: 51.3%;
+  width: 26.5%;
+  height: 13.2%;
   transform: translateX(-50%);
   z-index: 3;
   display: flex;
@@ -119,7 +174,7 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: clamp(0.1rem, 0.4vw, 0.35rem);
+  gap: clamp(0.08rem, 0.35cqw, 0.35rem);
   width: 100%;
   height: 100%;
   padding: 1% 2%;
@@ -128,7 +183,7 @@ body {
 
 .cd-title {
   margin: 0;
-  font-size: clamp(0.55rem, 1.15vw, 1rem);
+  font-size: clamp(0.5rem, 1.15cqw, 1rem);
   font-weight: 600;
   color: #fff;
   letter-spacing: 0.01em;
@@ -138,7 +193,7 @@ body {
 
 .cd-note {
   margin: 0;
-  font-size: clamp(0.45rem, 0.9vw, 0.78rem);
+  font-size: clamp(0.4rem, 0.9cqw, 0.78rem);
   font-weight: 600;
   color: rgba(255, 255, 255, 0.92);
   letter-spacing: 0.02em;
@@ -150,7 +205,7 @@ body {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  gap: clamp(0.15rem, 0.7vw, 0.55rem);
+  gap: clamp(0.1rem, 0.55cqw, 0.55rem);
 }
 
 .cd-unit {
@@ -163,7 +218,7 @@ body {
 }
 
 .cd-num {
-  font-size: clamp(1.15rem, 2.85vw, 2.55rem);
+  font-size: clamp(0.85rem, 2.85cqw, 2.55rem);
   font-weight: 800;
   letter-spacing: 0.02em;
   line-height: 1;
@@ -178,7 +233,7 @@ body {
 
 .cd-lbl {
   margin-top: 0.35em;
-  font-size: clamp(0.4rem, 0.78vw, 0.68rem);
+  font-size: clamp(0.35rem, 0.78cqw, 0.68rem);
   font-weight: 600;
   text-transform: uppercase;
   color: #fff;
@@ -187,7 +242,7 @@ body {
 }
 
 .cd-sep {
-  font-size: clamp(1.05rem, 2.5vw, 2.2rem);
+  font-size: clamp(0.75rem, 2.5cqw, 2.2rem);
   font-weight: 800;
   line-height: 1;
   padding-top: 0.05em;
@@ -213,10 +268,14 @@ body {
   .cd-sep {
     animation: none;
   }
+
+  .toast {
+    transition: none;
+  }
 }
 
 .hit-cat {
-  border-radius: 22px;
+  border-radius: clamp(8px, 1.2cqw, 22px);
 }
 
 .hit-cat:hover,
@@ -236,21 +295,21 @@ body {
 .toast {
   position: fixed;
   left: 50%;
-  bottom: 1.5rem;
+  bottom: max(1rem, env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%) translateY(140%);
   z-index: 50;
-  padding: 0.75rem 1.4rem;
+  padding: 0.7rem 1.2rem;
   border-radius: 999px;
   background: #1A0528;
   color: #FFE566;
   font-weight: 700;
-  font-size: 1rem;
+  font-size: clamp(0.85rem, 2.8vw, 1rem);
   border: 1px solid rgba(245, 197, 24, 0.45);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
   transition: transform 0.25s ease, opacity 0.25s ease;
   opacity: 0;
   pointer-events: none;
-  max-width: calc(100vw - 2rem);
+  max-width: min(28rem, calc(100vw - 2rem - env(safe-area-inset-left) - env(safe-area-inset-right)));
   text-align: center;
   line-height: 1.35;
   will-change: transform, opacity;
@@ -263,26 +322,29 @@ body {
 
 .login-btn {
   position: fixed;
-  top: 12px;
-  right: 12px;
+  top: max(12px, env(safe-area-inset-top, 0px));
+  right: max(12px, env(safe-area-inset-right, 0px));
   z-index: 60;
   font-family: "Montserrat", system-ui, sans-serif;
   font-size: 12px;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.65);
   text-decoration: none;
-  padding: 6px 14px;
+  padding: 8px 14px;
   border-radius: 999px;
   border: 1px solid rgba(255, 212, 0, 0.35);
   background: rgba(18, 2, 31, 0.55);
   backdrop-filter: blur(6px);
   cursor: pointer;
   transition: color 0.2s, background 0.2s;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.login-btn:hover {
+.login-btn:hover,
+.login-btn:focus-visible {
   color: #FFE566;
   background: rgba(18, 2, 31, 0.8);
+  outline: none;
 }
 
 body.debug .hit {
@@ -291,18 +353,134 @@ body.debug .hit {
   background: rgba(0, 255, 120, 0.12);
 }
 
-@media (max-width: 768px) {
-  body {
-    overflow: auto;
-    display: block;
+/* Tablet */
+@media (max-width: 899px) {
+  .countdown-slot {
+    top: 50.8%;
+    width: 30%;
+    height: 14%;
   }
 
-  .stage {
-    width: 100%;
-    height: auto;
-    aspect-ratio: 16 / 9;
-    max-height: none;
+  .cd-title {
+    font-size: clamp(0.62rem, 2cqw, 1.05rem);
   }
+
+  .cd-num {
+    font-size: clamp(1.05rem, 4.8cqw, 2.4rem);
+  }
+
+  .cd-sep {
+    font-size: clamp(0.95rem, 4.2cqw, 2.1rem);
+  }
+
+  .cd-lbl {
+    font-size: clamp(0.42rem, 1.35cqw, 0.72rem);
+    letter-spacing: 0.04em;
+  }
+
+  .cd-note {
+    font-size: clamp(0.48rem, 1.5cqw, 0.8rem);
+  }
+}
+
+/* Mobile portrait */
+@media (max-width: 640px) {
+  .stage {
+    min-height: auto;
+    align-items: flex-start;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+
+  .countdown-slot {
+    top: 50.6%;
+    width: 38%;
+    height: 15%;
+    overflow: visible;
+  }
+
+  .countdown {
+    gap: 0.15rem;
+    padding: 1% 0;
+  }
+
+  .cd-title {
+    font-size: clamp(0.68rem, 3.2cqw, 0.95rem);
+  }
+
+  .cd-num {
+    font-size: clamp(1.05rem, 6.4cqw, 1.7rem);
+  }
+
+  .cd-sep {
+    font-size: clamp(0.95rem, 5.4cqw, 1.45rem);
+  }
+
+  .cd-lbl {
+    margin-top: 0.28em;
+    font-size: clamp(0.42rem, 1.9cqw, 0.58rem);
+    letter-spacing: 0.03em;
+  }
+
+  .cd-note {
+    font-size: clamp(0.5rem, 2.3cqw, 0.7rem);
+  }
+
+  .hit {
+    border-width: 1px;
+  }
+
+  .hit-cat:hover {
+    border-color: transparent;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  .hit-cat:active,
+  .hit-cat.is-active {
+    border-color: #F5C518;
+    box-shadow: 0 0 0 2px rgba(245, 197, 24, 0.45);
+    background: rgba(245, 197, 24, 0.08);
+  }
+
+  .login-btn {
+    font-size: 11px;
+    padding: 8px 12px;
+  }
+}
+
+/* Narrow phones */
+@media (max-width: 400px) {
+  .countdown-slot {
+    width: 44%;
+    height: 16%;
+    top: 50.2%;
+  }
+
+  .cd-lbl {
+    letter-spacing: 0.01em;
+  }
+
+  .cd-note {
+    white-space: normal;
+    max-width: 100%;
+    padding: 0 0.15rem;
+  }
+}
+
+/* Very small / short portrait */
+@media (max-width: 640px) and (max-height: 720px) {
+  .stage {
+    min-height: 100dvh;
+    align-items: center;
+  }
+}
+
+@supports not (width: 1cqw) {
+  .cd-title { font-size: clamp(0.55rem, 1.15vw, 1rem); }
+  .cd-note { font-size: clamp(0.45rem, 0.9vw, 0.78rem); }
+  .cd-num { font-size: clamp(0.85rem, 2.85vw, 2.55rem); }
+  .cd-lbl { font-size: clamp(0.35rem, 0.78vw, 0.68rem); }
+  .cd-sep { font-size: clamp(0.75rem, 2.5vw, 2.2rem); }
 }
   </style>
 </head>
@@ -330,11 +508,7 @@ body.debug .hit {
           fetchpriority="high"
         />
 
-        <div
-          class="countdown-slot"
-          style="top:51.3%; width:26.5%; height:13.2%"
-          aria-live="polite"
-        >
+        <div class="countdown-slot" aria-live="polite">
           <div
             id="countdown"
             class="countdown"
