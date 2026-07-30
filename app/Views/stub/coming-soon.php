@@ -86,6 +86,37 @@ body {
   container-name: art;
 }
 
+.art-frame {
+  position: absolute;
+  inset: 0;
+  line-height: 0;
+}
+
+.art-split {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.art-slice--top {
+  display: none;
+}
+
+.art-slice--bot {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  line-height: 0;
+}
+
+.art-slice--bot .art-img {
+  display: none;
+}
+
+.art-slice--bot #categories {
+  pointer-events: auto;
+}
+
 .art-img {
   display: block;
   width: 100%;
@@ -94,6 +125,11 @@ body {
   pointer-events: none;
   user-select: none;
   -webkit-user-drag: none;
+}
+
+.art-img--full {
+  position: absolute;
+  inset: 0;
 }
 
 /* Desktop / large: fit art into viewport without crop */
@@ -373,8 +409,8 @@ body {
 .cta-modal {
   position: fixed;
   inset: 0;
-  z-index: 80;
-  display: flex;
+  z-index: 200;
+  display: none;
   align-items: center;
   justify-content: center;
   padding:
@@ -389,9 +425,18 @@ body {
 }
 
 .cta-modal.is-open {
+  display: flex;
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
+}
+
+.cta-modal[hidden] {
+  display: none !important;
+}
+
+.cta-modal.is-open:not([hidden]) {
+  display: flex !important;
 }
 
 .cta-modal__backdrop {
@@ -657,46 +702,179 @@ body.debug .hit {
   }
 }
 
-/* Mobile portrait */
-@media (max-width: 640px) {
+/* Mobile portrait — отдельная читаемая вёрстка */
+@media (max-width: 767px) {
+  body {
+    overflow-x: hidden;
+    overflow-y: auto;
+    height: auto;
+  }
+
   .stage {
-    min-height: auto;
-    align-items: flex-start;
-    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+    min-height: 100dvh;
+    height: auto;
+    align-items: stretch;
+    justify-content: flex-start;
+    padding:
+      max(0px, env(safe-area-inset-top))
+      0
+      max(0.75rem, env(safe-area-inset-bottom))
+      0;
+  }
+
+  .hero {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .art {
+    aspect-ratio: unset;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    container-type: normal;
+  }
+
+  .art-frame {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    aspect-ratio: unset;
+    flex-shrink: 0;
+  }
+
+  .art-img--full {
+    display: none;
+  }
+
+  .art-split {
+    position: relative;
+    inset: auto;
+    display: flex;
+    flex-direction: column;
+    pointer-events: auto;
+  }
+
+  .art-slice--top {
+    display: block;
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    /* верх баннера до рамки (~0–47.5%) */
+    height: calc(100vw * 1003 / 1920 * 0.475);
+  }
+
+  .art-slice--top .art-img {
+    display: block;
+    width: 100%;
+    height: auto;
+    position: absolute;
+    left: 0;
+    top: 0;
+    object-fit: fill;
+  }
+
+  .art-slice--bot {
+    position: relative;
+    inset: auto;
+    overflow: hidden;
+    width: 100%;
+    /* низ баннера после рамки (~66.5–100%) */
+    height: calc(100vw * 1003 / 1920 * 0.335);
+    pointer-events: auto;
+  }
+
+  .art-slice--bot .art-img {
+    display: block;
+    width: 100%;
+    height: auto;
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    object-fit: fill;
+  }
+
+  /* хит-зоны категорий относительно нижнего куска */
+  #categories .hit-cat {
+    top: 13.5% !important;
+    height: 56% !important;
   }
 
   .countdown-slot {
-    top: 50.6%;
-    width: 38%;
-    height: 15%;
+    position: relative;
+    left: auto;
+    top: auto;
+    transform: none;
+    width: calc(100% - 1.5rem);
+    max-width: 26rem;
+    height: auto;
+    margin: 0.75rem auto;
+    z-index: 5;
     overflow: visible;
+    pointer-events: none;
+    order: 0;
+  }
+
+  /* таймер между верхом и низом баннера */
+  .art-split .countdown-slot {
+    margin: 0.85rem auto;
   }
 
   .countdown {
-    gap: 0.15rem;
-    padding: 1% 0;
+    gap: 0.55rem;
+    padding: 1rem 0.9rem 1.05rem;
+    border-radius: 1.15rem;
+    background:
+      linear-gradient(165deg, rgba(86, 22, 128, 0.94) 0%, rgba(26, 5, 40, 0.97) 55%, rgba(14, 1, 24, 0.98) 100%);
+    border: 1px solid rgba(255, 212, 0, 0.5);
+    box-shadow:
+      0 0 0 1px rgba(180, 60, 220, 0.2) inset,
+      0 14px 36px rgba(0, 0, 0, 0.45),
+      0 0 28px rgba(168, 50, 220, 0.22);
+    backdrop-filter: blur(12px);
   }
 
   .cd-title {
-    font-size: clamp(0.68rem, 3.2cqw, 0.95rem);
+    font-size: 0.82rem;
+    white-space: normal;
+  }
+
+  .cd-row {
+    gap: 0.35rem;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .cd-unit {
+    flex: 1 1 0;
   }
 
   .cd-num {
-    font-size: clamp(1.05rem, 6.4cqw, 1.7rem);
+    font-size: clamp(1.45rem, 8vw, 1.85rem);
+    filter: none;
   }
 
   .cd-sep {
-    font-size: clamp(0.95rem, 5.4cqw, 1.45rem);
+    font-size: clamp(1.2rem, 6.5vw, 1.55rem);
+    padding-top: 0.1em;
   }
 
   .cd-lbl {
-    margin-top: 0.28em;
-    font-size: clamp(0.42rem, 1.9cqw, 0.58rem);
-    letter-spacing: 0.03em;
+    margin-top: 0.4em;
+    font-size: 0.58rem;
+    letter-spacing: 0.04em;
   }
 
   .cd-note {
-    font-size: clamp(0.5rem, 2.3cqw, 0.7rem);
+    font-size: 0.72rem;
+    white-space: normal;
+    opacity: 0.9;
+  }
+
+  #categories .hit-cat {
+    min-width: 11%;
+    min-height: 22%;
   }
 
   .hit {
@@ -716,36 +894,230 @@ body.debug .hit {
     background: rgba(245, 197, 24, 0.08);
   }
 
+  .auth-bar {
+    top: max(10px, env(safe-area-inset-top, 0px));
+    right: max(10px, env(safe-area-inset-right, 0px));
+    gap: 6px;
+  }
+
   .login-btn {
     font-size: 11px;
     padding: 8px 12px;
   }
+
+  .toast {
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    font-size: 0.88rem;
+    padding: 0.7rem 1.1rem;
+  }
+
+  /* Попап — bottom sheet на мобиле */
+  .cta-modal {
+    align-items: flex-end;
+    padding:
+      max(0.5rem, env(safe-area-inset-top))
+      0
+      0
+      0;
+  }
+
+  .cta-modal__dialog {
+    width: 100%;
+    transform: translateY(100%);
+  }
+
+  .cta-modal.is-open .cta-modal__dialog {
+    transform: translateY(0);
+  }
+
+  .cta-modal__card {
+    border-radius: 1.35rem 1.35rem 0 0;
+    padding: 1.35rem 1.2rem calc(1.25rem + env(safe-area-inset-bottom));
+    gap: 0.55rem;
+    border-bottom: 0;
+  }
+
+  .cta-modal__card::after {
+    left: 50%;
+    right: auto;
+    top: 0.55rem;
+    width: 2.5rem;
+    height: 0.28rem;
+    transform: translateX(-50%);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.28);
+  }
+
+  .cta-modal__close {
+    top: 0.85rem;
+    right: 0.85rem;
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .cta-modal__eyebrow {
+    margin-top: 0.35rem;
+    font-size: 0.68rem;
+  }
+
+  .cta-modal__title {
+    font-size: 1.35rem;
+  }
+
+  .cta-modal__sub {
+    font-size: 0.9rem;
+    max-width: none;
+  }
+
+  .cta-modal__btn {
+    min-height: 3rem;
+    font-size: 1rem;
+    margin-top: 0.45rem;
+  }
 }
 
-/* Narrow phones */
+/* Узкие телефоны */
 @media (max-width: 400px) {
   .countdown-slot {
-    width: 44%;
-    height: 16%;
-    top: 50.2%;
+    width: calc(100% - 1rem);
+  }
+
+  .art-slice--top {
+    height: calc(100vw * 1003 / 1920 * 0.46);
+  }
+
+  .art-slice--bot {
+    height: calc(100vw * 1003 / 1920 * 0.34);
+  }
+
+  .cd-num {
+    font-size: 1.35rem;
+  }
+
+  .cd-sep {
+    font-size: 1.15rem;
   }
 
   .cd-lbl {
-    letter-spacing: 0.01em;
+    font-size: 0.52rem;
+    letter-spacing: 0.02em;
   }
 
-  .cd-note {
-    white-space: normal;
-    max-width: 100%;
-    padding: 0 0.15rem;
+  .login-btn {
+    font-size: 10px;
+    padding: 7px 10px;
   }
 }
 
-/* Very small / short portrait */
-@media (max-width: 640px) and (max-height: 720px) {
-  .stage {
-    min-height: 100dvh;
+/* Короткий экран в портрете */
+@media (max-width: 767px) and (max-height: 700px) {
+  .art-slice--top {
+    height: calc(100vw * 1003 / 1920 * 0.42);
+  }
+
+  .art-slice--bot {
+    height: calc(100vw * 1003 / 1920 * 0.3);
+  }
+
+  .countdown {
+    padding: 0.85rem 0.8rem 0.9rem;
+    gap: 0.4rem;
+  }
+
+  .countdown-slot {
+    margin: 0.55rem auto;
+  }
+
+  .cd-num {
+    font-size: 1.3rem;
+  }
+}
+
+/* Ландшафт на телефоне — полный баннер с рамкой */
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
+  .art {
+    display: block;
+    aspect-ratio: 1920 / 1003;
+    width: auto;
+    height: 100dvh;
+    max-height: 100dvh;
+  }
+
+  .art-frame {
+    position: absolute;
+    inset: 0;
+    aspect-ratio: unset;
+  }
+
+  .art-img--full {
+    display: block;
+  }
+
+  .art-split {
+    position: absolute;
+    inset: 0;
+    display: block;
+    pointer-events: none;
+  }
+
+  .art-slice--top {
+    display: none;
+  }
+
+  .art-slice--bot {
+    position: absolute;
+    inset: 0;
+    height: auto;
+    overflow: visible;
+  }
+
+  .art-slice--bot .art-img {
+    display: none;
+  }
+
+  #categories .hit-cat {
+    top: 71% !important;
+    height: 19% !important;
+  }
+
+  .countdown-slot {
+    position: absolute;
+    left: 52.1%;
+    top: 51%;
+    transform: translateX(-50%);
+    width: 34%;
+    height: 18%;
+    margin: 0;
+    max-width: none;
+  }
+
+  .countdown {
+    padding: 2% 3%;
+    gap: 0.15rem;
+    border-radius: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .cta-modal {
     align-items: center;
+    padding: 0.75rem;
+  }
+
+  .cta-modal__dialog {
+    width: min(100%, 24rem);
+    transform: translateY(12px) scale(0.97);
+  }
+
+  .cta-modal.is-open .cta-modal__dialog {
+    transform: translateY(0) scale(1);
+  }
+
+  .cta-modal__card {
+    border-radius: 1.2rem;
+    padding: 1.2rem 1.1rem 1.1rem;
   }
 }
 
@@ -776,61 +1148,89 @@ body.debug .hit {
   <main class="stage">
     <section class="hero" aria-label="Zakopeyki.kz">
       <div class="art">
-        <img
-          src="<?= htmlspecialchars($heroUrl) ?>"
-          width="1920"
-          height="1003"
-          alt="Zakopeyki.kz — Антикризисная платформа № 1 в Казахстане"
-          class="art-img"
-          draggable="false"
-          decoding="async"
-          fetchpriority="high"
-        />
+        <div class="art-frame">
+          <img
+            src="<?= htmlspecialchars($heroUrl) ?>"
+            width="1920"
+            height="1003"
+            alt="Zakopeyki.kz — Антикризисная платформа № 1 в Казахстане"
+            class="art-img art-img--full"
+            draggable="false"
+            decoding="async"
+            fetchpriority="high"
+          />
 
-        <div class="countdown-slot" aria-live="polite">
-          <div
-            id="countdown"
-            class="countdown"
-            data-end="<?= htmlspecialchars($opensIso) ?>"
-            role="timer"
-            aria-label="До открытия осталось"
-          >
-            <p class="cd-title">До открытия осталось:</p>
-            <div class="cd-row">
-              <div class="cd-unit">
-                <span class="cd-num" data-days>00</span>
-                <span class="cd-lbl">дней</span>
-              </div>
-              <span class="cd-sep" aria-hidden="true">:</span>
-              <div class="cd-unit">
-                <span class="cd-num" data-hours>00</span>
-                <span class="cd-lbl">часов</span>
-              </div>
-              <span class="cd-sep" aria-hidden="true">:</span>
-              <div class="cd-unit">
-                <span class="cd-num" data-mins>00</span>
-                <span class="cd-lbl">минут</span>
-              </div>
-              <span class="cd-sep" aria-hidden="true">:</span>
-              <div class="cd-unit">
-                <span class="cd-num" data-secs>00</span>
-                <span class="cd-lbl">секунд</span>
+          <div class="art-split">
+            <div class="art-slice art-slice--top" aria-hidden="true">
+              <img
+                src="<?= htmlspecialchars($heroUrl) ?>"
+                width="1920"
+                height="1003"
+                alt=""
+                class="art-img"
+                draggable="false"
+                decoding="async"
+              />
+            </div>
+
+            <div class="countdown-slot" aria-live="polite">
+              <div
+                id="countdown"
+                class="countdown"
+                data-end="<?= htmlspecialchars($opensIso) ?>"
+                role="timer"
+                aria-label="До открытия осталось"
+              >
+                <p class="cd-title">До открытия осталось:</p>
+                <div class="cd-row">
+                  <div class="cd-unit">
+                    <span class="cd-num" data-days>00</span>
+                    <span class="cd-lbl">дней</span>
+                  </div>
+                  <span class="cd-sep" aria-hidden="true">:</span>
+                  <div class="cd-unit">
+                    <span class="cd-num" data-hours>00</span>
+                    <span class="cd-lbl">часов</span>
+                  </div>
+                  <span class="cd-sep" aria-hidden="true">:</span>
+                  <div class="cd-unit">
+                    <span class="cd-num" data-mins>00</span>
+                    <span class="cd-lbl">минут</span>
+                  </div>
+                  <span class="cd-sep" aria-hidden="true">:</span>
+                  <div class="cd-unit">
+                    <span class="cd-num" data-secs>00</span>
+                    <span class="cd-lbl">секунд</span>
+                  </div>
+                </div>
+                <p class="cd-note">30 августа откроется сайт</p>
               </div>
             </div>
-            <p class="cd-note">30 августа откроется сайт</p>
+
+            <div class="art-slice art-slice--bot">
+              <img
+                src="<?= htmlspecialchars($heroUrl) ?>"
+                width="1920"
+                height="1003"
+                alt=""
+                class="art-img"
+                draggable="false"
+                decoding="async"
+                aria-hidden="true"
+              />
+              <nav id="categories" aria-label="Категории">
+                <button type="button" class="hit hit-cat" style="left:15.00%; top:71.00%; width:8.75%; height:19.00%" data-label="Товары new" aria-label="Товары new"></button>
+                <button type="button" class="hit hit-cat" style="left:24.53%; top:71.00%; width:8.75%; height:19.00%" data-label="Товары Б/у" aria-label="Товары Б/у"></button>
+                <button type="button" class="hit hit-cat" style="left:33.85%; top:71.00%; width:8.75%; height:19.00%" data-label="Аукционы" aria-label="Аукционы"></button>
+                <button type="button" class="hit hit-cat" style="left:43.28%; top:71.00%; width:8.75%; height:19.00%" data-label="Услуги" aria-label="Услуги"></button>
+                <button type="button" class="hit hit-cat" style="left:52.71%; top:71.00%; width:8.75%; height:19.00%" data-label="Биржа услуг" aria-label="Биржа услуг"></button>
+                <button type="button" class="hit hit-cat" style="left:62.14%; top:71.00%; width:8.75%; height:19.00%" data-label="Курсы" aria-label="Курсы"></button>
+                <button type="button" class="hit hit-cat" style="left:71.56%; top:71.00%; width:8.75%; height:19.00%" data-label="Обмен" aria-label="Обмен"></button>
+                <button type="button" class="hit hit-cat" style="left:80.99%; top:71.00%; width:8.75%; height:19.00%" data-label="Даром" aria-label="Даром"></button>
+              </nav>
+            </div>
           </div>
         </div>
-
-        <nav id="categories" aria-label="Категории">
-          <button type="button" class="hit hit-cat" style="left:15.00%; top:71.00%; width:8.75%; height:19.00%" data-label="Товары new" aria-label="Товары new"></button>
-          <button type="button" class="hit hit-cat" style="left:24.53%; top:71.00%; width:8.75%; height:19.00%" data-label="Товары Б/у" aria-label="Товары Б/у"></button>
-          <button type="button" class="hit hit-cat" style="left:33.85%; top:71.00%; width:8.75%; height:19.00%" data-label="Аукционы" aria-label="Аукционы"></button>
-          <button type="button" class="hit hit-cat" style="left:43.28%; top:71.00%; width:8.75%; height:19.00%" data-label="Услуги" aria-label="Услуги"></button>
-          <button type="button" class="hit hit-cat" style="left:52.71%; top:71.00%; width:8.75%; height:19.00%" data-label="Биржа услуг" aria-label="Биржа услуг"></button>
-          <button type="button" class="hit hit-cat" style="left:62.14%; top:71.00%; width:8.75%; height:19.00%" data-label="Курсы" aria-label="Курсы"></button>
-          <button type="button" class="hit hit-cat" style="left:71.56%; top:71.00%; width:8.75%; height:19.00%" data-label="Обмен" aria-label="Обмен"></button>
-          <button type="button" class="hit hit-cat" style="left:80.99%; top:71.00%; width:8.75%; height:19.00%" data-label="Даром" aria-label="Даром"></button>
-        </nav>
       </div>
     </section>
   </main>
@@ -929,13 +1329,18 @@ function initCtaModal() {
 
   const storageKey = 'stub_cta_dismissed';
   let lastFocus = null;
+  const isTouch = window.matchMedia('(hover: none), (pointer: coarse)').matches;
 
   function openModal() {
     lastFocus = document.activeElement;
     modal.hidden = false;
-    requestAnimationFrame(() => modal.classList.add('is-open'));
     document.body.style.overflow = 'hidden';
-    modal.querySelector('.cta-modal__btn')?.focus();
+    requestAnimationFrame(() => {
+      modal.classList.add('is-open');
+      if (!isTouch) {
+        modal.querySelector('.cta-modal__btn')?.focus({ preventScroll: true });
+      }
+    });
   }
 
   function closeModal(persist) {
@@ -947,14 +1352,19 @@ function initCtaModal() {
     setTimeout(() => {
       if (!modal.classList.contains('is-open')) modal.hidden = true;
     }, 280);
-    if (lastFocus && typeof lastFocus.focus === 'function') lastFocus.focus();
+    if (!isTouch && lastFocus && typeof lastFocus.focus === 'function') {
+      lastFocus.focus({ preventScroll: true });
+    }
   }
 
   modal.querySelectorAll('[data-cta-close]').forEach((el) => {
     el.addEventListener('click', () => closeModal(true));
   });
 
-  document.getElementById('cta-open')?.addEventListener('click', openModal);
+  document.getElementById('cta-open')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    openModal();
+  });
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && modal.classList.contains('is-open')) {
