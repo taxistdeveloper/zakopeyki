@@ -163,6 +163,13 @@ class AuthController extends Controller
 
         $user = $users->find($id);
         Auth::login($user);
+
+        $appConfig = $GLOBALS['appConfig'] ?? [];
+        if (!empty($appConfig['stub_mode']) && !Auth::isAdmin()) {
+            $_SESSION['stub_flash'] = 'Регистрация прошла успешно! Мы откроемся 30 августа.';
+            $this->redirect('/');
+        }
+
         $this->redirect('/profile');
     }
 

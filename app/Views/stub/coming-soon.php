@@ -7,7 +7,10 @@ $opensAt = $opensAt ?? '2026-08-30 00:00:00';
 $opensTs = strtotime($opensAt) ?: (time() + 7 * 86400);
 $opensIso = date('Y-m-d\TH:i:sP', $opensTs);
 $loginUrl = ProductHelper::url('/login');
+$registerUrl = ProductHelper::url('/register');
 $logoutUrl = ProductHelper::url('/logout');
+$stubFlash = $_SESSION['stub_flash'] ?? null;
+unset($_SESSION['stub_flash']);
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -19,7 +22,7 @@ $logoutUrl = ProductHelper::url('/logout');
   <title><?= htmlspecialchars($title ?? 'Скоро открытие') ?> — Zakopeyki.kz</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&display=swap" rel="stylesheet" />
   <style>
 *,
 *::before,
@@ -320,11 +323,17 @@ body {
   opacity: 1;
 }
 
-.login-btn {
+.auth-bar {
   position: fixed;
   top: max(12px, env(safe-area-inset-top, 0px));
   right: max(12px, env(safe-area-inset-right, 0px));
   z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.login-btn {
   font-family: "Montserrat", system-ui, sans-serif;
   font-size: 12px;
   font-weight: 700;
@@ -338,6 +347,13 @@ body {
   cursor: pointer;
   transition: color 0.2s, background 0.2s;
   -webkit-tap-highlight-color: transparent;
+  appearance: none;
+}
+
+.login-btn--accent {
+  color: #12021F;
+  background: linear-gradient(180deg, #FFE566 0%, #FFD400 55%, #E8A800 100%);
+  border-color: rgba(255, 212, 0, 0.8);
 }
 
 .login-btn:hover,
@@ -345,6 +361,264 @@ body {
   color: #FFE566;
   background: rgba(18, 2, 31, 0.8);
   outline: none;
+}
+
+.login-btn--accent:hover,
+.login-btn--accent:focus-visible {
+  color: #12021F;
+  filter: brightness(1.06);
+  background: linear-gradient(180deg, #FFE566 0%, #FFD400 55%, #E8A800 100%);
+}
+
+.cta-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding:
+    max(1rem, env(safe-area-inset-top))
+    max(1rem, env(safe-area-inset-right))
+    max(1rem, env(safe-area-inset-bottom))
+    max(1rem, env(safe-area-inset-left));
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.28s ease, visibility 0.28s ease;
+}
+
+.cta-modal.is-open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.cta-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: rgba(8, 0, 18, 0.72);
+  backdrop-filter: blur(6px);
+  cursor: pointer;
+}
+
+.cta-modal__dialog {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 26rem);
+  transform: translateY(18px) scale(0.96);
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cta-modal.is-open .cta-modal__dialog {
+  transform: translateY(0) scale(1);
+}
+
+.cta-modal__card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 1.65rem 1.4rem 1.45rem;
+  text-align: center;
+  border-radius: 1.4rem;
+  background:
+    linear-gradient(165deg, rgba(86, 22, 128, 0.92) 0%, rgba(26, 5, 40, 0.96) 48%, rgba(14, 1, 24, 0.98) 100%);
+  border: 1px solid rgba(255, 212, 0, 0.55);
+  box-shadow:
+    0 0 0 1px rgba(180, 60, 220, 0.25) inset,
+    0 24px 60px rgba(0, 0, 0, 0.55),
+    0 0 48px rgba(168, 50, 220, 0.28);
+  overflow: hidden;
+}
+
+.cta-modal__card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    transparent 40%,
+    rgba(255, 230, 140, 0.14) 50%,
+    transparent 60%,
+    transparent 100%
+  );
+  background-size: 220% 100%;
+  animation: cta-sheen 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.cta-modal__card::after {
+  content: "";
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 230, 150, 0.8), transparent);
+  pointer-events: none;
+}
+
+.cta-modal__close {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.7rem;
+  z-index: 2;
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.cta-modal__close:hover,
+.cta-modal__close:focus-visible {
+  background: rgba(255, 255, 255, 0.14);
+  color: #FFE566;
+  outline: none;
+}
+
+.cta-modal__eyebrow {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #FFE566;
+}
+
+.cta-modal__title {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-size: clamp(1.25rem, 4vw, 1.55rem);
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.cta-modal__sub {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  max-width: 22em;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.78);
+  line-height: 1.45;
+}
+
+.cta-modal__btn {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45em;
+  width: 100%;
+  min-height: 2.85rem;
+  margin-top: 0.35rem;
+  padding: 0.65em 1.4em;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 240, 170, 0.95);
+  background: linear-gradient(180deg, #FFF1A0 0%, #FFD400 42%, #E8A800 100%);
+  color: #1A0528;
+  font-family: inherit;
+  font-size: 0.98rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.45) inset,
+    0 8px 22px rgba(0, 0, 0, 0.3),
+    0 0 26px rgba(255, 212, 0, 0.35);
+  transition: transform 0.22s ease, filter 0.22s ease, box-shadow 0.22s ease;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cta-modal__btn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -40%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  transform: skewX(-20deg);
+  animation: cta-btn-shine 3.2s ease-in-out infinite;
+}
+
+.cta-modal__btn:hover,
+.cta-modal__btn:focus-visible {
+  transform: translateY(-2px);
+  filter: brightness(1.06);
+  outline: none;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    0 12px 28px rgba(0, 0, 0, 0.35),
+    0 0 36px rgba(255, 212, 0, 0.5);
+}
+
+.cta-modal__btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.cta-modal__arrow {
+  display: inline-block;
+  transition: transform 0.22s ease;
+}
+
+.cta-modal__btn:hover .cta-modal__arrow,
+.cta-modal__btn:focus-visible .cta-modal__arrow {
+  transform: translateX(3px);
+}
+
+.cta-modal__hint {
+  position: relative;
+  z-index: 1;
+  margin: 0.15rem 0 0;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+@keyframes cta-sheen {
+  0%, 100% { background-position: 140% 0; }
+  50% { background-position: -40% 0; }
+}
+
+@keyframes cta-btn-shine {
+  0%, 55% { left: -40%; }
+  80%, 100% { left: 130%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cta-modal,
+  .cta-modal__dialog {
+    transition: none;
+  }
+
+  .cta-modal__card::before,
+  .cta-modal__btn::before {
+    animation: none;
+  }
 }
 
 body.debug .hit {
@@ -485,14 +759,19 @@ body.debug .hit {
   </style>
 </head>
 <body>
-  <?php if (\App\Core\Auth::check()): ?>
-    <form method="post" action="<?= htmlspecialchars($logoutUrl) ?>" style="position:fixed;top:12px;right:12px;z-index:60;">
-      <?= \App\Core\Csrf::field() ?>
-      <button type="submit" class="login-btn" style="position:static;">Выйти</button>
-    </form>
-  <?php else: ?>
-    <a class="login-btn" href="<?= htmlspecialchars($loginUrl) ?>">Вход</a>
-  <?php endif; ?>
+  <div class="auth-bar">
+    <?php if (\App\Core\Auth::check()): ?>
+      <form method="post" action="<?= htmlspecialchars($logoutUrl) ?>">
+        <?= \App\Core\Csrf::field() ?>
+        <button type="submit" class="login-btn">Выйти</button>
+      </form>
+    <?php else: ?>
+      <a class="login-btn" href="<?= htmlspecialchars($loginUrl) ?>">Вход</a>
+      <button type="button" class="login-btn login-btn--accent" id="cta-open" aria-haspopup="dialog">
+        Регистрация
+      </button>
+    <?php endif; ?>
+  </div>
 
   <main class="stage">
     <section class="hero" aria-label="Zakopeyki.kz">
@@ -557,6 +836,35 @@ body.debug .hit {
   </main>
 
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <?php if (!\App\Core\Auth::check()): ?>
+  <div
+    id="cta-modal"
+    class="cta-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="cta-modal-title"
+    hidden
+  >
+    <button type="button" class="cta-modal__backdrop" data-cta-close aria-label="Закрыть"></button>
+    <div class="cta-modal__dialog">
+      <div class="cta-modal__card">
+        <button type="button" class="cta-modal__close" data-cta-close aria-label="Закрыть">×</button>
+        <p class="cta-modal__eyebrow">Ранний доступ</p>
+        <p class="cta-modal__title" id="cta-modal-title">Будьте среди первых</p>
+        <p class="cta-modal__sub">
+          30 августа открываем сайт. Зарегистрируйтесь заранее — и встретьте запуск во всеоружии.
+        </p>
+        <a class="cta-modal__btn" href="<?= htmlspecialchars($registerUrl) ?>">
+          Создать аккаунт
+          <span class="cta-modal__arrow" aria-hidden="true">→</span>
+        </a>
+        <p class="cta-modal__hint">Бесплатно · займёт меньше минуты</p>
+      </div>
+    </div>
+  </div>
+  <?php endif; ?>
+
   <script>
 function showToast(message) {
   const toast = document.getElementById('toast');
@@ -615,12 +923,65 @@ function initCountdown() {
   }, 1000);
 }
 
+function initCtaModal() {
+  const modal = document.getElementById('cta-modal');
+  if (!modal) return;
+
+  const storageKey = 'stub_cta_dismissed';
+  let lastFocus = null;
+
+  function openModal() {
+    lastFocus = document.activeElement;
+    modal.hidden = false;
+    requestAnimationFrame(() => modal.classList.add('is-open'));
+    document.body.style.overflow = 'hidden';
+    modal.querySelector('.cta-modal__btn')?.focus();
+  }
+
+  function closeModal(persist) {
+    modal.classList.remove('is-open');
+    document.body.style.overflow = '';
+    if (persist) {
+      try { sessionStorage.setItem(storageKey, '1'); } catch (_) {}
+    }
+    setTimeout(() => {
+      if (!modal.classList.contains('is-open')) modal.hidden = true;
+    }, 280);
+    if (lastFocus && typeof lastFocus.focus === 'function') lastFocus.focus();
+  }
+
+  modal.querySelectorAll('[data-cta-close]').forEach((el) => {
+    el.addEventListener('click', () => closeModal(true));
+  });
+
+  document.getElementById('cta-open')?.addEventListener('click', openModal);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal.classList.contains('is-open')) {
+      closeModal(true);
+    }
+  });
+
+  let dismissed = false;
+  try { dismissed = sessionStorage.getItem(storageKey) === '1'; } catch (_) {}
+
+  if (!dismissed) {
+    setTimeout(openModal, 1600);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   if (new URLSearchParams(location.search).get('debug') === '1') {
     document.body.classList.add('debug');
   }
 
   initCountdown();
+  initCtaModal();
+
+  const stubFlash = <?= json_encode($stubFlash, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+  if (stubFlash) {
+    showToast(stubFlash);
+  }
 
   const nav = document.getElementById('categories');
   nav?.addEventListener('click', (e) => {

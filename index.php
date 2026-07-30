@@ -46,6 +46,7 @@ if (!empty($appConfig['stub_mode']) && !\App\Core\Auth::isAdmin()) {
         '/login',
         '/login/2fa',
         '/logout',
+        '/register',
         '/forgot-password',
         '/auth/google',
         '/auth/google/callback',
