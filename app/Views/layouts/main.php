@@ -437,8 +437,23 @@ function url(string $path = ''): string
             </form>
         </div>
 
-        <button type="button" id="ai-assistant-toggle" class="pointer-events-auto flex items-center gap-2 bg-ink-900 hover:bg-ink-800 text-white pl-3.5 pr-4 py-3 rounded-2xl shadow-lift border border-white/10 cursor-pointer transition hover:-translate-y-0.5" aria-expanded="false" aria-controls="ai-assistant-panel">
-            <span class="text-xl leading-none" aria-hidden="true">🤖</span>
+        <button type="button" id="ai-assistant-toggle" class="pointer-events-auto flex items-center gap-2 bg-ink-900 hover:bg-ink-800 text-white pl-3 pr-4 py-2.5 rounded-2xl shadow-lift border border-white/10 cursor-pointer transition hover:-translate-y-0.5" aria-expanded="false" aria-controls="ai-assistant-panel">
+            <svg class="w-7 h-7 shrink-0" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+                <rect x="7" y="9" width="18" height="16" rx="5" fill="url(#ai-bot-face)" stroke="#9CA3AF" stroke-width="0.75"/>
+                <path d="M11 9V7.5a1.5 1.5 0 0 1 1.5-1.5h7A1.5 1.5 0 0 1 21 7.5V9" stroke="#9CA3AF" stroke-width="1.2" stroke-linecap="round"/>
+                <circle cx="16" cy="5.2" r="1.4" fill="#D1D5DB" stroke="#9CA3AF" stroke-width="0.6"/>
+                <rect x="10.5" y="14" width="4.2" height="2.2" rx="1.1" fill="#22D3EE"/>
+                <rect x="17.3" y="14" width="4.2" height="2.2" rx="1.1" fill="#22D3EE"/>
+                <rect x="15.2" y="10.2" width="1.6" height="5.5" rx="0.8" fill="#EF4444"/>
+                <path d="M7 16.5H5.2a1.2 1.2 0 0 1 0-2.4H7M25 16.5h1.8a1.2 1.2 0 0 0 0-2.4H25" stroke="#9CA3AF" stroke-width="1.1" stroke-linecap="round"/>
+                <path d="M12.5 22h7" stroke="#6B7280" stroke-width="1.2" stroke-linecap="round"/>
+                <defs>
+                    <linearGradient id="ai-bot-face" x1="16" y1="9" x2="16" y2="25" gradientUnits="userSpaceOnUse">
+                        <stop stop-color="#E5E7EB"/>
+                        <stop offset="1" stop-color="#9CA3AF"/>
+                    </linearGradient>
+                </defs>
+            </svg>
             <span class="font-display font-semibold text-xs uppercase tracking-wider"><?= htmlspecialchars(t('ai.toggle')) ?></span>
         </button>
     </div>
