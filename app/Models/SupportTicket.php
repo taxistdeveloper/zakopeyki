@@ -361,16 +361,24 @@ class SupportTicket extends Model
     public function adminUsers(): array
     {
         $rows = $this->db->query(
-            "SELECT id, name, email FROM users WHERE role = 'admin' ORDER BY id ASC"
+            "SELECT id, name, email, role, permissions FROM users WHERE role IN ('admin', 'manager') ORDER BY id ASC"
         )->fetchAll();
 
-        return array_map(static function (array $r): array {
-            return [
+        $out = [];
+        foreach ($rows as $r) {
+            if (($r['role'] ?? '') === 'manager') {
+                $perms = \App\Core\Auth::normalizePermissions($r['permissions'] ?? null, 'manager');
+                if (!in_array('tickets', $perms, true)) {
+                    continue;
+                }
+            }
+            $out[] = [
                 'id' => (int) $r['id'],
                 'name' => (string) $r['name'],
                 'email' => (string) $r['email'],
             ];
-        }, $rows);
+        }
+        return $out;
     }
 
     private function messageById(int $id): ?array

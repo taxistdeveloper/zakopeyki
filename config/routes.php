@@ -111,6 +111,7 @@ $router->get('/admin/users', [AdminController::class, 'users']);
 $router->get('/admin/users/{id}', [AdminController::class, 'userShow']);
 $router->post('/admin/users', [AdminController::class, 'userCreate']);
 $router->post('/admin/users/{id}/role', [AdminController::class, 'userUpdateRole']);
+$router->post('/admin/users/{id}/permissions', [AdminController::class, 'userUpdatePermissions']);
 $router->post('/admin/users/{id}/delete', [AdminController::class, 'userDelete']);
 $router->post('/admin/delete/{id}', [AdminController::class, 'delete']);
 $router->post('/admin/toggle/{id}', [AdminController::class, 'toggleStatus']);

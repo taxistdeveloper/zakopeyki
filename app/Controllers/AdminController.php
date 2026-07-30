@@ -19,8 +19,10 @@ class AdminController extends Controller
 {
     public function index(): void
     {
-        Auth::requireAdmin();
-        (new EscrowService())->processDeadlines();
+        Auth::requireStaff();
+        if (Auth::can('products') || Auth::can('disputes')) {
+            (new EscrowService())->processDeadlines();
+        }
 
         $productModel = new Product();
         $userModel = new User();
@@ -28,10 +30,16 @@ class AdminController extends Controller
         $support = new SupportTicket();
         $aiSupport = new AiSupport();
 
-        $items = $productModel->all('created_at DESC');
-        $counts = $productModel->countByType();
-        $userCount = $userModel->countAll();
-        $disputes = $orderModel->findByStatus('dispute');
+        $canProducts = Auth::can('products');
+        $canTickets = Auth::can('tickets');
+        $canAi = Auth::can('ai_chats');
+        $canDisputes = Auth::can('disputes');
+        $isAdmin = Auth::isAdmin();
+
+        $items = $canProducts ? $productModel->all('created_at DESC') : [];
+        $counts = $canProducts ? $productModel->countByType() : [];
+        $userCount = $isAdmin ? $userModel->countAll() : 0;
+        $disputes = $canDisputes ? $orderModel->findByStatus('dispute') : [];
 
         $n = new Notification();
         $notifications = $n->forUser(Auth::id());
@@ -44,9 +52,14 @@ class AdminController extends Controller
             'counts' => $counts,
             'userCount' => $userCount,
             'disputes' => $disputes,
-            'openTickets' => $support->openCount(),
-            'ticketUnread' => $support->unreadCountForAdmin(),
-            'aiEscalated' => $aiSupport->countEscalated(),
+            'openTickets' => $canTickets ? $support->openCount() : 0,
+            'ticketUnread' => $canTickets ? $support->unreadCountForAdmin() : 0,
+            'aiEscalated' => $canAi ? $aiSupport->countEscalated() : 0,
+            'canProducts' => $canProducts,
+            'canTickets' => $canTickets,
+            'canAi' => $canAi,
+            'canDisputes' => $canDisputes,
+            'isAdmin' => $isAdmin,
             'types' => ProductHelper::TYPES,
             'notifications' => $notifications,
             'unread' => $unread,
@@ -58,7 +71,7 @@ class AdminController extends Controller
 
     public function tickets(): void
     {
-        Auth::requireAdmin();
+        Auth::requirePermission('tickets');
         $status = isset($_GET['status']) ? strtolower(trim((string) $_GET['status'])) : null;
         if ($status === 'all' || $status === '') {
             $status = null;
@@ -84,7 +97,7 @@ class AdminController extends Controller
 
     public function ticketShow(string $id): void
     {
-        Auth::requireAdmin();
+        Auth::requirePermission('tickets');
         $support = new SupportTicket();
         $ticketId = (int) $id;
         $ticket = $support->findForAdmin($ticketId);
@@ -116,7 +129,7 @@ class AdminController extends Controller
 
     public function ticketReply(string $id): void
     {
-        Auth::requireAdmin();
+        Auth::requirePermission('tickets');
         $ticketId = (int) $id;
         $body = (string) ($_POST['body'] ?? '');
         $support = new SupportTicket();
@@ -144,7 +157,7 @@ class AdminController extends Controller
 
     public function ticketClose(string $id): void
     {
-        Auth::requireAdmin();
+        Auth::requirePermission('tickets');
         $ticketId = (int) $id;
         $support = new SupportTicket();
         $ticket = $support->findForAdmin($ticketId);
@@ -163,7 +176,7 @@ class AdminController extends Controller
 
     public function ticketReopen(string $id): void
     {
-        Auth::requireAdmin();
+        Auth::requirePermission('tickets');
         $ticketId = (int) $id;
         $support = new SupportTicket();
         if ($support->reopen($ticketId)) {
@@ -174,7 +187,7 @@ class AdminController extends Controller
 
     public function aiChats(): void
     {
-        Auth::requireAdmin();
+        Auth::requirePermission('ai_chats');
         $status = isset($_GET['status']) ? strtolower(trim((string) $_GET['status'])) : 'human_escalated';
         if ($status === 'all' || $status === '') {
             $status = null;
@@ -200,7 +213,7 @@ class AdminController extends Controller
 
     public function aiChatShow(string $id): void
     {
-        Auth::requireAdmin();
+        Auth::requirePermission('ai_chats');
         $ai = new AiSupport();
         $conversationId = (int) $id;
         $conversation = $ai->getConversationById($conversationId);
@@ -245,7 +258,7 @@ class AdminController extends Controller
 
     public function aiChatReply(string $id): void
     {
-        Auth::requireAdmin();
+        Auth::requirePermission('ai_chats');
         $conversationId = (int) $id;
         $body = trim((string) ($_POST['body'] ?? ''));
         $close = !empty($_POST['close']);
@@ -286,7 +299,7 @@ class AdminController extends Controller
 
     public function aiChatClose(string $id): void
     {
-        Auth::requireAdmin();
+        Auth::requirePermission('ai_chats');
         $conversationId = (int) $id;
         $ai = new AiSupport();
         $conversation = $ai->getConversationById($conversationId);
@@ -302,7 +315,7 @@ class AdminController extends Controller
 
     public function aiExportDataset(): void
     {
-        Auth::requireAdmin();
+        Auth::requirePermission('ai_chats');
         $jsonl = (new SelfLearningService())->exportJsonlDataset();
         header('Content-Type: application/x-ndjson; charset=utf-8');
         header('Content-Disposition: attachment; filename="zakopeyki_ai_dataset_' . date('Y-m-d') . '.jsonl"');
@@ -317,7 +330,7 @@ class AdminController extends Controller
         if ($role === 'all' || $role === '') {
             $role = null;
         }
-        if ($role !== null && !in_array($role, ['admin', 'user'], true)) {
+        if ($role !== null && !in_array($role, ['admin', 'manager', 'user'], true)) {
             $role = null;
         }
         $q = trim((string) ($_GET['q'] ?? ''));
@@ -333,6 +346,7 @@ class AdminController extends Controller
             'filterRole' => $role,
             'searchQuery' => $q,
             'userCount' => $userModel->countAll(),
+            'permissionKeys' => Auth::PERMISSIONS,
             'notifications' => $n->forUser($uid),
             'unread' => $n->unreadCount($uid),
             'search' => '',
@@ -357,11 +371,14 @@ class AdminController extends Controller
 
         $n = new Notification();
         $uid = Auth::id();
+        $userPerms = Auth::normalizePermissions($user['permissions'] ?? null, (string) ($user['role'] ?? 'user'));
 
         $this->view('admin/user-show', [
             'title' => t('admin.user') . ' #' . $userId,
             'currentNav' => 'admin',
             'user' => $user,
+            'userPermissions' => $userPerms,
+            'permissionKeys' => Auth::PERMISSIONS,
             'adminCount' => $userModel->countAdmins(),
             'isSelf' => $userId === $uid,
             'notifications' => $n->forUser($uid),
@@ -381,7 +398,8 @@ class AdminController extends Controller
         $password = (string) ($_POST['password'] ?? '');
         $login = trim((string) ($_POST['login'] ?? ''));
         $phone = trim((string) ($_POST['phone'] ?? ''));
-        $role = ($_POST['role'] ?? 'user') === 'admin' ? 'admin' : 'user';
+        $role = User::normalizeRole((string) ($_POST['role'] ?? 'user'));
+        $permissions = $this->permissionsFromPost();
 
         if ($name === '' || mb_strlen($name, 'UTF-8') < 2) {
             $_SESSION['error'] = t('admin.user_name_required');
@@ -419,6 +437,7 @@ class AdminController extends Controller
                 'login' => $login,
                 'phone' => $phone,
                 'role' => $role,
+                'permissions' => $permissions,
             ]);
             $_SESSION['flash'] = t('admin.user_created');
             $this->redirect('/admin/users/' . $newId);
@@ -432,7 +451,8 @@ class AdminController extends Controller
     {
         Auth::requireAdmin();
         $userId = (int) $id;
-        $role = ($_POST['role'] ?? '') === 'admin' ? 'admin' : 'user';
+        $role = User::normalizeRole((string) ($_POST['role'] ?? 'user'));
+        $permissions = $this->permissionsFromPost();
         $userModel = new User();
         $user = $userModel->find($userId);
 
@@ -443,13 +463,13 @@ class AdminController extends Controller
         }
 
         $currentRole = (string) ($user['role'] ?? 'user');
-        if ($currentRole === $role) {
+        if ($currentRole === $role && $role !== 'manager') {
             $_SESSION['flash'] = t('admin.user_role_unchanged');
             $this->redirect('/admin/users/' . $userId);
             return;
         }
 
-        if ($currentRole === 'admin' && $role === 'user') {
+        if ($currentRole === 'admin' && $role !== 'admin') {
             if ($userId === Auth::id()) {
                 $_SESSION['error'] = t('admin.user_cannot_demote_self');
                 $this->redirect('/admin/users/' . $userId);
@@ -462,10 +482,46 @@ class AdminController extends Controller
             }
         }
 
-        if ($userModel->updateRole($userId, $role)) {
+        if ($role === 'manager' && $permissions === [] && isset($_POST['permissions'])) {
+            // keep existing if form didn't send checkboxes (role-only button)
+            $permissions = Auth::normalizePermissions($user['permissions'] ?? null, 'manager');
+            if ($permissions === []) {
+                $permissions = ['tickets'];
+            }
+        }
+
+        if ($userModel->updateRole($userId, $role, $permissions)) {
             $_SESSION['flash'] = t('admin.user_role_updated');
         } else {
             $_SESSION['error'] = t('admin.user_role_failed');
+        }
+        $this->redirect('/admin/users/' . $userId);
+    }
+
+    public function userUpdatePermissions(string $id): void
+    {
+        Auth::requireAdmin();
+        $userId = (int) $id;
+        $userModel = new User();
+        $user = $userModel->find($userId);
+
+        if (!$user) {
+            $_SESSION['error'] = t('admin.user_not_found');
+            $this->redirect('/admin/users');
+            return;
+        }
+
+        if (($user['role'] ?? '') !== 'manager') {
+            $_SESSION['error'] = t('admin.user_perms_only_manager');
+            $this->redirect('/admin/users/' . $userId);
+            return;
+        }
+
+        $permissions = $this->permissionsFromPost();
+        if ($userModel->updatePermissions($userId, $permissions)) {
+            $_SESSION['flash'] = t('admin.user_perms_updated');
+        } else {
+            $_SESSION['error'] = t('admin.user_perms_failed');
         }
         $this->redirect('/admin/users/' . $userId);
     }
@@ -507,7 +563,7 @@ class AdminController extends Controller
 
     public function delete(string $id): void
     {
-        Auth::requireAdmin();
+        Auth::requirePermission('products');
         (new Product())->delete((int) $id);
         $_SESSION['flash'] = 'Товар удалён';
         $this->redirect('/admin');
@@ -515,7 +571,7 @@ class AdminController extends Controller
 
     public function toggleStatus(string $id): void
     {
-        Auth::requireAdmin();
+        Auth::requirePermission('products');
         $model = new Product();
         $item = $model->find((int) $id);
         if ($item) {
@@ -524,6 +580,16 @@ class AdminController extends Controller
             $_SESSION['flash'] = 'Статус обновлён';
         }
         $this->redirect('/admin');
+    }
+
+    /** @return list<string> */
+    private function permissionsFromPost(): array
+    {
+        $raw = $_POST['permissions'] ?? [];
+        if (!is_array($raw)) {
+            return [];
+        }
+        return Auth::normalizePermissions($raw, 'manager');
     }
 
     private function sendReplyEmail(array $ticket, string $replyBody): void

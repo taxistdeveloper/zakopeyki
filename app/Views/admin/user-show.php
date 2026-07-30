@@ -1,15 +1,30 @@
 <?php
+use App\Core\Auth;
 use App\Helpers\ProductHelper;
 
 $user = $user ?? [];
 $userId = (int) ($user['id'] ?? 0);
 $role = (string) ($user['role'] ?? 'user');
-$isAdmin = $role === 'admin';
+$isAdminRole = $role === 'admin';
+$isManager = $role === 'manager';
 $isSelf = !empty($isSelf);
 $adminCount = (int) ($adminCount ?? 0);
+$userPermissions = $userPermissions ?? [];
+$permissionKeys = $permissionKeys ?? Auth::PERMISSIONS;
 $displayName = trim((string) ($user['name'] ?? '')) ?: ((string) ($user['login'] ?? 'User'));
-$canDemote = $isAdmin && !$isSelf && $adminCount > 1;
-$canDelete = !$isSelf && !($isAdmin && $adminCount <= 1);
+$canDemoteAdmin = $isAdminRole && !$isSelf && $adminCount > 1;
+$canDelete = !$isSelf && !($isAdminRole && $adminCount <= 1);
+
+$roleLabel = match ($role) {
+    'admin' => t('nav.role_admin'),
+    'manager' => t('nav.role_manager'),
+    default => t('nav.role_user'),
+};
+$roleClass = match ($role) {
+    'admin' => 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+    'manager' => 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+    default => 'bg-gray-100 text-gray-500 dark:bg-white/10',
+};
 ?>
 <section class="max-w-2xl mx-auto fade-up pb-8 space-y-5">
     <div class="flex flex-wrap items-start justify-between gap-3">
@@ -19,8 +34,8 @@ $canDelete = !$isSelf && !($isAdmin && $adminCount <= 1);
                 <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-red-500"><?= htmlspecialchars(t('admin.eyebrow')) ?></p>
                 <h1 class="font-display text-xl font-bold text-ink-900 dark:text-white mt-1"><?= htmlspecialchars($displayName) ?></h1>
                 <p class="text-[11px] text-gray-400 mt-1">#<?= $userId ?> · <?= htmlspecialchars((string) ($user['email'] ?? '')) ?></p>
-                <span class="inline-flex mt-2 px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wide <?= $isAdmin ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : 'bg-gray-100 text-gray-500 dark:bg-white/10' ?>">
-                    <?= htmlspecialchars($isAdmin ? t('nav.role_admin') : t('nav.role_user')) ?>
+                <span class="inline-flex mt-2 px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wide <?= $roleClass ?>">
+                    <?= htmlspecialchars($roleLabel) ?>
                 </span>
             </div>
         </div>
@@ -60,12 +75,6 @@ $canDelete = !$isSelf && !($isAdmin && $adminCount <= 1);
                 <dt class="text-[10px] font-semibold uppercase tracking-wider text-gray-400">2FA</dt>
                 <dd class="mt-0.5 text-ink-800 dark:text-gray-200"><?= !empty($user['two_factor_enabled']) ? t('admin.user_2fa_on') : t('admin.user_2fa_off') ?></dd>
             </div>
-            <?php if (!empty($user['google_id'])): ?>
-                <div class="sm:col-span-2">
-                    <dt class="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Google</dt>
-                    <dd class="mt-0.5 text-ink-800 dark:text-gray-200 text-xs break-all"><?= htmlspecialchars((string) $user['google_id']) ?></dd>
-                </div>
-            <?php endif; ?>
         </dl>
     </div>
 
@@ -73,7 +82,7 @@ $canDelete = !$isSelf && !($isAdmin && $adminCount <= 1);
         <h2 class="font-display font-bold text-ink-900 dark:text-white text-sm"><?= htmlspecialchars(t('admin.user_role')) ?></h2>
         <p class="text-xs text-gray-500"><?= htmlspecialchars(t('admin.user_role_hint')) ?></p>
         <div class="flex flex-wrap gap-2">
-            <?php if (!$isAdmin): ?>
+            <?php if ($role !== 'admin'): ?>
                 <form method="post" action="<?= ProductHelper::url('/admin/users/' . $userId . '/role') ?>">
                     <?= csrf_field() ?>
                     <input type="hidden" name="role" value="admin">
@@ -82,20 +91,57 @@ $canDelete = !$isSelf && !($isAdmin && $adminCount <= 1);
                         <?= htmlspecialchars(t('admin.user_make_admin')) ?>
                     </button>
                 </form>
-            <?php elseif ($canDemote): ?>
+            <?php endif; ?>
+            <?php if ($role !== 'manager'): ?>
                 <form method="post" action="<?= ProductHelper::url('/admin/users/' . $userId . '/role') ?>">
                     <?= csrf_field() ?>
-                    <input type="hidden" name="role" value="user">
-                    <button type="submit" class="h-9 px-4 rounded-xl border border-black/[0.08] dark:border-white/10 text-xs font-semibold hover:border-brand-400/50 transition"
-                            onclick="return confirm(<?= json_encode(t('admin.user_confirm_demote')) ?>)">
-                        <?= htmlspecialchars(t('admin.user_make_user')) ?>
+                    <input type="hidden" name="role" value="manager">
+                    <input type="hidden" name="permissions[]" value="tickets">
+                    <button type="submit" class="h-9 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-white text-xs font-bold transition"
+                            onclick="return confirm(<?= json_encode(t('admin.user_confirm_manager')) ?>)">
+                        <?= htmlspecialchars(t('admin.user_make_manager')) ?>
                     </button>
                 </form>
-            <?php else: ?>
-                <p class="text-xs text-amber-600"><?= htmlspecialchars($isSelf ? t('admin.user_cannot_demote_self') : t('admin.user_last_admin')) ?></p>
+            <?php endif; ?>
+            <?php if ($role !== 'user'): ?>
+                <?php if ($isAdminRole && !$canDemoteAdmin): ?>
+                    <p class="text-xs text-amber-600 w-full"><?= htmlspecialchars($isSelf ? t('admin.user_cannot_demote_self') : t('admin.user_last_admin')) ?></p>
+                <?php else: ?>
+                    <form method="post" action="<?= ProductHelper::url('/admin/users/' . $userId . '/role') ?>">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="role" value="user">
+                        <button type="submit" class="h-9 px-4 rounded-xl border border-black/[0.08] dark:border-white/10 text-xs font-semibold hover:border-brand-400/50 transition"
+                                onclick="return confirm(<?= json_encode(t('admin.user_confirm_demote')) ?>)">
+                            <?= htmlspecialchars(t('admin.user_make_user')) ?>
+                        </button>
+                    </form>
+                <?php endif; ?>
             <?php endif; ?>
         </div>
     </div>
+
+    <?php if ($isManager): ?>
+    <div class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-amber-200/70 dark:border-amber-900/40 shadow-soft p-4 sm:p-5 space-y-3">
+        <h2 class="font-display font-bold text-amber-800 dark:text-amber-300 text-sm"><?= htmlspecialchars(t('admin.user_perms')) ?></h2>
+        <p class="text-xs text-gray-500"><?= htmlspecialchars(t('admin.user_perms_hint')) ?></p>
+        <form method="post" action="<?= ProductHelper::url('/admin/users/' . $userId . '/permissions') ?>" class="space-y-3">
+            <?= csrf_field() ?>
+            <div class="flex flex-wrap gap-2">
+                <?php foreach ($permissionKeys as $perm):
+                    $on = in_array($perm, $userPermissions, true);
+                ?>
+                    <label class="inline-flex items-center gap-2 h-9 px-3 rounded-xl border text-xs font-semibold cursor-pointer transition <?= $on ? 'border-amber-400 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200' : 'border-black/[0.08] dark:border-white/10' ?>">
+                        <input type="checkbox" name="permissions[]" value="<?= htmlspecialchars($perm) ?>" <?= $on ? 'checked' : '' ?> class="rounded border-gray-300">
+                        <?= htmlspecialchars(t('admin.perm_' . $perm)) ?>
+                    </label>
+                <?php endforeach; ?>
+            </div>
+            <button type="submit" class="h-9 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-white text-xs font-bold transition">
+                <?= htmlspecialchars(t('admin.user_perms_save')) ?>
+            </button>
+        </form>
+    </div>
+    <?php endif; ?>
 
     <div class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-red-200/60 dark:border-red-900/40 shadow-soft p-4 sm:p-5 space-y-3">
         <h2 class="font-display font-bold text-red-700 dark:text-red-300 text-sm"><?= htmlspecialchars(t('admin.user_danger')) ?></h2>

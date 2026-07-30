@@ -1,4 +1,15 @@
-<?php use App\Helpers\ProductHelper; ?>
+<?php
+use App\Helpers\ProductHelper;
+
+$canTickets = !empty($canTickets);
+$canAi = !empty($canAi);
+$canProducts = !empty($canProducts);
+$canDisputes = !empty($canDisputes);
+$isAdmin = !empty($isAdmin);
+$counts = $counts ?? [];
+$items = $items ?? [];
+$hasNav = $canTickets || $canAi || $isAdmin;
+?>
 <section class="space-y-6 fade-up">
     <div>
         <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-red-500 mb-1"><?= htmlspecialchars(t('admin.eyebrow')) ?></p>
@@ -9,7 +20,9 @@
         <div class="bg-emerald-50 dark:bg-emerald-900/25 text-emerald-800 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800/40 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars($flash) ?></div>
     <?php endif; ?>
 
+    <?php if ($hasNav): ?>
     <div class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-brand-200/70 dark:border-brand-900/40 shadow-soft overflow-hidden">
+        <?php if ($canTickets): ?>
         <a href="<?= ProductHelper::url('/admin/tickets') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 hover:bg-brand-50/40 dark:hover:bg-white/[0.03] transition">
             <div class="min-w-0">
                 <h3 class="font-display font-bold text-brand-800 dark:text-brand-300"><?= htmlspecialchars(t('admin.tickets')) ?></h3>
@@ -22,7 +35,9 @@
                 <span class="text-xs font-bold text-brand-600"><?= (int) ($openTickets ?? 0) ?> →</span>
             </div>
         </a>
-        <a href="<?= ProductHelper::url('/admin/ai-chats') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 border-t border-brand-100 dark:border-brand-900/30 hover:bg-violet-50/40 dark:hover:bg-white/[0.03] transition">
+        <?php endif; ?>
+        <?php if ($canAi): ?>
+        <a href="<?= ProductHelper::url('/admin/ai-chats') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 <?= $canTickets ? 'border-t border-brand-100 dark:border-brand-900/30' : '' ?> hover:bg-violet-50/40 dark:hover:bg-white/[0.03] transition">
             <div class="min-w-0">
                 <h3 class="font-display font-bold text-violet-800 dark:text-violet-300"><?= htmlspecialchars(t('admin.ai_chats')) ?></h3>
                 <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.ai_chats_hint')) ?></p>
@@ -34,16 +49,20 @@
                 <span class="text-xs font-bold text-violet-600"><?= (int) ($aiEscalated ?? 0) ?> →</span>
             </div>
         </a>
-        <a href="<?= ProductHelper::url('/admin/users') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 border-t border-brand-100 dark:border-brand-900/30 hover:bg-brand-50/40 dark:hover:bg-white/[0.03] transition">
+        <?php endif; ?>
+        <?php if ($isAdmin): ?>
+        <a href="<?= ProductHelper::url('/admin/users') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 <?= ($canTickets || $canAi) ? 'border-t border-brand-100 dark:border-brand-900/30' : '' ?> hover:bg-brand-50/40 dark:hover:bg-white/[0.03] transition">
             <div class="min-w-0">
                 <h3 class="font-display font-bold text-ink-800 dark:text-gray-200"><?= htmlspecialchars(t('admin.users')) ?></h3>
                 <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.users_hint')) ?></p>
             </div>
             <span class="text-xs font-bold text-brand-600"><?= (int) ($userCount ?? 0) ?> →</span>
         </a>
+        <?php endif; ?>
     </div>
+    <?php endif; ?>
 
-    <?php if (!empty($disputes)): ?>
+    <?php if ($canDisputes && !empty($disputes)): ?>
         <div class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-violet-200/70 dark:border-violet-900/40 shadow-soft overflow-hidden">
             <div class="px-4 py-3.5 border-b border-violet-100 dark:border-violet-900/30 bg-violet-50/50 dark:bg-violet-950/20">
                 <h3 class="font-display font-bold text-violet-800 dark:text-violet-300"><?= htmlspecialchars(t('admin.disputes')) ?> (<?= count($disputes) ?>)</h3>
@@ -63,11 +82,15 @@
         </div>
     <?php endif; ?>
 
+    <?php if ($canProducts || $isAdmin): ?>
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <?php if ($isAdmin): ?>
         <a href="<?= ProductHelper::url('/admin/users') ?>" class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft hover:border-brand-400/50 transition block">
             <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.users')) ?></div>
             <div class="font-display text-2xl font-bold mt-1"><?= (int) $userCount ?></div>
         </a>
+        <?php endif; ?>
+        <?php if ($canProducts): ?>
         <div class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft">
             <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.active_lots')) ?></div>
             <div class="font-display text-2xl font-bold mt-1"><?= array_sum($counts) ?></div>
@@ -78,8 +101,11 @@
                 <div class="font-display text-2xl font-bold mt-1"><?= (int) $cnt ?></div>
             </div>
         <?php endforeach; ?>
+        <?php endif; ?>
     </div>
+    <?php endif; ?>
 
+    <?php if ($canProducts): ?>
     <div class="overflow-x-auto bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 shadow-soft">
         <table class="w-full text-left text-xs">
             <thead class="bg-ink-50/80 dark:bg-white/[0.03] border-b border-black/[0.06] dark:border-white/10">
@@ -118,4 +144,9 @@
             </tbody>
         </table>
     </div>
+    <?php elseif (!$hasNav && empty($disputes)): ?>
+        <div class="text-center py-14 rounded-2xl border border-dashed border-black/10 dark:border-white/10 text-gray-400 text-sm">
+            <?= htmlspecialchars(t('admin.manager_no_access')) ?>
+        </div>
+    <?php endif; ?>
 </section>

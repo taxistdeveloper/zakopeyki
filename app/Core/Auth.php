@@ -4,6 +4,14 @@ namespace App\Core;
 
 class Auth
 {
+    /** Разделы, которые админ может открыть/закрыть для менеджера */
+    public const PERMISSIONS = [
+        'products',
+        'tickets',
+        'ai_chats',
+        'disputes',
+    ];
+
     public static function start(): void
     {
         if (session_status() !== PHP_SESSION_NONE) {
@@ -53,7 +61,31 @@ class Auth
             'login' => $user['login'] ?? null,
             'phone' => $user['phone'] ?? null,
             'bio' => $user['bio'] ?? null,
+            'permissions' => self::normalizePermissions($user['permissions'] ?? null, (string) ($user['role'] ?? 'user')),
         ];
+    }
+
+    /** @return list<string> */
+    public static function normalizePermissions(mixed $raw, string $role = 'user'): array
+    {
+        if ($role === 'admin') {
+            return self::PERMISSIONS;
+        }
+        if ($role !== 'manager') {
+            return [];
+        }
+
+        $list = [];
+        if (is_string($raw) && $raw !== '') {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                $list = $decoded;
+            }
+        } elseif (is_array($raw)) {
+            $list = $raw;
+        }
+
+        return array_values(array_intersect(self::PERMISSIONS, array_map('strval', $list)));
     }
 
     public static function logout(): void
@@ -89,6 +121,33 @@ class Auth
         return (self::user()['role'] ?? '') === 'admin';
     }
 
+    public static function isManager(): bool
+    {
+        return (self::user()['role'] ?? '') === 'manager';
+    }
+
+    /** Админ или менеджер (сотрудник панели) */
+    public static function isStaff(): bool
+    {
+        $role = self::user()['role'] ?? '';
+        return $role === 'admin' || $role === 'manager';
+    }
+
+    public static function can(string $permission): bool
+    {
+        if (!self::check()) {
+            return false;
+        }
+        if (self::isAdmin()) {
+            return true;
+        }
+        if (!self::isManager()) {
+            return false;
+        }
+        $perms = self::user()['permissions'] ?? [];
+        return in_array($permission, $perms, true);
+    }
+
     public static function requireLogin(): void
     {
         if (!self::check()) {
@@ -101,6 +160,26 @@ class Auth
     {
         self::requireLogin();
         if (!self::isAdmin()) {
+            http_response_code(403);
+            echo 'Доступ запрещён';
+            exit;
+        }
+    }
+
+    public static function requireStaff(): void
+    {
+        self::requireLogin();
+        if (!self::isStaff()) {
+            http_response_code(403);
+            echo 'Доступ запрещён';
+            exit;
+        }
+    }
+
+    public static function requirePermission(string $permission): void
+    {
+        self::requireLogin();
+        if (!self::can($permission)) {
             http_response_code(403);
             echo 'Доступ запрещён';
             exit;

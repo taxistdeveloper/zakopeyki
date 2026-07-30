@@ -1,13 +1,32 @@
 <?php
+use App\Core\Auth;
 use App\Helpers\ProductHelper;
 
 $users = $users ?? [];
 $filterRole = $filterRole ?? null;
 $searchQuery = $searchQuery ?? '';
+$permissionKeys = $permissionKeys ?? Auth::PERMISSIONS;
+
+$roleLabel = static function (string $role): string {
+    return match ($role) {
+        'admin' => t('nav.role_admin'),
+        'manager' => t('nav.role_manager'),
+        default => t('nav.role_user'),
+    };
+};
+
+$roleClass = static function (string $role): string {
+    return match ($role) {
+        'admin' => 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+        'manager' => 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+        default => 'bg-gray-100 text-gray-500 dark:bg-white/10',
+    };
+};
 
 $filters = [
     null => t('admin.tickets_all'),
     'admin' => t('nav.role_admin'),
+    'manager' => t('nav.role_manager'),
     'user' => t('nav.role_user'),
 ];
 ?>
@@ -62,7 +81,7 @@ $filters = [
 
     <div class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 shadow-soft p-4 sm:p-5">
         <h2 class="font-display font-bold text-ink-900 dark:text-white text-sm mb-3"><?= htmlspecialchars(t('admin.user_add')) ?></h2>
-        <form method="post" action="<?= ProductHelper::url('/admin/users') ?>" class="grid sm:grid-cols-2 gap-3">
+        <form method="post" action="<?= ProductHelper::url('/admin/users') ?>" class="grid sm:grid-cols-2 gap-3" id="admin-create-user">
             <?= csrf_field() ?>
             <input type="text" name="name" required maxlength="100" placeholder="<?= htmlspecialchars(t('admin.user_name')) ?>"
                    class="ui-input h-10 px-3 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm">
@@ -74,10 +93,22 @@ $filters = [
                    class="ui-input h-10 px-3 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm">
             <input type="password" name="password" required minlength="6" placeholder="<?= htmlspecialchars(t('admin.user_password')) ?>"
                    class="ui-input h-10 px-3 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm">
-            <select name="role" class="ui-input h-10 px-3 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm">
+            <select name="role" id="create-role" class="ui-input h-10 px-3 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm">
                 <option value="user"><?= htmlspecialchars(t('nav.role_user')) ?></option>
+                <option value="manager"><?= htmlspecialchars(t('nav.role_manager')) ?></option>
                 <option value="admin"><?= htmlspecialchars(t('nav.role_admin')) ?></option>
             </select>
+            <div id="create-perms" class="sm:col-span-2 hidden space-y-2">
+                <p class="text-[11px] font-semibold text-gray-500"><?= htmlspecialchars(t('admin.user_perms_hint')) ?></p>
+                <div class="flex flex-wrap gap-2">
+                    <?php foreach ($permissionKeys as $perm): ?>
+                        <label class="inline-flex items-center gap-2 h-9 px-3 rounded-xl border border-black/[0.08] dark:border-white/10 text-xs font-semibold cursor-pointer hover:border-brand-400/50">
+                            <input type="checkbox" name="permissions[]" value="<?= htmlspecialchars($perm) ?>" class="rounded border-gray-300">
+                            <?= htmlspecialchars(t('admin.perm_' . $perm)) ?>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+            </div>
             <div class="sm:col-span-2">
                 <button type="submit" class="h-10 px-5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold uppercase tracking-wider transition">
                     <?= htmlspecialchars(t('admin.user_create')) ?>
@@ -94,7 +125,6 @@ $filters = [
         <div class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 overflow-hidden shadow-soft divide-y divide-black/[0.04] dark:divide-white/5">
             <?php foreach ($users as $u):
                 $role = (string) ($u['role'] ?? 'user');
-                $isAdmin = $role === 'admin';
                 $displayName = trim((string) ($u['name'] ?? '')) ?: ((string) ($u['login'] ?? 'User'));
             ?>
                 <a href="<?= ProductHelper::url('/admin/users/' . (int) $u['id']) ?>"
@@ -116,8 +146,8 @@ $filters = [
                         </div>
                     </div>
                     <div class="flex items-center gap-2 flex-shrink-0">
-                        <span class="inline-flex px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wide <?= $isAdmin ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : 'bg-gray-100 text-gray-500 dark:bg-white/10' ?>">
-                            <?= htmlspecialchars($isAdmin ? t('nav.role_admin') : t('nav.role_user')) ?>
+                        <span class="inline-flex px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wide <?= $roleClass($role) ?>">
+                            <?= htmlspecialchars($roleLabel($role)) ?>
                         </span>
                         <span class="text-[10px] text-gray-400"><?= htmlspecialchars(substr((string) ($u['created_at'] ?? ''), 0, 10)) ?></span>
                     </div>
@@ -126,3 +156,15 @@ $filters = [
         </div>
     <?php endif; ?>
 </section>
+<script>
+(function () {
+    var sel = document.getElementById('create-role');
+    var box = document.getElementById('create-perms');
+    if (!sel || !box) return;
+    function sync() {
+        box.classList.toggle('hidden', sel.value !== 'manager');
+    }
+    sel.addEventListener('change', sync);
+    sync();
+})();
+</script>

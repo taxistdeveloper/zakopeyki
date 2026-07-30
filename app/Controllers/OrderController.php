@@ -46,7 +46,8 @@ class OrderController extends Controller
         $uid = Auth::id();
         $isBuyer = (int) $order['buyer_id'] === $uid;
         $isSeller = (int) $order['seller_id'] === $uid;
-        if (!$isBuyer && !$isSeller && !Auth::isAdmin()) {
+        $canModerate = Auth::can('disputes');
+        if (!$isBuyer && !$isSeller && !$canModerate) {
             http_response_code(403);
             $this->view('errors/404', ['title' => t('escrow.forbidden')]);
             return;
@@ -62,7 +63,7 @@ class OrderController extends Controller
             'order' => $order,
             'isBuyer' => $isBuyer,
             'isSeller' => $isSeller,
-            'isAdmin' => Auth::isAdmin(),
+            'isAdmin' => $canModerate,
             'notifications' => $n->forUser($uid),
             'unread' => $n->unreadCount($uid),
             'search' => '',
@@ -137,14 +138,14 @@ class OrderController extends Controller
 
     public function approveReturn(string $id): void
     {
-        Auth::requireAdmin();
+        Auth::requirePermission('disputes');
         $result = (new EscrowService())->approveReturn((int) $id, Auth::id());
         $this->flashResult($result, (int) $id);
     }
 
     public function rejectDispute(string $id): void
     {
-        Auth::requireAdmin();
+        Auth::requirePermission('disputes');
         $result = (new EscrowService())->rejectDispute((int) $id, Auth::id());
         $this->flashResult($result, (int) $id);
     }
@@ -161,7 +162,7 @@ class OrderController extends Controller
 
         $uid = Auth::id();
         $isParty = (int) $order['buyer_id'] === $uid || (int) $order['seller_id'] === $uid;
-        if (!$isParty && !Auth::isAdmin()) {
+        if (!$isParty && !Auth::can('disputes')) {
             http_response_code(403);
             exit;
         }

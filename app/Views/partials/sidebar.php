@@ -129,10 +129,10 @@ $navIcon = static fn (string $name): string => IconHelper::svg($name, 'w-[18px] 
             </div>
         </div>
 
-        <?php if (Auth::isAdmin()): ?>
+        <?php if (Auth::isStaff()): ?>
         <div class="pt-3 mt-3 border-t border-black/[0.06] dark:border-white/10">
             <a href="<?= ProductHelper::url('/admin') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm font-semibold rounded-xl text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 transition <?= $nav === 'admin' ? 'bg-red-50 dark:bg-red-950/30' : '' ?>">
-                <?= IconHelper::svg('shield', 'w-[18px] h-[18px] flex-shrink-0 opacity-80') ?> <span><?= htmlspecialchars(t('nav.admin')) ?></span>
+                <?= IconHelper::svg('shield', 'w-[18px] h-[18px] flex-shrink-0 opacity-80') ?> <span><?= htmlspecialchars(Auth::isAdmin() ? t('nav.admin') : t('nav.manager_panel')) ?></span>
             </a>
         </div>
         <?php endif; ?>
@@ -144,7 +144,11 @@ $navIcon = static fn (string $name): string => IconHelper::svg($name, 'w-[18px] 
             <?= AvatarHelper::html($user, 'w-10 h-10', 'text-sm', 'rounded-xl') ?>
             <div class="min-w-0">
                 <h4 class="text-sm font-semibold truncate text-ink-900 dark:text-white"><?= htmlspecialchars($user['name']) ?></h4>
-                <span class="text-[11px] text-gray-400"><?= htmlspecialchars($user['role'] === 'admin' ? t('nav.role_admin') : t('nav.role_user')) ?></span>
+                <span class="text-[11px] text-gray-400"><?= htmlspecialchars(match ($user['role'] ?? 'user') {
+                    'admin' => t('nav.role_admin'),
+                    'manager' => t('nav.role_manager'),
+                    default => t('nav.role_user'),
+                }) ?></span>
             </div>
         </div>
         <form method="post" action="<?= ProductHelper::url('/logout') ?>" class="block">

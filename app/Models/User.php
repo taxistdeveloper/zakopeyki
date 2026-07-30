@@ -34,6 +34,7 @@ class User extends Model
             'two_factor_recovery_codes' => 'TEXT DEFAULT NULL AFTER two_factor_enabled',
             'password_reset_token' => 'VARCHAR(64) DEFAULT NULL AFTER two_factor_recovery_codes',
             'password_reset_expires' => 'DATETIME DEFAULT NULL AFTER password_reset_token',
+            'permissions' => "TEXT DEFAULT NULL COMMENT 'JSON permissions for manager' AFTER role",
         ];
 
         foreach ($needed as $col => $def) {
@@ -41,6 +42,19 @@ class User extends Model
             if (!$exists) {
                 $this->db->exec("ALTER TABLE users ADD COLUMN {$col} {$def}");
             }
+        }
+
+        // role: user | manager | admin
+        try {
+            $col = $this->db->query("SHOW COLUMNS FROM users LIKE 'role'")->fetch();
+            $type = strtolower((string) ($col['Type'] ?? ''));
+            if ($col && strpos($type, 'manager') === false) {
+                $this->db->exec(
+                    "ALTER TABLE users MODIFY COLUMN role ENUM('user','manager','admin') NOT NULL DEFAULT 'user'"
+                );
+            }
+        } catch (\Throwable $e) {
+            // ignore
         }
 
         // OAuth-пользователи могут не иметь пароля
@@ -227,15 +241,30 @@ class User extends Model
         return (int) $this->db->query("SELECT COUNT(*) FROM users WHERE role = 'admin'")->fetchColumn();
     }
 
+    public static function normalizeRole(string $role): string
+    {
+        return in_array($role, ['user', 'manager', 'admin'], true) ? $role : 'user';
+    }
+
+    /** @param list<string>|mixed $permissions */
+    public static function encodePermissions(mixed $permissions, string $role): ?string
+    {
+        if ($role !== 'manager') {
+            return null;
+        }
+        $list = \App\Core\Auth::normalizePermissions($permissions, 'manager');
+        return json_encode($list, JSON_UNESCAPED_UNICODE);
+    }
+
     /** @return list<array<string, mixed>> */
     public function listForAdmin(?string $role = null, ?string $q = null): array
     {
-        $sql = 'SELECT id, name, first_name, last_name, login, email, phone, role, avatar, avatar_file, created_at,
+        $sql = 'SELECT id, name, first_name, last_name, login, email, phone, role, permissions, avatar, avatar_file, created_at,
                        two_factor_enabled, google_id
                 FROM users WHERE 1=1';
         $params = [];
 
-        if ($role === 'admin' || $role === 'user') {
+        if (in_array((string) $role, ['admin', 'manager', 'user'], true)) {
             $sql .= ' AND role = ?';
             $params[] = $role;
         }
@@ -257,24 +286,35 @@ class User extends Model
         return $stmt->fetchAll();
     }
 
-    public function updateRole(int $userId, string $role): bool
+    public function updateRole(int $userId, string $role, ?array $permissions = null): bool
     {
-        if (!in_array($role, ['user', 'admin'], true)) {
-            return false;
-        }
-        $stmt = $this->db->prepare('UPDATE users SET role = ? WHERE id = ?');
-        return $stmt->execute([$role, $userId]);
+        $role = self::normalizeRole($role);
+        $permsJson = self::encodePermissions($permissions ?? [], $role);
+        $stmt = $this->db->prepare('UPDATE users SET role = ?, permissions = ? WHERE id = ?');
+        return $stmt->execute([$role, $permsJson, $userId]);
     }
 
-    /** Создание пользователя админом (можно задать роль). */
+    public function updatePermissions(int $userId, array $permissions): bool
+    {
+        $user = $this->find($userId);
+        if (!$user || ($user['role'] ?? '') !== 'manager') {
+            return false;
+        }
+        $permsJson = self::encodePermissions($permissions, 'manager');
+        $stmt = $this->db->prepare('UPDATE users SET permissions = ? WHERE id = ?');
+        return $stmt->execute([$permsJson, $userId]);
+    }
+
+    /** Создание пользователя админом (можно задать роль и права менеджера). */
     public function createByAdmin(array $data): int
     {
         $name = trim((string) ($data['name'] ?? ''));
         $email = trim((string) ($data['email'] ?? ''));
         $password = (string) ($data['password'] ?? '');
-        $role = ($data['role'] ?? 'user') === 'admin' ? 'admin' : 'user';
+        $role = self::normalizeRole((string) ($data['role'] ?? 'user'));
         $phone = trim((string) ($data['phone'] ?? ''));
         $login = trim((string) ($data['login'] ?? ''));
+        $permsJson = self::encodePermissions($data['permissions'] ?? [], $role);
 
         $parts = preg_split('/\s+/', $name, 2) ?: [];
         $first = $parts[0] ?? $name;
@@ -284,7 +324,7 @@ class User extends Model
         }
 
         $stmt = $this->db->prepare(
-            'INSERT INTO users (name, first_name, last_name, login, email, password, role, avatar, phone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO users (name, first_name, last_name, login, email, password, role, permissions, avatar, phone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([
             $name,
@@ -294,6 +334,7 @@ class User extends Model
             $email,
             password_hash($password, PASSWORD_DEFAULT),
             $role,
+            $permsJson,
             mb_strtoupper(mb_substr($name !== '' ? $name : 'U', 0, 1)),
             $phone !== '' ? $phone : null,
         ]);
