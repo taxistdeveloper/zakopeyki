@@ -310,6 +310,201 @@ class AdminController extends Controller
         exit;
     }
 
+    public function users(): void
+    {
+        Auth::requireAdmin();
+        $role = isset($_GET['role']) ? strtolower(trim((string) $_GET['role'])) : null;
+        if ($role === 'all' || $role === '') {
+            $role = null;
+        }
+        if ($role !== null && !in_array($role, ['admin', 'user'], true)) {
+            $role = null;
+        }
+        $q = trim((string) ($_GET['q'] ?? ''));
+
+        $userModel = new User();
+        $n = new Notification();
+        $uid = Auth::id();
+
+        $this->view('admin/users', [
+            'title' => t('admin.users'),
+            'currentNav' => 'admin',
+            'users' => $userModel->listForAdmin($role, $q !== '' ? $q : null),
+            'filterRole' => $role,
+            'searchQuery' => $q,
+            'userCount' => $userModel->countAll(),
+            'notifications' => $n->forUser($uid),
+            'unread' => $n->unreadCount($uid),
+            'search' => '',
+            'flash' => $_SESSION['flash'] ?? null,
+            'error' => $_SESSION['error'] ?? null,
+        ]);
+        unset($_SESSION['flash'], $_SESSION['error']);
+    }
+
+    public function userShow(string $id): void
+    {
+        Auth::requireAdmin();
+        $userId = (int) $id;
+        $userModel = new User();
+        $user = $userModel->find($userId);
+
+        if (!$user) {
+            http_response_code(404);
+            $this->view('errors/404', ['title' => t('admin.user_not_found')]);
+            return;
+        }
+
+        $n = new Notification();
+        $uid = Auth::id();
+
+        $this->view('admin/user-show', [
+            'title' => t('admin.user') . ' #' . $userId,
+            'currentNav' => 'admin',
+            'user' => $user,
+            'adminCount' => $userModel->countAdmins(),
+            'isSelf' => $userId === $uid,
+            'notifications' => $n->forUser($uid),
+            'unread' => $n->unreadCount($uid),
+            'search' => '',
+            'flash' => $_SESSION['flash'] ?? null,
+            'error' => $_SESSION['error'] ?? null,
+        ]);
+        unset($_SESSION['flash'], $_SESSION['error']);
+    }
+
+    public function userCreate(): void
+    {
+        Auth::requireAdmin();
+        $name = trim((string) ($_POST['name'] ?? ''));
+        $email = trim((string) ($_POST['email'] ?? ''));
+        $password = (string) ($_POST['password'] ?? '');
+        $login = trim((string) ($_POST['login'] ?? ''));
+        $phone = trim((string) ($_POST['phone'] ?? ''));
+        $role = ($_POST['role'] ?? 'user') === 'admin' ? 'admin' : 'user';
+
+        if ($name === '' || mb_strlen($name, 'UTF-8') < 2) {
+            $_SESSION['error'] = t('admin.user_name_required');
+            $this->redirect('/admin/users');
+            return;
+        }
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $_SESSION['error'] = t('admin.user_email_invalid');
+            $this->redirect('/admin/users');
+            return;
+        }
+        if (strlen($password) < 6) {
+            $_SESSION['error'] = t('admin.user_password_short');
+            $this->redirect('/admin/users');
+            return;
+        }
+
+        $userModel = new User();
+        if ($userModel->findByEmail($email)) {
+            $_SESSION['error'] = t('admin.user_email_taken');
+            $this->redirect('/admin/users');
+            return;
+        }
+        if ($login !== '' && $userModel->findByLogin($login)) {
+            $_SESSION['error'] = t('admin.user_login_taken');
+            $this->redirect('/admin/users');
+            return;
+        }
+
+        try {
+            $newId = $userModel->createByAdmin([
+                'name' => $name,
+                'email' => $email,
+                'password' => $password,
+                'login' => $login,
+                'phone' => $phone,
+                'role' => $role,
+            ]);
+            $_SESSION['flash'] = t('admin.user_created');
+            $this->redirect('/admin/users/' . $newId);
+        } catch (\Throwable $e) {
+            $_SESSION['error'] = t('admin.user_create_failed');
+            $this->redirect('/admin/users');
+        }
+    }
+
+    public function userUpdateRole(string $id): void
+    {
+        Auth::requireAdmin();
+        $userId = (int) $id;
+        $role = ($_POST['role'] ?? '') === 'admin' ? 'admin' : 'user';
+        $userModel = new User();
+        $user = $userModel->find($userId);
+
+        if (!$user) {
+            $_SESSION['error'] = t('admin.user_not_found');
+            $this->redirect('/admin/users');
+            return;
+        }
+
+        $currentRole = (string) ($user['role'] ?? 'user');
+        if ($currentRole === $role) {
+            $_SESSION['flash'] = t('admin.user_role_unchanged');
+            $this->redirect('/admin/users/' . $userId);
+            return;
+        }
+
+        if ($currentRole === 'admin' && $role === 'user') {
+            if ($userId === Auth::id()) {
+                $_SESSION['error'] = t('admin.user_cannot_demote_self');
+                $this->redirect('/admin/users/' . $userId);
+                return;
+            }
+            if ($userModel->countAdmins() <= 1) {
+                $_SESSION['error'] = t('admin.user_last_admin');
+                $this->redirect('/admin/users/' . $userId);
+                return;
+            }
+        }
+
+        if ($userModel->updateRole($userId, $role)) {
+            $_SESSION['flash'] = t('admin.user_role_updated');
+        } else {
+            $_SESSION['error'] = t('admin.user_role_failed');
+        }
+        $this->redirect('/admin/users/' . $userId);
+    }
+
+    public function userDelete(string $id): void
+    {
+        Auth::requireAdmin();
+        $userId = (int) $id;
+        $userModel = new User();
+        $user = $userModel->find($userId);
+
+        if (!$user) {
+            $_SESSION['error'] = t('admin.user_not_found');
+            $this->redirect('/admin/users');
+            return;
+        }
+
+        if ($userId === Auth::id()) {
+            $_SESSION['error'] = t('admin.user_cannot_delete_self');
+            $this->redirect('/admin/users/' . $userId);
+            return;
+        }
+
+        if (($user['role'] ?? '') === 'admin' && $userModel->countAdmins() <= 1) {
+            $_SESSION['error'] = t('admin.user_last_admin');
+            $this->redirect('/admin/users/' . $userId);
+            return;
+        }
+
+        if ($userModel->deleteAccount($userId)) {
+            $_SESSION['flash'] = t('admin.user_deleted');
+            $this->redirect('/admin/users');
+            return;
+        }
+
+        $_SESSION['error'] = t('admin.user_delete_failed');
+        $this->redirect('/admin/users/' . $userId);
+    }
+
     public function delete(string $id): void
     {
         Auth::requireAdmin();

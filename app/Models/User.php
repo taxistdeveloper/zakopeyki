@@ -222,6 +222,84 @@ class User extends Model
         return (int) $this->db->query('SELECT COUNT(*) FROM users')->fetchColumn();
     }
 
+    public function countAdmins(): int
+    {
+        return (int) $this->db->query("SELECT COUNT(*) FROM users WHERE role = 'admin'")->fetchColumn();
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function listForAdmin(?string $role = null, ?string $q = null): array
+    {
+        $sql = 'SELECT id, name, first_name, last_name, login, email, phone, role, avatar, avatar_file, created_at,
+                       two_factor_enabled, google_id
+                FROM users WHERE 1=1';
+        $params = [];
+
+        if ($role === 'admin' || $role === 'user') {
+            $sql .= ' AND role = ?';
+            $params[] = $role;
+        }
+
+        $q = $q !== null ? trim($q) : '';
+        if ($q !== '') {
+            $sql .= ' AND (
+                name LIKE ? OR email LIKE ? OR login LIKE ?
+                OR first_name LIKE ? OR last_name LIKE ? OR phone LIKE ?
+                OR CAST(id AS CHAR) = ?
+            )';
+            $like = '%' . $q . '%';
+            $params = array_merge($params, [$like, $like, $like, $like, $like, $like, $q]);
+        }
+
+        $sql .= ' ORDER BY created_at DESC, id DESC';
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+
+    public function updateRole(int $userId, string $role): bool
+    {
+        if (!in_array($role, ['user', 'admin'], true)) {
+            return false;
+        }
+        $stmt = $this->db->prepare('UPDATE users SET role = ? WHERE id = ?');
+        return $stmt->execute([$role, $userId]);
+    }
+
+    /** Создание пользователя админом (можно задать роль). */
+    public function createByAdmin(array $data): int
+    {
+        $name = trim((string) ($data['name'] ?? ''));
+        $email = trim((string) ($data['email'] ?? ''));
+        $password = (string) ($data['password'] ?? '');
+        $role = ($data['role'] ?? 'user') === 'admin' ? 'admin' : 'user';
+        $phone = trim((string) ($data['phone'] ?? ''));
+        $login = trim((string) ($data['login'] ?? ''));
+
+        $parts = preg_split('/\s+/', $name, 2) ?: [];
+        $first = $parts[0] ?? $name;
+        $last = $parts[1] ?? '';
+        if ($login === '') {
+            $login = strtolower(preg_replace('/[^a-zA-Z0-9_]/', '', $first . rand(100, 999)) ?: ('user' . rand(1000, 9999)));
+        }
+
+        $stmt = $this->db->prepare(
+            'INSERT INTO users (name, first_name, last_name, login, email, password, role, avatar, phone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        );
+        $stmt->execute([
+            $name,
+            $first,
+            $last,
+            $login,
+            $email,
+            password_hash($password, PASSWORD_DEFAULT),
+            $role,
+            mb_strtoupper(mb_substr($name !== '' ? $name : 'U', 0, 1)),
+            $phone !== '' ? $phone : null,
+        ]);
+        return (int) $this->db->lastInsertId();
+    }
+
     public function verifyPassword(int $userId, string $password): bool
     {
         $user = $this->find($userId);

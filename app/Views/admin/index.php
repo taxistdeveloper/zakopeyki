@@ -34,6 +34,13 @@
                 <span class="text-xs font-bold text-violet-600"><?= (int) ($aiEscalated ?? 0) ?> →</span>
             </div>
         </a>
+        <a href="<?= ProductHelper::url('/admin/users') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 border-t border-brand-100 dark:border-brand-900/30 hover:bg-brand-50/40 dark:hover:bg-white/[0.03] transition">
+            <div class="min-w-0">
+                <h3 class="font-display font-bold text-ink-800 dark:text-gray-200"><?= htmlspecialchars(t('admin.users')) ?></h3>
+                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.users_hint')) ?></p>
+            </div>
+            <span class="text-xs font-bold text-brand-600"><?= (int) ($userCount ?? 0) ?> →</span>
+        </a>
     </div>
 
     <?php if (!empty($disputes)): ?>
@@ -57,10 +64,10 @@
     <?php endif; ?>
 
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft">
+        <a href="<?= ProductHelper::url('/admin/users') ?>" class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft hover:border-brand-400/50 transition block">
             <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.users')) ?></div>
             <div class="font-display text-2xl font-bold mt-1"><?= (int) $userCount ?></div>
-        </div>
+        </a>
         <div class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft">
             <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.active_lots')) ?></div>
             <div class="font-display text-2xl font-bold mt-1"><?= array_sum($counts) ?></div>
