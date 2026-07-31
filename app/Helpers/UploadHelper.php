@@ -43,18 +43,22 @@ class UploadHelper
         }
 
         $mime = self::detectMime($tmpPath);
-        if ($mime === null || !in_array($mime, $allowedMimes, true)) {
-            return false;
-        }
+        $mimeOk = $mime !== null && in_array($mime, $allowedMimes, true);
 
         if (isset(self::IMAGE_MIME[$ext])) {
             $info = @getimagesize($tmpPath);
             if ($info === false) {
                 return false;
             }
+            // Accept when MIME detectors fail but GD can read a matching image type.
+            if (!$mimeOk) {
+                $gdMime = isset($info['mime']) ? strtolower((string) $info['mime']) : '';
+                return $gdMime !== '' && in_array($gdMime, $allowedMimes, true);
+            }
+            return true;
         }
 
-        return true;
+        return $mimeOk;
     }
 
     public static function detectMime(string $path): ?string
@@ -70,8 +74,14 @@ class UploadHelper
             }
         }
 
-        $mime = @mime_content_type($path);
-        return is_string($mime) && $mime !== '' ? strtolower($mime) : null;
+        if (function_exists('mime_content_type')) {
+            $mime = @\mime_content_type($path);
+            if (is_string($mime) && $mime !== '') {
+                return strtolower($mime);
+            }
+        }
+
+        return null;
     }
 
     /** Safe extension for storage (maps jpeg → jpg). */

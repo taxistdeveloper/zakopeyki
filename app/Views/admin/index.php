@@ -9,6 +9,7 @@ $isAdmin = !empty($isAdmin);
 $counts = $counts ?? [];
 $items = $items ?? [];
 $hasNav = $canTickets || $canAi || $isAdmin;
+$recentErrors = (int) ($recentErrors ?? 0);
 ?>
 <section class="space-y-6 fade-up">
     <div>
@@ -57,6 +58,18 @@ $hasNav = $canTickets || $canAi || $isAdmin;
                 <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.users_hint')) ?></p>
             </div>
             <span class="text-xs font-bold text-brand-600"><?= (int) ($userCount ?? 0) ?> →</span>
+        </a>
+        <a href="<?= ProductHelper::url('/admin/logs') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 border-t border-brand-100 dark:border-brand-900/30 hover:bg-red-50/40 dark:hover:bg-white/[0.03] transition">
+            <div class="min-w-0">
+                <h3 class="font-display font-bold text-red-800 dark:text-red-300"><?= htmlspecialchars(t('admin.logs')) ?></h3>
+                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.logs_hint')) ?></p>
+            </div>
+            <div class="flex items-center gap-2">
+                <?php if ($recentErrors > 0): ?>
+                    <span class="min-w-[1.25rem] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center"><?= $recentErrors > 99 ? '99+' : $recentErrors ?></span>
+                <?php endif; ?>
+                <span class="text-xs font-bold text-red-600"><?= htmlspecialchars(t('admin.logs_open')) ?> →</span>
+            </div>
         </a>
         <?php endif; ?>
     </div>

@@ -29,6 +29,7 @@ spl_autoload_register(function (string $class): void {
 
 \App\Core\Auth::start();
 \App\Core\Lang::boot();
+\App\Helpers\ActivityLogger::registerHandlers();
 
 // Режим заглушки: сайт открыт только авторизованному админу.
 if (!empty($appConfig['stub_mode']) && !\App\Core\Auth::isAdmin()) {

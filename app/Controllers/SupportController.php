@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Core\Auth;
 use App\Core\Controller;
+use App\Helpers\ActivityLogger;
 use App\Helpers\Mail;
 use App\Models\Notification;
 use App\Models\SupportTicket;
@@ -84,6 +85,11 @@ class SupportController extends Controller
 
         $ticketNumber = (string) ($result['ticket_number'] ?? '');
         $ticketId = (int) ($result['ticket_id'] ?? 0);
+
+        ActivityLogger::info('support.create', 'Обращение ' . $ticketNumber . ': ' . $subject, 'ticket', $ticketId, [
+            'category' => $category,
+            'number' => $ticketNumber,
+        ]);
 
         $this->sendCreatedEmail(
             (string) ($user['email'] ?? ''),

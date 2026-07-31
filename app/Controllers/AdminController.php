@@ -4,8 +4,10 @@ namespace App\Controllers;
 
 use App\Core\Auth;
 use App\Core\Controller;
+use App\Helpers\ActivityLogger;
 use App\Helpers\Mail;
 use App\Helpers\ProductHelper;
+use App\Models\ActivityLog;
 use App\Models\AiSupport;
 use App\Models\Notification;
 use App\Models\Order;
@@ -45,6 +47,15 @@ class AdminController extends Controller
         $notifications = $n->forUser(Auth::id());
         $unread = $n->unreadCount(Auth::id());
 
+        $recentErrors = 0;
+        if ($isAdmin) {
+            try {
+                $recentErrors = (new ActivityLog())->recentErrorCount(24);
+            } catch (\Throwable) {
+                $recentErrors = 0;
+            }
+        }
+
         $this->view('admin/index', [
             'title' => t('admin.title'),
             'currentNav' => 'admin',
@@ -55,6 +66,7 @@ class AdminController extends Controller
             'openTickets' => $canTickets ? $support->openCount() : 0,
             'ticketUnread' => $canTickets ? $support->unreadCountForAdmin() : 0,
             'aiEscalated' => $canAi ? $aiSupport->countEscalated() : 0,
+            'recentErrors' => $recentErrors,
             'canProducts' => $canProducts,
             'canTickets' => $canTickets,
             'canAi' => $canAi,
@@ -67,6 +79,47 @@ class AdminController extends Controller
             'flash' => $_SESSION['flash'] ?? null,
         ]);
         unset($_SESSION['flash']);
+    }
+
+    public function logs(): void
+    {
+        Auth::requireAdmin();
+
+        $level = isset($_GET['level']) ? strtolower(trim((string) $_GET['level'])) : '';
+        if ($level === 'all') {
+            $level = '';
+        }
+        $action = isset($_GET['action']) ? trim((string) $_GET['action']) : '';
+        $q = isset($_GET['q']) ? trim((string) $_GET['q']) : '';
+        $userId = isset($_GET['user_id']) ? (int) $_GET['user_id'] : 0;
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+
+        $logModel = new ActivityLog();
+        $result = $logModel->search([
+            'level' => $level,
+            'action' => $action,
+            'q' => $q,
+            'user_id' => $userId > 0 ? $userId : null,
+        ], $page, 40);
+
+        $n = new Notification();
+        $this->view('admin/logs', [
+            'title' => t('admin.logs'),
+            'currentNav' => 'admin',
+            'logs' => $result['items'],
+            'total' => $result['total'],
+            'page' => $result['page'],
+            'pages' => $result['pages'],
+            'levelCounts' => $logModel->countByLevel(),
+            'actionPrefixes' => $logModel->distinctActionPrefixes(),
+            'filterLevel' => $level !== '' ? $level : null,
+            'filterAction' => $action,
+            'searchQuery' => $q,
+            'filterUserId' => $userId > 0 ? $userId : null,
+            'notifications' => $n->forUser(Auth::id()),
+            'unread' => $n->unreadCount(Auth::id()),
+            'search' => '',
+        ]);
     }
 
     public function tickets(): void
@@ -439,9 +492,13 @@ class AdminController extends Controller
                 'role' => $role,
                 'permissions' => $permissions,
             ]);
+            ActivityLogger::info('admin.user_create', 'Создан пользователь ' . $email, 'user', $newId, [
+                'role' => $role,
+            ]);
             $_SESSION['flash'] = t('admin.user_created');
             $this->redirect('/admin/users/' . $newId);
         } catch (\Throwable $e) {
+            ActivityLogger::exception($e, 'admin.user_create');
             $_SESSION['error'] = t('admin.user_create_failed');
             $this->redirect('/admin/users');
         }
@@ -491,6 +548,13 @@ class AdminController extends Controller
         }
 
         if ($userModel->updateRole($userId, $role, $permissions)) {
+            ActivityLogger::info(
+                'admin.user_role',
+                'Роль ' . ($user['name'] ?? '') . ': ' . $currentRole . ' → ' . $role,
+                'user',
+                $userId,
+                ['from' => $currentRole, 'to' => $role, 'permissions' => $permissions]
+            );
             $_SESSION['flash'] = t('admin.user_role_updated');
         } else {
             $_SESSION['error'] = t('admin.user_role_failed');
@@ -519,6 +583,13 @@ class AdminController extends Controller
 
         $permissions = $this->permissionsFromPost();
         if ($userModel->updatePermissions($userId, $permissions)) {
+            ActivityLogger::info(
+                'admin.user_role',
+                'Обновлены доступы менеджера ' . ($user['name'] ?? ''),
+                'user',
+                $userId,
+                ['permissions' => $permissions]
+            );
             $_SESSION['flash'] = t('admin.user_perms_updated');
         } else {
             $_SESSION['error'] = t('admin.user_perms_failed');
@@ -552,6 +623,12 @@ class AdminController extends Controller
         }
 
         if ($userModel->deleteAccount($userId)) {
+            ActivityLogger::info(
+                'admin.user_delete',
+                'Удалён пользователь ' . ($user['email'] ?? '') . ' (' . ($user['name'] ?? '') . ')',
+                'user',
+                $userId
+            );
             $_SESSION['flash'] = t('admin.user_deleted');
             $this->redirect('/admin/users');
             return;
@@ -564,7 +641,14 @@ class AdminController extends Controller
     public function delete(string $id): void
     {
         Auth::requirePermission('products');
+        $product = (new Product())->find((int) $id);
         (new Product())->delete((int) $id);
+        ActivityLogger::info(
+            'admin.product_delete',
+            'Админ удалил лот «' . ($product['title'] ?? ('#' . $id)) . '»',
+            'product',
+            (int) $id
+        );
         $_SESSION['flash'] = 'Товар удалён';
         $this->redirect('/admin');
     }
@@ -577,6 +661,13 @@ class AdminController extends Controller
         if ($item) {
             $status = $item['status'] === 'active' ? 'archived' : 'active';
             $model->updateProduct((int) $id, array_merge($item, ['status' => $status]));
+            ActivityLogger::info(
+                'admin.product_toggle',
+                'Статус лота «' . ($item['title'] ?? '') . '»: ' . $status,
+                'product',
+                (int) $id,
+                ['status' => $status]
+            );
             $_SESSION['flash'] = 'Статус обновлён';
         }
         $this->redirect('/admin');

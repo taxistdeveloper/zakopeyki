@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Core\Auth;
 use App\Core\Controller;
+use App\Helpers\ActivityLogger;
 use App\Models\Notification;
 use App\Models\Order;
 use App\Services\EscrowService;
@@ -82,21 +83,21 @@ class OrderController extends Controller
             (string) ($_POST['tracking_number'] ?? ''),
             (string) ($_POST['carrier'] ?? '')
         );
-        $this->flashResult($result, (int) $id);
+        $this->flashResult($result, (int) $id, 'order.ship');
     }
 
     public function delivered(string $id): void
     {
         Auth::requireLogin();
         $result = (new EscrowService())->markDelivered((int) $id, Auth::id());
-        $this->flashResult($result, (int) $id);
+        $this->flashResult($result, (int) $id, 'order.delivered');
     }
 
     public function confirm(string $id): void
     {
         Auth::requireLogin();
         $result = (new EscrowService())->confirmReceived((int) $id, Auth::id());
-        $this->flashResult($result, (int) $id);
+        $this->flashResult($result, (int) $id, 'order.confirm');
     }
 
     public function dispute(string $id): void
@@ -115,7 +116,7 @@ class OrderController extends Controller
             (string) ($_POST['reason'] ?? ''),
             $files['files'] ?? []
         );
-        $this->flashResult($result, (int) $id);
+        $this->flashResult($result, (int) $id, 'order.dispute');
     }
 
     public function returnShip(string $id): void
@@ -126,28 +127,28 @@ class OrderController extends Controller
             Auth::id(),
             (string) ($_POST['return_tracking'] ?? '')
         );
-        $this->flashResult($result, (int) $id);
+        $this->flashResult($result, (int) $id, 'order.return_ship');
     }
 
     public function returnReceived(string $id): void
     {
         Auth::requireLogin();
         $result = (new EscrowService())->confirmReturnReceived((int) $id, Auth::id());
-        $this->flashResult($result, (int) $id);
+        $this->flashResult($result, (int) $id, 'order.return_received');
     }
 
     public function approveReturn(string $id): void
     {
         Auth::requirePermission('disputes');
         $result = (new EscrowService())->approveReturn((int) $id, Auth::id());
-        $this->flashResult($result, (int) $id);
+        $this->flashResult($result, (int) $id, 'order.approve_return');
     }
 
     public function rejectDispute(string $id): void
     {
         Auth::requirePermission('disputes');
         $result = (new EscrowService())->rejectDispute((int) $id, Auth::id());
-        $this->flashResult($result, (int) $id);
+        $this->flashResult($result, (int) $id, 'order.reject_dispute');
     }
 
     public function evidence(string $id, string $file): void
@@ -201,11 +202,13 @@ class OrderController extends Controller
     }
 
     /** @param array{ok: bool, error?: string} $result */
-    private function flashResult(array $result, int $orderId): void
+    private function flashResult(array $result, int $orderId, string $action = 'order.action'): void
     {
         if ($result['ok']) {
+            ActivityLogger::info($action, 'Действие по сделке #' . $orderId, 'order', $orderId);
             $_SESSION['flash'] = t('escrow.action_ok');
         } else {
+            ActivityLogger::warning($action, $result['error'] ?? 'Ошибка по сделке #' . $orderId, 'order', $orderId);
             $_SESSION['error'] = $result['error'] ?? t('escrow.action_fail');
         }
         $this->redirect('/orders/' . $orderId);

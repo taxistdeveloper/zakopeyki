@@ -97,6 +97,7 @@ $router->post('/streams/live/end', [StreamController::class, 'endLive']);
 $router->post('/streams/{id}/delete', [StreamController::class, 'delete']);
 
 $router->get('/admin', [AdminController::class, 'index']);
+$router->get('/admin/logs', [AdminController::class, 'logs']);
 $router->get('/admin/tickets', [AdminController::class, 'tickets']);
 $router->get('/admin/tickets/{id}', [AdminController::class, 'ticketShow']);
 $router->post('/admin/tickets/{id}/reply', [AdminController::class, 'ticketReply']);

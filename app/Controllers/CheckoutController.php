@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Core\Auth;
 use App\Core\Controller;
+use App\Helpers\ActivityLogger;
 use App\Helpers\ProductHelper;
 use App\Models\Favorite;
 use App\Models\Notification;
@@ -63,11 +64,19 @@ class CheckoutController extends Controller
         $result = (new Order())->createEscrow($productId, Auth::id(), $method, $delivery);
 
         if (!$result['ok']) {
+            ActivityLogger::warning('order.pay', $result['error'] ?? 'Ошибка оплаты', 'product', $productId, [
+                'method' => $method,
+            ]);
             $_SESSION['checkout_error'] = $result['error'] ?? t('checkout.payment_failed');
             $this->redirect('/checkout/' . $productId);
             return;
         }
 
+        ActivityLogger::info('order.pay', 'Оплачена сделка #' . (int) $result['order_id'], 'order', (int) $result['order_id'], [
+            'product_id' => $productId,
+            'method' => $method,
+            'delivery' => $delivery,
+        ]);
         $this->redirect('/orders/' . (int) $result['order_id']);
     }
 

@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Core\Auth;
 use App\Core\Controller;
+use App\Helpers\ActivityLogger;
 use App\Helpers\ProductHelper;
 use App\Helpers\Totp;
 use App\Models\Favorite;
@@ -287,7 +288,7 @@ class ProfileController extends Controller
             default => null,
         };
 
-        (new Product())->create([
+        $productId = (new Product())->create([
             'user_id' => Auth::id(),
             'type' => $type,
             'category' => ProductHelper::normalizeCategory($_POST['category'] ?? null, $type),
@@ -299,6 +300,11 @@ class ProfileController extends Controller
             'location' => trim($_POST['location'] ?? 'Караганда'),
             'image' => $resolved['cover'],
             'images' => $resolved['images'],
+        ]);
+
+        ActivityLogger::info('product.create', 'Добавлено объявление «' . $title . '»', 'product', $productId, [
+            'type' => $type,
+            'price' => $price,
         ]);
 
         $_SESSION['flash'] = t('flash.lot_published');
@@ -365,6 +371,10 @@ class ProfileController extends Controller
             'status' => $product['status'] ?? 'active',
         ]);
 
+        ActivityLogger::info('product.update', 'Обновлено объявление «' . $title . '»', 'product', (int) $id, [
+            'type' => $type,
+        ]);
+
         $_SESSION['flash'] = t('flash.lot_updated');
         $this->redirect('/profile?tab=lots');
     }
@@ -382,6 +392,12 @@ class ProfileController extends Controller
 
         $products->deleteProductFiles(ProductHelper::decodeImages($product));
         $products->delete((int) $id);
+        ActivityLogger::info(
+            'product.delete',
+            'Удалено объявление «' . ($product['title'] ?? '') . '»',
+            'product',
+            (int) $id
+        );
         $_SESSION['flash'] = t('flash.lot_deleted');
         $this->redirect('/profile?tab=lots');
     }

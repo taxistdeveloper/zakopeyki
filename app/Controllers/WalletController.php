@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Core\Auth;
 use App\Core\Controller;
+use App\Helpers\ActivityLogger;
 use App\Models\Notification;
 use App\Models\Wallet;
 
@@ -47,10 +48,17 @@ class WalletController extends Controller
         $result = (new Wallet())->deposit(Auth::id(), $amount, $source);
 
         if ($result['ok']) {
+            ActivityLogger::info('wallet.deposit', 'Пополнение на ' . Wallet::formatMoney($amount), 'wallet', Auth::id(), [
+                'amount' => $amount,
+                'source' => $source,
+            ]);
             $_SESSION['flash'] = t('wallet.deposit_ok', [
                 'amount' => Wallet::formatMoney($amount),
             ]);
         } else {
+            ActivityLogger::warning('wallet.deposit', $result['error'] ?? 'Ошибка пополнения', 'wallet', Auth::id(), [
+                'amount' => $amount,
+            ]);
             $_SESSION['error'] = $result['error'] ?? t('wallet.op_failed');
         }
         $this->redirect('/wallet');
@@ -73,10 +81,17 @@ class WalletController extends Controller
         $result = (new Wallet())->withdraw(Auth::id(), $amount, $dest);
 
         if ($result['ok']) {
+            ActivityLogger::info('wallet.withdraw', 'Вывод ' . Wallet::formatMoney($amount), 'wallet', Auth::id(), [
+                'amount' => $amount,
+                'dest' => $dest,
+            ]);
             $_SESSION['flash'] = t('wallet.withdraw_ok', [
                 'amount' => Wallet::formatMoney($amount),
             ]);
         } else {
+            ActivityLogger::warning('wallet.withdraw', $result['error'] ?? 'Ошибка вывода', 'wallet', Auth::id(), [
+                'amount' => $amount,
+            ]);
             $_SESSION['error'] = $result['error'] ?? t('wallet.op_failed');
         }
         $this->redirect('/wallet');

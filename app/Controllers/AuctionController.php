@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Core\Auth;
 use App\Core\Controller;
+use App\Helpers\ActivityLogger;
 use App\Models\Favorite;
 use App\Models\Notification;
 use App\Models\Product;
@@ -44,6 +45,9 @@ class AuctionController extends Controller
         $result = (new Product())->placeBid($productId, Auth::id(), $amount);
 
         if ($result['ok']) {
+            ActivityLogger::info('auction.bid', 'Ставка ' . number_format($amount, 0, '', ' ') . ' ₸', 'product', $productId, [
+                'amount' => $amount,
+            ]);
             $product = (new Product())->find($productId);
             if ($product && (int) $product['user_id'] !== Auth::id()) {
                 (new Notification())->createFor(
@@ -51,6 +55,10 @@ class AuctionController extends Controller
                     'Новая ставка ' . number_format($amount, 0, '', ' ') . ' ₸ на ваш лот «' . $product['title'] . '»'
                 );
             }
+        } else {
+            ActivityLogger::warning('auction.bid', $result['error'] ?? 'Ошибка ставки', 'product', $productId, [
+                'amount' => $amount,
+            ]);
         }
 
         if (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {

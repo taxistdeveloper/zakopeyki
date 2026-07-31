@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Core\Auth;
 use App\Core\Controller;
+use App\Helpers\ActivityLogger;
 use App\Helpers\GoogleOAuth;
 use App\Helpers\Mail;
 use App\Helpers\Totp;
@@ -41,6 +42,9 @@ class AuthController extends Controller
         $user = (new User())->findByEmail($email);
 
         if (!$user || empty($user['password']) || !password_verify($password, $user['password'])) {
+            ActivityLogger::warning('auth.login_failed', 'Неудачная попытка входа: ' . $email, null, null, [
+                'email' => $email,
+            ]);
             $this->view('auth/login', [
                 'title' => t('auth.login_title'),
                 'error' => t('auth.bad_credentials'),
@@ -55,6 +59,7 @@ class AuthController extends Controller
         }
 
         Auth::login($user);
+        ActivityLogger::info('auth.login', 'Вход в аккаунт', 'user', (int) $user['id']);
         $this->redirect('/');
     }
 
@@ -109,6 +114,7 @@ class AuthController extends Controller
 
         $this->clearTwoFactorChallenge();
         Auth::login($user);
+        ActivityLogger::info('auth.login', 'Вход после 2FA', 'user', (int) $user['id']);
         $this->redirect('/');
     }
 
@@ -163,6 +169,9 @@ class AuthController extends Controller
 
         $user = $users->find($id);
         Auth::login($user);
+        ActivityLogger::info('auth.register', 'Регистрация: ' . $email, 'user', (int) $id, [
+            'email' => $email,
+        ]);
 
         $appConfig = $GLOBALS['appConfig'] ?? [];
         if (!empty($appConfig['stub_mode']) && !Auth::isAdmin()) {
@@ -274,11 +283,13 @@ class AuthController extends Controller
         }
 
         Auth::login($user);
+        ActivityLogger::info('auth.login', 'Вход через Google', 'user', (int) $user['id']);
         $this->redirect('/');
     }
 
     public function logout(): void
     {
+        ActivityLogger::info('auth.logout', 'Выход из аккаунта');
         Auth::logout();
         $this->redirect('/');
     }
