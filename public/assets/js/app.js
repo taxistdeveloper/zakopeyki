@@ -1470,14 +1470,23 @@ function appendAiUser(text) {
     box.scrollTop = box.scrollHeight;
 }
 
+function aiAvatarHtml(sizeClass) {
+    const src = window.__aiAvatarUrl || '';
+    const src2x = window.__aiAvatarUrl2x || '';
+    if (!src) return '';
+    const cls = sizeClass || 'w-8 h-8';
+    const srcset = src2x ? ' srcset="' + src2x + ' 2x"' : '';
+    return '<img src="' + src + '"' + srcset + ' alt="" width="32" height="32" class="' + cls + ' rounded-full object-cover object-top shrink-0 bg-[#E8E6E1] ring-1 ring-[#C9A227]/40 mt-0.5">';
+}
+
 function appendAiTyping() {
     const box = aiMessagesEl();
     if (!box) return null;
     const id = 'ai-typing-' + Date.now();
     const el = document.createElement('div');
     el.id = id;
-    el.className = 'flex justify-start';
-    el.innerHTML = '<div class="ai-msg-bot px-3 py-2 text-[13px] text-ink-700/60 dark:text-gray-400">…</div>';
+    el.className = 'flex justify-start items-start gap-2';
+    el.innerHTML = aiAvatarHtml() + '<div class="ai-msg-bot px-3 py-2 text-[13px] text-ink-700/60 dark:text-gray-400">…</div>';
     box.appendChild(el);
     box.scrollTop = box.scrollHeight;
     return id;
@@ -1493,7 +1502,17 @@ function appendAiBot(text, products, suggestions, msgId) {
     if (!box) return;
 
     const wrap = document.createElement('div');
-    wrap.className = 'flex justify-start';
+    wrap.className = 'flex justify-start items-start gap-2';
+    if (window.__aiAvatarUrl) {
+        const av = document.createElement('img');
+        av.src = window.__aiAvatarUrl;
+        if (window.__aiAvatarUrl2x) av.srcset = window.__aiAvatarUrl2x + ' 2x';
+        av.alt = '';
+        av.width = 32;
+        av.height = 32;
+        av.className = 'w-8 h-8 rounded-full object-cover object-top shrink-0 bg-[#E8E6E1] ring-1 ring-[#C9A227]/40 mt-0.5';
+        wrap.appendChild(av);
+    }
     const bubble = document.createElement('div');
     bubble.className = 'ai-msg-bot max-w-[95%] px-3 py-2 space-y-2';
 
@@ -1632,6 +1651,132 @@ document.addEventListener('keydown', function (e) {
         toggleAiAssistant(false);
     }
 });
+
+/* ===== Product image lightbox ===== */
+(function initImageLightbox() {
+    var root = document.getElementById('image-lightbox');
+    var img = document.getElementById('image-lightbox-img');
+    var counter = document.getElementById('image-lightbox-counter');
+    var btnPrev = document.getElementById('image-lightbox-prev');
+    var btnNext = document.getElementById('image-lightbox-next');
+    var btnClose = document.getElementById('image-lightbox-close');
+    if (!root || !img) return;
+
+    var urls = [];
+    var index = 0;
+
+    function isOpen() {
+        return !root.classList.contains('hidden');
+    }
+
+    function render() {
+        if (!urls.length) return;
+        img.src = urls[index];
+        var multi = urls.length > 1;
+        btnPrev.classList.toggle('hidden', !multi);
+        btnNext.classList.toggle('hidden', !multi);
+        if (multi) {
+            counter.textContent = (index + 1) + ' / ' + urls.length;
+            counter.classList.remove('hidden');
+        } else {
+            counter.classList.add('hidden');
+        }
+    }
+
+    function openLightbox(list, start) {
+        urls = (list || []).filter(Boolean);
+        if (!urls.length) return;
+        index = Math.max(0, Math.min(start || 0, urls.length - 1));
+        render();
+        root.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeLightbox() {
+        if (!isOpen()) return;
+        root.classList.add('hidden');
+        img.removeAttribute('src');
+        urls = [];
+        document.body.style.overflow = '';
+    }
+
+    function step(delta) {
+        if (urls.length < 2) return;
+        index = (index + delta + urls.length) % urls.length;
+        render();
+    }
+
+    window.openImageLightbox = openLightbox;
+    window.closeImageLightbox = closeLightbox;
+
+    btnClose?.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeLightbox();
+    });
+    btnPrev?.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        step(-1);
+    });
+    btnNext?.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        step(1);
+    });
+
+    root.addEventListener('click', function (e) {
+        if (e.target === root) closeLightbox();
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (!isOpen()) return;
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            closeLightbox();
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            step(-1);
+        } else if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            step(1);
+        }
+    });
+
+    document.addEventListener('click', function (e) {
+        var trigger = e.target.closest('[data-lightbox]');
+        if (!trigger) return;
+        // Don't steal clicks from nested controls (favorite button sits over the card image)
+        if (e.target.closest('.favorite-btn')) return;
+
+        var src = trigger.getAttribute('data-lightbox-src') || '';
+        var galleryRaw = trigger.getAttribute('data-lightbox-gallery');
+        var list = [];
+        if (galleryRaw) {
+            try { list = JSON.parse(galleryRaw); } catch (err) { list = []; }
+        }
+        if (!list.length && src) list = [src];
+        if (!list.length) return;
+
+        var start = parseInt(trigger.getAttribute('data-lightbox-index') || '', 10);
+        if (isNaN(start) || start < 0) {
+            start = src ? list.indexOf(src) : 0;
+            if (start < 0) start = 0;
+        }
+
+        e.preventDefault();
+        e.stopPropagation();
+        openLightbox(list, start);
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        var trigger = e.target.closest('[data-lightbox]');
+        if (!trigger || e.target.closest('.favorite-btn')) return;
+        e.preventDefault();
+        trigger.click();
+    });
+})();
 
 
 

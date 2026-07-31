@@ -419,10 +419,15 @@ function url(string $path = ''): string
     <!-- ИИ-помощник: отдельный fixed-слой, не внутри overflow-hidden -->
     <div id="ai-assistant" class="fixed bottom-5 right-5 z-[90] flex flex-col items-end gap-3 pointer-events-none">
         <div id="ai-assistant-panel" class="hidden pointer-events-auto w-[min(calc(100vw-1.5rem),380px)] h-[min(68vh,520px)] glass rounded-2xl shadow-lift border border-ink-900/10 dark:border-white/10 flex flex-col overflow-hidden" role="dialog" aria-label="<?= htmlspecialchars(t('ai.aria')) ?>" aria-hidden="true">
-            <div class="px-4 py-3 border-b border-ink-900/10 dark:border-white/10 flex items-center justify-between shrink-0 bg-gradient-to-r from-brand-100/90 to-transparent dark:from-brand-500/15">
-                <div class="min-w-0">
-                    <p class="font-display font-bold text-sm text-ink-900 dark:text-white truncate"><?= htmlspecialchars(t('ai.title')) ?></p>
-                    <p class="text-[11px] text-ink-700/70 dark:text-gray-400 truncate" id="ai-status-text"><?= htmlspecialchars(t('ai.status_ai')) ?></p>
+            <div class="px-4 py-3 border-b border-ink-900/10 dark:border-white/10 flex items-center justify-between shrink-0 bg-gradient-to-r from-[#1F4D3A]/12 via-[#C9A227]/08 to-transparent dark:from-[#1F4D3A]/35 dark:via-[#C9A227]/10">
+                <div class="flex items-center gap-3 min-w-0">
+                    <img src="<?= url('public/assets/img/uly-avatar.png') ?>" alt="" width="48" height="48"
+                         class="w-12 h-12 rounded-full object-cover object-top shrink-0 ring-2 ring-[#C9A227]/45 bg-[#E8E6E1]"
+                         srcset="<?= url('public/assets/img/uly-avatar@2x.png') ?> 2x">
+                    <div class="min-w-0">
+                        <p class="font-display font-bold text-sm text-ink-900 dark:text-white truncate"><?= htmlspecialchars(t('ai.title')) ?></p>
+                        <p class="text-[11px] text-ink-700/70 dark:text-gray-400 truncate" id="ai-status-text"><?= htmlspecialchars(t('ai.status_ai')) ?></p>
+                    </div>
                 </div>
                 <button type="button" id="ai-assistant-close" class="shrink-0 w-8 h-8 rounded-xl hover:bg-ink-900/5 dark:hover:bg-white/10 text-ink-700 dark:text-gray-300 cursor-pointer" aria-label="<?= htmlspecialchars(t('ai.close')) ?>">✕</button>
             </div>
@@ -437,28 +442,25 @@ function url(string $path = ''): string
             </form>
         </div>
 
-        <button type="button" id="ai-assistant-toggle" class="pointer-events-auto flex items-center gap-2 bg-ink-900 hover:bg-ink-800 text-white pl-3 pr-4 py-2.5 rounded-2xl shadow-lift border border-white/10 cursor-pointer transition hover:-translate-y-0.5" aria-expanded="false" aria-controls="ai-assistant-panel">
-            <svg class="w-7 h-7 shrink-0" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-                <rect x="7" y="9" width="18" height="16" rx="5" fill="url(#ai-bot-face)" stroke="#9CA3AF" stroke-width="0.75"/>
-                <path d="M11 9V7.5a1.5 1.5 0 0 1 1.5-1.5h7A1.5 1.5 0 0 1 21 7.5V9" stroke="#9CA3AF" stroke-width="1.2" stroke-linecap="round"/>
-                <circle cx="16" cy="5.2" r="1.4" fill="#D1D5DB" stroke="#9CA3AF" stroke-width="0.6"/>
-                <rect x="10.5" y="14" width="4.2" height="2.2" rx="1.1" fill="#22D3EE"/>
-                <rect x="17.3" y="14" width="4.2" height="2.2" rx="1.1" fill="#22D3EE"/>
-                <rect x="15.2" y="10.2" width="1.6" height="5.5" rx="0.8" fill="#EF4444"/>
-                <path d="M7 16.5H5.2a1.2 1.2 0 0 1 0-2.4H7M25 16.5h1.8a1.2 1.2 0 0 0 0-2.4H25" stroke="#9CA3AF" stroke-width="1.1" stroke-linecap="round"/>
-                <path d="M12.5 22h7" stroke="#6B7280" stroke-width="1.2" stroke-linecap="round"/>
-                <defs>
-                    <linearGradient id="ai-bot-face" x1="16" y1="9" x2="16" y2="25" gradientUnits="userSpaceOnUse">
-                        <stop stop-color="#E5E7EB"/>
-                        <stop offset="1" stop-color="#9CA3AF"/>
-                    </linearGradient>
-                </defs>
-            </svg>
-            <span class="font-display font-semibold text-xs uppercase tracking-wider"><?= htmlspecialchars(t('ai.toggle')) ?></span>
+        <button type="button" id="ai-assistant-toggle" class="pointer-events-auto group flex flex-col items-center gap-1 cursor-pointer transition hover:-translate-y-1" aria-expanded="false" aria-controls="ai-assistant-panel" aria-label="<?= htmlspecialchars(t('ai.aria')) ?>">
+            <span class="relative block w-[4.5rem] h-[4.5rem] sm:w-20 sm:h-20 rounded-full shadow-lift ring-2 ring-[#C9A227]/50 overflow-hidden bg-[#E8E6E1] border-[3px] border-white dark:border-ink-800">
+                <img src="<?= url('public/assets/img/uly-avatar.png') ?>" alt="" width="80" height="80"
+                     class="w-full h-full object-cover object-top"
+                     srcset="<?= url('public/assets/img/uly-avatar@2x.png') ?> 2x">
+            </span>
+            <span class="font-display font-semibold text-[10px] sm:text-[11px] tracking-wide text-white bg-[#1F4D3A] px-2.5 py-1 rounded-full shadow-soft border border-[#C9A227]/35 whitespace-nowrap"><?= htmlspecialchars(t('ai.toggle')) ?></span>
         </button>
     </div>
 
     <?php \App\Core\View::partial('partials/chat-drawer'); ?>
+
+    <div id="image-lightbox" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-ink-900/85 backdrop-blur-sm p-3 sm:p-6" role="dialog" aria-modal="true" aria-label="<?= htmlspecialchars(t('product.zoom')) ?>">
+        <button type="button" id="image-lightbox-close" class="absolute top-3 right-3 sm:top-5 sm:right-5 z-20 w-10 h-10 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xl leading-none flex items-center justify-center transition" aria-label="<?= htmlspecialchars(t('product.close_photo')) ?>">✕</button>
+        <button type="button" id="image-lightbox-prev" class="hidden absolute left-2 sm:left-4 z-20 w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white/15 hover:bg-white/25 text-white text-2xl leading-none flex items-center justify-center transition" aria-label="<?= htmlspecialchars(t('product.prev_photo')) ?>">‹</button>
+        <button type="button" id="image-lightbox-next" class="hidden absolute right-2 sm:right-4 z-20 w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white/15 hover:bg-white/25 text-white text-2xl leading-none flex items-center justify-center transition" aria-label="<?= htmlspecialchars(t('product.next_photo')) ?>">›</button>
+        <img id="image-lightbox-img" src="" alt="" class="max-w-full max-h-[min(92vh,900px)] w-auto h-auto object-contain rounded-xl shadow-lift select-none pointer-events-none">
+        <p id="image-lightbox-counter" class="hidden absolute bottom-4 left-1/2 -translate-x-1/2 text-white/80 text-xs font-medium tracking-wide bg-black/35 px-3 py-1 rounded-full"></p>
+    </div>
 
     <script>
         window.__isLoggedIn = <?= \App\Core\Auth::check() ? 'true' : 'false' ?>;
@@ -468,6 +470,8 @@ function url(string $path = ''): string
         window.__aiChatUrl = <?= js_encode(url('/ai/chat')) ?>;
         window.__aiMessagesUrl = <?= js_encode(url('/ai/chat/messages')) ?>;
         window.__aiFeedbackUrl = <?= js_encode(url('/ai/chat/feedback')) ?>;
+        window.__aiAvatarUrl = <?= js_encode(url('public/assets/img/uly-avatar.png')) ?>;
+        window.__aiAvatarUrl2x = <?= js_encode(url('public/assets/img/uly-avatar@2x.png')) ?>;
         window.__chatStartUrl = <?= js_encode(url('/chat/start')) ?>;
         window.__chatBaseUrl = <?= js_encode(rtrim(url('/chat'), '/') . '/') ?>;
         window.__lang = <?= js_encode(\App\Core\Lang::current()) ?>;
@@ -482,6 +486,7 @@ function url(string $path = ''): string
             'home.story_link_copied',
             'header.city', 'header.city_choose', 'header.city_detect', 'header.city_detecting', 'header.city_denied',
             'chat.title', 'chat.start_hint', 'chat.send_failed', 'chat.start_failed',
+            'product.close_photo', 'product.prev_photo', 'product.next_photo', 'product.zoom',
         ])) ?>;
     </script>
     <script src="<?= url('public/assets/js/app.js') ?>"></script>

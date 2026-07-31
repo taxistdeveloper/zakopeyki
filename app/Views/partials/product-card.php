@@ -4,7 +4,8 @@ use App\Helpers\ProductHelper;
 
 $badge = ProductHelper::badge($item['type']);
 $price = ProductHelper::formatPrice($item);
-$imageUrl = ProductHelper::imageUrl($item);
+$imageUrls = ProductHelper::imageUrls($item);
+$imageUrl = $imageUrls[0] ?? ProductHelper::imageUrl($item);
 $showUrl = ProductHelper::url('/product/' . $item['id']);
 $purchasable = ProductHelper::isPurchasable($item);
 $checkoutUrl = ProductHelper::checkoutUrl($item['id']);
@@ -17,16 +18,26 @@ $canFavorite = Auth::check();
 $ctaBase = 'block w-full text-center font-display font-bold text-[10px] py-2.5 rounded-xl transition uppercase tracking-wider';
 ?>
 <article class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 overflow-hidden shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition duration-300 flex flex-col justify-between cursor-pointer group backdrop-blur-sm relative">
-    <a href="<?= $showUrl ?>" class="aspect-square bg-gradient-to-br from-ink-100 via-brand-50 to-accent-50 dark:from-white/10 dark:via-brand-900/20 dark:to-transparent relative flex items-center justify-center overflow-hidden shrink-0">
-        <?php if ($imageUrl): ?>
-            <img src="<?= htmlspecialchars($imageUrl) ?>" alt="" class="absolute inset-0 w-full h-full object-contain transition duration-300 group-hover:scale-105">
-        <?php else: ?>
-            <span class="transition duration-300 group-hover:scale-110"><?= ProductHelper::icon($item['type'], 'w-14 h-14 text-brand-500/70') ?></span>
-        <?php endif; ?>
+    <?php if ($imageUrl): ?>
+    <a href="<?= $showUrl ?>"
+       class="aspect-square bg-gradient-to-br from-ink-100 via-brand-50 to-accent-50 dark:from-white/10 dark:via-brand-900/20 dark:to-transparent relative flex items-center justify-center overflow-hidden shrink-0 cursor-zoom-in"
+       data-lightbox
+       data-lightbox-src="<?= htmlspecialchars($imageUrl) ?>"
+       data-lightbox-gallery="<?= htmlspecialchars(json_encode(array_values($imageUrls ?: [$imageUrl]), JSON_UNESCAPED_SLASHES)) ?>"
+       aria-label="<?= htmlspecialchars(t('product.zoom')) ?>">
+        <img src="<?= htmlspecialchars($imageUrl) ?>" alt="" class="absolute inset-0 w-full h-full object-contain transition duration-300 group-hover:scale-105 pointer-events-none">
         <span class="absolute top-2.5 left-2.5 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg shadow-sm <?= $badge['class'] ?>">
             <?= htmlspecialchars($badge['text']) ?>
         </span>
     </a>
+    <?php else: ?>
+    <a href="<?= $showUrl ?>" class="aspect-square bg-gradient-to-br from-ink-100 via-brand-50 to-accent-50 dark:from-white/10 dark:via-brand-900/20 dark:to-transparent relative flex items-center justify-center overflow-hidden shrink-0">
+        <span class="transition duration-300 group-hover:scale-110"><?= ProductHelper::icon($item['type'], 'w-14 h-14 text-brand-500/70') ?></span>
+        <span class="absolute top-2.5 left-2.5 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg shadow-sm <?= $badge['class'] ?>">
+            <?= htmlspecialchars($badge['text']) ?>
+        </span>
+    </a>
+    <?php endif; ?>
     <button type="button"
             class="favorite-btn absolute top-2.5 right-2.5 z-10 w-8 h-8 rounded-xl bg-white/90 dark:bg-ink-900/80 border border-black/[0.06] dark:border-white/10 shadow-sm flex items-center justify-center transition hover:scale-105 <?= $favorited ? 'is-favorited text-red-500' : 'text-gray-400 hover:text-red-500' ?>"
             data-product-id="<?= (int) $item['id'] ?>"
