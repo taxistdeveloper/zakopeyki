@@ -390,6 +390,63 @@ function url(string $path = ''): string
             background: rgba(42,40,36,0.95);
             border-color: rgba(255,255,255,0.08);
         }
+        #ai-assistant-toggle {
+            animation: aiFabFloat 3.2s ease-in-out infinite;
+        }
+        #ai-assistant-toggle .ai-fab-avatar {
+            position: relative;
+        }
+        #ai-assistant-toggle .ai-fab-avatar::before,
+        #ai-assistant-toggle .ai-fab-avatar::after {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 9999px;
+            border: 2px solid rgba(201, 162, 39, 0.45);
+            pointer-events: none;
+            animation: aiFabPulse 2.8s ease-out infinite;
+        }
+        #ai-assistant-toggle .ai-fab-avatar::after {
+            animation-delay: 1.4s;
+        }
+        #ai-assistant-toggle .ai-fab-label {
+            animation: aiFabLabel 3.2s ease-in-out infinite;
+        }
+        #ai-assistant-toggle:hover {
+            animation-play-state: paused;
+            transform: translateY(-4px) scale(1.04);
+        }
+        #ai-assistant-toggle[aria-expanded="true"] {
+            animation: none;
+            transform: none;
+        }
+        #ai-assistant-toggle[aria-expanded="true"] .ai-fab-avatar::before,
+        #ai-assistant-toggle[aria-expanded="true"] .ai-fab-avatar::after,
+        #ai-assistant-toggle[aria-expanded="true"] .ai-fab-label {
+            animation: none;
+            opacity: 0.85;
+        }
+        @keyframes aiFabFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+        }
+        @keyframes aiFabPulse {
+            0% { transform: scale(1); opacity: 0.55; }
+            70% { transform: scale(1.22); opacity: 0; }
+            100% { transform: scale(1.22); opacity: 0; }
+        }
+        @keyframes aiFabLabel {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(201, 162, 39, 0); }
+            50% { opacity: 0.92; box-shadow: 0 0 12px 0 rgba(201, 162, 39, 0.35); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            #ai-assistant-toggle,
+            #ai-assistant-toggle .ai-fab-avatar::before,
+            #ai-assistant-toggle .ai-fab-avatar::after,
+            #ai-assistant-toggle .ai-fab-label {
+                animation: none !important;
+            }
+        }
     </style>
 </head>
 <body class="app-shell text-ink-900 dark:text-gray-100 flex h-screen overflow-hidden select-none relative">
@@ -442,13 +499,13 @@ function url(string $path = ''): string
             </form>
         </div>
 
-        <button type="button" id="ai-assistant-toggle" class="pointer-events-auto group flex flex-col items-center gap-1 cursor-pointer transition hover:-translate-y-1" aria-expanded="false" aria-controls="ai-assistant-panel" aria-label="<?= htmlspecialchars(t('ai.aria')) ?>">
-            <span class="relative block w-[4.5rem] h-[4.5rem] sm:w-20 sm:h-20 rounded-full shadow-lift ring-2 ring-[#C9A227]/50 overflow-hidden bg-[#E8E6E1] border-[3px] border-white dark:border-ink-800">
+        <button type="button" id="ai-assistant-toggle" class="pointer-events-auto group flex flex-col items-center gap-1.5 cursor-pointer transition will-change-transform" aria-expanded="false" aria-controls="ai-assistant-panel" aria-label="<?= htmlspecialchars(t('ai.aria')) ?>">
+            <span class="ai-fab-avatar relative block w-[4.5rem] h-[4.5rem] sm:w-20 sm:h-20 rounded-full shadow-lift ring-2 ring-[#C9A227]/50 overflow-hidden bg-[#E8E6E1] border-[3px] border-white dark:border-ink-800">
                 <img src="<?= url('public/assets/img/uly-avatar.png') ?>" alt="" width="80" height="80"
                      class="w-full h-full object-cover object-top"
                      srcset="<?= url('public/assets/img/uly-avatar@2x.png') ?> 2x">
             </span>
-            <span class="font-display font-semibold text-[10px] sm:text-[11px] tracking-wide text-white bg-[#1F4D3A] px-2.5 py-1 rounded-full shadow-soft border border-[#C9A227]/35 whitespace-nowrap"><?= htmlspecialchars(t('ai.toggle')) ?></span>
+            <span class="ai-fab-label font-display font-semibold text-[10px] sm:text-[11px] tracking-wide text-white bg-[#1F4D3A] px-2.5 py-1 rounded-full shadow-soft border border-[#C9A227]/35 whitespace-nowrap"><?= htmlspecialchars(t('ai.toggle')) ?></span>
         </button>
     </div>
 
