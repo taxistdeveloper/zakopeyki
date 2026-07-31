@@ -474,8 +474,11 @@ class ProfileController extends Controller
         $sizes = $_FILES['images']['size'];
 
         $dir = __DIR__ . '/../../public/uploads/products';
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
+        if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
+            return ['error' => t('flash.photo_save_fail')];
+        }
+        if (!is_writable($dir)) {
+            return ['error' => t('flash.photo_save_fail')];
         }
 
         $saved = [];
@@ -505,7 +508,7 @@ class ProfileController extends Controller
 
             $ext = \App\Helpers\UploadHelper::normalizeExt((string) $name);
             $filename = 'product_' . Auth::id() . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
-            if (!move_uploaded_file($tmps[$i], $dir . '/' . $filename)) {
+            if (!@move_uploaded_file($tmps[$i], $dir . '/' . $filename)) {
                 return ['error' => t('flash.photo_save_fail')];
             }
             $saved[] = $filename;
