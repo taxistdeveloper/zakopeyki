@@ -17,9 +17,9 @@ unset($_SESSION['flash']);
     <?php endif; ?>
 
     <div class="bg-white/90 dark:bg-white/[0.04] rounded-[28px] border border-black/[0.06] dark:border-white/10 overflow-hidden shadow-soft backdrop-blur">
-        <div class="h-52 sm:h-72 bg-gradient-to-br from-ink-100 via-brand-50 to-orange-50 dark:from-white/10 dark:via-brand-900/20 dark:to-ink-900 flex items-center justify-center relative overflow-hidden">
+        <div class="aspect-square sm:aspect-[4/3] bg-gradient-to-br from-ink-100 via-brand-50 to-orange-50 dark:from-white/10 dark:via-brand-900/20 dark:to-ink-900 flex items-center justify-center relative overflow-hidden">
             <?php if ($imageUrl): ?>
-                <img id="product-main-image" src="<?= htmlspecialchars($imageUrl) ?>" alt="<?= htmlspecialchars($item['title']) ?>" class="absolute inset-0 w-full h-full object-cover">
+                <img id="product-main-image" src="<?= htmlspecialchars($imageUrl) ?>" alt="<?= htmlspecialchars($item['title']) ?>" class="absolute inset-0 w-full h-full object-contain">
             <?php else: ?>
                 <?= ProductHelper::icon($item['type'], 'w-24 h-24 text-brand-500/60') ?>
             <?php endif; ?>
