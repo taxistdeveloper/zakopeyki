@@ -707,6 +707,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                                 <div class="flex items-center justify-between sm:justify-end gap-3 flex-shrink-0">
                                     <span class="text-sm font-display font-bold text-brand-600 whitespace-nowrap"><?= htmlspecialchars(ProductHelper::formatPrice($p)) ?></span>
                                     <div class="flex items-center gap-1.5">
+                                        <?php \App\Core\View::partial('partials/share-buttons', ['item' => $p, 'compact' => true]); ?>
                                         <a href="<?= ProductHelper::url('/profile?tab=lots&edit=' . $p['id']) ?>" class="px-2.5 py-1.5 rounded-xl text-[11px] font-bold border border-black/[0.08] dark:border-white/10 hover:border-brand-400/50 hover:bg-brand-50/60 dark:hover:bg-white/5 transition" title="Редактировать">
                                             Изменить
                                         </a>

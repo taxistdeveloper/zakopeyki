@@ -85,6 +85,9 @@ return [
         'bid' => 'Ставка',
         'exchange' => 'Обмен',
         'more' => 'Подробнее',
+        'share' => 'Поделиться',
+        'share_whatsapp' => 'Поделиться в WhatsApp',
+        'share_telegram' => 'Поделиться в Telegram',
     ],
     'home' => [
         'title' => 'Главная',

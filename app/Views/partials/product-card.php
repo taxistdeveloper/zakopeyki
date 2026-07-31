@@ -16,7 +16,7 @@ $canFavorite = Auth::check();
 
 $ctaBase = 'block w-full text-center font-display font-bold text-[10px] py-2.5 rounded-xl transition uppercase tracking-wider';
 ?>
-<article class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 overflow-hidden shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition duration-300 flex flex-col justify-between h-[360px] cursor-pointer group backdrop-blur-sm relative">
+<article class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 overflow-hidden shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition duration-300 flex flex-col justify-between h-[390px] cursor-pointer group backdrop-blur-sm relative">
     <a href="<?= $showUrl ?>" class="h-32 bg-gradient-to-br from-ink-100 via-brand-50 to-accent-50 dark:from-white/10 dark:via-brand-900/20 dark:to-transparent relative flex items-center justify-center overflow-hidden">
         <?php if ($imageUrl): ?>
             <img src="<?= htmlspecialchars($imageUrl) ?>" alt="" class="absolute inset-0 w-full h-full object-cover transition duration-300 group-hover:scale-105">
@@ -85,6 +85,7 @@ $ctaBase = 'block w-full text-center font-display font-bold text-[10px] py-2.5 r
                 <?php elseif ($type === 'exchange'): ?>
                     <a href="<?= $showUrl ?>" class="<?= $ctaBase ?> bg-indigo-600 hover:bg-indigo-700 text-white"><?= htmlspecialchars(t('card.exchange')) ?></a>
                 <?php endif; ?>
+                <?php \App\Core\View::partial('partials/share-buttons', ['item' => $item, 'compact' => true, 'fullWidth' => true]); ?>
                 <a href="<?= $showUrl ?>" class="block w-full text-center text-gray-400 hover:text-ink-700 dark:hover:text-gray-200 font-medium text-[10px] py-1 transition"><?= htmlspecialchars(t('card.more')) ?></a>
             </div>
         </div>

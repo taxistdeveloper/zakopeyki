@@ -183,6 +183,8 @@ unset($_SESSION['flash']);
                     </button>
                 </div>
             <?php endif; ?>
+
+            <?php \App\Core\View::partial('partials/share-buttons', ['item' => $item]); ?>
         </div>
     </div>
 

@@ -85,6 +85,9 @@ return [
         'bid' => 'Ставка',
         'exchange' => 'Айырбас',
         'more' => 'Толығырақ',
+        'share' => 'Бөлісу',
+        'share_whatsapp' => 'WhatsApp-та бөлісу',
+        'share_telegram' => 'Telegram-да бөлісу',
     ],
     'home' => [
         'title' => 'Басты бет',

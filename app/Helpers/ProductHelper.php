@@ -305,4 +305,34 @@ class ProductHelper
 
         return ($base === '' ? '' : $base) . '/' . ltrim($path, '/');
     }
+
+    public static function absoluteUrl(string $path = ''): string
+    {
+        if (preg_match('#^https?://#i', $path)) {
+            return $path;
+        }
+
+        $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || (($_SERVER['SERVER_PORT'] ?? null) == 443)
+            || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+
+        $scheme = $https ? 'https' : 'http';
+        $host = (string) ($_SERVER['HTTP_HOST'] ?? 'zakopeyki.kz');
+
+        return $scheme . '://' . $host . self::url($path);
+    }
+
+    /** @return array{whatsapp: string, telegram: string, url: string} */
+    public static function shareLinks(array $item): array
+    {
+        $publicUrl = self::absoluteUrl('/product/' . (int) ($item['id'] ?? 0));
+        $title = trim((string) ($item['title'] ?? ''));
+        $text = $title !== '' ? $title . "\n" . $publicUrl : $publicUrl;
+
+        return [
+            'url' => $publicUrl,
+            'whatsapp' => 'https://wa.me/?text=' . rawurlencode($text),
+            'telegram' => 'https://t.me/share/url?url=' . rawurlencode($publicUrl) . '&text=' . rawurlencode($title),
+        ];
+    }
 }
