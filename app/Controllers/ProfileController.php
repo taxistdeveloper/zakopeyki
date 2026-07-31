@@ -508,9 +508,11 @@ class ProfileController extends Controller
 
             $ext = \App\Helpers\UploadHelper::normalizeExt((string) $name);
             $filename = 'product_' . Auth::id() . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
-            if (!@move_uploaded_file($tmps[$i], $dir . '/' . $filename)) {
+            $dest = $dir . '/' . $filename;
+            if (!@move_uploaded_file($tmps[$i], $dest)) {
                 return ['error' => t('flash.photo_save_fail')];
             }
+            \App\Helpers\UploadHelper::applyWatermark($dest);
             $saved[] = $filename;
         }
 

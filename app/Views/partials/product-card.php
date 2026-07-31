@@ -15,23 +15,34 @@ $buyUrl = $purchasable
 $favorited = !empty($favorited);
 $canFavorite = Auth::check();
 
+$type = $item['type'] ?? '';
+$isFreePrice = $type === 'free'
+    || (
+        (int) ($item['price'] ?? 0) === 0
+        && !in_array($type, ['auction', 'exchange'], true)
+    );
+
+$showCardCategory = in_array($type, ProductHelper::PRODUCT_TYPES_WITH_CATEGORY, true)
+    && !empty($item['category'])
+    && ($item['category'] ?? '') !== 'Разное';
+
 $ctaBase = 'block w-full text-center font-display font-bold text-[10px] py-2.5 rounded-xl transition uppercase tracking-wider';
 ?>
-<article class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 overflow-hidden shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition duration-300 flex flex-col justify-between cursor-pointer group backdrop-blur-sm relative">
+<article class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 overflow-hidden shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition duration-300 flex flex-col h-full cursor-pointer group backdrop-blur-sm relative">
     <?php if ($imageUrl): ?>
     <a href="<?= $showUrl ?>"
-       class="aspect-square bg-gradient-to-br from-ink-100 via-brand-50 to-accent-50 dark:from-white/10 dark:via-brand-900/20 dark:to-transparent relative flex items-center justify-center overflow-hidden shrink-0 cursor-zoom-in"
+       class="photo-wm aspect-[4/3] bg-ink-100 dark:bg-white/10 relative block overflow-hidden shrink-0 cursor-zoom-in"
        data-lightbox
        data-lightbox-src="<?= htmlspecialchars($imageUrl) ?>"
        data-lightbox-gallery="<?= htmlspecialchars(json_encode(array_values($imageUrls ?: [$imageUrl]), JSON_UNESCAPED_SLASHES)) ?>"
        aria-label="<?= htmlspecialchars(t('product.zoom')) ?>">
-        <img src="<?= htmlspecialchars($imageUrl) ?>" alt="" class="absolute inset-0 w-full h-full object-contain transition duration-300 group-hover:scale-105 pointer-events-none">
-        <span class="absolute top-2.5 left-2.5 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg shadow-sm <?= $badge['class'] ?>">
+        <img src="<?= htmlspecialchars($imageUrl) ?>" alt="" class="absolute inset-0 w-full h-full object-cover transition duration-300 group-hover:scale-105 pointer-events-none">
+        <span class="absolute top-2.5 left-2.5 z-[1] text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg shadow-sm <?= $badge['class'] ?>">
             <?= htmlspecialchars($badge['text']) ?>
         </span>
     </a>
     <?php else: ?>
-    <a href="<?= $showUrl ?>" class="aspect-square bg-gradient-to-br from-ink-100 via-brand-50 to-accent-50 dark:from-white/10 dark:via-brand-900/20 dark:to-transparent relative flex items-center justify-center overflow-hidden shrink-0">
+    <a href="<?= $showUrl ?>" class="aspect-[4/3] bg-gradient-to-br from-ink-100 via-brand-50 to-accent-50 dark:from-white/10 dark:via-brand-900/20 dark:to-transparent relative flex items-center justify-center overflow-hidden shrink-0">
         <span class="transition duration-300 group-hover:scale-110"><?= ProductHelper::icon($item['type'], 'w-14 h-14 text-brand-500/70') ?></span>
         <span class="absolute top-2.5 left-2.5 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg shadow-sm <?= $badge['class'] ?>">
             <?= htmlspecialchars($badge['text']) ?>
@@ -48,49 +59,43 @@ $ctaBase = 'block w-full text-center font-display font-bold text-[10px] py-2.5 r
             <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
         </svg>
     </button>
-    <div class="p-4 flex flex-col flex-1 justify-between gap-2">
-        <div>
-            <h3 class="text-xs sm:text-sm font-semibold line-clamp-2 text-ink-800 dark:text-gray-200 leading-snug">
+    <div class="p-4 flex flex-col flex-1 gap-3">
+        <div class="min-h-[4.75rem]">
+            <h3 class="text-xs sm:text-sm font-semibold line-clamp-2 min-h-[2.5rem] text-ink-800 dark:text-gray-200 leading-snug">
                 <a href="<?= $showUrl ?>"><?= htmlspecialchars($item['title']) ?></a>
             </h3>
-            <?php
-            $showCardCategory = in_array($item['type'] ?? '', ProductHelper::PRODUCT_TYPES_WITH_CATEGORY, true)
-                && !empty($item['category'])
-                && ($item['category'] ?? '') !== 'Разное';
-            if ($showCardCategory):
+            <?php if ($showCardCategory):
                 [$cardParent, $cardChild] = ProductHelper::parseCategory($item['category']);
             ?>
-                <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-1.5 line-clamp-1" title="<?= htmlspecialchars(ProductHelper::categoryLabel($cardParent) . ' / ' . ProductHelper::categoryLabel($cardChild)) ?>">
+                <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-1.5 line-clamp-1 h-4" title="<?= htmlspecialchars(ProductHelper::categoryLabel($cardParent) . ' / ' . ProductHelper::categoryLabel($cardChild)) ?>">
                     <span class="text-ink-700 dark:text-gray-300 font-medium"><?= htmlspecialchars(ProductHelper::categoryLabel($cardParent)) ?></span>
                     <span class="text-gray-300 dark:text-gray-600 mx-0.5">/</span>
                     <span class="text-brand-600 dark:text-brand-400"><?= htmlspecialchars(ProductHelper::categoryLabel($cardChild)) ?></span>
                 </p>
+            <?php else: ?>
+                <p class="mt-1.5 h-4" aria-hidden="true"></p>
             <?php endif; ?>
-            <p class="text-[10px] text-gray-400 mt-1.5"><?= htmlspecialchars($item['location']) ?></p>
-            <?php if (($item['type'] ?? '') === 'exchange' && !empty($item['exchange_for'])): ?>
+            <p class="text-[10px] text-gray-400 mt-1 truncate"><?= htmlspecialchars($item['location']) ?></p>
+            <?php if ($type === 'exchange' && !empty($item['exchange_for'])): ?>
                 <p class="text-[10px] text-indigo-600 dark:text-indigo-300 mt-1 line-clamp-2">
                     <span class="font-semibold"><?= htmlspecialchars(t('product.exchange_for_short')) ?>:</span>
                     <?= htmlspecialchars($item['exchange_for']) ?>
                 </p>
             <?php endif; ?>
         </div>
-        <div class="space-y-2">
-            <div class="flex justify-between items-center">
-                <span class="text-sm font-display font-bold <?= ($item['type'] ?? '') === 'free' ? 'text-violet-600 dark:text-violet-300' : 'text-ink-900 dark:text-white' ?>"><?= htmlspecialchars($price) ?></span>
+        <div class="mt-auto space-y-2">
+            <div class="flex justify-between items-center min-h-[1.25rem]">
+                <span class="text-sm font-display font-bold <?= $isFreePrice ? 'text-violet-600 dark:text-violet-300' : 'text-ink-900 dark:text-white' ?>"><?= htmlspecialchars($price) ?></span>
             </div>
             <div class="space-y-1.5 pt-2 border-t border-black/[0.05] dark:border-white/10">
-                <?php
-                $type = $item['type'];
-                if ($type === 'course'): ?>
+                <?php if ($type === 'course'): ?>
                     <a href="<?= $buyUrl ?>" class="<?= $ctaBase ?> bg-blue-600 hover:bg-blue-700 text-white"><?= htmlspecialchars(t('card.order')) ?></a>
-                <?php elseif ($type === 'used'): ?>
-                    <a href="<?= $buyUrl ?>" class="<?= $ctaBase ?> bg-accent-500 hover:bg-accent-400 text-white"><?= htmlspecialchars(t('card.buy')) ?></a>
-                <?php elseif ($type === 'new'): ?>
+                <?php elseif ($isFreePrice && in_array($type, ['free', 'used', 'new'], true)): ?>
+                    <a href="<?= $showUrl ?>" class="<?= $ctaBase ?> bg-violet-600 hover:bg-violet-700 text-white"><?= htmlspecialchars(t('card.take')) ?></a>
+                <?php elseif ($type === 'used' || $type === 'new'): ?>
                     <a href="<?= $buyUrl ?>" class="<?= $ctaBase ?> bg-accent-500 hover:bg-accent-400 text-white"><?= htmlspecialchars(t('card.buy')) ?></a>
                 <?php elseif ($type === 'service'): ?>
                     <a href="<?= $buyUrl ?>" class="<?= $ctaBase ?> bg-emerald-600 hover:bg-emerald-700 text-white"><?= htmlspecialchars(t('card.order')) ?></a>
-                <?php elseif ($type === 'free'): ?>
-                    <a href="<?= $showUrl ?>" class="<?= $ctaBase ?> bg-violet-600 hover:bg-violet-700 text-white"><?= htmlspecialchars(t('card.take')) ?></a>
                 <?php elseif ($type === 'auction'): ?>
                     <a href="<?= $showUrl ?>" class="<?= $ctaBase ?> bg-red-600 hover:bg-red-700 text-white"><?= htmlspecialchars(t('card.bid')) ?></a>
                 <?php elseif ($type === 'exchange'): ?>

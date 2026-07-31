@@ -103,6 +103,46 @@ function url(string $path = ''): string
         .font-display { font-family: Sora, system-ui, sans-serif; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Custom scrollbar */
+        html {
+            scrollbar-width: thin;
+            scrollbar-color: #93C5FD transparent;
+        }
+        html.dark {
+            scrollbar-color: #1E3A8A transparent;
+        }
+        *::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        *::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        *::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #93C5FD, #3B82F6);
+            border-radius: 999px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+        *::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, #60A5FA, #2563EB);
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+        *::-webkit-scrollbar-corner {
+            background: transparent;
+        }
+        html.dark *::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #1E3A8A, #2563EB);
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+        html.dark *::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, #2563EB, #3B82F6);
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
         /* Instagram web stories */
         .story-viewer-shell {
             background: #262626;
@@ -447,6 +487,39 @@ function url(string $path = ''): string
                 animation: none !important;
             }
         }
+        /* Product photo watermark */
+        .photo-wm {
+            position: relative;
+        }
+        .photo-wm::after {
+            content: 'zakopeyki.kz';
+            position: absolute;
+            right: 8px;
+            bottom: 8px;
+            z-index: 6;
+            font-family: Sora, system-ui, sans-serif;
+            font-weight: 700;
+            font-size: 10px;
+            letter-spacing: 0.03em;
+            line-height: 1;
+            color: rgba(255, 255, 255, 0.88);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55), 0 0 8px rgba(0, 0, 0, 0.25);
+            pointer-events: none;
+            user-select: none;
+            opacity: 0.9;
+        }
+        .photo-wm--md::after {
+            font-size: 13px;
+            right: 12px;
+            bottom: 12px;
+        }
+        .photo-wm--lg::after {
+            font-size: 18px;
+            right: 16px;
+            bottom: 18px;
+            letter-spacing: 0.04em;
+            opacity: 0.92;
+        }
     </style>
 </head>
 <body class="app-shell text-ink-900 dark:text-gray-100 flex h-screen overflow-hidden select-none relative">
@@ -515,7 +588,9 @@ function url(string $path = ''): string
         <button type="button" id="image-lightbox-close" class="absolute top-3 right-3 sm:top-5 sm:right-5 z-20 w-10 h-10 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xl leading-none flex items-center justify-center transition" aria-label="<?= htmlspecialchars(t('product.close_photo')) ?>">✕</button>
         <button type="button" id="image-lightbox-prev" class="hidden absolute left-2 sm:left-4 z-20 w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white/15 hover:bg-white/25 text-white text-2xl leading-none flex items-center justify-center transition" aria-label="<?= htmlspecialchars(t('product.prev_photo')) ?>">‹</button>
         <button type="button" id="image-lightbox-next" class="hidden absolute right-2 sm:right-4 z-20 w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white/15 hover:bg-white/25 text-white text-2xl leading-none flex items-center justify-center transition" aria-label="<?= htmlspecialchars(t('product.next_photo')) ?>">›</button>
-        <img id="image-lightbox-img" src="" alt="" class="max-w-full max-h-[min(92vh,900px)] w-auto h-auto object-contain rounded-xl shadow-lift select-none pointer-events-none">
+        <div class="photo-wm photo-wm--lg relative max-w-full max-h-[min(92vh,900px)] flex items-center justify-center">
+            <img id="image-lightbox-img" src="" alt="" class="max-w-full max-h-[min(92vh,900px)] w-auto h-auto object-contain rounded-xl shadow-lift select-none pointer-events-none">
+        </div>
         <p id="image-lightbox-counter" class="hidden absolute bottom-4 left-1/2 -translate-x-1/2 text-white/80 text-xs font-medium tracking-wide bg-black/35 px-3 py-1 rounded-full"></p>
     </div>
 

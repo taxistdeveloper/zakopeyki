@@ -63,6 +63,33 @@
             }
         }
     </script>
+    <style>
+        html {
+            scrollbar-width: thin;
+            scrollbar-color: #93C5FD transparent;
+        }
+        *::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        *::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        *::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #93C5FD, #3B82F6);
+            border-radius: 999px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+        *::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, #60A5FA, #2563EB);
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+        *::-webkit-scrollbar-corner {
+            background: transparent;
+        }
+    </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4" style="background: radial-gradient(900px 500px at 20% 0%, rgba(37,99,235,.14), transparent 55%), radial-gradient(700px 400px at 90% 10%, rgba(249,115,22,.1), transparent 50%), linear-gradient(160deg,#F8FAFC,#EFF6FF 50%,#DBEAFE); font-family:'DM Sans',sans-serif;">
     <!-- Google Tag Manager (noscript) -->

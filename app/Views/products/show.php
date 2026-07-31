@@ -17,7 +17,7 @@ unset($_SESSION['flash']);
     <?php endif; ?>
 
     <div class="bg-white/90 dark:bg-white/[0.04] rounded-[28px] border border-black/[0.06] dark:border-white/10 overflow-hidden shadow-soft backdrop-blur">
-        <div class="aspect-square sm:aspect-[4/3] bg-gradient-to-br from-ink-100 via-brand-50 to-orange-50 dark:from-white/10 dark:via-brand-900/20 dark:to-ink-900 flex items-center justify-center relative overflow-hidden<?= $imageUrl ? ' cursor-zoom-in' : '' ?>"
+        <div class="aspect-square sm:aspect-[4/3] bg-gradient-to-br from-ink-100 via-brand-50 to-orange-50 dark:from-white/10 dark:via-brand-900/20 dark:to-ink-900 flex items-center justify-center relative overflow-hidden<?= $imageUrl ? ' photo-wm photo-wm--md cursor-zoom-in' : '' ?>"
              <?php if ($imageUrl): ?>
              role="button"
              tabindex="0"
