@@ -31,8 +31,24 @@ spl_autoload_register(function (string $class): void {
 \App\Core\Lang::boot();
 \App\Helpers\ActivityLogger::registerHandlers();
 
-// Режим заглушки: сайт открыт только авторизованному админу.
-if (!empty($appConfig['stub_mode']) && !\App\Core\Auth::isAdmin()) {
+// stub_mode из БД (админка) перекрывает config/app.php
+try {
+    $settings = new \App\Models\Setting();
+    $dbStub = $settings->getBool('stub_mode');
+    if ($dbStub !== null) {
+        $appConfig['stub_mode'] = $dbStub;
+    }
+    $dbOpensAt = $settings->get('stub_opens_at');
+    if ($dbOpensAt !== null && $dbOpensAt !== '') {
+        $appConfig['stub_opens_at'] = $dbOpensAt;
+    }
+    $GLOBALS['appConfig'] = $appConfig;
+} catch (\Throwable) {
+    // при недоступной БД остаётся значение из config
+}
+
+// Режим заглушки: сайт открыт админу и пользователям с персональным доступом.
+if (!empty($appConfig['stub_mode']) && !\App\Core\Auth::hasSiteAccess(true)) {
     $stubPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
     $stubBase = rtrim((string) ($appConfig['url'] ?? ''), '/');
     if ($stubBase !== '' && str_starts_with($stubPath, $stubBase)) {

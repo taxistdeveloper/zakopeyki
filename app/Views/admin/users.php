@@ -4,8 +4,11 @@ use App\Helpers\ProductHelper;
 
 $users = $users ?? [];
 $filterRole = $filterRole ?? null;
+$filterAccess = $filterAccess ?? null;
 $searchQuery = $searchQuery ?? '';
 $permissionKeys = $permissionKeys ?? Auth::PERMISSIONS;
+$stubMode = !empty($stubMode);
+$siteAccessCount = (int) ($siteAccessCount ?? 0);
 
 $roleLabel = static function (string $role): string {
     return match ($role) {
@@ -38,7 +41,12 @@ $filters = [
             <h1 class="font-display text-xl sm:text-2xl font-bold text-ink-900 dark:text-white mt-1"><?= htmlspecialchars(t('admin.users')) ?></h1>
             <p class="text-sm text-gray-500 mt-1"><?= htmlspecialchars(t('admin.users_hint')) ?></p>
         </div>
-        <div class="text-xs font-semibold text-gray-400"><?= (int) ($userCount ?? count($users)) ?> <?= htmlspecialchars(t('admin.users')) ?></div>
+        <div class="text-xs font-semibold text-gray-400 text-right">
+            <div><?= (int) ($userCount ?? count($users)) ?> <?= htmlspecialchars(t('admin.users')) ?></div>
+            <?php if ($stubMode): ?>
+                <div class="text-emerald-600 mt-0.5"><?= $siteAccessCount ?> <?= htmlspecialchars(t('admin.users_filter_access')) ?></div>
+            <?php endif; ?>
+        </div>
     </div>
 
     <?php if (!empty($flash)): ?>
@@ -52,6 +60,9 @@ $filters = [
         <?php if ($filterRole): ?>
             <input type="hidden" name="role" value="<?= htmlspecialchars($filterRole) ?>">
         <?php endif; ?>
+        <?php if ($filterAccess): ?>
+            <input type="hidden" name="access" value="<?= htmlspecialchars($filterAccess) ?>">
+        <?php endif; ?>
         <input type="search" name="q" value="<?= htmlspecialchars($searchQuery) ?>"
                placeholder="<?= htmlspecialchars(t('admin.users_search')) ?>"
                class="ui-input flex-1 min-w-[200px] h-10 px-4 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm">
@@ -62,7 +73,7 @@ $filters = [
 
     <div class="flex flex-wrap gap-2">
         <?php foreach ($filters as $key => $label):
-            $active = $filterRole === $key;
+            $active = $filterRole === $key && !$filterAccess;
             $params = [];
             if ($key) {
                 $params['role'] = $key;
@@ -75,6 +86,20 @@ $filters = [
             <a href="<?= $url ?>"
                class="inline-flex h-8 px-3 items-center rounded-xl text-[11px] font-semibold transition <?= $active ? 'bg-brand-600 text-white' : 'bg-white/80 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 text-ink-700 dark:text-gray-300 hover:border-brand-400/50' ?>">
                 <?= htmlspecialchars($label) ?>
+            </a>
+        <?php endforeach; ?>
+        <?php
+        foreach (['open' => t('admin.users_filter_access'), 'closed' => t('admin.users_filter_no_access')] as $accessKey => $accessLabel):
+            $active = $filterAccess === $accessKey;
+            $params = ['access' => $accessKey];
+            if ($searchQuery !== '') {
+                $params['q'] = $searchQuery;
+            }
+            $url = ProductHelper::url('/admin/users?' . http_build_query($params));
+        ?>
+            <a href="<?= $url ?>"
+               class="inline-flex h-8 px-3 items-center rounded-xl text-[11px] font-semibold transition <?= $active ? 'bg-emerald-600 text-white' : 'bg-white/80 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 text-ink-700 dark:text-gray-300 hover:border-brand-400/50' ?>">
+                <?= htmlspecialchars($accessLabel) ?>
             </a>
         <?php endforeach; ?>
     </div>
@@ -126,16 +151,17 @@ $filters = [
             <?php foreach ($users as $u):
                 $role = (string) ($u['role'] ?? 'user');
                 $displayName = trim((string) ($u['name'] ?? '')) ?: ((string) ($u['login'] ?? 'User'));
+                $hasAccess = $role === 'admin' || !empty($u['site_access']);
+                $uid = (int) $u['id'];
             ?>
-                <a href="<?= ProductHelper::url('/admin/users/' . (int) $u['id']) ?>"
-                   class="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5 hover:bg-brand-50/40 dark:hover:bg-white/[0.03] transition">
-                    <div class="min-w-0 flex-1 flex items-center gap-3">
+                <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5 hover:bg-brand-50/40 dark:hover:bg-white/[0.03] transition">
+                    <a href="<?= ProductHelper::url('/admin/users/' . $uid) ?>" class="min-w-0 flex-1 flex items-center gap-3">
                         <div class="w-9 h-9 rounded-xl bg-brand-100 dark:bg-brand-900/40 text-brand-700 dark:text-brand-300 flex items-center justify-center text-xs font-bold flex-shrink-0">
                             <?= htmlspecialchars(mb_strtoupper(mb_substr($displayName, 0, 1))) ?>
                         </div>
                         <div class="min-w-0">
                             <p class="text-xs font-semibold text-ink-900 dark:text-white truncate">
-                                #<?= (int) $u['id'] ?> · <?= htmlspecialchars($displayName) ?>
+                                #<?= $uid ?> · <?= htmlspecialchars($displayName) ?>
                             </p>
                             <p class="text-[11px] text-gray-400 mt-0.5 truncate">
                                 <?= htmlspecialchars((string) ($u['email'] ?? '')) ?>
@@ -144,14 +170,32 @@ $filters = [
                                 <?php endif; ?>
                             </p>
                         </div>
-                    </div>
+                    </a>
                     <div class="flex items-center gap-2 flex-shrink-0">
+                        <?php if ($role !== 'admin' && $hasAccess): ?>
+                            <span class="inline-flex px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                                <?= htmlspecialchars(t('admin.users_access_badge')) ?>
+                            </span>
+                        <?php endif; ?>
                         <span class="inline-flex px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wide <?= $roleClass($role) ?>">
                             <?= htmlspecialchars($roleLabel($role)) ?>
                         </span>
+                        <?php if ($role !== 'admin'): ?>
+                            <form method="post" action="<?= ProductHelper::url('/admin/users/' . $uid . '/site-access') ?>" class="inline">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="redirect" value="list">
+                                <input type="hidden" name="allow" value="<?= $hasAccess ? '0' : '1' ?>">
+                                <button type="submit"
+                                        class="h-8 px-2.5 rounded-lg text-[10px] font-bold transition <?= $hasAccess
+                                            ? 'text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30'
+                                            : 'text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30' ?>">
+                                    <?= htmlspecialchars($hasAccess ? t('admin.user_site_access_revoke') : t('admin.user_site_access_grant')) ?>
+                                </button>
+                            </form>
+                        <?php endif; ?>
                         <span class="text-[10px] text-gray-400"><?= htmlspecialchars(substr((string) ($u['created_at'] ?? ''), 0, 10)) ?></span>
                     </div>
-                </a>
+                </div>
             <?php endforeach; ?>
         </div>
     <?php endif; ?>

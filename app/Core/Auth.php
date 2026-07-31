@@ -61,6 +61,7 @@ class Auth
             'login' => $user['login'] ?? null,
             'phone' => $user['phone'] ?? null,
             'bio' => $user['bio'] ?? null,
+            'site_access' => !empty($user['site_access']) ? 1 : 0,
             'permissions' => self::normalizePermissions($user['permissions'] ?? null, (string) ($user['role'] ?? 'user')),
         ];
     }
@@ -119,6 +120,33 @@ class Auth
     public static function isAdmin(): bool
     {
         return (self::user()['role'] ?? '') === 'admin';
+    }
+
+    /**
+     * Доступ к сайту при stub_mode: админ всегда; остальные — с флагом site_access.
+     * $refreshFromDb — подтянуть флаг из БД (чтобы выдача доступа работала без повторного входа).
+     */
+    public static function hasSiteAccess(bool $refreshFromDb = false): bool
+    {
+        if (self::isAdmin()) {
+            return true;
+        }
+        if (!self::check()) {
+            return false;
+        }
+
+        if ($refreshFromDb) {
+            try {
+                $fresh = (new \App\Models\User())->find((int) self::id());
+                if ($fresh) {
+                    self::refresh($fresh);
+                }
+            } catch (\Throwable) {
+                // keep session value
+            }
+        }
+
+        return !empty(self::user()['site_access']);
     }
 
     public static function isManager(): bool

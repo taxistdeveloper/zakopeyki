@@ -10,6 +10,7 @@ $counts = $counts ?? [];
 $items = $items ?? [];
 $hasNav = $canTickets || $canAi || $isAdmin;
 $recentErrors = (int) ($recentErrors ?? 0);
+$stubMode = !empty($stubMode);
 ?>
 <section class="space-y-6 fade-up">
     <div>
@@ -19,6 +20,38 @@ $recentErrors = (int) ($recentErrors ?? 0);
 
     <?php if (!empty($flash)): ?>
         <div class="bg-emerald-50 dark:bg-emerald-900/25 text-emerald-800 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800/40 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars($flash) ?></div>
+    <?php endif; ?>
+    <?php if (!empty($error)): ?>
+        <div class="bg-red-50 dark:bg-red-900/25 text-red-800 dark:text-red-300 border border-red-100 dark:border-red-800/40 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars($error) ?></div>
+    <?php endif; ?>
+
+    <?php if ($isAdmin): ?>
+    <div class="rounded-[22px] border shadow-soft overflow-hidden <?= $stubMode
+        ? 'bg-amber-50/90 dark:bg-amber-950/30 border-amber-200/80 dark:border-amber-800/40'
+        : 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/40' ?>">
+        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
+            <div class="min-w-0">
+                <p class="text-[10px] font-semibold uppercase tracking-[0.14em] <?= $stubMode ? 'text-amber-600' : 'text-emerald-600' ?>">
+                    <?= htmlspecialchars(t('admin.site_status')) ?>
+                </p>
+                <h3 class="font-display font-bold text-ink-900 dark:text-white mt-0.5">
+                    <?= htmlspecialchars($stubMode ? t('admin.site_closed') : t('admin.site_open')) ?>
+                </h3>
+                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.site_status_hint')) ?></p>
+            </div>
+            <form method="post" action="<?= ProductHelper::url('/admin/site-status') ?>" class="shrink-0">
+                <?= csrf_field() ?>
+                <input type="hidden" name="open" value="<?= $stubMode ? '1' : '0' ?>">
+                <button type="submit"
+                    class="h-10 px-4 rounded-xl text-xs font-bold text-white transition <?= $stubMode
+                        ? 'bg-emerald-600 hover:bg-emerald-700'
+                        : 'bg-amber-600 hover:bg-amber-700' ?>"
+                    onclick="return confirm(<?= json_encode($stubMode ? t('admin.site_open_confirm') : t('admin.site_close_confirm')) ?>)">
+                    <?= htmlspecialchars($stubMode ? t('admin.site_open_action') : t('admin.site_close_action')) ?>
+                </button>
+            </form>
+        </div>
+    </div>
     <?php endif; ?>
 
     <?php if ($hasNav): ?>

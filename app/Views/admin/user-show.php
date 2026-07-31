@@ -48,6 +48,33 @@ $roleClass = match ($role) {
         <div class="bg-red-50 text-red-700 border border-red-100 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
 
+    <?php if (!$isAdminRole): ?>
+    <?php $hasSiteAccess = !empty($user['site_access']); ?>
+    <div class="rounded-[22px] border shadow-soft p-4 sm:p-5 space-y-3 <?= $hasSiteAccess
+        ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/40'
+        : 'bg-white/90 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/10' ?>">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div class="min-w-0">
+                <h2 class="font-display font-bold text-ink-900 dark:text-white text-sm"><?= htmlspecialchars(t('admin.user_site_access')) ?></h2>
+                <p class="text-xs text-gray-500 mt-1"><?= htmlspecialchars(t('admin.user_site_access_hint')) ?></p>
+                <p class="text-xs font-semibold mt-2 <?= $hasSiteAccess ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-400' ?>">
+                    <?= htmlspecialchars($hasSiteAccess ? t('admin.user_site_access_on') : t('admin.user_site_access_off')) ?>
+                </p>
+            </div>
+            <form method="post" action="<?= ProductHelper::url('/admin/users/' . $userId . '/site-access') ?>" class="shrink-0">
+                <?= csrf_field() ?>
+                <input type="hidden" name="allow" value="<?= $hasSiteAccess ? '0' : '1' ?>">
+                <button type="submit"
+                        class="h-9 px-4 rounded-xl text-xs font-bold text-white transition <?= $hasSiteAccess
+                            ? 'bg-amber-600 hover:bg-amber-700'
+                            : 'bg-emerald-600 hover:bg-emerald-700' ?>">
+                    <?= htmlspecialchars($hasSiteAccess ? t('admin.user_site_access_revoke') : t('admin.user_site_access_grant')) ?>
+                </button>
+            </form>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <div class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 shadow-soft p-4 sm:p-5 space-y-3">
         <h2 class="font-display font-bold text-ink-900 dark:text-white text-sm"><?= htmlspecialchars(t('admin.user_info')) ?></h2>
         <dl class="grid sm:grid-cols-2 gap-3 text-sm">

@@ -12,6 +12,7 @@ use App\Models\AiSupport;
 use App\Models\Notification;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\Setting;
 use App\Models\SupportTicket;
 use App\Models\User;
 use App\Services\AI\SelfLearningService;
@@ -48,6 +49,7 @@ class AdminController extends Controller
         $unread = $n->unreadCount(Auth::id());
 
         $recentErrors = 0;
+        $stubMode = !empty($GLOBALS['appConfig']['stub_mode']);
         if ($isAdmin) {
             try {
                 $recentErrors = (new ActivityLog())->recentErrorCount(24);
@@ -67,6 +69,7 @@ class AdminController extends Controller
             'ticketUnread' => $canTickets ? $support->unreadCountForAdmin() : 0,
             'aiEscalated' => $canAi ? $aiSupport->countEscalated() : 0,
             'recentErrors' => $recentErrors,
+            'stubMode' => $stubMode,
             'canProducts' => $canProducts,
             'canTickets' => $canTickets,
             'canAi' => $canAi,
@@ -77,8 +80,39 @@ class AdminController extends Controller
             'unread' => $unread,
             'search' => '',
             'flash' => $_SESSION['flash'] ?? null,
+            'error' => $_SESSION['error'] ?? null,
         ]);
-        unset($_SESSION['flash']);
+        unset($_SESSION['flash'], $_SESSION['error']);
+    }
+
+    public function toggleSiteStatus(): void
+    {
+        Auth::requireAdmin();
+
+        $open = isset($_POST['open']) && (string) $_POST['open'] === '1';
+        $stubMode = !$open;
+
+        try {
+            (new Setting())->setBool('stub_mode', $stubMode);
+            $GLOBALS['appConfig']['stub_mode'] = $stubMode;
+
+            ActivityLogger::info(
+                'admin.site_toggle',
+                $open ? 'Сайт открыт для пользователей' : 'Сайт закрыт (заглушка)',
+                'settings',
+                null,
+                ['stub_mode' => $stubMode]
+            );
+
+            $_SESSION['flash'] = $open
+                ? t('admin.site_opened_flash')
+                : t('admin.site_closed_flash');
+        } catch (\Throwable $e) {
+            ActivityLogger::exception($e, 'admin.site_toggle');
+            $_SESSION['error'] = t('admin.site_toggle_failed');
+        }
+
+        $this->redirect('/admin');
     }
 
     public function logs(): void
@@ -386,6 +420,15 @@ class AdminController extends Controller
         if ($role !== null && !in_array($role, ['admin', 'manager', 'user'], true)) {
             $role = null;
         }
+        $access = isset($_GET['access']) ? strtolower(trim((string) $_GET['access'])) : null;
+        $siteAccessFilter = null;
+        if ($access === 'open') {
+            $siteAccessFilter = true;
+            $role = null;
+        } elseif ($access === 'closed') {
+            $siteAccessFilter = false;
+            $role = null;
+        }
         $q = trim((string) ($_GET['q'] ?? ''));
 
         $userModel = new User();
@@ -395,10 +438,13 @@ class AdminController extends Controller
         $this->view('admin/users', [
             'title' => t('admin.users'),
             'currentNav' => 'admin',
-            'users' => $userModel->listForAdmin($role, $q !== '' ? $q : null),
+            'users' => $userModel->listForAdmin($role, $q !== '' ? $q : null, $siteAccessFilter),
             'filterRole' => $role,
+            'filterAccess' => $access === 'open' || $access === 'closed' ? $access : null,
             'searchQuery' => $q,
             'userCount' => $userModel->countAll(),
+            'siteAccessCount' => $userModel->countWithSiteAccess(),
+            'stubMode' => !empty($GLOBALS['appConfig']['stub_mode']),
             'permissionKeys' => Auth::PERMISSIONS,
             'notifications' => $n->forUser($uid),
             'unread' => $n->unreadCount($uid),
@@ -434,6 +480,7 @@ class AdminController extends Controller
             'permissionKeys' => Auth::PERMISSIONS,
             'adminCount' => $userModel->countAdmins(),
             'isSelf' => $userId === $uid,
+            'stubMode' => !empty($GLOBALS['appConfig']['stub_mode']),
             'notifications' => $n->forUser($uid),
             'unread' => $n->unreadCount($uid),
             'search' => '',
@@ -441,6 +488,51 @@ class AdminController extends Controller
             'error' => $_SESSION['error'] ?? null,
         ]);
         unset($_SESSION['flash'], $_SESSION['error']);
+    }
+
+    public function userToggleSiteAccess(string $id): void
+    {
+        Auth::requireAdmin();
+        $userId = (int) $id;
+        $userModel = new User();
+        $user = $userModel->find($userId);
+
+        if (!$user) {
+            $_SESSION['error'] = t('admin.user_not_found');
+            $this->redirect('/admin/users');
+            return;
+        }
+
+        if (($user['role'] ?? '') === 'admin') {
+            $_SESSION['flash'] = t('admin.user_site_access_admin');
+            $this->redirect('/admin/users/' . $userId);
+            return;
+        }
+
+        $allow = isset($_POST['allow']) && (string) $_POST['allow'] === '1';
+        if ($userModel->setSiteAccess($userId, $allow)) {
+            ActivityLogger::info(
+                'admin.user_site_access',
+                $allow
+                    ? 'Выдан доступ к сайту: ' . ($user['email'] ?? ('#' . $userId))
+                    : 'Снят доступ к сайту: ' . ($user['email'] ?? ('#' . $userId)),
+                'user',
+                $userId,
+                ['site_access' => $allow]
+            );
+            $_SESSION['flash'] = $allow
+                ? t('admin.user_site_access_granted')
+                : t('admin.user_site_access_revoked');
+        } else {
+            $_SESSION['error'] = t('admin.user_site_access_failed');
+        }
+
+        $back = trim((string) ($_POST['redirect'] ?? ''));
+        if ($back === 'list') {
+            $this->redirect('/admin/users');
+            return;
+        }
+        $this->redirect('/admin/users/' . $userId);
     }
 
     public function userCreate(): void

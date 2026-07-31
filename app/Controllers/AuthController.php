@@ -174,7 +174,7 @@ class AuthController extends Controller
         ]);
 
         $appConfig = $GLOBALS['appConfig'] ?? [];
-        if (!empty($appConfig['stub_mode']) && !Auth::isAdmin()) {
+        if (!empty($appConfig['stub_mode']) && !Auth::hasSiteAccess()) {
             $_SESSION['stub_flash'] = 'Регистрация прошла успешно! Мы откроемся 30 августа.';
             $this->redirect('/');
         }

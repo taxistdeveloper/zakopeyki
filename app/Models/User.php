@@ -35,6 +35,7 @@ class User extends Model
             'password_reset_token' => 'VARCHAR(64) DEFAULT NULL AFTER two_factor_recovery_codes',
             'password_reset_expires' => 'DATETIME DEFAULT NULL AFTER password_reset_token',
             'permissions' => "TEXT DEFAULT NULL COMMENT 'JSON permissions for manager' AFTER role",
+            'site_access' => "TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Early access while stub_mode' AFTER permissions",
         ];
 
         foreach ($needed as $col => $def) {
@@ -257,16 +258,22 @@ class User extends Model
     }
 
     /** @return list<array<string, mixed>> */
-    public function listForAdmin(?string $role = null, ?string $q = null): array
+    public function listForAdmin(?string $role = null, ?string $q = null, ?bool $siteAccess = null): array
     {
-        $sql = 'SELECT id, name, first_name, last_name, login, email, phone, role, permissions, avatar, avatar_file, created_at,
-                       two_factor_enabled, google_id
+        $sql = 'SELECT id, name, first_name, last_name, login, email, phone, role, permissions, site_access,
+                       avatar, avatar_file, created_at, two_factor_enabled, google_id
                 FROM users WHERE 1=1';
         $params = [];
 
         if (in_array((string) $role, ['admin', 'manager', 'user'], true)) {
             $sql .= ' AND role = ?';
             $params[] = $role;
+        }
+
+        if ($siteAccess === true) {
+            $sql .= ' AND site_access = 1 AND role != \'admin\'';
+        } elseif ($siteAccess === false) {
+            $sql .= ' AND (site_access = 0 OR site_access IS NULL) AND role != \'admin\'';
         }
 
         $q = $q !== null ? trim($q) : '';
@@ -284,6 +291,19 @@ class User extends Model
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll();
+    }
+
+    public function setSiteAccess(int $userId, bool $allowed): bool
+    {
+        $stmt = $this->db->prepare('UPDATE users SET site_access = ? WHERE id = ?');
+        return $stmt->execute([$allowed ? 1 : 0, $userId]);
+    }
+
+    public function countWithSiteAccess(): int
+    {
+        return (int) $this->db->query(
+            "SELECT COUNT(*) FROM users WHERE site_access = 1 AND role != 'admin'"
+        )->fetchColumn();
     }
 
     public function updateRole(int $userId, string $role, ?array $permissions = null): bool
