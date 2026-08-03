@@ -99,32 +99,42 @@ $navIcon = static fn (string $name): string => IconHelper::svg($name, 'w-[18px] 
         $productCount = (new Product())->countActive();
         $userCount = (new User())->countAll();
         ?>
-        <div class="mt-3 mx-0.5 rounded-2xl border border-black/[0.05] dark:border-white/10 bg-white/60 dark:bg-white/[0.04] shadow-soft px-3 py-3 flex items-center justify-between gap-2.5">
-            <div class="space-y-2 min-w-0">
-                <p class="text-[8px] font-semibold uppercase tracking-[0.12em] text-brand-600 leading-tight"><?= htmlspecialchars(t('nav.stats_title')) ?></p>
-                <div class="space-y-1.5">
-                    <div>
-                        <p class="font-display text-base font-bold tracking-tight tabular-nums leading-none text-ink-900 dark:text-white"><?= $fmtStat($productCount) ?></p>
-                        <p class="text-[8px] font-semibold uppercase tracking-[0.08em] text-gray-400 mt-0.5"><?= htmlspecialchars(t('nav.listings')) ?></p>
-                    </div>
-                    <div>
-                        <p class="font-display text-base font-bold tracking-tight tabular-nums leading-none text-ink-900 dark:text-white"><?= $fmtStat($userCount) ?></p>
-                        <p class="text-[8px] font-semibold uppercase tracking-[0.08em] text-gray-400 mt-0.5"><?= htmlspecialchars(t('nav.users')) ?></p>
+        <div class="mt-3 mx-0.5 rounded-2xl border border-black/[0.05] dark:border-white/10 bg-white/60 dark:bg-white/[0.04] shadow-soft px-3 py-3 space-y-2.5">
+            <div class="flex items-center justify-between gap-2.5">
+                <div class="space-y-2 min-w-0">
+                    <p class="text-[8px] font-semibold uppercase tracking-[0.12em] text-brand-600 leading-tight"><?= htmlspecialchars(t('nav.stats_title')) ?></p>
+                    <div class="space-y-1.5">
+                        <div>
+                            <p class="font-display text-base font-bold tracking-tight tabular-nums leading-none text-ink-900 dark:text-white"><?= $fmtStat($productCount) ?></p>
+                            <p class="text-[8px] font-semibold uppercase tracking-[0.08em] text-gray-400 mt-0.5"><?= htmlspecialchars(t('nav.listings')) ?></p>
+                        </div>
+                        <div>
+                            <p class="font-display text-base font-bold tracking-tight tabular-nums leading-none text-ink-900 dark:text-white"><?= $fmtStat($userCount) ?></p>
+                            <p class="text-[8px] font-semibold uppercase tracking-[0.08em] text-gray-400 mt-0.5"><?= htmlspecialchars(t('nav.users')) ?></p>
+                        </div>
                     </div>
                 </div>
+                <div class="flex flex-col gap-1 w-[98px] flex-shrink-0">
+                    <a href="<?= ProductHelper::url('/about') ?>" class="inline-flex items-center gap-1 h-6 px-2 rounded-full border border-black/[0.08] dark:border-white/10 bg-white/70 dark:bg-white/[0.04] text-[10px] font-medium whitespace-nowrap text-ink-800 dark:text-gray-200 hover:border-brand-400/50 transition <?= $nav === 'about' ? 'border-brand-400/50 text-brand-700 dark:text-brand-300' : '' ?>">
+                        <svg class="w-2.5 h-2.5 flex-shrink-0 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r="0.7" fill="currentColor" stroke="none"/></svg>
+                        <?= htmlspecialchars(t('nav.about')) ?>
+                    </a>
+                    <a href="<?= ProductHelper::url('/support/new?category=idea') ?>" class="inline-flex items-center gap-1 h-6 px-2 rounded-full border border-black/[0.08] dark:border-white/10 bg-white/70 dark:bg-white/[0.04] text-[10px] font-medium text-ink-800 dark:text-gray-200 hover:border-brand-400/50 transition <?= $nav === 'help' ? 'border-brand-400/50 text-brand-700 dark:text-brand-300' : '' ?>">
+                        <svg class="w-2.5 h-2.5 flex-shrink-0 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a5.5 5.5 0 0 0-3.5 9.7c.7.6 1.1 1.3 1.2 2.3h4.6c.1-1 .5-1.7 1.2-2.3A5.5 5.5 0 0 0 12 3z"/></svg>
+                        <?= htmlspecialchars(t('nav.idea')) ?>
+                    </a>
+                    <a href="<?= ProductHelper::url('/support') ?>" class="inline-flex items-center gap-1 h-6 px-2 rounded-full border border-black/[0.08] dark:border-white/10 bg-white/70 dark:bg-white/[0.04] text-[10px] font-medium text-ink-800 dark:text-gray-200 hover:border-brand-400/50 transition <?= $nav === 'help' ? 'border-brand-400/50 text-brand-700 dark:text-brand-300' : '' ?>">
+                        <svg class="w-2.5 h-2.5 flex-shrink-0 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 5.6a4.6 4.6 0 0 0-6.5 0L12 7.9l-2.3-2.3a4.6 4.6 0 0 0-6.5 6.5l2.3 2.3L12 21l6.5-6.6 2.3-2.3a4.6 4.6 0 0 0 0-6.5z"/></svg>
+                        <?= htmlspecialchars(t('nav.help')) ?>
+                    </a>
+                </div>
             </div>
-            <div class="flex flex-col gap-1 w-[98px] flex-shrink-0">
-                <a href="<?= ProductHelper::url('/about') ?>" class="inline-flex items-center gap-1 h-6 px-2 rounded-full border border-black/[0.08] dark:border-white/10 bg-white/70 dark:bg-white/[0.04] text-[10px] font-medium whitespace-nowrap text-ink-800 dark:text-gray-200 hover:border-brand-400/50 transition <?= $nav === 'about' ? 'border-brand-400/50 text-brand-700 dark:text-brand-300' : '' ?>">
-                    <svg class="w-2.5 h-2.5 flex-shrink-0 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r="0.7" fill="currentColor" stroke="none"/></svg>
-                    <?= htmlspecialchars(t('nav.about')) ?>
+            <div class="pt-2 border-t border-black/[0.05] dark:border-white/10 space-y-1.5">
+                <a href="<?= ProductHelper::url('/privacy') ?>" class="block text-[9px] leading-snug font-medium text-ink-700/75 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 transition <?= $nav === 'privacy' ? 'text-brand-700 dark:text-brand-300' : '' ?>">
+                    <?= htmlspecialchars(t('nav.privacy')) ?>
                 </a>
-                <a href="<?= ProductHelper::url('/support/new?category=idea') ?>" class="inline-flex items-center gap-1 h-6 px-2 rounded-full border border-black/[0.08] dark:border-white/10 bg-white/70 dark:bg-white/[0.04] text-[10px] font-medium text-ink-800 dark:text-gray-200 hover:border-brand-400/50 transition <?= $nav === 'help' ? 'border-brand-400/50 text-brand-700 dark:text-brand-300' : '' ?>">
-                    <svg class="w-2.5 h-2.5 flex-shrink-0 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a5.5 5.5 0 0 0-3.5 9.7c.7.6 1.1 1.3 1.2 2.3h4.6c.1-1 .5-1.7 1.2-2.3A5.5 5.5 0 0 0 12 3z"/></svg>
-                    <?= htmlspecialchars(t('nav.idea')) ?>
-                </a>
-                <a href="<?= ProductHelper::url('/support') ?>" class="inline-flex items-center gap-1 h-6 px-2 rounded-full border border-black/[0.08] dark:border-white/10 bg-white/70 dark:bg-white/[0.04] text-[10px] font-medium text-ink-800 dark:text-gray-200 hover:border-brand-400/50 transition <?= $nav === 'help' ? 'border-brand-400/50 text-brand-700 dark:text-brand-300' : '' ?>">
-                    <svg class="w-2.5 h-2.5 flex-shrink-0 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 5.6a4.6 4.6 0 0 0-6.5 0L12 7.9l-2.3-2.3a4.6 4.6 0 0 0-6.5 6.5l2.3 2.3L12 21l6.5-6.6 2.3-2.3a4.6 4.6 0 0 0 0-6.5z"/></svg>
-                    <?= htmlspecialchars(t('nav.help')) ?>
+                <a href="<?= ProductHelper::url('/data-policy') ?>" class="block text-[9px] leading-snug font-medium text-ink-700/75 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 transition <?= $nav === 'data_policy' ? 'text-brand-700 dark:text-brand-300' : '' ?>">
+                    <?= htmlspecialchars(t('nav.data_policy')) ?>
                 </a>
             </div>
         </div>

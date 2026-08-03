@@ -68,6 +68,8 @@ if (!empty($appConfig['stub_mode']) && !\App\Core\Auth::hasSiteAccess(true)) {
         '/auth/google',
         '/auth/google/callback',
         '/offer',
+        '/privacy',
+        '/data-policy',
     ];
     $stubAllowedPrefix = '/reset-password/';
     $stubOk = in_array($stubPath, $stubAllowed, true)

@@ -23,6 +23,8 @@ $router = new Router();
 $router->get('/', [HomeController::class, 'index']);
 $router->get('/about', [HomeController::class, 'about']);
 $router->get('/offer', [HomeController::class, 'offer']);
+$router->get('/privacy', [HomeController::class, 'privacy']);
+$router->get('/data-policy', [HomeController::class, 'dataPolicy']);
 $router->get('/catalog/{section}', [CatalogController::class, 'show']);
 $router->get('/auctions', [AuctionController::class, 'index']);
 $router->post('/auctions/{id}/bid', [AuctionController::class, 'bid']);

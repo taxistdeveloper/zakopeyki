@@ -68,4 +68,24 @@ class HomeController extends Controller
             'currentNav' => 'about',
         ]);
     }
+
+    public function privacy(): void
+    {
+        $this->view('legal/document', [
+            'title' => t('privacy.title'),
+            'currentNav' => 'privacy',
+            'docKey' => 'privacy',
+            'sectionIds' => ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8'],
+        ]);
+    }
+
+    public function dataPolicy(): void
+    {
+        $this->view('legal/document', [
+            'title' => t('data_policy.title'),
+            'currentNav' => 'data_policy',
+            'docKey' => 'data_policy',
+            'sectionIds' => ['s1', 's2', 's3', 's4', 's5', 's6', 's7'],
+        ]);
+    }
 }
