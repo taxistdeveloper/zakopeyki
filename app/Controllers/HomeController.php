@@ -60,4 +60,12 @@ class HomeController extends Controller
             'currentNav' => 'about',
         ]);
     }
+
+    public function offer(): void
+    {
+        $this->view('legal/offer', [
+            'title' => t('offer.title'),
+            'currentNav' => 'about',
+        ]);
+    }
 }

@@ -136,6 +136,18 @@ class AuthController extends Controller
         $email = trim($_POST['email'] ?? '');
         $password = $_POST['password'] ?? '';
         $phone = trim($_POST['phone'] ?? '');
+        $acceptOffer = !empty($_POST['accept_offer']);
+
+        if (!$acceptOffer) {
+            $this->view('auth/register', [
+                'title' => t('auth.register_title'),
+                'error' => t('auth.offer_required'),
+                'name' => $name,
+                'email' => $email,
+                'phone' => $phone,
+            ], 'layouts/auth');
+            return;
+        }
 
         if ($name === '' || $email === '' || strlen($password) < 8) {
             $this->view('auth/register', [
