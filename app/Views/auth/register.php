@@ -73,12 +73,12 @@ $offerSections = [
                 </div>
             </div>
 
-            <div class="rounded-2xl border border-black/10 bg-gray-50/80 px-3.5 py-3 space-y-2.5">
+            <div class="rounded-2xl border border-black/10 bg-gray-50/80 px-3.5 py-3 space-y-2.5 text-center">
                 <p class="text-[12px] text-gray-500 leading-relaxed" id="offer-read-hint">
                     <?= htmlspecialchars(t('auth.offer_read_hint')) ?>
                     <button type="button" class="js-open-offer text-brand-600 font-semibold hover:underline"><?= htmlspecialchars(t('auth.offer_link')) ?></button>.
                 </p>
-                <label id="offer-accept-row" class="hidden items-start gap-2.5 cursor-pointer select-none">
+                <label id="offer-accept-row" class="hidden items-start gap-2.5 cursor-pointer select-none text-left">
                     <input type="checkbox" name="accept_offer" id="accept-offer" value="1" disabled required
                            class="mt-0.5 h-4 w-4 shrink-0 rounded border-black/20 text-brand-600 focus:ring-brand-500/30">
                     <span class="text-[12px] text-ink-800 leading-relaxed font-medium">
