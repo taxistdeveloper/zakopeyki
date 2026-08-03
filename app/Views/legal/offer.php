@@ -1,4 +1,5 @@
 <?php
+use App\Core\Auth;
 use App\Helpers\ProductHelper;
 ?>
 <section class="max-w-3xl mx-auto space-y-6 fade-up pb-10">
@@ -40,9 +41,11 @@ use App\Helpers\ProductHelper;
         </p>
     </div>
 
+    <?php if (!Auth::check()): ?>
     <div class="pt-1">
         <a href="<?= ProductHelper::url('/register') ?>" class="inline-flex items-center justify-center h-11 px-5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-display font-bold text-xs uppercase tracking-wide transition">
             <?= htmlspecialchars(t('offer.cta_register')) ?>
         </a>
     </div>
+    <?php endif; ?>
 </section>
