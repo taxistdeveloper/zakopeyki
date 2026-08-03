@@ -45,9 +45,9 @@ $langSwitchUrl = static function (string $code) use ($lang): string {
     </div>
 
     <div class="flex items-center gap-2 flex-shrink-0">
-        <div class="inline-flex items-center h-10 rounded-xl bg-white/70 dark:bg-white/5 border border-black/[0.06] dark:border-white/10 overflow-hidden text-[11px] font-bold tracking-wide shadow-sm">
-            <a href="<?= htmlspecialchars($langSwitchUrl('kk')) ?>" class="px-2.5 py-2 transition <?= $lang === 'kk' ? 'bg-brand-500 text-white' : 'text-ink-700/70 dark:text-gray-400 hover:text-ink-900 dark:hover:text-white' ?>"><?= htmlspecialchars(t('header.lang_kk')) ?></a>
-            <a href="<?= htmlspecialchars($langSwitchUrl('ru')) ?>" class="px-2.5 py-2 transition <?= $lang === 'ru' ? 'bg-brand-500 text-white' : 'text-ink-700/70 dark:text-gray-400 hover:text-ink-900 dark:hover:text-white' ?>"><?= htmlspecialchars(t('header.lang_ru')) ?></a>
+        <div class="inline-flex items-stretch h-10 p-1 rounded-xl bg-white/70 dark:bg-white/5 border border-black/[0.06] dark:border-white/10 text-[11px] font-bold tracking-wide shadow-sm">
+            <a href="<?= htmlspecialchars($langSwitchUrl('kk')) ?>" class="inline-flex items-center justify-center px-2.5 rounded-lg leading-none transition <?= $lang === 'kk' ? 'bg-brand-500 text-white shadow-sm' : 'text-ink-700/70 dark:text-gray-400 hover:text-ink-900 dark:hover:text-white' ?>"><?= htmlspecialchars(t('header.lang_kk')) ?></a>
+            <a href="<?= htmlspecialchars($langSwitchUrl('ru')) ?>" class="inline-flex items-center justify-center px-2.5 rounded-lg leading-none transition <?= $lang === 'ru' ? 'bg-brand-500 text-white shadow-sm' : 'text-ink-700/70 dark:text-gray-400 hover:text-ink-900 dark:hover:text-white' ?>"><?= htmlspecialchars(t('header.lang_ru')) ?></a>
         </div>
         <?php if (Auth::check()): ?>
             <a href="<?= ProductHelper::url('/profile?tab=lots') ?>" class="inline-flex items-center gap-1.5 h-10 px-3 sm:px-4 rounded-xl bg-accent-500 hover:bg-accent-400 text-white font-display font-bold text-xs sm:text-sm shadow-soft transition whitespace-nowrap" title="<?= htmlspecialchars(t('header.add_listing_title')) ?>">
