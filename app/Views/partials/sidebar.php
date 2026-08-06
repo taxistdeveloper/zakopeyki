@@ -129,14 +129,6 @@ $navIcon = static fn (string $name): string => IconHelper::svg($name, 'w-[18px] 
                     </a>
                 </div>
             </div>
-            <div class="pt-2 border-t border-black/[0.05] dark:border-white/10 space-y-1.5">
-                <a href="<?= ProductHelper::url('/privacy') ?>" class="block text-[9px] leading-snug font-medium text-ink-700/75 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 transition <?= $nav === 'privacy' ? 'text-brand-700 dark:text-brand-300' : '' ?>">
-                    <?= htmlspecialchars(t('nav.privacy')) ?>
-                </a>
-                <a href="<?= ProductHelper::url('/data-policy') ?>" class="block text-[9px] leading-snug font-medium text-ink-700/75 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 transition <?= $nav === 'data_policy' ? 'text-brand-700 dark:text-brand-300' : '' ?>">
-                    <?= htmlspecialchars(t('nav.data_policy')) ?>
-                </a>
-            </div>
         </div>
 
         <?php if (Auth::isStaff()): ?>
