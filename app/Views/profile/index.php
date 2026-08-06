@@ -168,7 +168,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                     </div>
                     <?php if (($reviewStats['count'] ?? 0) > 0): ?>
                         <div class="flex items-center gap-2 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 px-3.5 py-2">
-                            <span class="text-amber-500"><?= IconHelper::svg('star', 'w-4 h-4') ?></span>
+                            <span class="text-amber-500"><?= IconHelper::star('w-4 h-4', true) ?></span>
                             <span class="font-display font-bold text-sm"><?= htmlspecialchars(number_format((float) $reviewStats['avg'], 1)) ?></span>
                             <span class="text-xs text-gray-400"><?= htmlspecialchars(t('reviews.count', ['n' => (string) (int) $reviewStats['count']])) ?></span>
                         </div>
@@ -200,7 +200,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                                         <div class="flex items-center gap-1 mt-1">
                                             <?php for ($i = 1; $i <= 5; $i++): ?>
                                                 <span class="<?= $i <= (int) $r['rating'] ? 'text-amber-500' : 'text-gray-300 dark:text-gray-600' ?>">
-                                                    <?= IconHelper::svg('star', 'w-3.5 h-3.5') ?>
+                                                    <?= IconHelper::star('w-3.5 h-3.5', $i <= (int) $r['rating']) ?>
                                                 </span>
                                             <?php endfor; ?>
                                             <span class="text-[11px] text-gray-400 ml-1"><?= htmlspecialchars(date('d.m.Y', strtotime((string) $r['created_at']))) ?></span>

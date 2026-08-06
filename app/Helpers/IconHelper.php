@@ -55,6 +55,18 @@ class IconHelper
         return '<svg class="' . $class . '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' . $strokeWidth . '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . $paths . '</svg>';
     }
 
+    /** Залитая или контурная звезда рейтинга. */
+    public static function star(string $class = 'w-5 h-5', bool $filled = false): string
+    {
+        $class = htmlspecialchars($class, ENT_QUOTES, 'UTF-8');
+        $paths = self::PATHS['star'];
+        if ($filled) {
+            return '<svg class="' . $class . '" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round" aria-hidden="true">' . $paths . '</svg>';
+        }
+
+        return self::svg('star', $class);
+    }
+
     public static function type(string $type, string $class = 'w-10 h-10 text-brand-500/80'): string
     {
         return self::svg(self::TYPE_MAP[$type] ?? 'package', $class);

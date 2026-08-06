@@ -118,7 +118,7 @@ unset($_SESSION['flash']);
                     if (($sr['count'] ?? 0) > 0):
                     ?>
                         <span class="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-semibold">
-                            <span class="text-amber-500"><?= IconHelper::svg('star', 'w-3.5 h-3.5') ?></span>
+                            <span class="text-amber-500"><?= IconHelper::star('w-3.5 h-3.5', true) ?></span>
                             <?= htmlspecialchars(number_format((float) $sr['avg'], 1)) ?>
                             <span class="text-gray-400 font-normal">(<?= (int) $sr['count'] ?>)</span>
                         </span>

@@ -213,10 +213,10 @@ $btn = 'inline-flex items-center justify-center w-full font-display font-bold py
                 <?php if ($myReview): ?>
                     <div class="rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white/80 dark:bg-white/[0.03] px-4 py-4 space-y-2">
                         <h3 class="font-display font-bold text-sm"><?= htmlspecialchars(t('reviews.your_review')) ?></h3>
-                        <div class="flex items-center gap-1 text-gold-500">
+                        <div class="flex items-center gap-1">
                             <?php for ($i = 1; $i <= 5; $i++): ?>
                                 <span class="<?= $i <= (int) $myReview['rating'] ? 'text-amber-500' : 'text-gray-300 dark:text-gray-600' ?>">
-                                    <?= IconHelper::svg('star', 'w-4 h-4') ?>
+                                    <?= IconHelper::star('w-4 h-4', $i <= (int) $myReview['rating']) ?>
                                 </span>
                             <?php endfor; ?>
                             <span class="ml-2 text-xs font-semibold text-ink-700 dark:text-gray-300"><?= (int) $myReview['rating'] ?>/5</span>
@@ -232,16 +232,31 @@ $btn = 'inline-flex items-center justify-center w-full font-display font-bold py
                             <h3 class="font-display font-bold"><?= htmlspecialchars($rateWhom) ?></h3>
                             <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('reviews.form_hint')) ?></p>
                         </div>
-                        <div class="flex flex-wrap gap-1.5" data-review-stars>
-                            <?php for ($i = 1; $i <= 5; $i++): ?>
-                                <label class="cursor-pointer">
-                                    <input type="radio" name="rating" value="<?= $i ?>" class="sr-only peer" <?= $i === 1 ? 'required' : '' ?>>
-                                    <span class="inline-flex p-1.5 rounded-xl border border-black/10 dark:border-white/10 text-gray-300 peer-checked:text-amber-500 peer-checked:border-amber-300 peer-checked:bg-amber-50 dark:peer-checked:bg-amber-500/10 hover:text-amber-400 transition">
-                                        <?= IconHelper::svg('star', 'w-5 h-5') ?>
-                                    </span>
+                        <div class="flex flex-row-reverse justify-end gap-1" data-review-stars>
+                            <?php for ($i = 5; $i >= 1; $i--): ?>
+                                <input type="radio" name="rating" id="order-rating-<?= $i ?>" value="<?= $i ?>" class="sr-only" <?= $i === 1 ? 'required' : '' ?>>
+                                <label for="order-rating-<?= $i ?>"
+                                       class="cursor-pointer p-1.5 rounded-xl border border-black/10 dark:border-white/10 text-gray-300 transition">
+                                    <?= IconHelper::star('w-5 h-5', true) ?>
                                 </label>
                             <?php endfor; ?>
                         </div>
+                        <style>
+                            [data-review-stars] input:checked ~ label,
+                            [data-review-stars] input:checked + label,
+                            [data-review-stars] label:hover,
+                            [data-review-stars] label:hover ~ label {
+                                color: #f59e0b;
+                                border-color: rgba(251, 191, 36, 0.55);
+                                background: rgba(255, 251, 235, 0.95);
+                            }
+                            .dark [data-review-stars] input:checked ~ label,
+                            .dark [data-review-stars] input:checked + label,
+                            .dark [data-review-stars] label:hover,
+                            .dark [data-review-stars] label:hover ~ label {
+                                background: rgba(245, 158, 11, 0.12);
+                            }
+                        </style>
                         <textarea name="body" rows="3" maxlength="2000" placeholder="<?= htmlspecialchars(t('reviews.body_placeholder')) ?>"
                                   class="ui-input w-full p-3 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm"></textarea>
                         <button type="submit" class="<?= $btn ?> bg-ink-900 hover:bg-ink-800 text-white"><?= htmlspecialchars(t('reviews.submit')) ?></button>

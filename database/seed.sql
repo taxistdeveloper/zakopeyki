@@ -26,3 +26,8 @@ INSERT INTO notifications (user_id, message) VALUES
 (1, 'Кто-то предложил обмен на ваш товар.'),
 (1, 'Ваша ставка на аукционе перебита!'),
 (1, 'Новый пользователь зарегистрировался на платформе.');
+
+-- Демо-отзывы (после завершённых сделок). Полный сид: database/seed_reviews.sql
+-- Пример: раскомментируйте после создания completed orders
+-- INSERT IGNORE INTO reviews (order_id, author_id, subject_id, role, rating, body) VALUES
+-- (1, 2, 1, 'as_seller', 5, 'Отличный продавец, всё как в описании!');
