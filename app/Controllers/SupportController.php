@@ -44,7 +44,7 @@ class SupportController extends Controller
 
         $this->view('support/create', [
             'title' => t('support.create_title'),
-            'currentNav' => 'help',
+            'currentNav' => $category === 'idea' ? 'idea' : 'help',
             'category' => $category,
             'categories' => SupportTicket::CATEGORIES,
             'supportUnread' => $tickets->unreadCountForUser($uid),
