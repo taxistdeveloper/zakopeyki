@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Core\Auth;
 use App\Core\Controller;
+use App\Helpers\AboutDocumentsHelper;
 use App\Helpers\ChangelogHelper;
 use App\Models\Favorite;
 use App\Models\Notification;
@@ -58,7 +59,32 @@ class HomeController extends Controller
         $this->view('about/index', [
             'title' => t('about.title'),
             'currentNav' => 'about',
+            'documents' => AboutDocumentsHelper::all(),
         ]);
+    }
+
+    public function aboutDocument(string $slug): void
+    {
+        $doc = AboutDocumentsHelper::find(rawurldecode($slug));
+        if ($doc === null) {
+            http_response_code(404);
+            exit;
+        }
+
+        $path = $doc['path'];
+        $size = filesize($path);
+        $filename = $doc['file'];
+        $disposition = "inline; filename=\"document.pdf\"; filename*=UTF-8''" . rawurlencode($filename);
+
+        header('Content-Type: application/pdf');
+        header('X-Content-Type-Options: nosniff');
+        if ($size !== false) {
+            header('Content-Length: ' . (string) $size);
+        }
+        header('Content-Disposition: ' . $disposition);
+        header('Cache-Control: public, max-age=86400');
+        readfile($path);
+        exit;
     }
 
     public function offer(): void

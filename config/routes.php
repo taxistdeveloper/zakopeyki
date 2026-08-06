@@ -22,6 +22,7 @@ $router = new Router();
 
 $router->get('/', [HomeController::class, 'index']);
 $router->get('/about', [HomeController::class, 'about']);
+$router->get('/about/document/{slug}', [HomeController::class, 'aboutDocument']);
 $router->get('/offer', [HomeController::class, 'offer']);
 $router->get('/privacy', [HomeController::class, 'privacy']);
 $router->get('/data-policy', [HomeController::class, 'dataPolicy']);
