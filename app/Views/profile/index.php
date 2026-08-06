@@ -32,7 +32,7 @@ $tabs = [
 
 $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm';
 ?>
-<section class="max-w-3xl mx-auto space-y-5 pb-8">
+<section class="max-w-5xl mx-auto space-y-5 pb-8">
     <div class="flex items-end justify-between gap-4">
         <div>
             <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-600 mb-1"><?= htmlspecialchars(t('profile.eyebrow')) ?></p>
@@ -58,12 +58,12 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
 
     <div class="bg-white/90 dark:bg-white/[0.04] rounded-[28px] border border-black/[0.06] dark:border-white/10 overflow-hidden shadow-soft backdrop-blur">
         <div class="p-3 sm:p-4 border-b border-black/[0.05] dark:border-white/10 bg-gradient-to-b from-brand-50/40 to-transparent dark:from-brand-500/5">
-            <div class="flex overflow-x-auto scrollbar-hide gap-1.5 p-1 rounded-2xl bg-black/[0.03] dark:bg-white/[0.04]">
+            <div class="flex flex-wrap gap-1.5 p-1 rounded-2xl bg-black/[0.03] dark:bg-white/[0.04]">
                 <?php foreach ($tabs as $key => $meta):
                     $active = $tab === $key;
                 ?>
                     <a href="<?= ProductHelper::url('/profile?tab=' . $key) ?>"
-                       class="flex items-center gap-2 px-3.5 py-2.5 text-xs sm:text-[13px] font-semibold whitespace-nowrap rounded-xl transition
+                       class="inline-flex items-center gap-2 px-3 py-2.5 text-xs sm:text-[13px] font-semibold whitespace-nowrap rounded-xl transition shrink-0
                        <?= $active
                            ? 'bg-white dark:bg-ink-800 text-ink-900 dark:text-white shadow-sm'
                            : 'text-gray-500 hover:text-ink-800 dark:hover:text-gray-200' ?>">
