@@ -1,5 +1,6 @@
 <?php
 use App\Core\Auth;
+use App\Helpers\IconHelper;
 use App\Helpers\ProductHelper;
 
 $badge = ProductHelper::badge($item['type']);
@@ -108,10 +109,20 @@ unset($_SESSION['flash']);
                         <span class="font-semibold text-indigo-800 dark:text-indigo-200"><?= htmlspecialchars($item['exchange_for']) ?></span>
                     </div>
                 <?php endif; ?>
-                <p class="text-sm text-gray-400 mt-2">
+                <p class="text-sm text-gray-400 mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1">
                     <?= htmlspecialchars($item['location']) ?>
-                    <span class="mx-1.5 text-gray-300">·</span>
-                    <?= htmlspecialchars($item['seller_name']) ?>
+                    <span class="text-gray-300">·</span>
+                    <span><?= htmlspecialchars($item['seller_name']) ?></span>
+                    <?php
+                    $sr = $sellerRating ?? ['avg' => 0, 'count' => 0];
+                    if (($sr['count'] ?? 0) > 0):
+                    ?>
+                        <span class="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-semibold">
+                            <span class="text-amber-500"><?= IconHelper::svg('star', 'w-3.5 h-3.5') ?></span>
+                            <?= htmlspecialchars(number_format((float) $sr['avg'], 1)) ?>
+                            <span class="text-gray-400 font-normal">(<?= (int) $sr['count'] ?>)</span>
+                        </span>
+                    <?php endif; ?>
                 </p>
             </div>
 

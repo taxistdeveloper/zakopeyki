@@ -43,6 +43,7 @@ $router->post('/orders/{id}/return-ship', [OrderController::class, 'returnShip']
 $router->post('/orders/{id}/return-received', [OrderController::class, 'returnReceived']);
 $router->post('/orders/{id}/approve-return', [OrderController::class, 'approveReturn']);
 $router->post('/orders/{id}/reject-dispute', [OrderController::class, 'rejectDispute']);
+$router->post('/orders/{id}/review', [OrderController::class, 'review']);
 $router->get('/wallet', [WalletController::class, 'index']);
 $router->post('/wallet/deposit', [WalletController::class, 'deposit']);
 $router->post('/wallet/withdraw', [WalletController::class, 'withdraw']);

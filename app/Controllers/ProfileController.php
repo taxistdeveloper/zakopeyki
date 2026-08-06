@@ -10,6 +10,7 @@ use App\Helpers\Totp;
 use App\Models\Favorite;
 use App\Models\Notification;
 use App\Models\Product;
+use App\Models\Review;
 use App\Models\User;
 
 class ProfileController extends Controller
@@ -67,6 +68,10 @@ class ProfileController extends Controller
         $favorites = (new Favorite())->forUser(Auth::id());
         $favoriteIds = array_map(static fn ($p) => (int) $p['id'], $favorites);
 
+        $reviewsModel = new Review();
+        $reviews = $tab === 'reviews' ? $reviewsModel->forSubject(Auth::id()) : [];
+        $reviewStats = $reviewsModel->statsFor(Auth::id());
+
         $this->view('profile/index', [
             'title' => t('profile.title'),
             'currentNav' => 'profile',
@@ -83,6 +88,8 @@ class ProfileController extends Controller
             'productCategoryTree' => ProductHelper::PRODUCT_CATEGORY_TREE,
             'notifications' => $notifications,
             'unread' => $unread,
+            'reviews' => $reviews,
+            'reviewStats' => $reviewStats,
             'search' => '',
             'flash' => $_SESSION['flash'] ?? null,
             'error' => $_SESSION['error'] ?? null,

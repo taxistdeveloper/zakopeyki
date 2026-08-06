@@ -7,6 +7,7 @@ use App\Core\Controller;
 use App\Models\Favorite;
 use App\Models\Notification;
 use App\Models\Product;
+use App\Models\Review;
 
 class ProductController extends Controller
 {
@@ -34,6 +35,8 @@ class ProductController extends Controller
             $isFavorite = (new Favorite())->isFavorite(Auth::id(), (int) $id);
         }
 
+        $sellerRating = (new Review())->statsFor((int) $product['user_id']);
+
         $this->view('products/show', [
             'title' => $product['title'],
             'currentNav' => '',
@@ -42,6 +45,7 @@ class ProductController extends Controller
             'notifications' => $notifications,
             'unread' => $unread,
             'isFavorite' => $isFavorite,
+            'sellerRating' => $sellerRating,
             'search' => '',
         ]);
     }

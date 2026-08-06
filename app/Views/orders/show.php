@@ -1,4 +1,5 @@
 <?php
+use App\Helpers\IconHelper;
 use App\Helpers\ProductHelper;
 use App\Services\EscrowService;
 
@@ -18,6 +19,8 @@ if (!empty($order['dispute_evidence'])) {
         $evidence = $decoded;
     }
 }
+$myReview = $myReview ?? null;
+$counterpartReview = $counterpartReview ?? null;
 
 $steps = ['escrowed', 'shipped', 'delivered', 'completed'];
 $stepIndex = array_search($status, $steps, true);
@@ -202,6 +205,55 @@ $btn = 'inline-flex items-center justify-center w-full font-display font-bold py
             <div class="rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/40 px-4 py-3 text-sm font-semibold text-emerald-800 dark:text-emerald-300">
                 <?= htmlspecialchars(t('escrow.done_seller')) ?>
             </div>
+
+            <?php if (!empty($isBuyer) || !empty($isSeller)): ?>
+                <?php
+                $rateWhom = !empty($isBuyer) ? t('reviews.rate_seller') : t('reviews.rate_buyer');
+                ?>
+                <?php if ($myReview): ?>
+                    <div class="rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white/80 dark:bg-white/[0.03] px-4 py-4 space-y-2">
+                        <h3 class="font-display font-bold text-sm"><?= htmlspecialchars(t('reviews.your_review')) ?></h3>
+                        <div class="flex items-center gap-1 text-gold-500">
+                            <?php for ($i = 1; $i <= 5; $i++): ?>
+                                <span class="<?= $i <= (int) $myReview['rating'] ? 'text-amber-500' : 'text-gray-300 dark:text-gray-600' ?>">
+                                    <?= IconHelper::svg('star', 'w-4 h-4') ?>
+                                </span>
+                            <?php endfor; ?>
+                            <span class="ml-2 text-xs font-semibold text-ink-700 dark:text-gray-300"><?= (int) $myReview['rating'] ?>/5</span>
+                        </div>
+                        <?php if (!empty($myReview['body'])): ?>
+                            <p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed"><?= nl2br(htmlspecialchars($myReview['body'])) ?></p>
+                        <?php endif; ?>
+                    </div>
+                <?php else: ?>
+                    <form method="post" action="<?= ProductHelper::url('/orders/' . (int) $order['id'] . '/review') ?>" class="rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white/80 dark:bg-white/[0.03] px-4 py-4 space-y-3">
+                        <?= csrf_field() ?>
+                        <div>
+                            <h3 class="font-display font-bold"><?= htmlspecialchars($rateWhom) ?></h3>
+                            <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('reviews.form_hint')) ?></p>
+                        </div>
+                        <div class="flex flex-wrap gap-1.5" data-review-stars>
+                            <?php for ($i = 1; $i <= 5; $i++): ?>
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="rating" value="<?= $i ?>" class="sr-only peer" <?= $i === 1 ? 'required' : '' ?>>
+                                    <span class="inline-flex p-1.5 rounded-xl border border-black/10 dark:border-white/10 text-gray-300 peer-checked:text-amber-500 peer-checked:border-amber-300 peer-checked:bg-amber-50 dark:peer-checked:bg-amber-500/10 hover:text-amber-400 transition">
+                                        <?= IconHelper::svg('star', 'w-5 h-5') ?>
+                                    </span>
+                                </label>
+                            <?php endfor; ?>
+                        </div>
+                        <textarea name="body" rows="3" maxlength="2000" placeholder="<?= htmlspecialchars(t('reviews.body_placeholder')) ?>"
+                                  class="ui-input w-full p-3 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm"></textarea>
+                        <button type="submit" class="<?= $btn ?> bg-ink-900 hover:bg-ink-800 text-white"><?= htmlspecialchars(t('reviews.submit')) ?></button>
+                    </form>
+                <?php endif; ?>
+
+                <?php if ($counterpartReview): ?>
+                    <div class="rounded-2xl border border-dashed border-black/10 dark:border-white/10 px-4 py-3 text-sm text-gray-500">
+                        <?= htmlspecialchars(t('reviews.counterpart_left', ['rating' => (string) (int) $counterpartReview['rating']])) ?>
+                    </div>
+                <?php endif; ?>
+            <?php endif; ?>
         <?php endif; ?>
         <?php if ($status === 'refunded'): ?>
             <div class="rounded-2xl bg-sky-50 dark:bg-sky-900/20 border border-sky-100 dark:border-sky-800/40 px-4 py-3 text-sm font-semibold text-sky-800 dark:text-sky-300">

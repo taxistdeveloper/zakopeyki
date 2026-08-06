@@ -7,6 +7,7 @@ use App\Core\Controller;
 use App\Helpers\ActivityLogger;
 use App\Models\Notification;
 use App\Models\Order;
+use App\Models\Review;
 use App\Services\EscrowService;
 
 class OrderController extends Controller
@@ -57,6 +58,15 @@ class OrderController extends Controller
         // Перечитать после auto-release
         $order = (new Order())->findWithDetails($orderId) ?: $order;
 
+        $myReview = null;
+        $counterpartReview = null;
+        if ($isBuyer || $isSeller) {
+            $reviews = new Review();
+            $myReview = $reviews->findByOrderAndAuthor($orderId, $uid);
+            $counterpartId = $isBuyer ? (int) $order['seller_id'] : (int) $order['buyer_id'];
+            $counterpartReview = $reviews->findByOrderAndAuthor($orderId, $counterpartId);
+        }
+
         $n = new Notification();
         $this->view('orders/show', [
             'title' => t('escrow.deal_title', ['id' => $orderId]),
@@ -65,6 +75,8 @@ class OrderController extends Controller
             'isBuyer' => $isBuyer,
             'isSeller' => $isSeller,
             'isAdmin' => $canModerate,
+            'myReview' => $myReview,
+            'counterpartReview' => $counterpartReview,
             'notifications' => $n->forUser($uid),
             'unread' => $n->unreadCount($uid),
             'search' => '',
@@ -72,6 +84,24 @@ class OrderController extends Controller
             'error' => $_SESSION['error'] ?? null,
         ]);
         unset($_SESSION['flash'], $_SESSION['error']);
+    }
+
+    public function review(string $id): void
+    {
+        Auth::requireLogin();
+        $orderId = (int) $id;
+        $rating = (int) ($_POST['rating'] ?? 0);
+        $body = (string) ($_POST['body'] ?? '');
+
+        $result = (new Review())->createForOrder($orderId, Auth::id(), $rating, $body);
+        if ($result['ok']) {
+            ActivityLogger::info('order.review', 'Отзыв по сделке #' . $orderId, 'order', $orderId);
+            $_SESSION['flash'] = t('reviews.saved');
+        } else {
+            ActivityLogger::warning('order.review', $result['error'] ?? 'Ошибка отзыва', 'order', $orderId);
+            $_SESSION['error'] = $result['error'] ?? t('reviews.save_fail');
+        }
+        $this->redirect('/orders/' . $orderId);
     }
 
     public function ship(string $id): void

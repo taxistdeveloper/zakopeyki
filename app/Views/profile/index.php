@@ -157,11 +157,69 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                 </form>
 
             <?php elseif ($tab === 'reviews'): ?>
-                <div class="mb-4">
-                    <h2 class="font-display text-xl font-bold"><?= htmlspecialchars(t('profile.tab_reviews')) ?></h2>
-                    <p class="text-sm text-gray-400 mt-1"><?= htmlspecialchars(t('profile.reviews_hint')) ?></p>
+                <?php
+                $reviews = $reviews ?? [];
+                $reviewStats = $reviewStats ?? ['avg' => 0, 'count' => 0];
+                ?>
+                <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+                    <div>
+                        <h2 class="font-display text-xl font-bold"><?= htmlspecialchars(t('profile.tab_reviews')) ?></h2>
+                        <p class="text-sm text-gray-400 mt-1"><?= htmlspecialchars(t('profile.reviews_hint')) ?></p>
+                    </div>
+                    <?php if (($reviewStats['count'] ?? 0) > 0): ?>
+                        <div class="flex items-center gap-2 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 px-3.5 py-2">
+                            <span class="text-amber-500"><?= IconHelper::svg('star', 'w-4 h-4') ?></span>
+                            <span class="font-display font-bold text-sm"><?= htmlspecialchars(number_format((float) $reviewStats['avg'], 1)) ?></span>
+                            <span class="text-xs text-gray-400"><?= htmlspecialchars(t('reviews.count', ['n' => (string) (int) $reviewStats['count']])) ?></span>
+                        </div>
+                    <?php endif; ?>
                 </div>
-                <div class="text-center py-20 rounded-2xl border border-dashed border-black/10 dark:border-white/10 text-gray-400 text-sm"><?= htmlspecialchars(t('profile.no_reviews')) ?></div>
+                <?php if (empty($reviews)): ?>
+                    <div class="text-center py-20 rounded-2xl border border-dashed border-black/10 dark:border-white/10 text-gray-400 text-sm"><?= htmlspecialchars(t('profile.no_reviews')) ?></div>
+                <?php else: ?>
+                    <div class="space-y-3">
+                        <?php foreach ($reviews as $r): ?>
+                            <?php
+                            $authorUser = [
+                                'name' => $r['author_name'] ?? '',
+                                'avatar' => $r['author_avatar'] ?? null,
+                                'avatar_file' => $r['author_avatar_file'] ?? null,
+                            ];
+                            $roleLabel = ($r['role'] ?? '') === 'as_seller'
+                                ? t('reviews.as_seller')
+                                : t('reviews.as_buyer');
+                            ?>
+                            <article class="rounded-2xl border border-black/[0.06] dark:border-white/10 px-4 py-4 space-y-2">
+                                <div class="flex items-start gap-3">
+                                    <?= AvatarHelper::html($authorUser, 'w-10 h-10', 'text-sm') ?>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                                            <span class="font-semibold text-sm"><?= htmlspecialchars($r['author_name'] ?? '') ?></span>
+                                            <span class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars($roleLabel) ?></span>
+                                        </div>
+                                        <div class="flex items-center gap-1 mt-1">
+                                            <?php for ($i = 1; $i <= 5; $i++): ?>
+                                                <span class="<?= $i <= (int) $r['rating'] ? 'text-amber-500' : 'text-gray-300 dark:text-gray-600' ?>">
+                                                    <?= IconHelper::svg('star', 'w-3.5 h-3.5') ?>
+                                                </span>
+                                            <?php endfor; ?>
+                                            <span class="text-[11px] text-gray-400 ml-1"><?= htmlspecialchars(date('d.m.Y', strtotime((string) $r['created_at']))) ?></span>
+                                        </div>
+                                    </div>
+                                    <?php if (!empty($r['order_id'])): ?>
+                                        <a href="<?= ProductHelper::url('/orders/' . (int) $r['order_id']) ?>" class="text-[11px] font-semibold text-brand-600 hover:underline flex-shrink-0">#<?= (int) $r['order_id'] ?></a>
+                                    <?php endif; ?>
+                                </div>
+                                <?php if (!empty($r['product_title'])): ?>
+                                    <p class="text-xs text-gray-400 truncate"><?= htmlspecialchars($r['product_title']) ?></p>
+                                <?php endif; ?>
+                                <?php if (!empty($r['body'])): ?>
+                                    <p class="text-sm text-ink-700 dark:text-gray-300 leading-relaxed"><?= nl2br(htmlspecialchars($r['body'])) ?></p>
+                                <?php endif; ?>
+                            </article>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
 
             <?php elseif ($tab === 'notifications'): ?>
                 <div class="mb-6 flex items-center justify-between gap-3">
