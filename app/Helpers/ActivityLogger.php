@@ -147,7 +147,7 @@ class ActivityLogger
         return $action;
     }
 
-    private static function clientIp(): ?string
+    public static function clientIp(): ?string
     {
         $candidates = [
             $_SERVER['HTTP_CF_CONNECTING_IP'] ?? null,
@@ -166,7 +166,7 @@ class ActivityLogger
         return null;
     }
 
-    private static function userAgent(): ?string
+    public static function userAgent(): ?string
     {
         $ua = $_SERVER['HTTP_USER_AGENT'] ?? null;
         return is_string($ua) && $ua !== '' ? $ua : null;

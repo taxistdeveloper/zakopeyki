@@ -47,6 +47,13 @@ try {
     // при недоступной БД остаётся значение из config
 }
 
+// Учёт посещений (гости и авторизованные), в т.ч. на заглушке
+try {
+    \App\Models\SiteVisit::trackCurrentRequest();
+} catch (\Throwable) {
+    // ignore
+}
+
 // Режим заглушки: сайт открыт админу и пользователям с персональным доступом.
 if (!empty($appConfig['stub_mode']) && !\App\Core\Auth::hasSiteAccess(true)) {
     $stubPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';

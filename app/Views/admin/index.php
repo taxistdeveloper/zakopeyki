@@ -27,38 +27,83 @@ $stubMode = !empty($stubMode);
 
     <?php if ($isAdmin):
         $userStats = $userStats ?? [];
+        $visitStats = $visitStats ?? [];
+        $recentVisitors = $recentVisitors ?? [];
         $statTotal = (int) ($userStats['total'] ?? $userCount ?? 0);
         $statToday = (int) ($userStats['today'] ?? 0);
         $statWeek = (int) ($userStats['week'] ?? 0);
-        $statLoginsToday = (int) ($userStats['logins_today'] ?? 0);
-        $statLoginsWeek = (int) ($userStats['logins_week'] ?? 0);
-        $statAccess = (int) ($userStats['site_access'] ?? 0);
+        $visitorsToday = (int) ($visitStats['visitors_today'] ?? 0);
+        $visitorsWeek = (int) ($visitStats['visitors_week'] ?? 0);
+        $visitorsTotal = (int) ($visitStats['visitors_total'] ?? 0);
+        $hitsToday = (int) ($visitStats['hits_today'] ?? 0);
     ?>
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <a href="<?= ProductHelper::url('/admin/users') ?>" class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft hover:border-brand-400/50 transition block">
-            <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.stats_users_total')) ?></div>
-            <div class="font-display text-2xl font-bold mt-1 text-ink-900 dark:text-white"><?= $statTotal ?></div>
-        </a>
-        <div class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft">
-            <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.stats_users_today')) ?></div>
-            <div class="font-display text-2xl font-bold mt-1 text-ink-900 dark:text-white"><?= $statToday ?></div>
+    <div>
+        <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400 mb-2"><?= htmlspecialchars(t('admin.stats_visits_heading')) ?></p>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft">
+                <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.stats_visitors_today')) ?></div>
+                <div class="font-display text-2xl font-bold mt-1 text-ink-900 dark:text-white"><?= $visitorsToday ?></div>
+                <div class="text-[10px] text-gray-400 mt-1"><?= $hitsToday ?> <?= htmlspecialchars(t('admin.stats_hits_label')) ?></div>
+            </div>
+            <div class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft">
+                <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.stats_visitors_week')) ?></div>
+                <div class="font-display text-2xl font-bold mt-1 text-ink-900 dark:text-white"><?= $visitorsWeek ?></div>
+            </div>
+            <div class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft">
+                <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.stats_visitors_total')) ?></div>
+                <div class="font-display text-2xl font-bold mt-1 text-ink-900 dark:text-white"><?= $visitorsTotal ?></div>
+            </div>
+            <a href="<?= ProductHelper::url('/admin/users') ?>" class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft hover:border-brand-400/50 transition block">
+                <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.stats_users_total')) ?></div>
+                <div class="font-display text-2xl font-bold mt-1 text-ink-900 dark:text-white"><?= $statTotal ?></div>
+                <div class="text-[10px] text-gray-400 mt-1">+<?= $statToday ?> <?= htmlspecialchars(t('admin.stats_today_short')) ?> · +<?= $statWeek ?> <?= htmlspecialchars(t('admin.stats_week_short')) ?></div>
+            </a>
         </div>
-        <div class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft">
-            <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.stats_users_week')) ?></div>
-            <div class="font-display text-2xl font-bold mt-1 text-ink-900 dark:text-white"><?= $statWeek ?></div>
+    </div>
+
+    <div class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 shadow-soft overflow-hidden">
+        <div class="px-4 py-3.5 border-b border-black/[0.06] dark:border-white/10">
+            <h3 class="font-display font-bold text-ink-900 dark:text-white"><?= htmlspecialchars(t('admin.stats_recent_visitors')) ?></h3>
+            <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.stats_recent_visitors_hint')) ?></p>
         </div>
-        <div class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft">
-            <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.stats_logins_today')) ?></div>
-            <div class="font-display text-2xl font-bold mt-1 text-ink-900 dark:text-white"><?= $statLoginsToday ?></div>
-        </div>
-        <div class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft">
-            <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.stats_logins_week')) ?></div>
-            <div class="font-display text-2xl font-bold mt-1 text-ink-900 dark:text-white"><?= $statLoginsWeek ?></div>
-        </div>
-        <a href="<?= ProductHelper::url('/admin/users?access=open') ?>" class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft hover:border-emerald-400/50 transition block">
-            <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.stats_site_access')) ?></div>
-            <div class="font-display text-2xl font-bold mt-1 text-emerald-700 dark:text-emerald-300"><?= $statAccess ?></div>
-        </a>
+        <?php if (empty($recentVisitors)): ?>
+            <div class="px-4 py-10 text-center text-sm text-gray-400"><?= htmlspecialchars(t('admin.stats_visitors_empty')) ?></div>
+        <?php else: ?>
+            <div class="divide-y divide-black/[0.04] dark:divide-white/5">
+                <?php foreach ($recentVisitors as $v):
+                    $uid = (int) ($v['user_id'] ?? 0);
+                    $name = trim((string) ($v['user_name'] ?? ''));
+                    $label = $name !== '' ? $name : t('admin.stats_guest');
+                    $path = (string) ($v['path'] ?? '/');
+                    $ip = (string) ($v['ip'] ?? '');
+                    $when = (string) ($v['last_seen_at'] ?? '');
+                    $hits = (int) ($v['hits'] ?? 1);
+                ?>
+                    <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+                        <div class="min-w-0 flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-xl <?= $uid > 0 ? 'bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300' : 'bg-gray-100 text-gray-500 dark:bg-white/10' ?> flex items-center justify-center text-[11px] font-bold flex-shrink-0">
+                                <?= htmlspecialchars(mb_strtoupper(mb_substr($label, 0, 1))) ?>
+                            </div>
+                            <div class="min-w-0">
+                                <?php if ($uid > 0): ?>
+                                    <a href="<?= ProductHelper::url('/admin/users/' . $uid) ?>" class="text-xs font-semibold text-ink-900 dark:text-white hover:text-brand-600 truncate block">
+                                        <?= htmlspecialchars($label) ?>
+                                    </a>
+                                <?php else: ?>
+                                    <p class="text-xs font-semibold text-ink-900 dark:text-white truncate"><?= htmlspecialchars($label) ?></p>
+                                <?php endif; ?>
+                                <p class="text-[11px] text-gray-400 mt-0.5 truncate">
+                                    <?= htmlspecialchars($path) ?>
+                                    <?php if ($ip !== ''): ?> · <?= htmlspecialchars($ip) ?><?php endif; ?>
+                                    · <?= $hits ?> <?= htmlspecialchars(t('admin.stats_hits_label')) ?>
+                                </p>
+                            </div>
+                        </div>
+                        <span class="text-[10px] text-gray-400 flex-shrink-0"><?= htmlspecialchars(substr($when, 0, 16)) ?></span>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
     </div>
 
     <div class="rounded-[22px] border shadow-soft overflow-hidden <?= $stubMode

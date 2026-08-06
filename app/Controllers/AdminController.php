@@ -13,6 +13,7 @@ use App\Models\Notification;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\Setting;
+use App\Models\SiteVisit;
 use App\Models\SupportTicket;
 use App\Models\User;
 use App\Services\AI\SelfLearningService;
@@ -50,6 +51,14 @@ class AdminController extends Controller
             'logins_week' => 0,
         ];
         $userCount = 0;
+        $visitStats = [
+            'visitors_today' => 0,
+            'visitors_week' => 0,
+            'visitors_total' => 0,
+            'hits_today' => 0,
+            'hits_week' => 0,
+        ];
+        $recentVisitors = [];
         $disputes = $canDisputes ? $orderModel->findByStatus('dispute') : [];
 
         $n = new Notification();
@@ -70,6 +79,13 @@ class AdminController extends Controller
                 $userCount = $userModel->countAll();
                 $userStats['total'] = $userCount;
             }
+            try {
+                $visits = new SiteVisit();
+                $visitStats = $visits->stats();
+                $recentVisitors = $visits->recent(25);
+            } catch (\Throwable) {
+                // ignore
+            }
         }
 
         $this->view('admin/index', [
@@ -79,6 +95,8 @@ class AdminController extends Controller
             'counts' => $counts,
             'userCount' => $userCount,
             'userStats' => $userStats,
+            'visitStats' => $visitStats,
+            'recentVisitors' => $recentVisitors,
             'disputes' => $disputes,
             'openTickets' => $canTickets ? $support->openCount() : 0,
             'ticketUnread' => $canTickets ? $support->unreadCountForAdmin() : 0,
