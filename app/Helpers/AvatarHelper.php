@@ -37,6 +37,6 @@ class AvatarHelper
             return "<div class=\"{$base} bg-gray-200\"><img src=\"{$src}\" alt=\"\" class=\"w-full h-full object-cover\"></div>";
         }
 
-        return "<div class=\"{$base} bg-brand-400 dark:bg-brand-600 font-black text-gray-900 dark:text-white {$textClass}\">{$initial}</div>";
+        return "<div class=\"{$base} bg-brand-400 dark:bg-brand-600 font-black text-white {$textClass}\">{$initial}</div>";
     }
 }
