@@ -13,8 +13,6 @@ $offerSections = [
     ['title' => t('offer.s8_title'), 'body' => t('offer.s8_body')],
     ['title' => t('offer.s9_title'), 'body' => t('offer.s9_body')],
     ['title' => t('offer.s10_title'), 'body' => t('offer.s10_body')],
-    ['title' => t('offer.s11_title'), 'body' => t('offer.s11_body')],
-    ['title' => t('offer.s12_title'), 'body' => t('offer.s12_body')],
 ];
 ?>
 <div class="w-full max-w-md">
@@ -117,8 +115,8 @@ $offerSections = [
             </div>
 
             <div id="offer-scroll" class="flex-1 overflow-y-auto px-5 py-4 space-y-4 overscroll-contain">
-                <p class="text-sm text-gray-500 leading-relaxed"><?= htmlspecialchars(t('offer.lead')) ?></p>
-                <p class="text-xs text-gray-400"><?= htmlspecialchars(t('offer.effective')) ?></p>
+                <p class="text-sm text-gray-500 leading-relaxed whitespace-pre-line"><?= htmlspecialchars(t('offer.lead')) ?></p>
+                <p class="text-xs text-gray-400 whitespace-pre-line"><?= htmlspecialchars(t('offer.effective')) ?></p>
                 <?php foreach ($offerSections as $section): ?>
                 <div class="rounded-2xl border border-black/[0.06] bg-gray-50/70 p-4 space-y-2">
                     <h3 class="font-display text-sm font-bold text-ink-900"><?= htmlspecialchars($section['title']) ?></h3>
@@ -127,7 +125,7 @@ $offerSections = [
                 <?php endforeach; ?>
                 <div class="rounded-2xl border border-black/[0.06] bg-gray-50/70 p-4 space-y-1.5">
                     <h3 class="font-display text-sm font-bold text-ink-900"><?= htmlspecialchars(t('offer.contacts_title')) ?></h3>
-                    <p class="text-[13px] text-ink-700/80 leading-relaxed"><?= htmlspecialchars(t('offer.contacts_body')) ?></p>
+                    <p class="text-[13px] text-ink-700/80 leading-relaxed whitespace-pre-line"><?= htmlspecialchars(t('offer.contacts_body')) ?></p>
                     <p class="text-[13px]"><a href="mailto:support@zakopeyki.kz" class="text-brand-600 font-semibold">support@zakopeyki.kz</a></p>
                 </div>
                 <div id="offer-scroll-end" class="h-1" aria-hidden="true"></div>

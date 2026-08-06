@@ -9,6 +9,13 @@ $searchQuery = $searchQuery ?? '';
 $permissionKeys = $permissionKeys ?? Auth::PERMISSIONS;
 $stubMode = !empty($stubMode);
 $siteAccessCount = (int) ($siteAccessCount ?? 0);
+$userStats = $userStats ?? [];
+$statTotal = (int) ($userStats['total'] ?? $userCount ?? count($users));
+$statToday = (int) ($userStats['today'] ?? 0);
+$statWeek = (int) ($userStats['week'] ?? 0);
+$statLoginsToday = (int) ($userStats['logins_today'] ?? 0);
+$statLoginsWeek = (int) ($userStats['logins_week'] ?? 0);
+$statAccess = (int) ($userStats['site_access'] ?? $siteAccessCount);
 
 $roleLabel = static function (string $role): string {
     return match ($role) {
@@ -41,12 +48,33 @@ $filters = [
             <h1 class="font-display text-xl sm:text-2xl font-bold text-ink-900 dark:text-white mt-1"><?= htmlspecialchars(t('admin.users')) ?></h1>
             <p class="text-sm text-gray-500 mt-1"><?= htmlspecialchars(t('admin.users_hint')) ?></p>
         </div>
-        <div class="text-xs font-semibold text-gray-400 text-right">
-            <div><?= (int) ($userCount ?? count($users)) ?> <?= htmlspecialchars(t('admin.users')) ?></div>
-            <?php if ($stubMode): ?>
-                <div class="text-emerald-600 mt-0.5"><?= $siteAccessCount ?> <?= htmlspecialchars(t('admin.users_filter_access')) ?></div>
-            <?php endif; ?>
+    </div>
+
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.stats_users_total')) ?></div>
+            <div class="font-display text-2xl font-bold mt-1 text-ink-900 dark:text-white"><?= $statTotal ?></div>
         </div>
+        <div class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.stats_users_today')) ?></div>
+            <div class="font-display text-2xl font-bold mt-1 text-ink-900 dark:text-white"><?= $statToday ?></div>
+        </div>
+        <div class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.stats_users_week')) ?></div>
+            <div class="font-display text-2xl font-bold mt-1 text-ink-900 dark:text-white"><?= $statWeek ?></div>
+        </div>
+        <div class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.stats_logins_today')) ?></div>
+            <div class="font-display text-2xl font-bold mt-1 text-ink-900 dark:text-white"><?= $statLoginsToday ?></div>
+        </div>
+        <div class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.stats_logins_week')) ?></div>
+            <div class="font-display text-2xl font-bold mt-1 text-ink-900 dark:text-white"><?= $statLoginsWeek ?></div>
+        </div>
+        <a href="<?= ProductHelper::url('/admin/users?access=open') ?>" class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft hover:border-emerald-400/50 transition block">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.stats_site_access')) ?></div>
+            <div class="font-display text-2xl font-bold mt-1 text-emerald-700 dark:text-emerald-300"><?= $statAccess ?></div>
+        </a>
     </div>
 
     <?php if (!empty($flash)): ?>

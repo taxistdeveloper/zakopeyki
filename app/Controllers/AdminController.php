@@ -41,7 +41,15 @@ class AdminController extends Controller
 
         $items = $canProducts ? $productModel->all('created_at DESC') : [];
         $counts = $canProducts ? $productModel->countByType() : [];
-        $userCount = $isAdmin ? $userModel->countAll() : 0;
+        $userStats = [
+            'total' => 0,
+            'today' => 0,
+            'week' => 0,
+            'site_access' => 0,
+            'logins_today' => 0,
+            'logins_week' => 0,
+        ];
+        $userCount = 0;
         $disputes = $canDisputes ? $orderModel->findByStatus('dispute') : [];
 
         $n = new Notification();
@@ -52,9 +60,15 @@ class AdminController extends Controller
         $stubMode = !empty($GLOBALS['appConfig']['stub_mode']);
         if ($isAdmin) {
             try {
-                $recentErrors = (new ActivityLog())->recentErrorCount(24);
+                $userStats = $userModel->registrationStats();
+                $userCount = $userStats['total'];
+                $log = new ActivityLog();
+                $recentErrors = $log->recentErrorCount(24);
+                $userStats['logins_today'] = $log->countUniqueLoginsSince('CURDATE()');
+                $userStats['logins_week'] = $log->countUniqueLoginsSince('(CURDATE() - INTERVAL 7 DAY)');
             } catch (\Throwable) {
-                $recentErrors = 0;
+                $userCount = $userModel->countAll();
+                $userStats['total'] = $userCount;
             }
         }
 
@@ -64,6 +78,7 @@ class AdminController extends Controller
             'items' => $items,
             'counts' => $counts,
             'userCount' => $userCount,
+            'userStats' => $userStats,
             'disputes' => $disputes,
             'openTickets' => $canTickets ? $support->openCount() : 0,
             'ticketUnread' => $canTickets ? $support->unreadCountForAdmin() : 0,
@@ -435,6 +450,17 @@ class AdminController extends Controller
         $n = new Notification();
         $uid = Auth::id();
 
+        $userStats = $userModel->registrationStats();
+        $userStats['logins_today'] = 0;
+        $userStats['logins_week'] = 0;
+        try {
+            $log = new ActivityLog();
+            $userStats['logins_today'] = $log->countUniqueLoginsSince('CURDATE()');
+            $userStats['logins_week'] = $log->countUniqueLoginsSince('(CURDATE() - INTERVAL 7 DAY)');
+        } catch (\Throwable) {
+            // ignore
+        }
+
         $this->view('admin/users', [
             'title' => t('admin.users'),
             'currentNav' => 'admin',
@@ -442,8 +468,9 @@ class AdminController extends Controller
             'filterRole' => $role,
             'filterAccess' => $access === 'open' || $access === 'closed' ? $access : null,
             'searchQuery' => $q,
-            'userCount' => $userModel->countAll(),
-            'siteAccessCount' => $userModel->countWithSiteAccess(),
+            'userCount' => $userStats['total'],
+            'siteAccessCount' => $userStats['site_access'],
+            'userStats' => $userStats,
             'stubMode' => !empty($GLOBALS['appConfig']['stub_mode']),
             'permissionKeys' => Auth::PERMISSIONS,
             'notifications' => $n->forUser($uid),

@@ -201,6 +201,30 @@ class ActivityLog extends Model
         return (int) $stmt->fetchColumn();
     }
 
+    /** Unique users who logged in since a safe SQL boundary (default: today). */
+    public function countUniqueLoginsSince(string $sinceSql = 'CURDATE()'): int
+    {
+        $allowed = [
+            'CURDATE()' => true,
+            '(CURDATE() - INTERVAL 7 DAY)' => true,
+            '(NOW() - INTERVAL 24 HOUR)' => true,
+            '(NOW() - INTERVAL 7 DAY)' => true,
+        ];
+        if (!isset($allowed[$sinceSql])) {
+            $sinceSql = 'CURDATE()';
+        }
+        try {
+            return (int) $this->db->query(
+                "SELECT COUNT(DISTINCT user_id) FROM activity_logs
+                 WHERE action = 'auth.login'
+                   AND user_id IS NOT NULL
+                   AND created_at >= {$sinceSql}"
+            )->fetchColumn();
+        } catch (\Throwable) {
+            return 0;
+        }
+    }
+
     /** @return list<string> */
     public function distinctActionPrefixes(): array
     {

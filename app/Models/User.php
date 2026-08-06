@@ -242,6 +242,35 @@ class User extends Model
         return (int) $this->db->query("SELECT COUNT(*) FROM users WHERE role = 'admin'")->fetchColumn();
     }
 
+    /** Users registered on or after the given datetime (Y-m-d H:i:s or relative via SQL). */
+    public function countRegisteredSince(string $sinceSql = 'CURDATE()'): int
+    {
+        // Allow only safe built-in SQL expressions for the boundary
+        $allowed = [
+            'CURDATE()' => true,
+            '(CURDATE() - INTERVAL 7 DAY)' => true,
+            '(NOW() - INTERVAL 24 HOUR)' => true,
+            '(NOW() - INTERVAL 7 DAY)' => true,
+        ];
+        if (!isset($allowed[$sinceSql])) {
+            $sinceSql = 'CURDATE()';
+        }
+        return (int) $this->db->query(
+            "SELECT COUNT(*) FROM users WHERE created_at >= {$sinceSql}"
+        )->fetchColumn();
+    }
+
+    /** @return array{total:int, today:int, week:int, site_access:int} */
+    public function registrationStats(): array
+    {
+        return [
+            'total' => $this->countAll(),
+            'today' => $this->countRegisteredSince('CURDATE()'),
+            'week' => $this->countRegisteredSince('(CURDATE() - INTERVAL 7 DAY)'),
+            'site_access' => $this->countWithSiteAccess(),
+        ];
+    }
+
     public static function normalizeRole(string $role): string
     {
         return in_array($role, ['user', 'manager', 'admin'], true) ? $role : 'user';

@@ -75,7 +75,7 @@ class HomeController extends Controller
             'title' => t('privacy.title'),
             'currentNav' => 'privacy',
             'docKey' => 'privacy',
-            'sectionIds' => ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8'],
+            'sectionIds' => ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9'],
         ]);
     }
 

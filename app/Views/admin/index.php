@@ -25,7 +25,42 @@ $stubMode = !empty($stubMode);
         <div class="bg-red-50 dark:bg-red-900/25 text-red-800 dark:text-red-300 border border-red-100 dark:border-red-800/40 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
 
-    <?php if ($isAdmin): ?>
+    <?php if ($isAdmin):
+        $userStats = $userStats ?? [];
+        $statTotal = (int) ($userStats['total'] ?? $userCount ?? 0);
+        $statToday = (int) ($userStats['today'] ?? 0);
+        $statWeek = (int) ($userStats['week'] ?? 0);
+        $statLoginsToday = (int) ($userStats['logins_today'] ?? 0);
+        $statLoginsWeek = (int) ($userStats['logins_week'] ?? 0);
+        $statAccess = (int) ($userStats['site_access'] ?? 0);
+    ?>
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <a href="<?= ProductHelper::url('/admin/users') ?>" class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft hover:border-brand-400/50 transition block">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.stats_users_total')) ?></div>
+            <div class="font-display text-2xl font-bold mt-1 text-ink-900 dark:text-white"><?= $statTotal ?></div>
+        </a>
+        <div class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.stats_users_today')) ?></div>
+            <div class="font-display text-2xl font-bold mt-1 text-ink-900 dark:text-white"><?= $statToday ?></div>
+        </div>
+        <div class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.stats_users_week')) ?></div>
+            <div class="font-display text-2xl font-bold mt-1 text-ink-900 dark:text-white"><?= $statWeek ?></div>
+        </div>
+        <div class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.stats_logins_today')) ?></div>
+            <div class="font-display text-2xl font-bold mt-1 text-ink-900 dark:text-white"><?= $statLoginsToday ?></div>
+        </div>
+        <div class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.stats_logins_week')) ?></div>
+            <div class="font-display text-2xl font-bold mt-1 text-ink-900 dark:text-white"><?= $statLoginsWeek ?></div>
+        </div>
+        <a href="<?= ProductHelper::url('/admin/users?access=open') ?>" class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft hover:border-emerald-400/50 transition block">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.stats_site_access')) ?></div>
+            <div class="font-display text-2xl font-bold mt-1 text-emerald-700 dark:text-emerald-300"><?= $statAccess ?></div>
+        </a>
+    </div>
+
     <div class="rounded-[22px] border shadow-soft overflow-hidden <?= $stubMode
         ? 'bg-amber-50/90 dark:bg-amber-950/30 border-amber-200/80 dark:border-amber-800/40'
         : 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/40' ?>">
@@ -128,26 +163,18 @@ $stubMode = !empty($stubMode);
         </div>
     <?php endif; ?>
 
-    <?php if ($canProducts || $isAdmin): ?>
+    <?php if ($canProducts): ?>
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <?php if ($isAdmin): ?>
-        <a href="<?= ProductHelper::url('/admin/users') ?>" class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft hover:border-brand-400/50 transition block">
-            <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.users')) ?></div>
-            <div class="font-display text-2xl font-bold mt-1"><?= (int) $userCount ?></div>
-        </a>
-        <?php endif; ?>
-        <?php if ($canProducts): ?>
         <div class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft">
             <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.active_lots')) ?></div>
             <div class="font-display text-2xl font-bold mt-1"><?= array_sum($counts) ?></div>
         </div>
-        <?php $i = 0; foreach ($counts as $type => $cnt): if ($i++ >= 2) break; ?>
+        <?php $i = 0; foreach ($counts as $type => $cnt): if ($i++ >= 3) break; ?>
             <div class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft">
                 <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 truncate"><?= ProductHelper::label($type) ?></div>
                 <div class="font-display text-2xl font-bold mt-1"><?= (int) $cnt ?></div>
             </div>
         <?php endforeach; ?>
-        <?php endif; ?>
     </div>
     <?php endif; ?>
 
