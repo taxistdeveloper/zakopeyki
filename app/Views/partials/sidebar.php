@@ -72,20 +72,6 @@ $navIcon = static fn (string $name): string => IconHelper::svg($name, 'w-[18px] 
                 <span class="min-w-[1.25rem] h-5 px-1.5 rounded-full bg-accent-500 text-white text-[10px] font-bold flex items-center justify-center"><?= $chatUnreadBadge > 99 ? '99+' : $chatUnreadBadge ?></span>
             <?php endif; ?>
         </a>
-        <?php
-            $supportUnreadBadge = 0;
-            try {
-                $supportUnreadBadge = (new \App\Models\SupportTicket())->unreadCountForUser((int) $user['id']);
-            } catch (\Throwable $e) {
-                $supportUnreadBadge = 0;
-            }
-        ?>
-        <a href="<?= ProductHelper::url('/support') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('help', $nav) ?>">
-            <span class="flex items-center gap-3 flex-1 min-w-0"><?= $navIcon('shield') ?> <span><?= htmlspecialchars(t('nav.help')) ?></span></span>
-            <?php if ($supportUnreadBadge > 0): ?>
-                <span class="min-w-[1.25rem] h-5 px-1.5 rounded-full bg-accent-500 text-white text-[10px] font-bold flex items-center justify-center"><?= $supportUnreadBadge > 99 ? '99+' : $supportUnreadBadge ?></span>
-            <?php endif; ?>
-        </a>
         <a href="<?= ProductHelper::url('/wallet') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('wallet', $nav) ?>">
             <?= $navIcon('wallet') ?> <span><?= htmlspecialchars(t('nav.wallet')) ?></span>
         </a>
