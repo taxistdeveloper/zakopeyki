@@ -7,6 +7,10 @@ $flash = $_SESSION['flash'] ?? null;
 unset($_SESSION['flash']);
 $items = $items ?? [];
 $total = (int) ($total ?? 0);
+$firstItem = $items[0] ?? null;
+$buyUrl = $firstItem
+    ? (Auth::check() ? ProductHelper::checkoutUrl($firstItem['id']) : ProductHelper::url('/login'))
+    : null;
 ?>
 <section class="max-w-3xl mx-auto space-y-5 fade-up pb-8">
     <div class="flex flex-wrap items-end justify-between gap-3">
@@ -43,8 +47,6 @@ $total = (int) ($total ?? 0);
                 $imageUrl = ProductHelper::imageUrl($item);
                 $price = ProductHelper::formatPrice($item);
                 $showUrl = ProductHelper::url('/product/' . (int) $item['id']);
-                $checkoutUrl = ProductHelper::checkoutUrl($item['id']);
-                $buyUrl = Auth::check() ? $checkoutUrl : ProductHelper::url('/login');
             ?>
                 <article class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 shadow-soft overflow-hidden flex flex-col sm:flex-row gap-0" data-cart-item="<?= (int) $item['id'] ?>">
                     <a href="<?= $showUrl ?>" class="sm:w-32 h-36 sm:h-auto bg-gradient-to-br from-ink-100 via-brand-50 to-accent-50 dark:from-white/10 dark:via-brand-900/20 dark:to-transparent flex-shrink-0 flex items-center justify-center overflow-hidden">
@@ -70,10 +72,7 @@ $total = (int) ($total ?? 0);
                                 </button>
                             </form>
                         </div>
-                        <div class="mt-auto flex flex-wrap gap-2">
-                            <a href="<?= $buyUrl ?>" class="inline-flex flex-1 min-w-[8rem] items-center justify-center bg-accent-500 hover:bg-accent-400 text-white font-display font-bold py-2.5 px-4 rounded-xl text-[10px] uppercase tracking-wider transition">
-                                <?= htmlspecialchars(t('card.buy')) ?>
-                            </a>
+                        <div class="mt-auto">
                             <a href="<?= $showUrl ?>" class="inline-flex items-center justify-center border border-black/[0.08] dark:border-white/10 hover:bg-black/[0.03] dark:hover:bg-white/5 font-semibold py-2.5 px-4 rounded-xl text-[10px] uppercase tracking-wider transition text-ink-700 dark:text-gray-300">
                                 <?= htmlspecialchars(t('card.more')) ?>
                             </a>
@@ -89,6 +88,11 @@ $total = (int) ($total ?? 0);
                 <p class="font-display text-2xl font-extrabold text-ink-900 dark:text-white mt-0.5"><?= number_format($total, 0, '', ' ') ?> ₸</p>
                 <p class="text-xs text-gray-400 mt-1"><?= htmlspecialchars(t('cart.checkout_hint')) ?></p>
             </div>
+            <?php if ($buyUrl): ?>
+                <a href="<?= $buyUrl ?>" class="inline-flex items-center justify-center bg-accent-500 hover:bg-accent-400 text-white font-display font-bold py-3 px-6 rounded-2xl text-xs uppercase tracking-wider transition shadow-soft">
+                    <?= htmlspecialchars(t('card.buy')) ?>
+                </a>
+            <?php endif; ?>
         </div>
     <?php endif; ?>
 </section>
