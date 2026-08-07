@@ -389,6 +389,34 @@ function url(string $path = ''): string
         body.live-stream-open .story-close-outer { display: none !important; }
         body.live-stream-open #stream-nav-prev,
         body.live-stream-open #stream-nav-next { opacity: 0.35; }
+        body.live-stream-open #live-return-fab { display: none !important; }
+        #live-return-fab {
+            position: fixed;
+            left: 50%;
+            bottom: 88px;
+            transform: translateX(-50%);
+            z-index: 85;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: 999px;
+            border: none;
+            background: #ef4444;
+            color: #fff;
+            font-weight: 800;
+            font-size: 13px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+            cursor: pointer;
+        }
+        #live-return-fab.is-on { display: inline-flex; }
+        .live-product-sheet-panel {
+            animation: liveSheetUp .22s ease;
+        }
+        @keyframes liveSheetUp {
+            from { transform: translateY(24px); opacity: 0.6; }
+            to { transform: translateY(0); opacity: 1; }
+        }
         .story-text-bg {
             background:
                 radial-gradient(ellipse 100% 70% at 50% 30%, rgba(255,255,255,0.2), transparent 55%),
@@ -685,6 +713,11 @@ function url(string $path = ''): string
 
     </div>
 
+    <button type="button" id="live-return-fab" onclick="returnToLiveStream()" aria-label="<?= htmlspecialchars(t('live.back_to_stream')) ?>">
+        <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+        <?= htmlspecialchars(t('live.back_to_stream')) ?>
+    </button>
+
     <!-- ИИ-помощник: отдельный fixed-слой, не внутри overflow-hidden -->
     <div id="ai-assistant" class="fixed bottom-5 right-5 z-[90] flex flex-col items-end gap-3 pointer-events-none">
         <div id="ai-assistant-panel" class="hidden pointer-events-auto w-[min(calc(100vw-1.5rem),380px)] h-[min(68vh,520px)] glass rounded-2xl shadow-lift border border-ink-900/10 dark:border-white/10 flex flex-col overflow-hidden" role="dialog" aria-label="<?= htmlspecialchars(t('ai.aria')) ?>" aria-hidden="true">
@@ -737,6 +770,7 @@ function url(string $path = ''): string
         window.__isLoggedIn = <?= \App\Core\Auth::check() ? 'true' : 'false' ?>;
         window.__csrfToken = <?= js_encode(\App\Core\Csrf::token()) ?>;
         window.__loginUrl = <?= js_encode(url('/login')) ?>;
+        window.__homeUrl = <?= js_encode(url('/')) ?>;
         window.__favoritesToggleBase = <?= js_encode(rtrim(url('/favorites'), '/') . '/') ?>;
         window.__cartToggleBase = <?= js_encode(rtrim(url('/cart'), '/') . '/') ?>;
         window.__cartCount = <?= (int) (\App\Services\Cart::count()) ?>;
@@ -761,6 +795,8 @@ function url(string $path = ''): string
             'live.subscribe', 'live.top_support', 'live.top_empty', 'live.left',
             'live.giveaway', 'live.participate', 'live.see_all', 'live.question',
             'live.share', 'live.share_copied', 'live.giveaway_joined', 'live.followers',
+            'live.add_cart', 'live.back_to_stream', 'live.stay_in_stream_hint',
+            'live.added_cart', 'live.buy_new_tab',
             'card.favorite', 'card.unfavorite',
             'card.add_cart', 'card.in_cart',
             'home.story_link_copied',

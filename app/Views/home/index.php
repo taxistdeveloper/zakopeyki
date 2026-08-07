@@ -374,7 +374,7 @@ $changelog = $changelog ?? null;
                         </div>
                     </div>
                     <div class="w-[44%] max-w-[170px] flex flex-col justify-end gap-2 pb-1 relative">
-                        <div id="live-shop-featured" class="hidden live-shop-card rounded-2xl overflow-hidden pointer-events-auto">
+                        <div id="live-shop-featured" class="hidden live-shop-card rounded-2xl overflow-hidden pointer-events-auto" onclick="openLiveProductFromFeatured()">
                             <div class="px-2.5 pt-2 pb-1.5">
                                 <p class="text-[9px] font-black uppercase tracking-wider text-amber-200"><?= htmlspecialchars(t('live.product_of_day')) ?></p>
                                 <div class="flex gap-2 mt-1.5">
@@ -392,7 +392,7 @@ $changelog = $changelog ?? null;
                                     </div>
                                 </div>
                             </div>
-                            <a id="live-shop-feat-buy" href="#" class="block text-center text-[12px] font-black bg-amber-400 hover:bg-amber-300 text-ink-900 py-2.5"><?= htmlspecialchars(t('live.buy_now')) ?></a>
+                            <button type="button" id="live-shop-feat-buy" onclick="openLiveProductFromFeatured()" class="block w-full text-center text-[12px] font-black bg-amber-400 hover:bg-amber-300 text-ink-900 py-2.5 border-0 cursor-pointer"><?= htmlspecialchars(t('live.buy_now')) ?></button>
                         </div>
                         <div id="live-shop-giveaway" class="live-shop-giveaway rounded-2xl overflow-hidden pointer-events-auto">
                             <div class="px-2.5 pt-2 pb-2">
@@ -449,6 +449,28 @@ $changelog = $changelog ?? null;
             <button type="button" id="stream-live-unmute" onclick="event.stopPropagation(); unmuteLiveStream()" class="hidden absolute bottom-36 left-1/2 -translate-x-1/2 z-[45] bg-white text-gray-900 text-sm font-bold px-5 py-3 rounded-full shadow-lg pointer-events-auto">
                 <?= htmlspecialchars(t('home.unmute_live')) ?>
             </button>
+
+            <!-- Товар без ухода из эфира -->
+            <div id="live-product-sheet" class="hidden absolute inset-0 z-[50] flex flex-col justify-end pointer-events-auto">
+                <button type="button" class="absolute inset-0 bg-black/50 border-0 cursor-pointer" onclick="closeLiveProductSheet()" aria-label="Close"></button>
+                <div class="relative live-product-sheet-panel bg-[#1a1a1a] text-white rounded-t-3xl px-4 pt-3 pb-5 shadow-2xl border-t border-white/10 max-h-[72%] overflow-y-auto">
+                    <div class="w-10 h-1 rounded-full bg-white/25 mx-auto mb-3"></div>
+                    <div class="flex gap-3">
+                        <div id="live-sheet-img" class="w-24 h-24 rounded-2xl bg-white/10 bg-cover bg-center flex-shrink-0"></div>
+                        <div class="min-w-0 flex-1">
+                            <p id="live-sheet-title" class="text-[15px] font-bold leading-snug line-clamp-3"></p>
+                            <p id="live-sheet-price" class="text-[18px] font-black text-amber-300 mt-2"></p>
+                        </div>
+                    </div>
+                    <p class="text-[11px] text-white/55 mt-3"><?= htmlspecialchars(t('live.stay_in_stream_hint')) ?></p>
+                    <div class="mt-4 grid grid-cols-2 gap-2">
+                        <button type="button" id="live-sheet-cart" onclick="liveSheetAddToCart()" class="h-11 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/15 text-[13px] font-bold"><?= htmlspecialchars(t('live.add_cart')) ?></button>
+                        <button type="button" id="live-sheet-buy" onclick="liveSheetBuyNow()" class="h-11 rounded-2xl bg-amber-400 hover:bg-amber-300 text-ink-900 text-[13px] font-black"><?= htmlspecialchars(t('live.buy_now')) ?></button>
+                    </div>
+                    <button type="button" onclick="closeLiveProductSheet()" class="mt-2 w-full h-10 rounded-2xl text-[12px] font-semibold text-white/80 hover:text-white border border-white/10"><?= htmlspecialchars(t('live.back_to_stream')) ?></button>
+                    <p id="live-sheet-status" class="hidden mt-2 text-center text-[12px] font-semibold text-emerald-300"></p>
+                </div>
+            </div>
             <p id="stream-viewer-desc" class="absolute bottom-16 left-3 right-3 z-20 text-white text-sm font-semibold drop-shadow-md line-clamp-3"></p>
             <div class="absolute inset-y-0 left-0 w-[18%] z-20" id="stream-tap-prev"></div>
             <div class="absolute inset-y-0 right-0 w-[18%] z-20" id="stream-tap-next"></div>
@@ -523,4 +545,23 @@ window.__streamLiveFeature = <?= js_encode(ProductHelper::url('/streams/live/fea
 window.__currentUserId = <?= (int) (Auth::id() ?? 0) ?>;
 window.__isAdmin = <?= Auth::isAdmin() ? 'true' : 'false' ?>;
 window.__whatsNew = <?= js_encode($changelog) ?>;
+
+(function resumeLiveFromHash() {
+    function tryOpen() {
+        const m = (location.hash || '').match(/resume-live=(\d+)/);
+        if (!m) return;
+        const id = Number(m[1]);
+        const streams = window.__streams || [];
+        const idx = streams.findIndex(function (s) { return Number(s.id) === id; });
+        if (idx >= 0 && typeof openStreamViewer === 'function') {
+            history.replaceState(null, '', location.pathname + location.search);
+            openStreamViewer(idx);
+        }
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', tryOpen);
+    } else {
+        setTimeout(tryOpen, 50);
+    }
+})();
 </script>
