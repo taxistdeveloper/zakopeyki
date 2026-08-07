@@ -1643,6 +1643,7 @@ function renderLiveShopShelf(products, featuredId) {
             });
         });
     }
+}
 
 function pinLiveProduct(productId) {
     if (!liveShopIsHost || !liveShopStreamId || !window.__streamLiveFeature) return;
