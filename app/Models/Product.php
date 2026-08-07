@@ -33,6 +33,34 @@ class Product extends Model
             if (!$colsExchange) {
                 $this->db->exec('ALTER TABLE products ADD COLUMN exchange_for VARCHAR(255) DEFAULT NULL AFTER price');
             }
+
+            $statusCol = $this->db->query("SHOW COLUMNS FROM products LIKE 'status'")->fetch();
+            $type = strtolower((string) ($statusCol['Type'] ?? ''));
+            if ($type !== '' && !str_contains($type, "'reserved'")) {
+                $this->db->exec(
+                    "ALTER TABLE products
+                     MODIFY status ENUM('active','sold','reserved','archived')
+                     NOT NULL DEFAULT 'active'"
+                );
+            }
+
+            // Чиним лоты, зависшие в sold/reserved после отмены/возврата сделки
+            $this->db->exec(
+                "UPDATE products p
+                 INNER JOIN orders o ON o.product_id = p.id
+                 SET p.status = 'active'
+                 WHERE p.status IN ('sold', 'reserved')
+                   AND o.status IN ('cancelled', 'refunded')
+                   AND NOT EXISTS (
+                       SELECT 1 FROM orders o2
+                       WHERE o2.product_id = p.id
+                         AND o2.status IN (
+                             'awaiting_payment', 'escrowed', 'shipped', 'delivered',
+                             'dispute', 'return_approved', 'return_shipped',
+                             'return_delivered', 'completed'
+                         )
+                   )"
+            );
         } catch (\Throwable $e) {
             // ignore on fresh/broken installs
         }

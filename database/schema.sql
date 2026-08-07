@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS products (
     location VARCHAR(150) NOT NULL DEFAULT 'Караганда',
     image VARCHAR(255) DEFAULT NULL,
     images TEXT DEFAULT NULL,
-    status ENUM('active','sold','archived') NOT NULL DEFAULT 'active',
+    status ENUM('active','sold','reserved','archived') NOT NULL DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,

@@ -178,6 +178,7 @@ class EscrowService
             }
 
             $cancelledOrderIds = [$orderId];
+            $productIdsToRestore = [$productId];
 
             if (($locked['status'] ?? '') === 'awaiting_payment') {
                 $paymentModel = new \App\Models\Payment();
@@ -222,6 +223,7 @@ class EscrowService
                     ]);
 
                     $cancelledOrderIds = [];
+                    $productIdsToRestore = [];
                     foreach ($cartItems as $item) {
                         $oid = (int) ($item['order_id'] ?? 0);
                         $pid = (int) ($item['product_id'] ?? 0);
@@ -229,31 +231,19 @@ class EscrowService
                             continue;
                         }
                         $cancelledOrderIds[] = $oid;
+                        if ($pid > 0) {
+                            $productIdsToRestore[] = $pid;
+                        }
                         $this->orders->updateFields($oid, [
                             'status' => 'cancelled',
                             'escrow_hold' => 'none',
                         ]);
-                        if ($pid > 0) {
-                            $rel = $db->prepare(
-                                "UPDATE products SET status = 'active'
-                                 WHERE id = ? AND status IN ('sold', 'reserved')"
-                            );
-                            $rel->execute([$pid]);
-                        }
                     }
-                } else {
-                    $release = $db->prepare(
-                        "UPDATE products SET status = 'active'
-                         WHERE id = ? AND status IN ('sold', 'reserved')"
-                    );
-                    $release->execute([$productId]);
                 }
-            } else {
-                $release = $db->prepare(
-                    "UPDATE products SET status = 'active'
-                     WHERE id = ? AND status IN ('sold', 'reserved')"
-                );
-                $release->execute([$productId]);
+            }
+
+            foreach (array_unique($productIdsToRestore) as $pid) {
+                $this->reactivateProduct($db, (int) $pid);
             }
 
             $db->commit();
@@ -286,6 +276,34 @@ class EscrowService
         }
 
         return ['ok' => true];
+    }
+
+    private function reactivateProduct(\PDO $db, int $productId): void
+    {
+        if ($productId <= 0) {
+            return;
+        }
+
+        // Не трогаем архив; sold/reserved/пустой ENUM — возвращаем в продажу.
+        $stmt = $db->prepare(
+            "UPDATE products
+             SET status = 'active'
+             WHERE id = ?
+               AND status <> 'active'
+               AND status <> 'archived'"
+        );
+        $stmt->execute([$productId]);
+
+        // На случай если статус уже active, но updated_at полезен для отладки — no-op ok.
+        if ($stmt->rowCount() === 0) {
+            $check = $db->prepare('SELECT status FROM products WHERE id = ? LIMIT 1');
+            $check->execute([$productId]);
+            $current = (string) ($check->fetchColumn() ?: '');
+            if ($current !== '' && $current !== 'active' && $current !== 'archived') {
+                $force = $db->prepare('UPDATE products SET status = \'active\' WHERE id = ?');
+                $force->execute([$productId]);
+            }
+        }
     }
 
     /** @return list<array{order_id?: int, product_id?: int}> */
@@ -542,6 +560,7 @@ class EscrowService
             ]);
 
             (new Wallet())->refundFromEscrow($buyerId, $amount, $orderId);
+            $this->reactivateProduct($db, (int) ($order['product_id'] ?? 0));
 
             $db->commit();
         } catch (\Throwable $e) {
