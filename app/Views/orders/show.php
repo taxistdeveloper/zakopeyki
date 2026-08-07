@@ -27,7 +27,7 @@ $stepIndex = array_search($status, $steps, true);
 if ($status === 'dispute' || $status === 'return_approved' || $status === 'return_shipped' || $status === 'return_delivered') {
     $stepIndex = 2;
 }
-if ($status === 'refunded') {
+if ($status === 'refunded' || $status === 'cancelled') {
     $stepIndex = 3;
 }
 if ($stepIndex === false) {
@@ -140,6 +140,120 @@ $btn = 'inline-flex items-center justify-center w-full font-display font-bold py
                 <input type="text" name="tracking_number" required minlength="5" placeholder="<?= htmlspecialchars(t('escrow.tracking_placeholder')) ?>" class="<?= $input ?>">
                 <button type="submit" class="<?= $btn ?> bg-ink-900 hover:bg-ink-800 text-white"><?= htmlspecialchars(t('escrow.ship_btn')) ?></button>
             </form>
+        <?php endif; ?>
+
+        <?php if (!empty($isBuyer) && in_array($status, ['escrowed', 'awaiting_payment'], true)): ?>
+            <div class="bg-white/90 dark:bg-white/[0.04] rounded-[24px] border border-black/[0.06] dark:border-white/10 p-5 space-y-3 shadow-soft">
+                <h3 class="font-display font-bold text-ink-900 dark:text-white"><?= htmlspecialchars(t('escrow.cancel_title')) ?></h3>
+                <p class="text-xs text-gray-500"><?= htmlspecialchars(t('escrow.cancel_hint')) ?></p>
+                <button type="button"
+                        id="order-cancel-open"
+                        class="<?= $btn ?> bg-white dark:bg-white/5 text-ink-800 dark:text-gray-200 border border-black/10 dark:border-white/15 hover:bg-black/[0.03] dark:hover:bg-white/10">
+                    <?= htmlspecialchars(t('escrow.cancel_btn')) ?>
+                </button>
+            </div>
+
+            <div id="order-cancel-modal"
+                 class="hidden fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-ink-900/55 backdrop-blur-sm p-0 sm:p-4"
+                 role="dialog"
+                 aria-modal="true"
+                 aria-labelledby="order-cancel-title"
+                 aria-hidden="true">
+                <div class="w-full sm:max-w-md bg-white dark:bg-ink-800 rounded-t-[28px] sm:rounded-[28px] overflow-hidden shadow-lift border border-white/60 dark:border-white/10 translate-y-3 sm:translate-y-2 opacity-0 transition duration-200 ease-out"
+                     data-cancel-panel
+                     onclick="event.stopPropagation()">
+                    <div class="sm:hidden flex justify-center pt-3 pb-1" aria-hidden="true">
+                        <span class="w-10 h-1 rounded-full bg-black/10 dark:bg-white/15"></span>
+                    </div>
+                    <div class="px-5 pt-4 sm:pt-6 pb-2 text-center space-y-3">
+                        <div class="mx-auto w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-500/15 border border-amber-100 dark:border-amber-500/25 flex items-center justify-center text-amber-600 dark:text-amber-300">
+                            <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 id="order-cancel-title" class="font-display text-xl font-bold text-ink-900 dark:text-white">
+                                <?= htmlspecialchars(t('escrow.cancel_modal_title')) ?>
+                            </h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">
+                                <?= htmlspecialchars(t('escrow.cancel_confirm')) ?>
+                            </p>
+                        </div>
+                        <?php if (($order['escrow_hold'] ?? '') === 'holding'): ?>
+                            <div class="rounded-2xl bg-emerald-50/90 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/40 px-4 py-3 text-left">
+                                <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-600/80 dark:text-emerald-400/80"><?= htmlspecialchars(t('escrow.holding_short')) ?></p>
+                                <p class="font-display text-lg font-extrabold text-emerald-700 dark:text-emerald-300 mt-0.5"><?= htmlspecialchars($amount) ?></p>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    <form method="post"
+                          action="<?= ProductHelper::url('/orders/' . (int) $order['id'] . '/cancel') ?>"
+                          class="p-5 pt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5"
+                          data-cancel-form>
+                        <?= csrf_field() ?>
+                        <button type="button"
+                                data-cancel-close
+                                class="<?= $btn ?> bg-white dark:bg-white/5 text-ink-800 dark:text-gray-200 border border-black/10 dark:border-white/15 hover:bg-black/[0.03] dark:hover:bg-white/10 order-2 sm:order-1">
+                            <?= htmlspecialchars(t('escrow.cancel_modal_keep')) ?>
+                        </button>
+                        <button type="submit"
+                                class="<?= $btn ?> bg-ink-900 hover:bg-ink-800 text-white order-1 sm:order-2">
+                            <?= htmlspecialchars(t('escrow.cancel_modal_submit')) ?>
+                        </button>
+                    </form>
+                </div>
+            </div>
+            <script>
+            (function () {
+                var modal = document.getElementById('order-cancel-modal');
+                var openBtn = document.getElementById('order-cancel-open');
+                var panel = modal && modal.querySelector('[data-cancel-panel]');
+                if (!modal || !openBtn || !panel) return;
+
+                var closeBtns = modal.querySelectorAll('[data-cancel-close]');
+                var lastFocus = null;
+
+                function openModal() {
+                    lastFocus = document.activeElement;
+                    modal.classList.remove('hidden');
+                    modal.setAttribute('aria-hidden', 'false');
+                    document.documentElement.style.overflow = 'hidden';
+                    requestAnimationFrame(function () {
+                        panel.classList.remove('translate-y-3', 'sm:translate-y-2', 'opacity-0');
+                        panel.classList.add('translate-y-0', 'opacity-100');
+                    });
+                    var keep = modal.querySelector('[data-cancel-close]');
+                    if (keep) keep.focus({ preventScroll: true });
+                }
+
+                function closeModal() {
+                    panel.classList.add('translate-y-3', 'sm:translate-y-2', 'opacity-0');
+                    panel.classList.remove('translate-y-0', 'opacity-100');
+                    window.setTimeout(function () {
+                        modal.classList.add('hidden');
+                        modal.setAttribute('aria-hidden', 'true');
+                        document.documentElement.style.overflow = '';
+                        if (lastFocus && typeof lastFocus.focus === 'function') {
+                            lastFocus.focus({ preventScroll: true });
+                        }
+                    }, 180);
+                }
+
+                openBtn.addEventListener('click', openModal);
+                closeBtns.forEach(function (btn) {
+                    btn.addEventListener('click', closeModal);
+                });
+                modal.addEventListener('click', function (e) {
+                    if (e.target === modal) closeModal();
+                });
+                document.addEventListener('keydown', function (e) {
+                    if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+                        e.preventDefault();
+                        closeModal();
+                    }
+                });
+            })();
+            </script>
         <?php endif; ?>
 
         <?php if ($status === 'shipped' && !empty($isBuyer)): ?>
@@ -273,6 +387,11 @@ $btn = 'inline-flex items-center justify-center w-full font-display font-bold py
         <?php if ($status === 'refunded'): ?>
             <div class="rounded-2xl bg-sky-50 dark:bg-sky-900/20 border border-sky-100 dark:border-sky-800/40 px-4 py-3 text-sm font-semibold text-sky-800 dark:text-sky-300">
                 <?= htmlspecialchars(t('escrow.done_refund')) ?>
+            </div>
+        <?php endif; ?>
+        <?php if ($status === 'cancelled'): ?>
+            <div class="rounded-2xl bg-gray-50 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 px-4 py-3 text-sm font-semibold text-ink-700 dark:text-gray-300">
+                <?= htmlspecialchars(t('escrow.done_cancelled')) ?>
             </div>
         <?php endif; ?>
 

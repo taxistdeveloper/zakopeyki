@@ -45,6 +45,7 @@ $router->get('/orders/{id}', [OrderController::class, 'show']);
 $router->post('/orders/{id}/ship', [OrderController::class, 'ship']);
 $router->post('/orders/{id}/delivered', [OrderController::class, 'delivered']);
 $router->post('/orders/{id}/confirm', [OrderController::class, 'confirm']);
+$router->post('/orders/{id}/cancel', [OrderController::class, 'cancel']);
 $router->post('/orders/{id}/dispute', [OrderController::class, 'dispute']);
 $router->post('/orders/{id}/return-ship', [OrderController::class, 'returnShip']);
 $router->post('/orders/{id}/return-received', [OrderController::class, 'returnReceived']);

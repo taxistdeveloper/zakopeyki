@@ -123,6 +123,184 @@ class EscrowService
         return ['ok' => true];
     }
 
+    /**
+     * Покупатель отменяет сделку, пока продавец ещё не отправил товар.
+     * escrowed → возврат денег с эскроу + товар снова в продаже.
+     * awaiting_payment → отмена неоплаченного резерва.
+     * @return array{ok: bool, error?: string}
+     */
+    public function cancelByBuyer(int $orderId, int $buyerId): array
+    {
+        $order = $this->orders->find($orderId);
+        if (!$order) {
+            return ['ok' => false, 'error' => t('escrow.not_found')];
+        }
+        if ((int) $order['buyer_id'] !== $buyerId) {
+            return ['ok' => false, 'error' => t('escrow.forbidden')];
+        }
+
+        $status = (string) ($order['status'] ?? '');
+        if (!in_array($status, ['escrowed', 'awaiting_payment'], true)) {
+            return ['ok' => false, 'error' => t('escrow.cancel_too_late')];
+        }
+
+        $amount = (int) $order['amount'];
+        $productId = (int) $order['product_id'];
+        $needsRefund = $status === 'escrowed' && ($order['escrow_hold'] ?? '') === 'holding';
+        $cancelledOrderIds = [$orderId];
+
+        try {
+            $db = Database::connect();
+            $db->beginTransaction();
+
+            $lock = $db->prepare('SELECT id, status, escrow_hold FROM orders WHERE id = ? FOR UPDATE');
+            $lock->execute([$orderId]);
+            $locked = $lock->fetch();
+            if (!$locked || !in_array($locked['status'] ?? '', ['escrowed', 'awaiting_payment'], true)) {
+                $db->rollBack();
+                return ['ok' => false, 'error' => t('escrow.cancel_too_late')];
+            }
+
+            $needsRefund = ($locked['status'] ?? '') === 'escrowed'
+                && ($locked['escrow_hold'] ?? '') === 'holding';
+
+            $fields = [
+                'status' => 'cancelled',
+                'escrow_hold' => $needsRefund ? 'refunded_buyer' : 'none',
+            ];
+            if ($needsRefund) {
+                $fields['refunded_at'] = date('Y-m-d H:i:s');
+            }
+            $this->orders->updateFields($orderId, $fields);
+
+            if ($needsRefund) {
+                (new Wallet())->refundFromEscrow($buyerId, $amount, $orderId);
+            }
+
+            $cancelledOrderIds = [$orderId];
+
+            if (($locked['status'] ?? '') === 'awaiting_payment') {
+                $paymentModel = new \App\Models\Payment();
+                $payment = $paymentModel->findByOrderId($orderId);
+                if (
+                    !$payment
+                    || ($payment['status'] ?? '') !== \App\Models\Payment::STATUS_PENDING
+                ) {
+                    $stmtPay = $db->prepare(
+                        "SELECT * FROM payments
+                         WHERE buyer_id = ? AND status = ?
+                         ORDER BY id DESC LIMIT 20"
+                    );
+                    $stmtPay->execute([$buyerId, \App\Models\Payment::STATUS_PENDING]);
+                    foreach ($stmtPay->fetchAll() as $candidate) {
+                        $items = $this->cartItemsFromPaymentMeta($candidate['meta'] ?? null);
+                        foreach ($items as $item) {
+                            if ((int) ($item['order_id'] ?? 0) === $orderId) {
+                                $payment = $candidate;
+                                break 2;
+                            }
+                        }
+                    }
+                }
+
+                if ($payment && ($payment['status'] ?? '') === \App\Models\Payment::STATUS_PENDING) {
+                    $cartItems = $this->cartItemsFromPaymentMeta($payment['meta'] ?? null);
+                    if ($cartItems === []) {
+                        $cartItems = [[
+                            'order_id' => (int) $payment['order_id'],
+                            'product_id' => (int) $payment['product_id'],
+                        ]];
+                    }
+
+                    $updPay = $db->prepare(
+                        "UPDATE payments SET status = ? WHERE id = ? AND status = ?"
+                    );
+                    $updPay->execute([
+                        \App\Models\Payment::STATUS_CANCELLED,
+                        (int) $payment['id'],
+                        \App\Models\Payment::STATUS_PENDING,
+                    ]);
+
+                    $cancelledOrderIds = [];
+                    foreach ($cartItems as $item) {
+                        $oid = (int) ($item['order_id'] ?? 0);
+                        $pid = (int) ($item['product_id'] ?? 0);
+                        if ($oid <= 0) {
+                            continue;
+                        }
+                        $cancelledOrderIds[] = $oid;
+                        $this->orders->updateFields($oid, [
+                            'status' => 'cancelled',
+                            'escrow_hold' => 'none',
+                        ]);
+                        if ($pid > 0) {
+                            $rel = $db->prepare(
+                                "UPDATE products SET status = 'active'
+                                 WHERE id = ? AND status IN ('sold', 'reserved')"
+                            );
+                            $rel->execute([$pid]);
+                        }
+                    }
+                } else {
+                    $release = $db->prepare(
+                        "UPDATE products SET status = 'active'
+                         WHERE id = ? AND status IN ('sold', 'reserved')"
+                    );
+                    $release->execute([$productId]);
+                }
+            } else {
+                $release = $db->prepare(
+                    "UPDATE products SET status = 'active'
+                     WHERE id = ? AND status IN ('sold', 'reserved')"
+                );
+                $release->execute([$productId]);
+            }
+
+            $db->commit();
+        } catch (\Throwable $e) {
+            $db = Database::connect();
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            return ['ok' => false, 'error' => t('wallet.op_failed')];
+        }
+
+        foreach (array_unique($cancelledOrderIds) as $oid) {
+            $row = $this->orders->find((int) $oid);
+            if (!$row) {
+                continue;
+            }
+            (new Notification())->createFor(
+                (int) $row['seller_id'],
+                t('escrow.notify_cancelled_seller', ['id' => (int) $oid])
+            );
+        }
+        if ($needsRefund) {
+            (new Notification())->createFor(
+                $buyerId,
+                t('escrow.notify_cancelled_buyer', [
+                    'id' => $orderId,
+                    'amount' => number_format($amount, 0, '', ' '),
+                ])
+            );
+        }
+
+        return ['ok' => true];
+    }
+
+    /** @return list<array{order_id?: int, product_id?: int}> */
+    private function cartItemsFromPaymentMeta(mixed $meta): array
+    {
+        if (!is_string($meta) || $meta === '') {
+            return [];
+        }
+        $decoded = json_decode($meta, true);
+        if (!is_array($decoded) || empty($decoded['cart_items']) || !is_array($decoded['cart_items'])) {
+            return [];
+        }
+        return $decoded['cart_items'];
+    }
+
     /** Покупатель: «товар получил, всё ок» → разморозка продавцу. */
     public function confirmReceived(int $orderId, int $buyerId): array
     {

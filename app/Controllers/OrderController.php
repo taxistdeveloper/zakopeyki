@@ -130,6 +130,13 @@ class OrderController extends Controller
         $this->flashResult($result, (int) $id, 'order.confirm');
     }
 
+    public function cancel(string $id): void
+    {
+        Auth::requireLogin();
+        $result = (new EscrowService())->cancelByBuyer((int) $id, Auth::id());
+        $this->flashResult($result, (int) $id, 'order.cancel');
+    }
+
     public function dispute(string $id): void
     {
         Auth::requireLogin();
