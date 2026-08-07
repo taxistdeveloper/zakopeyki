@@ -14,6 +14,9 @@ $buyUrl = $purchasable
     : $showUrl;
 $favorited = !empty($favorited);
 $canFavorite = Auth::check();
+$inCart = \App\Services\Cart::has((int) ($item['id'] ?? 0));
+$isOwn = Auth::check() && (int) ($item['user_id'] ?? 0) === (int) Auth::id();
+$canCart = $purchasable && !$isOwn;
 
 $type = $item['type'] ?? '';
 $isFreePrice = $type === 'free'
@@ -100,6 +103,15 @@ $ctaBase = 'block w-full text-center font-display font-bold text-[10px] py-2.5 r
                     <a href="<?= $showUrl ?>" class="<?= $ctaBase ?> bg-red-600 hover:bg-red-700 text-white"><?= htmlspecialchars(t('card.bid')) ?></a>
                 <?php elseif ($type === 'exchange'): ?>
                     <a href="<?= $showUrl ?>" class="<?= $ctaBase ?> bg-indigo-600 hover:bg-indigo-700 text-white"><?= htmlspecialchars(t('card.exchange')) ?></a>
+                <?php endif; ?>
+                <?php if ($canCart): ?>
+                    <button type="button"
+                            class="cart-btn <?= $ctaBase ?> border border-black/[0.08] dark:border-white/10 text-ink-800 dark:text-gray-200 hover:border-brand-400/50 hover:text-brand-600 <?= $inCart ? 'is-in-cart bg-brand-50/80 dark:bg-brand-500/10 text-brand-700 dark:text-brand-400' : '' ?>"
+                            data-product-id="<?= (int) $item['id'] ?>"
+                            data-in-cart="<?= $inCart ? '1' : '0' ?>"
+                            aria-label="<?= htmlspecialchars($inCart ? t('card.in_cart') : t('card.add_cart')) ?>">
+                        <?= htmlspecialchars($inCart ? t('card.in_cart') : t('card.add_cart')) ?>
+                    </button>
                 <?php endif; ?>
                 <?php \App\Core\View::partial('partials/share-buttons', ['item' => $item, 'compact' => true, 'fullWidth' => true]); ?>
                 <a href="<?= $showUrl ?>" class="block w-full text-center text-gray-400 hover:text-ink-700 dark:hover:text-gray-200 font-medium text-[10px] py-1 transition"><?= htmlspecialchars(t('card.more')) ?></a>

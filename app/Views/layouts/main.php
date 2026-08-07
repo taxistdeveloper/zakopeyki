@@ -599,6 +599,8 @@ function url(string $path = ''): string
         window.__csrfToken = <?= js_encode(\App\Core\Csrf::token()) ?>;
         window.__loginUrl = <?= js_encode(url('/login')) ?>;
         window.__favoritesToggleBase = <?= js_encode(rtrim(url('/favorites'), '/') . '/') ?>;
+        window.__cartToggleBase = <?= js_encode(rtrim(url('/cart'), '/') . '/') ?>;
+        window.__cartCount = <?= (int) (\App\Services\Cart::count()) ?>;
         window.__aiChatUrl = <?= js_encode(url('/ai/chat')) ?>;
         window.__aiMessagesUrl = <?= js_encode(url('/ai/chat/messages')) ?>;
         window.__aiFeedbackUrl = <?= js_encode(url('/ai/chat/feedback')) ?>;
@@ -615,6 +617,7 @@ function url(string $path = ''): string
             'js.now',
             'js.live_host', 'js.login_to_stream', 'js.stream_fail', 'js.stream_desc',
             'js.you', 'js.stream_error', 'card.favorite', 'card.unfavorite',
+            'card.add_cart', 'card.in_cart',
             'home.story_link_copied',
             'header.city', 'header.city_choose', 'header.city_detect', 'header.city_detecting', 'header.city_denied',
             'chat.title', 'chat.start_hint', 'chat.send_failed', 'chat.start_failed',

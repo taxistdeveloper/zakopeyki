@@ -55,6 +55,18 @@ $langSwitchUrl = static function (string $code) use ($lang): string {
                 <span class="hidden sm:inline"><?= htmlspecialchars(t('header.add_listing')) ?></span>
             </a>
         <?php endif; ?>
+        <?php
+            $cartCount = 0;
+            try {
+                $cartCount = \App\Services\Cart::count();
+            } catch (\Throwable $e) {
+                $cartCount = 0;
+            }
+        ?>
+        <a href="<?= ProductHelper::url('/cart') ?>" id="header-cart-link" class="relative p-2.5 rounded-xl bg-white/70 dark:bg-white/5 border border-black/[0.06] dark:border-white/10 hover:border-brand-400/50 transition shadow-sm text-ink-700 dark:text-gray-200" title="<?= htmlspecialchars(t('header.cart')) ?>" aria-label="<?= htmlspecialchars(t('header.cart')) ?>">
+            <?= IconHelper::svg('bag', 'w-4 h-4') ?>
+            <span id="header-cart-badge" class="<?= $cartCount > 0 ? '' : 'hidden ' ?>absolute -top-1 -right-1 bg-accent-500 text-white text-[10px] min-w-[18px] h-[18px] px-1 rounded-full font-extrabold inline-flex items-center justify-center"><?= $cartCount > 99 ? '99+' : (int) $cartCount ?></span>
+        </a>
         <button onclick="toggleDarkMode()" class="p-2.5 rounded-xl bg-white/70 dark:bg-white/5 border border-black/[0.06] dark:border-white/10 hover:border-brand-400/50 transition shadow-sm text-ink-700 dark:text-gray-200" title="<?= htmlspecialchars(t('header.theme')) ?>">
             <span class="dark:hidden"><?= IconHelper::svg('moon', 'w-4 h-4') ?></span>
             <span class="hidden dark:inline"><?= IconHelper::svg('sun', 'w-4 h-4') ?></span>

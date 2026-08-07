@@ -1198,6 +1198,75 @@ document.addEventListener('click', function (e) {
         });
 });
 
+/* ===== Cart ===== */
+function updateCartBadges(count) {
+    const n = Math.max(0, parseInt(count, 10) || 0);
+    window.__cartCount = n;
+    const label = n > 99 ? '99+' : String(n);
+
+    const headerBadge = document.getElementById('header-cart-badge');
+    if (headerBadge) {
+        headerBadge.textContent = label;
+        headerBadge.classList.toggle('hidden', n <= 0);
+    }
+
+    const sideBadge = document.getElementById('sidebar-cart-badge');
+    if (sideBadge) {
+        sideBadge.textContent = label;
+        sideBadge.classList.toggle('hidden', n <= 0);
+    }
+}
+
+function setCartButtonState(btn, inCart) {
+    const on = !!inCart;
+    btn.dataset.inCart = on ? '1' : '0';
+    btn.classList.toggle('is-in-cart', on);
+    btn.classList.toggle('bg-brand-50/80', on);
+    btn.classList.toggle('dark:bg-brand-500/10', on);
+    btn.classList.toggle('text-brand-700', on);
+    btn.classList.toggle('dark:text-brand-400', on);
+    const label = on
+        ? (window.__i18n?.['card.in_cart'] || 'В корзине')
+        : (window.__i18n?.['card.add_cart'] || 'В корзину');
+    btn.setAttribute('aria-label', label);
+    btn.textContent = label;
+}
+
+document.addEventListener('click', function (e) {
+    const btn = e.target.closest('.cart-btn');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const productId = btn.dataset.productId;
+    if (!productId || btn.dataset.busy === '1') return;
+
+    const base = window.__cartToggleBase || '/cart/';
+    btn.dataset.busy = '1';
+    btn.classList.add('opacity-60');
+
+    fetch(base + productId + '/toggle', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin'
+    })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (!data) return;
+            if (data.ok) {
+                setCartButtonState(btn, data.in_cart);
+                updateCartBadges(data.count);
+            } else if (data.error) {
+                alert(data.error);
+            }
+        })
+        .catch(function () { /* ignore */ })
+        .finally(function () {
+            btn.dataset.busy = '0';
+            btn.classList.remove('opacity-60');
+        });
+});
+
 /* ===== AI Assistant (Support + Catalog + Self-learning) ===== */
 let aiAssistantReady = false;
 let aiChatBusy = false;
@@ -1748,6 +1817,7 @@ document.addEventListener('keydown', function (e) {
         if (!trigger) return;
         // Don't steal clicks from nested controls (favorite button sits over the card image)
         if (e.target.closest('.favorite-btn')) return;
+        if (e.target.closest('.cart-btn')) return;
 
         var src = trigger.getAttribute('data-lightbox-src') || '';
         var galleryRaw = trigger.getAttribute('data-lightbox-gallery');

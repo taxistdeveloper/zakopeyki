@@ -87,6 +87,25 @@ class Product extends Model
         return $row ?: null;
     }
 
+    /** @param list<int> $ids @return list<array> */
+    public function findWithSellersByIds(array $ids): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+        if ($ids === []) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $this->db->prepare(
+            "SELECT p.*, u.name AS seller_name, u.phone AS seller_phone, u.email AS seller_email
+             FROM products p
+             JOIN users u ON u.id = p.user_id
+             WHERE p.id IN ({$placeholders})"
+        );
+        $stmt->execute($ids);
+        return $stmt->fetchAll();
+    }
+
     public function create(array $data): int
     {
         $stmt = $this->db->prepare(

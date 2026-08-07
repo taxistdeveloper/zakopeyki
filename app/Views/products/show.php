@@ -160,11 +160,22 @@ unset($_SESSION['flash']);
 
             <?php if ($purchasable): ?>
                 <div class="pt-1 space-y-2">
+                    <?php
+                    $isOwnProduct = Auth::check() && (int) ($item['user_id'] ?? 0) === (int) Auth::id();
+                    $inCart = \App\Services\Cart::has((int) $item['id']);
+                    ?>
                     <?php if (Auth::check()): ?>
                         <a href="<?= $checkoutUrl ?>" class="block w-full text-center bg-accent-500 hover:bg-accent-400 text-white font-display font-bold py-3.5 rounded-2xl text-sm uppercase tracking-wider transition shadow-soft">
                             <?= htmlspecialchars(t('card.buy')) ?>
                         </a>
-                        <?php if ((int) ($item['user_id'] ?? 0) !== (int) Auth::id()): ?>
+                        <?php if (!$isOwnProduct): ?>
+                            <button type="button"
+                                    class="cart-btn w-full text-center border border-black/[0.08] dark:border-white/10 hover:border-brand-400/50 font-display font-bold py-3 rounded-2xl text-xs uppercase tracking-wider transition <?= $inCart ? 'is-in-cart bg-brand-50/80 dark:bg-brand-500/10 text-brand-700 dark:text-brand-400 border-brand-200/60' : 'text-ink-800 dark:text-gray-200' ?>"
+                                    data-product-id="<?= (int) $item['id'] ?>"
+                                    data-in-cart="<?= $inCart ? '1' : '0' ?>"
+                                    aria-label="<?= htmlspecialchars($inCart ? t('card.in_cart') : t('card.add_cart')) ?>">
+                                <?= htmlspecialchars($inCart ? t('card.in_cart') : t('card.add_cart')) ?>
+                            </button>
                             <button type="button"
                                     data-chat-open
                                     data-product-id="<?= (int) $item['id'] ?>"
@@ -176,6 +187,13 @@ unset($_SESSION['flash']);
                         <a href="<?= ProductHelper::url('/login') ?>" class="block w-full text-center bg-accent-500 hover:bg-accent-400 text-white font-display font-bold py-3.5 rounded-2xl text-sm uppercase tracking-wider transition shadow-soft">
                             <?= htmlspecialchars(t('product.login_to_buy')) ?>
                         </a>
+                        <button type="button"
+                                class="cart-btn w-full text-center border border-black/[0.08] dark:border-white/10 hover:border-brand-400/50 font-display font-bold py-3 rounded-2xl text-xs uppercase tracking-wider transition <?= $inCart ? 'is-in-cart bg-brand-50/80 dark:bg-brand-500/10 text-brand-700 dark:text-brand-400 border-brand-200/60' : 'text-ink-800 dark:text-gray-200' ?>"
+                                data-product-id="<?= (int) $item['id'] ?>"
+                                data-in-cart="<?= $inCart ? '1' : '0' ?>"
+                                aria-label="<?= htmlspecialchars($inCart ? t('card.in_cart') : t('card.add_cart')) ?>">
+                            <?= htmlspecialchars($inCart ? t('card.in_cart') : t('card.add_cart')) ?>
+                        </button>
                     <?php endif; ?>
                 </div>
             <?php elseif (($item['type'] ?? '') === 'free' || ($item['type'] ?? '') === 'exchange'): ?>
