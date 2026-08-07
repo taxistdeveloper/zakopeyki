@@ -331,7 +331,26 @@ class Order extends Model
     ): array {
         $productId = (int) $product['id'];
         $buyer = (new User())->find($buyerId);
-        $paymentModel = new Payment(); // ensure table before transaction (DDL)
+        $paymentModel = new Payment();
+        $pgOrderId = 'zk-' . $buyerId . '-' . bin2hex(random_bytes(6));
+
+        $init = $fp->initPayment([
+            'order_id' => $pgOrderId,
+            'amount' => $amount,
+            'description' => mb_substr((string) ($product['title'] ?? ('Product #' . $productId)), 0, 200),
+            'user_id' => (string) $buyerId,
+            'user_email' => (string) ($buyer['email'] ?? ''),
+            'user_phone' => (string) ($buyer['phone'] ?? ''),
+            'user_ip' => (string) ($_SERVER['REMOTE_ADDR'] ?? ''),
+            'param2' => (string) $productId,
+        ]);
+
+        if (!$init['ok'] || empty($init['redirect_url'])) {
+            return [
+                'ok' => false,
+                'error' => $init['error'] ?? t('checkout.payment_failed'),
+            ];
+        }
 
         try {
             $this->db->beginTransaction();
@@ -359,7 +378,6 @@ class Order extends Model
             ]);
             $orderId = (int) $this->db->lastInsertId();
 
-            $pgOrderId = 'zk-' . $orderId . '-' . bin2hex(random_bytes(4));
             $paymentId = $paymentModel->createPending([
                 'pg_order_id' => $pgOrderId,
                 'order_id' => $orderId,
@@ -368,6 +386,7 @@ class Order extends Model
                 'amount' => $amount,
                 'delivery_method' => $delivery,
                 'payment_method' => 'card',
+                'pg_payment_id' => !empty($init['payment_id']) ? (string) $init['payment_id'] : null,
             ]);
 
             $reserve = $this->db->prepare(
@@ -381,34 +400,6 @@ class Order extends Model
                 $this->db->rollBack();
             }
             return ['ok' => false, 'error' => t('checkout.payment_failed')];
-        }
-
-        $init = $fp->initPayment([
-            'order_id' => $pgOrderId,
-            'amount' => $amount,
-            'description' => mb_substr((string) ($product['title'] ?? ('Order #' . $orderId)), 0, 200),
-            'user_id' => (string) $buyerId,
-            'user_email' => (string) ($buyer['email'] ?? ''),
-            'user_phone' => (string) ($buyer['phone'] ?? ''),
-            'user_ip' => (string) ($_SERVER['REMOTE_ADDR'] ?? ''),
-            'param1' => (string) $orderId,
-            'param2' => (string) $productId,
-        ]);
-
-        if (!$init['ok'] || empty($init['redirect_url'])) {
-            try {
-                $paymentModel->failFromGateway($pgOrderId);
-            } catch (\Throwable $e) {
-                // ignore cleanup errors
-            }
-            return [
-                'ok' => false,
-                'error' => $init['error'] ?? t('checkout.payment_failed'),
-            ];
-        }
-
-        if (!empty($init['payment_id'])) {
-            $paymentModel->setPgPaymentId($paymentId, (string) $init['payment_id']);
         }
 
         return [

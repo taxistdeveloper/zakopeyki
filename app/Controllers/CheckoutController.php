@@ -18,8 +18,28 @@ class CheckoutController extends Controller
     {
         Auth::requireLogin();
 
-        $product = (new Product())->findWithSeller((int) $id);
-        if (!$product || ($product['status'] ?? '') !== 'active') {
+        $productId = (int) $id;
+        $product = (new Product())->findWithSeller($productId);
+        if (!$product) {
+            http_response_code(404);
+            $this->view('errors/404', ['title' => t('product.not_found')]);
+            return;
+        }
+
+        $status = (string) ($product['status'] ?? '');
+        if ($status === 'reserved') {
+            $pending = (new \App\Models\Payment())->findPendingByProductBuyer($productId, Auth::id());
+            if ($pending && !empty($pending['order_id'])) {
+                $_SESSION['flash'] = t('checkout.payment_pending');
+                $this->redirect('/orders/' . (int) $pending['order_id']);
+                return;
+            }
+            $_SESSION['flash'] = t('checkout.unavailable');
+            $this->redirect('/product/' . $productId);
+            return;
+        }
+
+        if ($status !== 'active') {
             http_response_code(404);
             $this->view('errors/404', ['title' => t('product.not_found')]);
             return;
@@ -27,13 +47,13 @@ class CheckoutController extends Controller
 
         if (!ProductHelper::isPurchasable($product)) {
             $_SESSION['flash'] = t('checkout.not_for_sale');
-            $this->redirect('/product/' . (int) $id);
+            $this->redirect('/product/' . $productId);
             return;
         }
 
         if ((int) $product['user_id'] === Auth::id()) {
             $_SESSION['flash'] = t('checkout.own_product');
-            $this->redirect('/product/' . (int) $id);
+            $this->redirect('/product/' . $productId);
             return;
         }
 
@@ -46,7 +66,7 @@ class CheckoutController extends Controller
             'walletBalance' => $walletBalance,
             'notifications' => $n->forUser(Auth::id()),
             'unread' => $n->unreadCount(Auth::id()),
-            'isFavorite' => (new Favorite())->isFavorite(Auth::id(), (int) $id),
+            'isFavorite' => (new Favorite())->isFavorite(Auth::id(), $productId),
             'search' => '',
             'error' => $_SESSION['checkout_error'] ?? null,
         ]);

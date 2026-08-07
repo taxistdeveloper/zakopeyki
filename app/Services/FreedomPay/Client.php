@@ -148,12 +148,21 @@ class Client
 
         $request['pg_sig'] = $this->makeSig('init_payment.php', $request);
 
-        $endpoint = rtrim((string) ($this->config['api_url'] ?? 'https://test-api.freedompay.kz'), '/')
+        $endpoint = rtrim((string) ($this->config['api_url'] ?? 'https://api.freedompay.kz'), '/')
             . '/init_payment.php';
 
-        $responseBody = $this->httpPost($endpoint, $request);
-        if ($responseBody === null) {
+        $http = $this->httpPost($endpoint, $request);
+        if ($http === null) {
             return ['ok' => false, 'error' => 'FreedomPay request failed'];
+        }
+
+        [$httpCode, $responseBody] = $http;
+        if ($httpCode >= 400) {
+            return [
+                'ok' => false,
+                'error' => 'FreedomPay HTTP ' . $httpCode,
+                'raw' => ['body' => mb_substr($responseBody, 0, 500)],
+            ];
         }
 
         $parsed = $this->parseXml($responseBody);
@@ -257,8 +266,11 @@ class Client
         return $flat;
     }
 
-    /** @param array<string, string> $fields */
-    private function httpPost(string $url, array $fields): ?string
+    /**
+     * @param array<string, string> $fields
+     * @return array{0: int, 1: string}|null [httpCode, body]
+     */
+    private function httpPost(string $url, array $fields): ?array
     {
         $ch = curl_init($url);
         if ($ch === false) {
@@ -275,12 +287,13 @@ class Client
 
         $body = curl_exec($ch);
         $errno = curl_errno($ch);
+        $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
         if ($errno !== 0 || !is_string($body)) {
             return null;
         }
-        return $body;
+        return [$code, $body];
     }
 
     /** @return array<string, string>|null */

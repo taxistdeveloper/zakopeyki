@@ -16,8 +16,8 @@
 return [
     'merchant_id' => getenv('FREEDOMPAY_MERCHANT_ID') ?: '',
     'secret_key' => getenv('FREEDOMPAY_SECRET_KEY') ?: '',
-    // Тест: https://test-api.freedompay.kz  |  Прод: https://api.freedompay.kz
-    'api_url' => getenv('FREEDOMPAY_API_URL') ?: 'https://test-api.freedompay.kz',
+    // Прод-API; для тестового режима магазина достаточно pg_testing_mode=1
+    'api_url' => getenv('FREEDOMPAY_API_URL') ?: 'https://api.freedompay.kz',
     'testing_mode' => (int) (getenv('FREEDOMPAY_TESTING_MODE') !== false && getenv('FREEDOMPAY_TESTING_MODE') !== ''
         ? getenv('FREEDOMPAY_TESTING_MODE')
         : 1),

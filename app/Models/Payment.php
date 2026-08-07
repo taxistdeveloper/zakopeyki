@@ -70,6 +70,18 @@ class Payment extends Model
         return $row ?: null;
     }
 
+    public function findPendingByProductBuyer(int $productId, int $buyerId): ?array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT * FROM payments
+             WHERE product_id = ? AND buyer_id = ? AND status = ?
+             ORDER BY id DESC LIMIT 1"
+        );
+        $stmt->execute([$productId, $buyerId, self::STATUS_PENDING]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
     /**
      * @param array{
      *   pg_order_id: string,

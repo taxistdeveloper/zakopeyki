@@ -151,6 +151,19 @@ class PaymentController extends Controller
         $orderId = $this->resolveOrderIdFromReturn();
         $_SESSION['checkout_error'] = t('checkout.payment_failed');
 
+        $params = FreedomPayClient::requestParams();
+        $pgOrderId = (string) ($params['pg_order_id'] ?? '');
+        if ($pgOrderId === '' && $orderId > 0) {
+            $payment = (new Payment())->findByOrderId($orderId);
+            $pgOrderId = (string) ($payment['pg_order_id'] ?? '');
+        }
+        if ($pgOrderId !== '') {
+            (new Payment())->failFromGateway(
+                $pgOrderId,
+                !empty($params['pg_payment_id']) ? (string) $params['pg_payment_id'] : null
+            );
+        }
+
         if ($orderId > 0) {
             $order = (new Order())->find($orderId);
             if ($order && (int) ($order['buyer_id'] ?? 0) === Auth::id()) {
@@ -168,17 +181,14 @@ class PaymentController extends Controller
     private function resolveOrderIdFromReturn(): int
     {
         $params = FreedomPayClient::requestParams();
-        if (!empty($params['pg_param1']) && ctype_digit((string) $params['pg_param1'])) {
-            return (int) $params['pg_param1'];
-        }
         if (!empty($params['pg_order_id'])) {
             $payment = (new Payment())->findByPgOrderId((string) $params['pg_order_id']);
             if ($payment) {
                 return (int) $payment['order_id'];
             }
-            if (preg_match('/^zk-(\d+)-/', (string) $params['pg_order_id'], $m)) {
-                return (int) $m[1];
-            }
+        }
+        if (!empty($params['pg_param1']) && ctype_digit((string) $params['pg_param1'])) {
+            return (int) $params['pg_param1'];
         }
         return 0;
     }
