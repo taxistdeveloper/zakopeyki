@@ -126,6 +126,7 @@ return [
         'delete_story' => 'Удалить',
         'confirm_delete_story' => 'Удалить историю?',
         'live_hint' => 'Прямой эфир. После завершения ничего не сохраняется.',
+        'unmute_live' => 'Включить звук',
         'end_live' => 'Завершить эфир',
         'close_stream' => 'Закрыть',
         'confirm_close_stream' => 'Закрыть стрим?',

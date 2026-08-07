@@ -315,7 +315,10 @@ $changelog = $changelog ?? null;
                     <div id="stream-live-avatar" class="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center text-3xl font-black mb-3"></div>
                     <p id="stream-live-host" class="font-bold text-lg"></p>
                     <p id="stream-live-hint" class="text-xs text-white/70 mt-2 max-w-[220px]"><?= htmlspecialchars(t('home.live_hint')) ?></p>
-                    <video id="stream-live-cam" class="hidden absolute inset-0 w-full h-full object-cover z-[16]" playsinline autoplay></video>
+                    <video id="stream-live-cam" class="hidden absolute inset-0 w-full h-full object-cover z-[16]" playsinline webkit-playsinline autoplay></video>
+                    <button type="button" id="stream-live-unmute" onclick="event.stopPropagation(); unmuteLiveStream()" class="hidden absolute bottom-20 left-1/2 -translate-x-1/2 z-[22] bg-black/70 hover:bg-black/85 text-white text-sm font-semibold px-5 py-2.5 rounded-full backdrop-blur">
+                        🔊 <?= htmlspecialchars(t('home.unmute_live')) ?>
+                    </button>
                     <button type="button" id="stream-end-live-btn" onclick="endLiveStream()" class="hidden mt-6 relative z-20 bg-white text-red-600 font-black text-xs uppercase px-5 py-2.5 rounded-full"><?= htmlspecialchars(t('home.end_live')) ?></button>
                 </div>
             </div>

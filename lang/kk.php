@@ -126,6 +126,7 @@ return [
         'delete_story' => 'Жою',
         'confirm_delete_story' => 'Стористі жою?',
         'live_hint' => 'Тікелей эфир. Аяқталғаннан кейін ештеңе сақталмайды.',
+        'unmute_live' => 'Дыбысты қосу',
         'end_live' => 'Эфирді аяқтау',
         'close_stream' => 'Жабу',
         'confirm_close_stream' => 'Стримді жабу?',
