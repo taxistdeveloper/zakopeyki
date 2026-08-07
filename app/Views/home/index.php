@@ -316,12 +316,13 @@ $changelog = $changelog ?? null;
                     <p id="stream-live-host" class="font-bold text-lg"></p>
                     <p id="stream-live-hint" class="text-xs text-white/70 mt-2 max-w-[220px]"><?= htmlspecialchars(t('home.live_hint')) ?></p>
                     <video id="stream-live-cam" class="hidden absolute inset-0 w-full h-full object-cover z-[16]" playsinline webkit-playsinline autoplay></video>
-                    <button type="button" id="stream-live-unmute" onclick="event.stopPropagation(); unmuteLiveStream()" class="hidden absolute bottom-20 left-1/2 -translate-x-1/2 z-[22] bg-black/70 hover:bg-black/85 text-white text-sm font-semibold px-5 py-2.5 rounded-full backdrop-blur">
-                        🔊 <?= htmlspecialchars(t('home.unmute_live')) ?>
-                    </button>
+                    <audio id="stream-live-audio" autoplay playsinline></audio>
                     <button type="button" id="stream-end-live-btn" onclick="endLiveStream()" class="hidden mt-6 relative z-20 bg-white text-red-600 font-black text-xs uppercase px-5 py-2.5 rounded-full"><?= htmlspecialchars(t('home.end_live')) ?></button>
                 </div>
             </div>
+            <button type="button" id="stream-live-unmute" onclick="event.stopPropagation(); unmuteLiveStream()" class="hidden absolute bottom-24 left-1/2 -translate-x-1/2 z-[45] bg-white text-gray-900 text-sm font-bold px-5 py-3 rounded-full shadow-lg pointer-events-auto">
+                <?= htmlspecialchars(t('home.unmute_live')) ?>
+            </button>
             <p id="stream-viewer-desc" class="absolute bottom-16 left-3 right-3 z-20 text-white text-sm font-semibold drop-shadow-md line-clamp-3"></p>
             <div class="absolute inset-y-0 left-0 w-[28%] z-20" id="stream-tap-prev"></div>
             <div class="absolute inset-y-0 right-0 w-[28%] z-20" id="stream-tap-next"></div>

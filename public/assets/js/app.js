@@ -902,6 +902,7 @@ let liveMediaStream = null;
 let liveMediaPromise = null;
 let liveHostPcs = {};
 let liveHostStreamId = null;
+let livePendingPeers = [];
 let liveViewerPc = null;
 let liveViewerPeerId = null;
 let liveViewerStreamId = null;
@@ -1020,8 +1021,10 @@ function startLiveCameraPreview() {
         cam.classList.remove('hidden');
         cam.muted = true;
         cam.play().catch(function () {});
-        renegotiateHostPeersWithMedia();
         if (window.__myLiveId) startLiveHostRtc(window.__myLiveId);
+        const pending = livePendingPeers.splice(0);
+        pending.forEach(function (pid) { createHostOfferForPeer(pid); });
+        renegotiateHostPeersWithMedia();
     };
 
     if (liveMediaStream) {
@@ -1035,20 +1038,31 @@ function startLiveCameraPreview() {
         return;
     }
 
-    liveMediaPromise = navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user' },
-        audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-        }
-    })
-        .then(function (stream) {
+    // Камера и микрофон отдельно — иначе при отказе мика иногда пропадает и звук в SDP
+    liveMediaPromise = Promise.all([
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false }),
+        navigator.mediaDevices.getUserMedia({
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+            },
+            video: false
+        }).catch(function () { return null; })
+    ])
+        .then(function (parts) {
+            const videoStream = parts[0];
+            const audioStream = parts[1];
+            const tracks = videoStream.getVideoTracks().slice();
+            if (audioStream) {
+                audioStream.getAudioTracks().forEach(function (t) {
+                    t.enabled = true;
+                    tracks.push(t);
+                });
+            }
+            const stream = new MediaStream(tracks);
             liveMediaStream = stream;
-            // убедимся, что микрофон не выключен на треке
-            const audioTracks = stream.getAudioTracks();
-            audioTracks.forEach(function (t) { t.enabled = true; });
-            if (!audioTracks.length) {
+            if (!stream.getAudioTracks().length) {
                 const hint = document.getElementById('stream-live-hint');
                 if (hint) {
                     hint.classList.remove('hidden');
@@ -1219,27 +1233,30 @@ async function handleHostSignal(sig) {
 
 async function createHostOfferForPeer(peerId) {
     if (!window.__myLiveId || liveHostPcs[peerId]) return;
+
+    // ждём камеру/мик, иначе offer уходит без audio
+    if (!liveMediaStream && liveMediaPromise) {
+        try { await liveMediaPromise; } catch (e) { /* ignore */ }
+    }
+
+    if (!liveMediaStream) {
+        if (livePendingPeers.indexOf(peerId) === -1) livePendingPeers.push(peerId);
+        return;
+    }
+
     const pc = new RTCPeerConnection(LIVE_ICE_SERVERS);
     liveHostPcs[peerId] = pc;
 
-    if (liveMediaStream) {
-        liveMediaStream.getTracks().forEach(function (track) {
-            track.enabled = true;
-            pc.addTrack(track, liveMediaStream);
-        });
-    }
+    liveMediaStream.getTracks().forEach(function (track) {
+        track.enabled = true;
+        pc.addTrack(track, liveMediaStream);
+    });
 
     pc.onicecandidate = function (ev) {
         if (!ev.candidate || !window.__myLiveId) return;
         livePostSignal('host', window.__myLiveId, peerId, 'ice', {
             candidate: ev.candidate.toJSON ? ev.candidate.toJSON() : ev.candidate
         });
-    };
-
-    pc.onconnectionstatechange = function () {
-        if (pc.connectionState === 'failed' || pc.connectionState === 'closed' || pc.connectionState === 'disconnected') {
-            // keep for a bit — viewer may reconnect via new join
-        }
     };
 
     try {
@@ -1259,6 +1276,63 @@ function closeHostPeer(peerId) {
     }
 }
 
+function attachLiveViewerMedia(track, inboundStream) {
+    const cam = document.getElementById('stream-live-cam');
+    const audioEl = document.getElementById('stream-live-audio');
+    if (!cam || !track) return;
+
+    track.enabled = true;
+
+    // копим треки в своём MediaStream — иначе audio, пришедший вторым, не слышен
+    if (!window.__liveRemoteStream) {
+        window.__liveRemoteStream = new MediaStream();
+    }
+    const remote = window.__liveRemoteStream;
+    if (!remote.getTracks().some(function (t) { return t.id === track.id; })) {
+        remote.addTrack(track);
+    }
+    // если браузер отдал готовый stream — подтянем недостающие треки оттуда
+    if (inboundStream) {
+        inboundStream.getTracks().forEach(function (t) {
+            if (!remote.getTracks().some(function (x) { return x.id === t.id; })) {
+                t.enabled = true;
+                remote.addTrack(t);
+            }
+        });
+    }
+
+    // видео: только video-треки (без эха через video.muted)
+    const videoOnly = new MediaStream(remote.getVideoTracks());
+    cam.srcObject = videoOnly;
+    cam.classList.remove('hidden');
+    cam.muted = true;
+    cam.play().catch(function () {});
+
+    // звук: отдельный <audio> — так надёжнее, чем через <video>
+    if (audioEl) {
+        const audioTracks = remote.getAudioTracks();
+        if (audioTracks.length) {
+            const audioOnly = new MediaStream(audioTracks);
+            audioEl.srcObject = audioOnly;
+            audioEl.muted = streamMuted;
+            audioEl.volume = 1;
+            audioEl.play().catch(function () {
+                streamMuted = true;
+                audioEl.muted = true;
+                updateMuteBtn();
+                showLiveUnmuteBtn(true);
+                audioEl.play().catch(function () {});
+            });
+            if (streamMuted) showLiveUnmuteBtn(true);
+        }
+    }
+
+    const hint = document.getElementById('stream-live-hint');
+    if (hint) hint.classList.add('hidden');
+    const av = document.getElementById('stream-live-avatar');
+    if (av) av.classList.add('hidden');
+}
+
 function startLiveViewerRtc(streamId) {
     if (!window.RTCPeerConnection || !window.__streamLiveSignal) return;
     if (liveViewerStreamId === streamId && liveViewerPc) return;
@@ -1267,35 +1341,11 @@ function startLiveViewerRtc(streamId) {
 
     liveViewerPeerId = liveRandomPeerId();
     liveViewerStreamId = streamId;
+    window.__liveRemoteStream = new MediaStream();
     liveViewerPc = new RTCPeerConnection(LIVE_ICE_SERVERS);
 
-    const cam = document.getElementById('stream-live-cam');
     liveViewerPc.ontrack = function (ev) {
-        if (!cam) return;
-        if (ev.track) ev.track.enabled = true;
-
-        let remote = cam.srcObject;
-        if (!(remote instanceof MediaStream)) {
-            remote = (ev.streams && ev.streams[0]) ? ev.streams[0] : new MediaStream();
-            cam.srcObject = remote;
-        }
-        if (ev.track && !remote.getTracks().some(function (t) { return t.id === ev.track.id; })) {
-            remote.addTrack(ev.track);
-        }
-
-        cam.classList.remove('hidden');
-        cam.volume = 1;
-        // автоплей со звуком часто блокируется — сначала mute, потом кнопка «Включить звук»
-        cam.muted = true;
-        streamMuted = true;
-        updateMuteBtn();
-        showLiveUnmuteBtn(true);
-        cam.play().catch(function () {});
-
-        const hint = document.getElementById('stream-live-hint');
-        if (hint) hint.classList.add('hidden');
-        const av = document.getElementById('stream-live-avatar');
-        if (av) av.classList.add('hidden');
+        attachLiveViewerMedia(ev.track, ev.streams && ev.streams[0] ? ev.streams[0] : null);
     };
 
     liveViewerPc.onicecandidate = function (ev) {
@@ -1305,6 +1355,11 @@ function startLiveViewerRtc(streamId) {
         });
     };
 
+    // старт без звука + явная кнопка (автоплей со звуком блокируется)
+    streamMuted = true;
+    updateMuteBtn();
+    showLiveUnmuteBtn(true);
+
     startLiveSignalPoll('viewer', streamId, liveViewerPeerId);
     livePostSignal('viewer', streamId, liveViewerPeerId, 'join', null);
 }
@@ -1312,22 +1367,33 @@ function startLiveViewerRtc(streamId) {
 function showLiveUnmuteBtn(show) {
     const btn = document.getElementById('stream-live-unmute');
     if (!btn) return;
-    btn.classList.toggle('hidden', !show);
+    btn.classList.toggle('hidden', !show || !!window.__myLiveId);
 }
 
 function unmuteLiveStream() {
     streamMuted = false;
     const cam = document.getElementById('stream-live-cam');
+    const audioEl = document.getElementById('stream-live-audio');
     const video = document.getElementById('stream-video');
-    if (cam && !window.__myLiveId) {
-        cam.muted = false;
-        cam.volume = 1;
-        if (cam.srcObject instanceof MediaStream) {
-            cam.srcObject.getAudioTracks().forEach(function (t) { t.enabled = true; });
+
+    if (audioEl && !window.__myLiveId) {
+        audioEl.muted = false;
+        audioEl.volume = 1;
+        if (audioEl.srcObject instanceof MediaStream) {
+            audioEl.srcObject.getAudioTracks().forEach(function (t) { t.enabled = true; });
         }
+        const p = audioEl.play();
+        if (p && p.catch) p.catch(function () {});
+    }
+    if (cam && !window.__myLiveId) {
+        // видео остаётся mute — звук идёт с <audio>
+        cam.muted = true;
         cam.play().catch(function () {});
     }
-    if (video) video.muted = false;
+    if (video) {
+        video.muted = false;
+        video.play().catch(function () {});
+    }
     showLiveUnmuteBtn(false);
     updateMuteBtn();
 }
@@ -1337,8 +1403,11 @@ async function handleViewerSignal(sig) {
 
     if (sig.type === 'offer' && sig.payload?.sdp) {
         try {
-            // если offer пришёл повторно (renegotiation) — обновляем remote
-            await liveViewerPc.setRemoteDescription({ type: 'offer', sdp: sig.payload.sdp });
+            const offer = { type: 'offer', sdp: sig.payload.sdp };
+            if (liveViewerPc.signalingState === 'have-local-offer') {
+                await liveViewerPc.setLocalDescription({ type: 'rollback' }).catch(function () {});
+            }
+            await liveViewerPc.setRemoteDescription(offer);
             const answer = await liveViewerPc.createAnswer();
             await liveViewerPc.setLocalDescription(answer);
             await livePostSignal('viewer', liveViewerStreamId, liveViewerPeerId, 'answer', { sdp: answer.sdp });
@@ -1363,12 +1432,18 @@ function stopLiveRtcViewerOnly() {
     }
     liveViewerPeerId = null;
     liveViewerStreamId = null;
+    window.__liveRemoteStream = null;
     showLiveUnmuteBtn(false);
 
     const cam = document.getElementById('stream-live-cam');
+    const audioEl = document.getElementById('stream-live-audio');
     if (cam && !window.__myLiveId) {
         cam.srcObject = null;
         cam.classList.add('hidden');
+    }
+    if (audioEl) {
+        audioEl.pause();
+        audioEl.srcObject = null;
     }
     const hint = document.getElementById('stream-live-hint');
     if (hint) hint.classList.remove('hidden');
@@ -1381,6 +1456,7 @@ function stopLiveRtc() {
     Object.keys(liveHostPcs).forEach(closeHostPeer);
     liveHostPcs = {};
     liveHostStreamId = null;
+    livePendingPeers = [];
     stopLiveRtcViewerOnly();
 }
 
@@ -1462,20 +1538,21 @@ function toggleStreamMute() {
     streamMuted = !streamMuted;
     const video = document.getElementById('stream-video');
     const cam = document.getElementById('stream-live-cam');
+    const audioEl = document.getElementById('stream-live-audio');
     if (video) video.muted = streamMuted;
-    // у хоста камера всегда mute (без эха); у зрителя — по кнопке
-    if (cam && !window.__myLiveId) {
-        cam.muted = streamMuted;
-        cam.volume = 1;
-        if (!streamMuted) {
-            if (cam.srcObject instanceof MediaStream) {
-                cam.srcObject.getAudioTracks().forEach(function (t) { t.enabled = true; });
+    if (!window.__myLiveId) {
+        if (audioEl) {
+            audioEl.muted = streamMuted;
+            audioEl.volume = 1;
+            if (!streamMuted) {
+                if (audioEl.srcObject instanceof MediaStream) {
+                    audioEl.srcObject.getAudioTracks().forEach(function (t) { t.enabled = true; });
+                }
+                audioEl.play().catch(function () {});
             }
-            cam.play().catch(function () {});
-            showLiveUnmuteBtn(false);
-        } else {
-            showLiveUnmuteBtn(!!cam.srcObject);
         }
+        if (cam) cam.muted = true; // картинка без локального эха; звук только с <audio>
+        showLiveUnmuteBtn(streamMuted && !!(audioEl && audioEl.srcObject));
     }
     updateMuteBtn();
 }
@@ -1519,11 +1596,16 @@ function bindStreamGestures() {
         nextStream();
     });
 
+    document.getElementById('stream-live-cam')?.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (!window.__myLiveId && streamMuted) unmuteLiveStream();
+    });
+
     const hold = document.getElementById('stream-hold-zone');
     if (!hold) return;
 
     const startHold = function (e) {
-        if (e.target.closest('#stream-tap-prev, #stream-tap-next, button, form, a')) return;
+        if (e.target.closest('#stream-tap-prev, #stream-tap-next, button, form, a, #stream-live-unmute')) return;
         streamHoldTimer = setTimeout(pauseStreamHold, 120);
     };
     const endHold = function () {
