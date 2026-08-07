@@ -33,6 +33,8 @@ $router->get('/auctions', [AuctionController::class, 'index']);
 $router->post('/auctions/{id}/bid', [AuctionController::class, 'bid']);
 $router->get('/product/{id}', [ProductController::class, 'show']);
 $router->get('/checkout/success/{id}', [CheckoutController::class, 'success']);
+$router->get('/checkout/cart', [CheckoutController::class, 'cartShow']);
+$router->post('/checkout/cart/pay', [CheckoutController::class, 'cartPay']);
 $router->get('/checkout/{id}', [CheckoutController::class, 'show']);
 $router->post('/checkout/{id}/pay', [CheckoutController::class, 'pay']);
 $router->post('/payments/freedompay/result', [PaymentController::class, 'freedomPayResult']);

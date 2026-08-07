@@ -409,6 +409,260 @@ class Order extends Model
         ];
     }
 
+    /**
+     * Оплата всей корзины: отдельный эскроу-заказ на каждый товар.
+     *
+     * @param list<array<string, mixed>> $products
+     * @return array{ok: bool, order_id?: int, order_ids?: list<int>, redirect_url?: string, error?: string}
+     */
+    public function createEscrowCart(array $products, int $buyerId, string $paymentMethod, string $deliveryMethod): array
+    {
+        if ($products === []) {
+            return ['ok' => false, 'error' => t('checkout.cart_empty')];
+        }
+
+        if (count($products) === 1) {
+            return $this->createEscrow((int) $products[0]['id'], $buyerId, $paymentMethod, $deliveryMethod);
+        }
+
+        $validated = [];
+        $total = 0;
+        foreach ($products as $product) {
+            $productId = (int) ($product['id'] ?? 0);
+            if ($productId <= 0 || ($product['status'] ?? '') !== 'active') {
+                return ['ok' => false, 'error' => t('checkout.unavailable')];
+            }
+            if ((int) ($product['user_id'] ?? 0) === $buyerId) {
+                return ['ok' => false, 'error' => t('checkout.own_product')];
+            }
+            if (!ProductHelper::isPurchasable($product)) {
+                return ['ok' => false, 'error' => t('checkout.not_for_sale')];
+            }
+            $amount = (int) ($product['price'] ?? 0);
+            if ($amount <= 0) {
+                return ['ok' => false, 'error' => t('checkout.invalid_price')];
+            }
+            $validated[] = $product;
+            $total += $amount;
+        }
+
+        $method = in_array($paymentMethod, ['wallet', 'card', 'kaspi'], true) ? $paymentMethod : 'wallet';
+        $delivery = in_array($deliveryMethod, EscrowService::DELIVERY_METHODS, true)
+            ? $deliveryMethod
+            : 'kazpost';
+
+        $fp = new \App\Services\FreedomPay\Client();
+        $useFreedomPay = $method === 'card' && $fp->isConfigured();
+        $allowSimulated = (bool) ($GLOBALS['appConfig']['allow_simulated_payments'] ?? false);
+
+        if ($method !== 'wallet' && !$useFreedomPay && !$allowSimulated) {
+            return ['ok' => false, 'error' => t('wallet.payments_disabled')];
+        }
+
+        if ($useFreedomPay) {
+            return $this->createFreedomPayEscrowCart($validated, $buyerId, $total, $delivery, $fp);
+        }
+
+        $wallet = new Wallet();
+        if ($method === 'wallet' && $wallet->balance($buyerId) < $total) {
+            return ['ok' => false, 'error' => t('wallet.insufficient_checkout')];
+        }
+
+        try {
+            $this->db->beginTransaction();
+            $orderIds = [];
+            $notify = [];
+
+            foreach ($validated as $product) {
+                $productId = (int) $product['id'];
+                $amount = (int) $product['price'];
+
+                $lock = $this->db->prepare('SELECT id, status FROM products WHERE id = ? FOR UPDATE');
+                $lock->execute([$productId]);
+                $locked = $lock->fetch();
+                if (!$locked || $locked['status'] !== 'active') {
+                    $this->db->rollBack();
+                    return ['ok' => false, 'error' => t('checkout.unavailable')];
+                }
+
+                $stmt = $this->db->prepare(
+                    'INSERT INTO orders (
+                        product_id, buyer_id, seller_id, amount, payment_method, delivery_method,
+                        status, escrow_hold, paid_at
+                     ) VALUES (?, ?, ?, ?, ?, ?, \'escrowed\', \'holding\', NOW())'
+                );
+                $stmt->execute([
+                    $productId,
+                    $buyerId,
+                    (int) $product['user_id'],
+                    $amount,
+                    $method,
+                    $delivery,
+                ]);
+                $orderId = (int) $this->db->lastInsertId();
+                $orderIds[] = $orderId;
+
+                if ($method === 'wallet') {
+                    $pay = $wallet->holdForEscrow($buyerId, $amount, $orderId);
+                } else {
+                    $pay = $wallet->payExternalToEscrow($buyerId, $amount, $orderId, $method);
+                }
+                if (!$pay['ok']) {
+                    $this->db->rollBack();
+                    return ['ok' => false, 'error' => $pay['error'] ?? t('checkout.payment_failed')];
+                }
+
+                $sold = $this->db->prepare("UPDATE products SET status = 'sold' WHERE id = ? AND status = 'active'");
+                $sold->execute([$productId]);
+
+                $notify[] = [
+                    'seller_id' => (int) $product['user_id'],
+                    'title' => (string) $product['title'],
+                    'amount' => $amount,
+                    'order_id' => $orderId,
+                ];
+            }
+
+            $this->db->commit();
+
+            $n = new Notification();
+            foreach ($notify as $row) {
+                $n->createFor(
+                    $row['seller_id'],
+                    t('escrow.notify_escrowed', [
+                        'title' => $row['title'],
+                        'amount' => number_format($row['amount'], 0, '', ' '),
+                        'id' => $row['order_id'],
+                    ])
+                );
+            }
+
+            return [
+                'ok' => true,
+                'order_id' => $orderIds[0],
+                'order_ids' => $orderIds,
+            ];
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            return ['ok' => false, 'error' => t('checkout.payment_failed')];
+        }
+    }
+
+    /**
+     * @param list<array<string, mixed>> $products
+     * @return array{ok: bool, order_id?: int, order_ids?: list<int>, redirect_url?: string, error?: string}
+     */
+    private function createFreedomPayEscrowCart(
+        array $products,
+        int $buyerId,
+        int $total,
+        string $delivery,
+        \App\Services\FreedomPay\Client $fp
+    ): array {
+        $buyer = (new User())->find($buyerId);
+        $paymentModel = new Payment();
+        $pgOrderId = 'zk-cart-' . $buyerId . '-' . bin2hex(random_bytes(6));
+        $titles = array_map(
+            static fn (array $p): string => (string) ($p['title'] ?? ('#' . (int) $p['id'])),
+            $products
+        );
+        $description = mb_substr(implode(', ', $titles), 0, 200);
+
+        $init = $fp->initPayment([
+            'order_id' => $pgOrderId,
+            'amount' => $total,
+            'description' => $description,
+            'user_id' => (string) $buyerId,
+            'user_email' => (string) ($buyer['email'] ?? ''),
+            'user_phone' => (string) ($buyer['phone'] ?? ''),
+            'user_ip' => (string) ($_SERVER['REMOTE_ADDR'] ?? ''),
+            'param2' => 'cart',
+        ]);
+
+        if (!$init['ok'] || empty($init['redirect_url'])) {
+            return [
+                'ok' => false,
+                'error' => $init['error'] ?? t('checkout.payment_failed'),
+            ];
+        }
+
+        try {
+            $this->db->beginTransaction();
+            $cartItems = [];
+            $orderIds = [];
+            $firstProductId = (int) $products[0]['id'];
+
+            foreach ($products as $product) {
+                $productId = (int) $product['id'];
+                $amount = (int) $product['price'];
+
+                $lock = $this->db->prepare('SELECT id, status FROM products WHERE id = ? FOR UPDATE');
+                $lock->execute([$productId]);
+                $locked = $lock->fetch();
+                if (!$locked || $locked['status'] !== 'active') {
+                    $this->db->rollBack();
+                    return ['ok' => false, 'error' => t('checkout.unavailable')];
+                }
+
+                $stmt = $this->db->prepare(
+                    'INSERT INTO orders (
+                        product_id, buyer_id, seller_id, amount, payment_method, delivery_method,
+                        status, escrow_hold, paid_at
+                     ) VALUES (?, ?, ?, ?, \'card\', ?, \'awaiting_payment\', \'pending\', NULL)'
+                );
+                $stmt->execute([
+                    $productId,
+                    $buyerId,
+                    (int) $product['user_id'],
+                    $amount,
+                    $delivery,
+                ]);
+                $orderId = (int) $this->db->lastInsertId();
+                $orderIds[] = $orderId;
+                $cartItems[] = [
+                    'order_id' => $orderId,
+                    'product_id' => $productId,
+                    'amount' => $amount,
+                    'seller_id' => (int) $product['user_id'],
+                    'title' => (string) ($product['title'] ?? ''),
+                ];
+
+                $reserve = $this->db->prepare(
+                    "UPDATE products SET status = 'reserved' WHERE id = ? AND status = 'active'"
+                );
+                $reserve->execute([$productId]);
+            }
+
+            $paymentModel->createPending([
+                'pg_order_id' => $pgOrderId,
+                'order_id' => $orderIds[0],
+                'product_id' => $firstProductId,
+                'buyer_id' => $buyerId,
+                'amount' => $total,
+                'delivery_method' => $delivery,
+                'payment_method' => 'card',
+                'pg_payment_id' => !empty($init['payment_id']) ? (string) $init['payment_id'] : null,
+                'meta' => json_encode(['cart_items' => $cartItems], JSON_UNESCAPED_UNICODE),
+            ]);
+
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            return ['ok' => false, 'error' => t('checkout.payment_failed')];
+        }
+
+        return [
+            'ok' => true,
+            'order_id' => $orderIds[0],
+            'order_ids' => $orderIds,
+            'redirect_url' => (string) $init['redirect_url'],
+        ];
+    }
+
     /** @deprecated use createEscrow */
     public function createPaid(int $productId, int $buyerId, string $paymentMethod): array
     {

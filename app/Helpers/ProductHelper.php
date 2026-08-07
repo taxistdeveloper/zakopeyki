@@ -255,6 +255,11 @@ class ProductHelper
         return self::url('/checkout/' . (int) $productId);
     }
 
+    public static function cartCheckoutUrl(): string
+    {
+        return self::url('/checkout/cart');
+    }
+
     public static function formatPrice(array $item): string
     {
         if ($item['type'] === 'auction') {

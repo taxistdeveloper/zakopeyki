@@ -3,11 +3,19 @@ use App\Helpers\ProductHelper;
 use App\Models\Wallet;
 use App\Services\FreedomPay\Client as FreedomPayClient;
 
-$price = ProductHelper::formatPrice($item);
-$imageUrl = ProductHelper::imageUrl($item);
-$checkoutPayUrl = ProductHelper::url('/checkout/' . (int) $item['id'] . '/pay');
+$items = $items ?? (isset($item) ? [$item] : []);
+$total = (int) ($total ?? 0);
+if ($total <= 0) {
+    foreach ($items as $row) {
+        $total += (int) ($row['price'] ?? 0);
+    }
+}
+$priceLabel = number_format($total, 0, '', ' ') . ' ₸';
+$checkoutPayUrl = $checkoutPayUrl ?? ProductHelper::url('/checkout/' . (int) ($items[0]['id'] ?? 0) . '/pay');
+$cancelUrl = $cancelUrl ?? ProductHelper::url('/cart');
+$fromCart = !empty($fromCart);
 $walletBalance = (int) ($walletBalance ?? 0);
-$need = (int) ($item['price'] ?? 0);
+$need = $total;
 $canWallet = $walletBalance >= $need;
 $fpConfigured = (new FreedomPayClient())->isConfigured();
 $simPayments = (bool) ($GLOBALS['appConfig']['allow_simulated_payments'] ?? false) && !$fpConfigured;
@@ -25,25 +33,35 @@ $canCard = $fpConfigured || $simPayments;
     <?php endif; ?>
 
     <div class="bg-white/90 dark:bg-white/[0.04] rounded-[28px] border border-black/[0.06] dark:border-white/10 overflow-hidden shadow-soft backdrop-blur">
-        <div class="flex gap-4 p-5 border-b border-black/[0.05] dark:border-white/10">
-            <div class="w-20 h-20 rounded-2xl overflow-hidden bg-gradient-to-br from-ink-100 via-brand-50 to-accent-50 dark:from-white/10 dark:via-brand-900/20 dark:to-transparent flex-shrink-0 flex items-center justify-center">
-                <?php if ($imageUrl): ?>
-                    <img src="<?= htmlspecialchars($imageUrl) ?>" alt="" class="w-full h-full object-cover">
-                <?php else: ?>
-                    <?= ProductHelper::icon($item['type'], 'w-10 h-10 text-brand-500/70') ?>
-                <?php endif; ?>
-            </div>
-            <div class="min-w-0 flex-1">
-                <h2 class="font-semibold text-ink-900 dark:text-white text-sm leading-snug line-clamp-2"><?= htmlspecialchars($item['title']) ?></h2>
-                <p class="text-xs text-gray-400 mt-1"><?= htmlspecialchars($item['seller_name']) ?> · <?= htmlspecialchars($item['location']) ?></p>
-                <p class="font-display text-xl font-extrabold text-brand-600 mt-2"><?= htmlspecialchars($price) ?></p>
-            </div>
+        <div class="border-b border-black/[0.05] dark:border-white/10 divide-y divide-black/[0.05] dark:divide-white/10">
+            <?php foreach ($items as $row):
+                $imageUrl = ProductHelper::imageUrl($row);
+                $rowPrice = ProductHelper::formatPrice($row);
+            ?>
+                <div class="flex gap-4 p-5">
+                    <div class="w-20 h-20 rounded-2xl overflow-hidden bg-gradient-to-br from-ink-100 via-brand-50 to-accent-50 dark:from-white/10 dark:via-brand-900/20 dark:to-transparent flex-shrink-0 flex items-center justify-center">
+                        <?php if ($imageUrl): ?>
+                            <img src="<?= htmlspecialchars($imageUrl) ?>" alt="" class="w-full h-full object-cover">
+                        <?php else: ?>
+                            <?= ProductHelper::icon($row['type'], 'w-10 h-10 text-brand-500/70') ?>
+                        <?php endif; ?>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <h2 class="font-semibold text-ink-900 dark:text-white text-sm leading-snug line-clamp-2"><?= htmlspecialchars($row['title']) ?></h2>
+                        <p class="text-xs text-gray-400 mt-1"><?= htmlspecialchars($row['seller_name'] ?? '') ?> · <?= htmlspecialchars($row['location'] ?? '') ?></p>
+                        <p class="font-display text-xl font-extrabold text-brand-600 mt-2"><?= htmlspecialchars($rowPrice) ?></p>
+                    </div>
+                </div>
+            <?php endforeach; ?>
         </div>
 
         <form method="post" action="<?= $checkoutPayUrl ?>" class="p-5 sm:p-6 space-y-5">
             <?= csrf_field() ?>
             <div class="rounded-2xl bg-amber-50/90 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/40 px-4 py-3 text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
                 <?= htmlspecialchars(t('checkout.escrow_notice')) ?>
+                <?php if (count($items) > 1): ?>
+                    <span class="block mt-1.5"><?= htmlspecialchars(t('checkout.cart_escrow_hint')) ?></span>
+                <?php endif; ?>
             </div>
 
             <div class="flex items-center justify-between gap-3 rounded-2xl border border-black/[0.06] dark:border-white/10 bg-ink-50/60 dark:bg-white/[0.03] px-4 py-3">
@@ -102,13 +120,13 @@ $canCard = $fpConfigured || $simPayments;
 
             <div class="flex justify-between items-center pt-2 border-t border-black/[0.05] dark:border-white/10">
                 <span class="text-sm text-gray-500"><?= htmlspecialchars(t('checkout.to_pay')) ?></span>
-                <span class="font-display text-2xl font-extrabold text-ink-900 dark:text-white"><?= htmlspecialchars($price) ?></span>
+                <span class="font-display text-2xl font-extrabold text-ink-900 dark:text-white"><?= htmlspecialchars($priceLabel) ?></span>
             </div>
 
             <button type="submit" <?= (!$canWallet && !$canCard) ? 'disabled' : '' ?> class="w-full bg-accent-500 hover:bg-accent-400 disabled:opacity-50 disabled:cursor-not-allowed text-white font-display font-bold py-3.5 rounded-2xl text-sm uppercase tracking-wider transition shadow-soft">
                 <?= htmlspecialchars(t('checkout.pay_escrow_btn')) ?>
             </button>
-            <a href="<?= ProductHelper::url('/product/' . (int) $item['id']) ?>" class="block w-full text-center text-sm text-gray-400 hover:text-brand-600 font-medium transition">
+            <a href="<?= $cancelUrl ?>" class="block w-full text-center text-sm text-gray-400 hover:text-brand-600 font-medium transition">
                 <?= htmlspecialchars(t('checkout.cancel')) ?>
             </a>
         </form>

@@ -11,6 +11,7 @@ use App\Models\Notification;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\Wallet;
+use App\Services\Cart;
 
 class CheckoutController extends Controller
 {
@@ -62,13 +63,55 @@ class CheckoutController extends Controller
         $this->view('checkout/index', [
             'title' => t('checkout.title'),
             'currentNav' => '',
+            'items' => [$product],
             'item' => $product,
+            'fromCart' => false,
+            'total' => (int) ($product['price'] ?? 0),
             'walletBalance' => $walletBalance,
             'notifications' => $n->forUser(Auth::id()),
             'unread' => $n->unreadCount(Auth::id()),
             'isFavorite' => (new Favorite())->isFavorite(Auth::id(), $productId),
             'search' => '',
             'error' => $_SESSION['checkout_error'] ?? null,
+            'checkoutPayUrl' => ProductHelper::url('/checkout/' . $productId . '/pay'),
+            'cancelUrl' => ProductHelper::url('/product/' . $productId),
+        ]);
+        unset($_SESSION['checkout_error']);
+    }
+
+    public function cartShow(): void
+    {
+        Auth::requireLogin();
+
+        $items = Cart::items();
+        if ($items === []) {
+            $_SESSION['flash'] = t('checkout.cart_empty');
+            $this->redirect('/cart');
+            return;
+        }
+
+        $total = 0;
+        foreach ($items as $item) {
+            $total += (int) ($item['price'] ?? 0);
+        }
+
+        $n = new Notification();
+        $walletBalance = (new Wallet())->balance(Auth::id());
+        $this->view('checkout/index', [
+            'title' => t('checkout.title'),
+            'currentNav' => 'cart',
+            'items' => $items,
+            'item' => $items[0],
+            'fromCart' => true,
+            'total' => $total,
+            'walletBalance' => $walletBalance,
+            'notifications' => $n->forUser(Auth::id()),
+            'unread' => $n->unreadCount(Auth::id()),
+            'isFavorite' => false,
+            'search' => '',
+            'error' => $_SESSION['checkout_error'] ?? null,
+            'checkoutPayUrl' => ProductHelper::url('/checkout/cart/pay'),
+            'cancelUrl' => ProductHelper::url('/cart'),
         ]);
         unset($_SESSION['checkout_error']);
     }
@@ -92,6 +135,8 @@ class CheckoutController extends Controller
             return;
         }
 
+        Cart::remove($productId);
+
         if (!empty($result['redirect_url'])) {
             ActivityLogger::info('order.pay', 'Редирект на FreedomPay, заказ #' . (int) $result['order_id'], 'order', (int) $result['order_id'], [
                 'product_id' => $productId,
@@ -107,6 +152,62 @@ class CheckoutController extends Controller
             'method' => $method,
             'delivery' => $delivery,
         ]);
+        $this->redirect('/orders/' . (int) $result['order_id']);
+    }
+
+    public function cartPay(): void
+    {
+        Auth::requireLogin();
+
+        $items = Cart::items();
+        if ($items === []) {
+            $_SESSION['flash'] = t('checkout.cart_empty');
+            $this->redirect('/cart');
+            return;
+        }
+
+        $method = (string) ($_POST['payment_method'] ?? 'card');
+        $delivery = (string) ($_POST['delivery_method'] ?? 'kazpost');
+
+        $result = (new Order())->createEscrowCart($items, Auth::id(), $method, $delivery);
+
+        if (!$result['ok']) {
+            ActivityLogger::warning('order.pay_cart', $result['error'] ?? 'Ошибка оплаты корзины', 'cart', null, [
+                'method' => $method,
+                'count' => count($items),
+            ]);
+            $_SESSION['checkout_error'] = $result['error'] ?? t('checkout.payment_failed');
+            $this->redirect('/checkout/cart');
+            return;
+        }
+
+        foreach ($items as $item) {
+            Cart::remove((int) $item['id']);
+        }
+
+        if (!empty($result['redirect_url'])) {
+            ActivityLogger::info('order.pay_cart', 'Редирект на FreedomPay, заказ #' . (int) $result['order_id'], 'order', (int) $result['order_id'], [
+                'method' => $method,
+                'delivery' => $delivery,
+                'count' => count($items),
+            ]);
+            $this->redirect((string) $result['redirect_url']);
+            return;
+        }
+
+        $orderIds = $result['order_ids'] ?? [(int) $result['order_id']];
+        ActivityLogger::info('order.pay_cart', 'Оплачено сделок: ' . count($orderIds), 'order', (int) $result['order_id'], [
+            'method' => $method,
+            'delivery' => $delivery,
+            'order_ids' => $orderIds,
+        ]);
+
+        if (count($orderIds) > 1) {
+            $_SESSION['flash'] = t('checkout.cart_paid', ['count' => count($orderIds)]);
+            $this->redirect('/orders');
+            return;
+        }
+
         $this->redirect('/orders/' . (int) $result['order_id']);
     }
 

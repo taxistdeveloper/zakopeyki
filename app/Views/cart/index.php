@@ -9,7 +9,7 @@ $items = $items ?? [];
 $total = (int) ($total ?? 0);
 $firstItem = $items[0] ?? null;
 $buyUrl = $firstItem
-    ? (Auth::check() ? ProductHelper::checkoutUrl($firstItem['id']) : ProductHelper::url('/login'))
+    ? (Auth::check() ? ProductHelper::cartCheckoutUrl() : ProductHelper::url('/login'))
     : null;
 ?>
 <section class="max-w-3xl mx-auto space-y-5 fade-up pb-8">
