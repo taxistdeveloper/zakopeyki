@@ -740,6 +740,8 @@ function openStreamViewer(index) {
     streamIndex = index;
     document.getElementById('stream-viewer')?.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
+    document.body.classList.add('live-stream-open');
+    try { toggleAiAssistant(false); } catch (e) { /* ignore */ }
     sizeStoryFrame();
     renderStreamReel();
     bindStreamGestures();
@@ -773,6 +775,7 @@ function closeStreamViewer() {
     document.getElementById('stream-viewer')?.classList.add('hidden');
     document.getElementById('stream-paused')?.classList.add('hidden');
     document.body.style.overflow = '';
+    document.body.classList.remove('live-stream-open');
 }
 
 function streamSrc(stream) {
@@ -1476,6 +1479,8 @@ let liveShopCommentAfter = 0;
 let liveShopElapsedBase = 0;
 let liveShopElapsedTick = null;
 let liveShopIsHost = false;
+let liveShopGiveJoined = false;
+let liveShopGiveCount = 0;
 
 function liveShopEsc(s) {
     return String(s == null ? '' : s)
@@ -1509,14 +1514,24 @@ function startLiveShop(stream) {
     liveShopViewerKey = liveRandomPeerId();
     liveShopCommentAfter = 0;
     liveShopElapsedBase = 0;
+    liveShopGiveJoined = false;
 
     ui.classList.remove('hidden');
+    document.body.classList.add('live-stream-open');
+    try { toggleAiAssistant(false); } catch (e) { /* ignore */ }
+
     document.getElementById('live-shop-avatar').textContent = stream.author_avatar || '?';
     document.getElementById('live-shop-name').textContent = stream.author_name || '';
     document.getElementById('live-shop-comments').innerHTML = '';
     document.getElementById('live-shop-viewers').textContent = '1';
     document.getElementById('live-shop-likes').textContent = '0';
+    const ht = document.getElementById('live-shop-hearts-total');
+    if (ht) ht.textContent = '0';
     document.getElementById('live-shop-timer').textContent = '00:00:00';
+    const followers = document.getElementById('live-shop-followers');
+    if (followers) {
+        followers.textContent = '— ' + (window.__i18n?.['live.followers'] || 'подписчиков');
+    }
 
     const input = document.getElementById('live-shop-comment-input');
     if (input) {
@@ -1567,8 +1582,11 @@ function pollLiveShop() {
             if (typeof data.elapsed === 'number') liveShopElapsedBase = data.elapsed;
             const v = document.getElementById('live-shop-viewers');
             const l = document.getElementById('live-shop-likes');
+            const ht = document.getElementById('live-shop-hearts-total');
             if (v) v.textContent = String(data.viewers || 0);
             if (l) l.textContent = liveShopFormatLikes(data.likes || 0);
+            if (ht) ht.textContent = liveShopFormatLikes(data.likes || 0);
+            updateLiveGiveawayProgress(data.likes || 0);
             renderLiveShopFeatured(data.featured, data.featured_id);
             renderLiveShopShelf(data.products || [], data.featured_id);
         })
@@ -1586,6 +1604,7 @@ function renderLiveShopFeatured(product, featuredId) {
     const img = document.getElementById('live-shop-feat-img');
     const title = document.getElementById('live-shop-feat-title');
     const price = document.getElementById('live-shop-feat-price');
+    const oldP = document.getElementById('live-shop-feat-old');
     const buy = document.getElementById('live-shop-feat-buy');
     if (img) {
         if (product.image) {
@@ -1598,6 +1617,26 @@ function renderLiveShopFeatured(product, featuredId) {
     }
     if (title) title.textContent = product.title || '';
     if (price) price.textContent = product.price_label || '';
+    if (oldP) {
+        if (product.old_price_label) {
+            oldP.textContent = product.old_price_label;
+            oldP.classList.remove('hidden');
+        } else {
+            oldP.classList.add('hidden');
+        }
+    }
+    const stockWrap = document.getElementById('live-shop-feat-stock-wrap');
+    if (stockWrap) {
+        if (product.stock != null && Number(product.stock) > 0) {
+            stockWrap.classList.remove('hidden');
+            const st = document.getElementById('live-shop-feat-stock');
+            const bar = document.getElementById('live-shop-feat-stock-bar');
+            if (st) st.textContent = String(product.stock) + ' шт.';
+            if (bar) bar.style.width = Math.min(100, Math.max(8, Number(product.stock) * 8)) + '%';
+        } else {
+            stockWrap.classList.add('hidden');
+        }
+    }
     if (buy) {
         buy.href = product.buy_url || product.url || '#';
         buy.onclick = function (e) {
@@ -1606,6 +1645,59 @@ function renderLiveShopFeatured(product, featuredId) {
                 location.href = (window.__loginUrl || '/login');
             }
         };
+    }
+}
+
+function updateLiveGiveawayProgress(likes) {
+    const goal = 500;
+    const n = Math.min(goal, Number(likes) || 0);
+    const bar = document.getElementById('live-shop-give-bar');
+    const prog = document.getElementById('live-shop-give-prog');
+    const count = document.getElementById('live-shop-give-count');
+    if (bar) bar.style.width = Math.round((n / goal) * 100) + '%';
+    if (prog) prog.textContent = String(n);
+    if (count && !liveShopGiveJoined) {
+        liveShopGiveCount = Math.max(liveShopGiveCount || 0, Math.floor(n / 2));
+        count.textContent = String(liveShopGiveCount);
+    }
+}
+
+function joinLiveGiveaway() {
+    if (!window.__currentUserId) {
+        alert(window.__i18n?.['live.login_to_comment'] || 'Войдите');
+        return;
+    }
+    if (!liveShopGiveJoined) {
+        liveShopGiveJoined = true;
+        liveShopGiveCount = (liveShopGiveCount || 0) + 1;
+        const count = document.getElementById('live-shop-give-count');
+        if (count) count.textContent = String(liveShopGiveCount);
+    }
+    sendLiveHeart();
+    const btn = document.getElementById('live-shop-give-btn');
+    if (btn) {
+        btn.textContent = window.__i18n?.['live.giveaway_joined'] || 'Вы участвуете!';
+        btn.classList.add('opacity-80');
+    }
+}
+
+function liveShopAsk() {
+    const input = document.getElementById('live-shop-comment-input');
+    if (!input) return;
+    if (!input.value.trim()) input.value = '? ';
+    input.focus();
+}
+
+function liveShopShare() {
+    const url = location.href.split('#')[0] + '#live-' + (liveShopStreamId || '');
+    if (navigator.share) {
+        navigator.share({ title: 'Live — zakopeyki.kz', url: url }).catch(function () {});
+        return;
+    }
+    if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(url).then(function () {
+            alert(window.__i18n?.['live.share_copied'] || 'Ссылка скопирована');
+        }).catch(function () {});
     }
 }
 
@@ -1687,7 +1779,7 @@ function appendLiveComment(c) {
     if (!box) return;
     const el = document.createElement('div');
     el.className = 'live-cmt' + (c.is_host ? ' is-host' : '');
-    const hostTag = c.is_host ? '<span class="host-tag">ведущий</span>' : '';
+    const hostTag = c.is_host ? '<span class="host-tag">ВЕДУЩИЙ</span>' : '';
     el.innerHTML = hostTag + '<strong>' + liveShopEsc(c.user_name) + '</strong>' + liveShopEsc(c.body);
     box.appendChild(el);
     while (box.children.length > 40) box.removeChild(box.firstChild);
@@ -1736,7 +1828,10 @@ function sendLiveHeart() {
         .then(function (data) {
             if (data && data.ok) {
                 const l = document.getElementById('live-shop-likes');
+                const ht = document.getElementById('live-shop-hearts-total');
                 if (l) l.textContent = liveShopFormatLikes(data.likes);
+                if (ht) ht.textContent = liveShopFormatLikes(data.likes);
+                updateLiveGiveawayProgress(data.likes);
             }
         })
         .catch(function () {});

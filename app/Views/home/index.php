@@ -322,78 +322,126 @@ $changelog = $changelog ?? null;
                 </div>
             </div>
 
-            <!-- LIVE SHOP OVERLAY -->
-            <div id="live-shop-ui" class="hidden absolute inset-0 z-[35] flex flex-col pointer-events-none">
-                <div class="live-shop-top pointer-events-auto px-3 pt-3 pb-2">
-                    <div class="flex items-start justify-between gap-2">
-                        <div class="flex items-center gap-2 min-w-0">
-                            <div id="live-shop-avatar" class="w-9 h-9 rounded-full bg-white/90 text-[#262626] font-black text-xs flex items-center justify-center ring-2 ring-white/80 flex-shrink-0"></div>
-                            <div class="min-w-0">
-                                <div class="flex items-center gap-1.5">
-                                    <span id="live-shop-name" class="text-white text-[13px] font-bold truncate drop-shadow"></span>
-                                </div>
-                                <div class="flex items-center gap-1.5 mt-0.5">
-                                    <span class="text-[9px] font-black uppercase bg-red-500 text-white px-1.5 py-0.5 rounded">● LIVE</span>
-                                    <span id="live-shop-timer" class="text-[10px] text-white/90 font-semibold tabular-nums">00:00:00</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-1.5 flex-shrink-0">
-                            <span class="inline-flex items-center gap-1 bg-black/45 text-white text-[11px] font-semibold px-2 py-1 rounded-full backdrop-blur">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8V22h19.2v-2.8c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+            <!-- LIVE SHOP OVERLAY (по макету) -->
+            <div id="live-shop-ui" class="hidden absolute inset-0 z-[35] flex flex-col pointer-events-none text-white">
+                <!-- top chrome -->
+                <div class="pointer-events-auto px-3 pt-2.5 pb-1">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="font-display text-[13px] font-bold tracking-tight drop-shadow">za<span class="text-amber-300">kopeyki</span>.kz</span>
+                        <button type="button" id="live-shop-follow" class="hidden text-[11px] font-bold bg-white/15 hover:bg-white/25 border border-white/20 px-3 py-1 rounded-full backdrop-blur"><?= htmlspecialchars(t('live.subscribe')) ?></button>
+                        <div class="flex items-center gap-1.5 ml-auto">
+                            <span class="inline-flex items-center gap-1 bg-black/50 text-[11px] font-semibold px-2 py-1 rounded-full backdrop-blur">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8z"/></svg>
                                 <span id="live-shop-viewers">0</span>
                             </span>
-                            <button type="button" onclick="toggleStreamMute()" class="w-8 h-8 rounded-full bg-black/45 text-white flex items-center justify-center backdrop-blur" id="live-shop-mute" aria-label="Mute">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                            <button type="button" onclick="closeStreamViewer()" class="w-8 h-8 rounded-full bg-black/50 flex items-center justify-center backdrop-blur text-base" aria-label="Close">✕</button>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 mt-2.5">
+                        <div id="live-shop-avatar" class="w-10 h-10 rounded-full bg-white text-[#262626] font-black text-sm flex items-center justify-center ring-2 ring-white/90 flex-shrink-0 shadow"></div>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-1">
+                                <span id="live-shop-name" class="text-[13px] font-bold truncate drop-shadow"></span>
+                                <svg class="text-amber-300 flex-shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 14.8 7.2 17l.9-5.4L4.2 7.7l5.4-.8L12 2z"/></svg>
+                            </div>
+                            <p id="live-shop-followers" class="text-[10px] text-white/75 truncate">—</p>
+                        </div>
+                        <div class="flex items-center gap-1.5 flex-shrink-0">
+                            <span class="text-[9px] font-black uppercase bg-red-500 px-1.5 py-0.5 rounded shadow">● LIVE</span>
+                            <span id="live-shop-timer" class="text-[11px] font-semibold tabular-nums drop-shadow">00:00:00</span>
+                            <button type="button" onclick="toggleStreamMute()" id="live-shop-mute" class="w-7 h-7 rounded-full bg-black/40 flex items-center justify-center" aria-label="Mute">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
                             </button>
-                            <button type="button" onclick="closeStreamViewer()" class="w-8 h-8 rounded-full bg-black/45 text-white flex items-center justify-center backdrop-blur sm:hidden" aria-label="Close">✕</button>
                         </div>
                     </div>
                 </div>
 
-                <div class="flex-1 flex min-h-0 px-3 gap-2 relative">
-                    <div class="flex-1 flex flex-col justify-end min-w-0 pb-1">
-                        <div id="live-shop-likes-pill" class="self-start mb-2 pointer-events-none inline-flex items-center gap-1 bg-black/40 text-white text-[11px] font-semibold px-2 py-1 rounded-lg backdrop-blur">
-                            <span>♥</span> <span id="live-shop-likes">0</span>
+                <!-- mid: left chat/top + right cards -->
+                <div class="flex-1 flex min-h-0 px-3 gap-2 relative mt-1">
+                    <div class="flex-1 flex flex-col min-w-0 justify-between pb-1">
+                        <div id="live-shop-top-support" class="live-shop-glass self-start rounded-xl px-2.5 py-2 max-w-[58%] pointer-events-none">
+                            <p class="text-[9px] font-black uppercase tracking-wider text-amber-200/90 mb-1"><?= htmlspecialchars(t('live.top_support')) ?></p>
+                            <div id="live-shop-top-list" class="space-y-0.5 text-[10px] text-white/85">
+                                <p class="text-white/50"><?= htmlspecialchars(t('live.top_empty')) ?></p>
+                            </div>
+                            <div class="mt-1.5 inline-flex items-center gap-1 text-[10px] font-semibold text-white/90">
+                                <span>👍</span> <span id="live-shop-likes">0</span>
+                            </div>
                         </div>
-                        <div id="live-shop-comments" class="live-shop-comments pointer-events-none space-y-1.5 max-h-[38%] overflow-hidden mb-2"></div>
+                        <div class="mt-auto min-h-0 flex flex-col justify-end">
+                            <div id="live-shop-comments" class="live-shop-comments pointer-events-none space-y-1.5 max-h-[42%] overflow-hidden mb-1.5"></div>
+                            <div id="live-shop-purchase-toast" class="hidden live-shop-toast pointer-events-none mb-1"></div>
+                        </div>
                     </div>
-                    <div class="w-[42%] max-w-[168px] flex flex-col justify-end gap-2 pb-1 pointer-events-auto">
-                        <div id="live-shop-featured" class="hidden live-shop-card rounded-2xl overflow-hidden">
-                            <div class="px-2.5 pt-2 pb-1">
-                                <p class="text-[9px] font-black uppercase tracking-wider text-amber-200/90"><?= htmlspecialchars(t('live.product_of_day')) ?></p>
+                    <div class="w-[44%] max-w-[170px] flex flex-col justify-end gap-2 pb-1 relative">
+                        <div id="live-shop-featured" class="hidden live-shop-card rounded-2xl overflow-hidden pointer-events-auto">
+                            <div class="px-2.5 pt-2 pb-1.5">
+                                <p class="text-[9px] font-black uppercase tracking-wider text-amber-200"><?= htmlspecialchars(t('live.product_of_day')) ?></p>
                                 <div class="flex gap-2 mt-1.5">
-                                    <div id="live-shop-feat-img" class="w-11 h-11 rounded-lg bg-white/10 bg-cover bg-center flex-shrink-0"></div>
+                                    <div id="live-shop-feat-img" class="w-12 h-12 rounded-lg bg-white/10 bg-cover bg-center flex-shrink-0"></div>
                                     <div class="min-w-0 flex-1">
-                                        <p id="live-shop-feat-title" class="text-[11px] font-semibold text-white leading-snug line-clamp-2"></p>
-                                        <p id="live-shop-feat-price" class="text-[12px] font-black text-amber-300 mt-0.5"></p>
+                                        <p id="live-shop-feat-title" class="text-[11px] font-semibold leading-snug line-clamp-2"></p>
+                                        <p class="mt-0.5">
+                                            <span id="live-shop-feat-price" class="text-[13px] font-black text-amber-300"></span>
+                                            <span id="live-shop-feat-old" class="hidden text-[10px] text-white/45 line-through ml-1"></span>
+                                        </p>
+                                        <div id="live-shop-feat-stock-wrap" class="hidden mt-1">
+                                            <p class="text-[9px] text-white/70"><?= htmlspecialchars(t('live.left')) ?>: <span id="live-shop-feat-stock">0</span></p>
+                                            <div class="h-1 rounded-full bg-white/15 mt-0.5 overflow-hidden"><div id="live-shop-feat-stock-bar" class="h-full bg-amber-400 rounded-full" style="width:40%"></div></div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                             <a id="live-shop-feat-buy" href="#" class="block text-center text-[12px] font-black bg-amber-400 hover:bg-amber-300 text-ink-900 py-2.5"><?= htmlspecialchars(t('live.buy_now')) ?></a>
                         </div>
-                        <div id="live-shop-hearts" class="live-shop-hearts absolute right-1 bottom-28 w-10 h-40 pointer-events-none"></div>
+                        <div id="live-shop-giveaway" class="live-shop-giveaway rounded-2xl overflow-hidden pointer-events-auto">
+                            <div class="px-2.5 pt-2 pb-2">
+                                <p class="text-[9px] font-black uppercase tracking-wider text-violet-200"><?= htmlspecialchars(t('live.giveaway')) ?></p>
+                                <p class="text-[11px] font-semibold mt-1 leading-snug"><?= htmlspecialchars(t('live.giveaway_title')) ?></p>
+                                <p class="text-[10px] text-white/70 mt-0.5"><span id="live-shop-give-count">0</span> <?= htmlspecialchars(t('live.participants')) ?></p>
+                                <div class="h-1.5 rounded-full bg-white/15 mt-2 overflow-hidden">
+                                    <div id="live-shop-give-bar" class="h-full bg-violet-400 rounded-full transition-all" style="width:0%"></div>
+                                </div>
+                                <p class="text-[9px] text-white/60 mt-1"><span id="live-shop-give-prog">0</span> / 500 ♥</p>
+                                <button type="button" id="live-shop-give-btn" onclick="joinLiveGiveaway()" class="mt-2 w-full text-[11px] font-black bg-violet-500 hover:bg-violet-400 text-white py-2 rounded-xl"><?= htmlspecialchars(t('live.participate')) ?></button>
+                            </div>
+                        </div>
+                        <div id="live-shop-hearts" class="live-shop-hearts absolute right-0 bottom-2 w-11 h-44 pointer-events-none"></div>
+                        <div class="absolute right-1 bottom-0 pointer-events-none text-[10px] font-bold text-white/90 drop-shadow" id="live-shop-hearts-total">0</div>
                     </div>
                 </div>
 
-                <div class="pointer-events-auto px-3 pb-2">
+                <!-- shelf + bottom bar -->
+                <div class="pointer-events-auto px-3 pb-2.5 pt-1">
                     <div id="live-shop-shelf-wrap" class="hidden mb-2">
-                        <p class="text-[10px] font-semibold text-white/80 mb-1.5 drop-shadow"><?= htmlspecialchars(t('live.products_in_stream')) ?> <span id="live-shop-shelf-count">0</span></p>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <p class="text-[10px] font-semibold text-white/85 drop-shadow"><?= htmlspecialchars(t('live.products_in_stream')) ?> <span id="live-shop-shelf-count">0</span></p>
+                            <button type="button" id="live-shop-see-all" class="text-[10px] font-semibold text-amber-300"><?= htmlspecialchars(t('live.see_all')) ?> ›</button>
+                        </div>
                         <div id="live-shop-shelf" class="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 live-shop-shelf"></div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <form id="live-shop-comment-form" class="flex-1 flex items-center bg-black/45 backdrop-blur rounded-full pl-3.5 pr-1.5 py-1 border border-white/15" onsubmit="return sendLiveComment(event)">
-                            <input id="live-shop-comment-input" type="text" maxlength="280" autocomplete="off" placeholder="<?= htmlspecialchars(t('live.comment_placeholder')) ?>" class="flex-1 bg-transparent text-white text-[13px] placeholder:text-white/50 outline-none min-w-0">
-                            <button type="submit" class="text-[11px] font-bold text-amber-300 px-2.5 py-1.5"><?= htmlspecialchars(t('live.send')) ?></button>
+                    <div class="flex items-center gap-1.5">
+                        <form id="live-shop-comment-form" class="flex-1 flex items-center bg-black/50 backdrop-blur rounded-full pl-3.5 pr-1 py-1 border border-white/15 min-w-0" onsubmit="return sendLiveComment(event)">
+                            <input id="live-shop-comment-input" type="text" maxlength="280" autocomplete="off" placeholder="<?= htmlspecialchars(t('live.comment_placeholder')) ?>" class="flex-1 bg-transparent text-white text-[12px] placeholder:text-white/50 outline-none min-w-0">
                         </form>
-                        <button type="button" onclick="sendLiveHeart()" class="w-10 h-10 rounded-full bg-black/45 backdrop-blur border border-white/15 text-white flex items-center justify-center flex-shrink-0" aria-label="Like">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
+                        <button type="button" onclick="liveShopAsk()" class="live-shop-icon-btn" title="<?= htmlspecialchars(t('live.question')) ?>">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                            <span><?= htmlspecialchars(t('live.question')) ?></span>
                         </button>
-                        <a href="<?= ProductHelper::url('/cart') ?>" class="relative w-10 h-10 rounded-full bg-black/45 backdrop-blur border border-white/15 text-white flex items-center justify-center flex-shrink-0" aria-label="Cart">
+                        <button type="button" onclick="liveShopShare()" class="live-shop-icon-btn" title="<?= htmlspecialchars(t('live.share')) ?>">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>
+                            <span><?= htmlspecialchars(t('live.share')) ?></span>
+                        </button>
+                        <a href="<?= ProductHelper::url('/cart') ?>" class="live-shop-icon-btn relative" title="<?= htmlspecialchars(t('nav.cart')) ?>">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
-                            <span id="live-shop-cart-badge" class="hidden absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-amber-400 text-[9px] font-black text-ink-900 flex items-center justify-center">0</span>
+                            <span><?= htmlspecialchars(t('nav.cart')) ?></span>
+                            <span id="live-shop-cart-badge" class="hidden absolute top-0 right-1 min-w-[14px] h-3.5 px-0.5 rounded-full bg-amber-400 text-[8px] font-black text-ink-900 flex items-center justify-center">0</span>
                         </a>
-                        <button type="button" id="stream-end-live-btn" onclick="endLiveStream()" class="hidden h-10 px-3 rounded-full bg-white text-red-600 text-[10px] font-black uppercase flex-shrink-0"><?= htmlspecialchars(t('home.end_live')) ?></button>
+                        <button type="button" onclick="sendLiveHeart()" class="live-shop-icon-btn" title="Like">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
+                            <span>♥</span>
+                        </button>
+                        <button type="button" id="stream-end-live-btn" onclick="endLiveStream()" class="hidden h-9 px-2.5 rounded-full bg-white text-red-600 text-[9px] font-black uppercase flex-shrink-0"><?= htmlspecialchars(t('home.end_live')) ?></button>
                     </div>
                 </div>
             </div>

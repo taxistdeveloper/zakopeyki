@@ -256,9 +256,52 @@ function url(string $path = ''): string
             border: 1px solid rgba(255,255,255,0.12);
             box-shadow: 0 8px 24px rgba(0,0,0,0.35);
         }
+        .live-shop-glass {
+            background: rgba(0,0,0,0.42);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .live-shop-giveaway {
+            background: linear-gradient(160deg, rgba(76,29,149,0.75), rgba(20,16,30,0.8));
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(167,139,250,0.35);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        }
+        .live-shop-toast {
+            background: rgba(109, 40, 217, 0.85);
+            backdrop-filter: blur(8px);
+            border-radius: 12px;
+            padding: 8px 10px;
+            font-size: 11px;
+            font-weight: 600;
+            line-height: 1.3;
+            animation: liveCmtIn .25s ease;
+        }
+        .live-shop-icon-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1px;
+            width: 42px;
+            height: 42px;
+            flex-shrink: 0;
+            border: none;
+            background: transparent;
+            color: #fff;
+            cursor: pointer;
+            text-decoration: none;
+            padding: 0;
+        }
+        .live-shop-icon-btn span {
+            font-size: 8px;
+            font-weight: 700;
+            line-height: 1;
+            opacity: 0.85;
+        }
         .live-shop-comments .live-cmt {
             display: block;
-            max-width: 92%;
+            max-width: 95%;
             padding: 6px 10px;
             border-radius: 14px;
             background: rgba(0,0,0,0.42);
@@ -289,17 +332,17 @@ function url(string $path = ''): string
         .live-shop-shelf::-webkit-scrollbar { display: none; }
         .live-shop-shelf-item {
             flex: 0 0 auto;
-            width: 72px;
-            background: rgba(0,0,0,0.45);
+            width: 76px;
+            background: rgba(0,0,0,0.5);
             border: 1px solid rgba(255,255,255,0.12);
             border-radius: 14px;
             overflow: hidden;
-            text-decoration: none;
             color: #fff;
         }
+        .live-shop-shelf-item a { color: inherit; text-decoration: none; display: block; }
         .live-shop-shelf-item img, .live-shop-shelf-item .ph {
             width: 100%;
-            height: 56px;
+            height: 58px;
             object-fit: cover;
             display: block;
             background: rgba(255,255,255,0.08);
@@ -341,6 +384,11 @@ function url(string $path = ''): string
         .live-shop-frame.is-live-mode #stream-hold-zone,
         .live-shop-frame.is-live-mode #stream-viewer-desc { display: none !important; }
         .live-shop-frame.is-live-mode #stream-progress { display: none !important; }
+        body.live-stream-open #ai-assistant { display: none !important; }
+        body.live-stream-open .story-brand,
+        body.live-stream-open .story-close-outer { display: none !important; }
+        body.live-stream-open #stream-nav-prev,
+        body.live-stream-open #stream-nav-next { opacity: 0.35; }
         .story-text-bg {
             background:
                 radial-gradient(ellipse 100% 70% at 50% 30%, rgba(255,255,255,0.2), transparent 55%),
@@ -710,6 +758,9 @@ function url(string $path = ''): string
             'js.you', 'js.stream_error', 'js.live_connecting', 'js.live_waiting',
             'live.product_of_day', 'live.buy_now', 'live.products_in_stream',
             'live.login_to_comment', 'live.pin', 'live.no_products',
+            'live.subscribe', 'live.top_support', 'live.top_empty', 'live.left',
+            'live.giveaway', 'live.participate', 'live.see_all', 'live.question',
+            'live.share', 'live.share_copied', 'live.giveaway_joined', 'live.followers',
             'card.favorite', 'card.unfavorite',
             'card.add_cart', 'card.in_cart',
             'home.story_link_copied',
