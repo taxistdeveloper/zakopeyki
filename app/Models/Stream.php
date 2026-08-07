@@ -57,6 +57,39 @@ class Stream extends Model
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
         );
 
+        $this->db->exec(
+            "CREATE TABLE IF NOT EXISTS stream_comments (
+                id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                stream_id INT UNSIGNED NOT NULL,
+                user_id INT UNSIGNED NULL,
+                user_name VARCHAR(100) NOT NULL,
+                body VARCHAR(280) NOT NULL,
+                is_host TINYINT(1) NOT NULL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_stream_comments (stream_id, id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+        );
+
+        $this->db->exec(
+            "CREATE TABLE IF NOT EXISTS stream_viewers (
+                stream_id INT UNSIGNED NOT NULL,
+                viewer_key VARCHAR(64) NOT NULL,
+                last_seen DATETIME NOT NULL,
+                PRIMARY KEY (stream_id, viewer_key),
+                INDEX idx_viewer_seen (stream_id, last_seen)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+        );
+
+        foreach ([
+            'featured_product_id' => 'INT UNSIGNED NULL AFTER last_heartbeat',
+            'likes_count' => 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER featured_product_id',
+        ] as $col => $def) {
+            $exists = $this->db->query("SHOW COLUMNS FROM streams LIKE '{$col}'")->fetch();
+            if (!$exists) {
+                $this->db->exec("ALTER TABLE streams ADD COLUMN {$col} {$def}");
+            }
+        }
+
         self::$ensured = true;
     }
 
@@ -146,7 +179,7 @@ class Stream extends Model
         );
         $ok = $stmt->execute([$id, $userId]);
         if ($ok && $stmt->rowCount() > 0) {
-            $this->clearSignals($id);
+            $this->clearLiveData($id);
         }
         return $ok;
     }
@@ -158,7 +191,7 @@ class Stream extends Model
         );
         $ids->execute([$userId]);
         foreach ($ids->fetchAll(\PDO::FETCH_COLUMN) as $sid) {
-            $this->clearSignals((int) $sid);
+            $this->clearLiveData((int) $sid);
         }
 
         $stmt = $this->db->prepare(
@@ -178,7 +211,7 @@ class Stream extends Model
         )->fetchAll(\PDO::FETCH_COLUMN);
 
         foreach ($stale as $sid) {
-            $this->clearSignals((int) $sid);
+            $this->clearLiveData((int) $sid);
         }
 
         $this->db->exec(
@@ -276,5 +309,108 @@ class Stream extends Model
     {
         $stmt = $this->db->prepare('DELETE FROM stream_signals WHERE stream_id = ? AND peer_id = ?');
         $stmt->execute([$streamId, $peerId]);
+    }
+
+    public function clearLiveData(int $streamId): void
+    {
+        $this->clearSignals($streamId);
+        $this->db->prepare('DELETE FROM stream_comments WHERE stream_id = ?')->execute([$streamId]);
+        $this->db->prepare('DELETE FROM stream_viewers WHERE stream_id = ?')->execute([$streamId]);
+    }
+
+    public function findLive(int $streamId): ?array
+    {
+        if (!$this->isLiveActive($streamId)) {
+            return null;
+        }
+        $stmt = $this->db->prepare(
+            "SELECT s.*, u.name AS author_name, u.avatar AS author_avatar
+             FROM streams s
+             JOIN users u ON u.id = s.user_id
+             WHERE s.id = ?
+             LIMIT 1"
+        );
+        $stmt->execute([$streamId]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
+    public function setFeaturedProduct(int $streamId, int $userId, ?int $productId): bool
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE streams SET featured_product_id = ?
+             WHERE id = ? AND user_id = ? AND is_live = 1 AND video_file IS NULL'
+        );
+        return $stmt->execute([$productId, $streamId, $userId]);
+    }
+
+    public function addLike(int $streamId): int
+    {
+        $this->db->prepare(
+            'UPDATE streams SET likes_count = likes_count + 1
+             WHERE id = ? AND is_live = 1'
+        )->execute([$streamId]);
+        $stmt = $this->db->prepare('SELECT likes_count FROM streams WHERE id = ?');
+        $stmt->execute([$streamId]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    public function touchViewer(int $streamId, string $viewerKey): void
+    {
+        $stmt = $this->db->prepare(
+            'INSERT INTO stream_viewers (stream_id, viewer_key, last_seen)
+             VALUES (?, ?, NOW())
+             ON DUPLICATE KEY UPDATE last_seen = NOW()'
+        );
+        $stmt->execute([$streamId, $viewerKey]);
+        // чистим протухших
+        $this->db->prepare(
+            'DELETE FROM stream_viewers
+             WHERE stream_id = ? AND last_seen < (NOW() - INTERVAL 45 SECOND)'
+        )->execute([$streamId]);
+    }
+
+    public function countViewers(int $streamId): int
+    {
+        $this->db->prepare(
+            'DELETE FROM stream_viewers
+             WHERE stream_id = ? AND last_seen < (NOW() - INTERVAL 45 SECOND)'
+        )->execute([$streamId]);
+        $stmt = $this->db->prepare(
+            'SELECT COUNT(*) FROM stream_viewers WHERE stream_id = ?'
+        );
+        $stmt->execute([$streamId]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    public function addComment(int $streamId, ?int $userId, string $userName, string $body, bool $isHost): int
+    {
+        $stmt = $this->db->prepare(
+            'INSERT INTO stream_comments (stream_id, user_id, user_name, body, is_host)
+             VALUES (?, ?, ?, ?, ?)'
+        );
+        $stmt->execute([$streamId, $userId, $userName, $body, $isHost ? 1 : 0]);
+        return (int) $this->db->lastInsertId();
+    }
+
+    /** @return list<array{id:int,user_name:string,body:string,is_host:bool}> */
+    public function pollComments(int $streamId, int $afterId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT id, user_name, body, is_host FROM stream_comments
+             WHERE stream_id = ? AND id > ?
+             ORDER BY id ASC LIMIT 80'
+        );
+        $stmt->execute([$streamId, $afterId]);
+        $out = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $out[] = [
+                'id' => (int) $row['id'],
+                'user_name' => (string) $row['user_name'],
+                'body' => (string) $row['body'],
+                'is_host' => !empty($row['is_host']),
+            ];
+        }
+        return $out;
     }
 }

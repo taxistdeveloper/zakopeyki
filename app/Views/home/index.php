@@ -279,14 +279,15 @@ $changelog = $changelog ?? null;
     </div>
 </div>
 
-<!-- STREAM VIEWER — Instagram web -->
+<!-- STREAM VIEWER — Live Shopping -->
 <div id="stream-viewer" class="hidden fixed inset-0 z-[70] story-viewer-shell" onclick="if(event.target===this||event.target.classList.contains('story-stage'))closeStreamViewer()">
     <a href="<?= ProductHelper::url('/') ?>" class="story-brand" onclick="event.stopPropagation()">za<span>kopeyki</span>.kz</a>
     <button type="button" class="story-close-outer" onclick="closeStreamViewer()" aria-label="Close">✕</button>
     <div class="story-stage">
         <button type="button" id="stream-nav-prev" class="story-nav-btn" onclick="event.stopPropagation(); prevStream()" aria-label="Previous">‹</button>
-        <div class="story-frame" onclick="event.stopPropagation()">
-            <div class="absolute top-0 left-0 right-0 z-30 pt-3 px-3 pb-2 space-y-2 pointer-events-none">
+        <div class="story-frame live-shop-frame" onclick="event.stopPropagation()">
+            <!-- legacy header (non-live / fallback) -->
+            <div id="stream-classic-header" class="absolute top-0 left-0 right-0 z-30 pt-3 px-3 pb-2 space-y-2 pointer-events-none">
                 <div id="stream-progress" class="flex gap-[3px]"></div>
                 <div class="flex items-center justify-between text-white pointer-events-auto gap-2">
                     <div class="flex items-center gap-2 min-w-0">
@@ -307,6 +308,7 @@ $changelog = $changelog ?? null;
                     </div>
                 </div>
             </div>
+
             <div class="absolute inset-0 bg-black">
                 <video id="stream-video" class="absolute inset-0 w-full h-full object-cover" playsinline webkit-playsinline></video>
                 <iframe id="stream-iframe" class="hidden absolute inset-0 w-full h-full" src="" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
@@ -317,15 +319,91 @@ $changelog = $changelog ?? null;
                     <p id="stream-live-hint" class="text-xs text-white/70 mt-2 max-w-[220px]"><?= htmlspecialchars(t('home.live_hint')) ?></p>
                     <video id="stream-live-cam" class="hidden absolute inset-0 w-full h-full object-cover z-[16]" playsinline webkit-playsinline autoplay></video>
                     <audio id="stream-live-audio" autoplay playsinline></audio>
-                    <button type="button" id="stream-end-live-btn" onclick="endLiveStream()" class="hidden mt-6 relative z-20 bg-white text-red-600 font-black text-xs uppercase px-5 py-2.5 rounded-full"><?= htmlspecialchars(t('home.end_live')) ?></button>
                 </div>
             </div>
-            <button type="button" id="stream-live-unmute" onclick="event.stopPropagation(); unmuteLiveStream()" class="hidden absolute bottom-24 left-1/2 -translate-x-1/2 z-[45] bg-white text-gray-900 text-sm font-bold px-5 py-3 rounded-full shadow-lg pointer-events-auto">
+
+            <!-- LIVE SHOP OVERLAY -->
+            <div id="live-shop-ui" class="hidden absolute inset-0 z-[35] flex flex-col pointer-events-none">
+                <div class="live-shop-top pointer-events-auto px-3 pt-3 pb-2">
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <div id="live-shop-avatar" class="w-9 h-9 rounded-full bg-white/90 text-[#262626] font-black text-xs flex items-center justify-center ring-2 ring-white/80 flex-shrink-0"></div>
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-1.5">
+                                    <span id="live-shop-name" class="text-white text-[13px] font-bold truncate drop-shadow"></span>
+                                </div>
+                                <div class="flex items-center gap-1.5 mt-0.5">
+                                    <span class="text-[9px] font-black uppercase bg-red-500 text-white px-1.5 py-0.5 rounded">● LIVE</span>
+                                    <span id="live-shop-timer" class="text-[10px] text-white/90 font-semibold tabular-nums">00:00:00</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1.5 flex-shrink-0">
+                            <span class="inline-flex items-center gap-1 bg-black/45 text-white text-[11px] font-semibold px-2 py-1 rounded-full backdrop-blur">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8V22h19.2v-2.8c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+                                <span id="live-shop-viewers">0</span>
+                            </span>
+                            <button type="button" onclick="toggleStreamMute()" class="w-8 h-8 rounded-full bg-black/45 text-white flex items-center justify-center backdrop-blur" id="live-shop-mute" aria-label="Mute">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                            </button>
+                            <button type="button" onclick="closeStreamViewer()" class="w-8 h-8 rounded-full bg-black/45 text-white flex items-center justify-center backdrop-blur sm:hidden" aria-label="Close">✕</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex-1 flex min-h-0 px-3 gap-2 relative">
+                    <div class="flex-1 flex flex-col justify-end min-w-0 pb-1">
+                        <div id="live-shop-likes-pill" class="self-start mb-2 pointer-events-none inline-flex items-center gap-1 bg-black/40 text-white text-[11px] font-semibold px-2 py-1 rounded-lg backdrop-blur">
+                            <span>♥</span> <span id="live-shop-likes">0</span>
+                        </div>
+                        <div id="live-shop-comments" class="live-shop-comments pointer-events-none space-y-1.5 max-h-[38%] overflow-hidden mb-2"></div>
+                    </div>
+                    <div class="w-[42%] max-w-[168px] flex flex-col justify-end gap-2 pb-1 pointer-events-auto">
+                        <div id="live-shop-featured" class="hidden live-shop-card rounded-2xl overflow-hidden">
+                            <div class="px-2.5 pt-2 pb-1">
+                                <p class="text-[9px] font-black uppercase tracking-wider text-amber-200/90"><?= htmlspecialchars(t('live.product_of_day')) ?></p>
+                                <div class="flex gap-2 mt-1.5">
+                                    <div id="live-shop-feat-img" class="w-11 h-11 rounded-lg bg-white/10 bg-cover bg-center flex-shrink-0"></div>
+                                    <div class="min-w-0 flex-1">
+                                        <p id="live-shop-feat-title" class="text-[11px] font-semibold text-white leading-snug line-clamp-2"></p>
+                                        <p id="live-shop-feat-price" class="text-[12px] font-black text-amber-300 mt-0.5"></p>
+                                    </div>
+                                </div>
+                            </div>
+                            <a id="live-shop-feat-buy" href="#" class="block text-center text-[12px] font-black bg-amber-400 hover:bg-amber-300 text-ink-900 py-2.5"><?= htmlspecialchars(t('live.buy_now')) ?></a>
+                        </div>
+                        <div id="live-shop-hearts" class="live-shop-hearts absolute right-1 bottom-28 w-10 h-40 pointer-events-none"></div>
+                    </div>
+                </div>
+
+                <div class="pointer-events-auto px-3 pb-2">
+                    <div id="live-shop-shelf-wrap" class="hidden mb-2">
+                        <p class="text-[10px] font-semibold text-white/80 mb-1.5 drop-shadow"><?= htmlspecialchars(t('live.products_in_stream')) ?> <span id="live-shop-shelf-count">0</span></p>
+                        <div id="live-shop-shelf" class="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 live-shop-shelf"></div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <form id="live-shop-comment-form" class="flex-1 flex items-center bg-black/45 backdrop-blur rounded-full pl-3.5 pr-1.5 py-1 border border-white/15" onsubmit="return sendLiveComment(event)">
+                            <input id="live-shop-comment-input" type="text" maxlength="280" autocomplete="off" placeholder="<?= htmlspecialchars(t('live.comment_placeholder')) ?>" class="flex-1 bg-transparent text-white text-[13px] placeholder:text-white/50 outline-none min-w-0">
+                            <button type="submit" class="text-[11px] font-bold text-amber-300 px-2.5 py-1.5"><?= htmlspecialchars(t('live.send')) ?></button>
+                        </form>
+                        <button type="button" onclick="sendLiveHeart()" class="w-10 h-10 rounded-full bg-black/45 backdrop-blur border border-white/15 text-white flex items-center justify-center flex-shrink-0" aria-label="Like">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
+                        </button>
+                        <a href="<?= ProductHelper::url('/cart') ?>" class="relative w-10 h-10 rounded-full bg-black/45 backdrop-blur border border-white/15 text-white flex items-center justify-center flex-shrink-0" aria-label="Cart">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
+                            <span id="live-shop-cart-badge" class="hidden absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-amber-400 text-[9px] font-black text-ink-900 flex items-center justify-center">0</span>
+                        </a>
+                        <button type="button" id="stream-end-live-btn" onclick="endLiveStream()" class="hidden h-10 px-3 rounded-full bg-white text-red-600 text-[10px] font-black uppercase flex-shrink-0"><?= htmlspecialchars(t('home.end_live')) ?></button>
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" id="stream-live-unmute" onclick="event.stopPropagation(); unmuteLiveStream()" class="hidden absolute bottom-36 left-1/2 -translate-x-1/2 z-[45] bg-white text-gray-900 text-sm font-bold px-5 py-3 rounded-full shadow-lg pointer-events-auto">
                 <?= htmlspecialchars(t('home.unmute_live')) ?>
             </button>
             <p id="stream-viewer-desc" class="absolute bottom-16 left-3 right-3 z-20 text-white text-sm font-semibold drop-shadow-md line-clamp-3"></p>
-            <div class="absolute inset-y-0 left-0 w-[28%] z-20" id="stream-tap-prev"></div>
-            <div class="absolute inset-y-0 right-0 w-[28%] z-20" id="stream-tap-next"></div>
+            <div class="absolute inset-y-0 left-0 w-[18%] z-20" id="stream-tap-prev"></div>
+            <div class="absolute inset-y-0 right-0 w-[18%] z-20" id="stream-tap-next"></div>
             <div class="absolute inset-0 z-10" id="stream-hold-zone"></div>
             <div id="stream-delete-wrap" class="hidden absolute bottom-5 left-0 right-0 z-30 flex justify-center">
                 <form id="stream-delete-form" method="post" action="">
@@ -389,6 +467,11 @@ window.__streamLiveHeartbeat = <?= js_encode(ProductHelper::url('/streams/live/h
 window.__streamLiveEnd = <?= js_encode(ProductHelper::url('/streams/live/end')) ?>;
 window.__streamLiveSignal = <?= js_encode(ProductHelper::url('/streams/live/signal')) ?>;
 window.__streamLiveSignalPoll = <?= js_encode(ProductHelper::url('/streams/live/signal/poll')) ?>;
+window.__streamLiveShop = <?= js_encode(ProductHelper::url('/streams/live/shop')) ?>;
+window.__streamLiveComments = <?= js_encode(ProductHelper::url('/streams/live/comments')) ?>;
+window.__streamLiveComment = <?= js_encode(ProductHelper::url('/streams/live/comment')) ?>;
+window.__streamLiveLike = <?= js_encode(ProductHelper::url('/streams/live/like')) ?>;
+window.__streamLiveFeature = <?= js_encode(ProductHelper::url('/streams/live/feature')) ?>;
 window.__currentUserId = <?= (int) (Auth::id() ?? 0) ?>;
 window.__isAdmin = <?= Auth::isAdmin() ? 'true' : 'false' ?>;
 window.__whatsNew = <?= js_encode($changelog) ?>;

@@ -768,6 +768,8 @@ function closeStreamViewer() {
         stopLiveRtc();
         stopLiveCamera();
     }
+    stopLiveShop();
+    document.querySelector('#stream-viewer .live-shop-frame')?.classList.remove('is-live-mode');
     document.getElementById('stream-viewer')?.classList.add('hidden');
     document.getElementById('stream-paused')?.classList.add('hidden');
     document.body.style.overflow = '';
@@ -815,12 +817,13 @@ function renderStreamReel() {
     const livePanel = document.getElementById('stream-live-panel');
     const endBtn = document.getElementById('stream-end-live-btn');
     const cam = document.getElementById('stream-live-cam');
+    const frame = document.querySelector('#stream-viewer .live-shop-frame');
 
     iframe.classList.add('hidden');
     iframe.src = '';
     livePanel.classList.add('hidden');
     video.classList.add('hidden');
-    endBtn.classList.add('hidden');
+    if (endBtn) endBtn.classList.add('hidden');
     if (cam && Number(stream.user_id) !== Number(window.__currentUserId)) {
         // не прячем уже подключённый эфир при повторном render
         if (!(stream.is_live && liveViewerStreamId === stream.id && cam.srcObject)) {
@@ -835,21 +838,25 @@ function renderStreamReel() {
         livePanel.classList.remove('hidden');
         document.getElementById('stream-live-avatar').textContent = stream.author_avatar || '?';
         document.getElementById('stream-live-host').textContent = stream.author_name || window.__i18n?.['js.live_host'] || 'Эфир';
+        frame?.classList.add('is-live-mode');
         if (isHost) {
-            endBtn.classList.remove('hidden');
+            if (endBtn) endBtn.classList.remove('hidden');
             if (hintEl) hintEl.textContent = window.__i18n?.['js.stream_desc'] || 'Прямой эфир — не сохраняется';
             showLiveUnmuteBtn(false);
             startLiveCameraPreview();
             cam.classList.remove('hidden');
             cam.muted = true;
         } else {
-            endBtn.classList.add('hidden');
+            if (endBtn) endBtn.classList.add('hidden');
             if (hintEl) hintEl.textContent = window.__i18n?.['js.live_connecting'] || 'Подключение к эфиру…';
             stopLiveCamera();
             startLiveViewerRtc(stream.id);
         }
+        startLiveShop(stream);
         animateFakeProgress(30000);
     } else {
+        frame?.classList.remove('is-live-mode');
+        stopLiveShop();
         stopLiveRtc();
         stopLiveCamera();
         video.classList.remove('hidden');
@@ -1460,6 +1467,319 @@ function stopLiveRtc() {
     stopLiveRtcViewerOnly();
 }
 
+/* ===== Live Shopping UI ===== */
+let liveShopStreamId = null;
+let liveShopViewerKey = null;
+let liveShopPollTimer = null;
+let liveShopCommentTimer = null;
+let liveShopCommentAfter = 0;
+let liveShopElapsedBase = 0;
+let liveShopElapsedTick = null;
+let liveShopIsHost = false;
+
+function liveShopEsc(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function liveShopFormatElapsed(sec) {
+    sec = Math.max(0, Math.floor(sec || 0));
+    const h = String(Math.floor(sec / 3600)).padStart(2, '0');
+    const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+    const s = String(sec % 60).padStart(2, '0');
+    return h + ':' + m + ':' + s;
+}
+
+function liveShopFormatLikes(n) {
+    n = Number(n) || 0;
+    if (n >= 1000) return (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, '') + 'K';
+    return String(n);
+}
+
+function startLiveShop(stream) {
+    const ui = document.getElementById('live-shop-ui');
+    if (!ui || !stream?.id) return;
+    stopLiveShop();
+
+    liveShopStreamId = stream.id;
+    liveShopIsHost = Number(stream.user_id) === Number(window.__currentUserId);
+    liveShopViewerKey = liveRandomPeerId();
+    liveShopCommentAfter = 0;
+    liveShopElapsedBase = 0;
+
+    ui.classList.remove('hidden');
+    document.getElementById('live-shop-avatar').textContent = stream.author_avatar || '?';
+    document.getElementById('live-shop-name').textContent = stream.author_name || '';
+    document.getElementById('live-shop-comments').innerHTML = '';
+    document.getElementById('live-shop-viewers').textContent = '1';
+    document.getElementById('live-shop-likes').textContent = '0';
+    document.getElementById('live-shop-timer').textContent = '00:00:00';
+
+    const input = document.getElementById('live-shop-comment-input');
+    if (input) {
+        input.disabled = !window.__currentUserId;
+        input.placeholder = window.__currentUserId
+            ? (window.__i18n?.['live.comment_placeholder'] || 'Напишите комментарий…')
+            : (window.__i18n?.['live.login_to_comment'] || 'Войдите, чтобы комментировать');
+    }
+
+    if (window.__cartCount != null) updateLiveShopCartBadge(window.__cartCount);
+
+    pollLiveShop();
+    pollLiveComments();
+    liveShopPollTimer = setInterval(pollLiveShop, 4000);
+    liveShopCommentTimer = setInterval(pollLiveComments, 2500);
+    liveShopElapsedTick = setInterval(function () {
+        liveShopElapsedBase += 1;
+        const el = document.getElementById('live-shop-timer');
+        if (el) el.textContent = liveShopFormatElapsed(liveShopElapsedBase);
+    }, 1000);
+}
+
+function stopLiveShop() {
+    clearInterval(liveShopPollTimer);
+    clearInterval(liveShopCommentTimer);
+    clearInterval(liveShopElapsedTick);
+    liveShopPollTimer = null;
+    liveShopCommentTimer = null;
+    liveShopElapsedTick = null;
+    liveShopStreamId = null;
+    document.getElementById('live-shop-ui')?.classList.add('hidden');
+    document.getElementById('live-shop-featured')?.classList.add('hidden');
+    document.getElementById('live-shop-shelf-wrap')?.classList.add('hidden');
+}
+
+function pollLiveShop() {
+    if (!liveShopStreamId || !window.__streamLiveShop) return;
+    const url = window.__streamLiveShop
+        + '?stream_id=' + encodeURIComponent(liveShopStreamId)
+        + '&viewer_key=' + encodeURIComponent(liveShopViewerKey || '');
+    fetch(url, {
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+    })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (!data || !data.ok) return;
+            if (typeof data.elapsed === 'number') liveShopElapsedBase = data.elapsed;
+            const v = document.getElementById('live-shop-viewers');
+            const l = document.getElementById('live-shop-likes');
+            if (v) v.textContent = String(data.viewers || 0);
+            if (l) l.textContent = liveShopFormatLikes(data.likes || 0);
+            renderLiveShopFeatured(data.featured, data.featured_id);
+            renderLiveShopShelf(data.products || [], data.featured_id);
+        })
+        .catch(function () {});
+}
+
+function renderLiveShopFeatured(product, featuredId) {
+    const box = document.getElementById('live-shop-featured');
+    if (!box) return;
+    if (!product) {
+        box.classList.add('hidden');
+        return;
+    }
+    box.classList.remove('hidden');
+    const img = document.getElementById('live-shop-feat-img');
+    const title = document.getElementById('live-shop-feat-title');
+    const price = document.getElementById('live-shop-feat-price');
+    const buy = document.getElementById('live-shop-feat-buy');
+    if (img) {
+        if (product.image) {
+            img.style.backgroundImage = 'url("' + String(product.image).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '")';
+            img.textContent = '';
+        } else {
+            img.style.backgroundImage = '';
+            img.textContent = '•';
+        }
+    }
+    if (title) title.textContent = product.title || '';
+    if (price) price.textContent = product.price_label || '';
+    if (buy) {
+        buy.href = product.buy_url || product.url || '#';
+        buy.onclick = function (e) {
+            if (!window.__currentUserId) {
+                e.preventDefault();
+                location.href = (window.__loginUrl || '/login');
+            }
+        };
+    }
+}
+
+function renderLiveShopShelf(products, featuredId) {
+    const wrap = document.getElementById('live-shop-shelf-wrap');
+    const shelf = document.getElementById('live-shop-shelf');
+    const countEl = document.getElementById('live-shop-shelf-count');
+    if (!wrap || !shelf) return;
+    if (!products.length) {
+        wrap.classList.add('hidden');
+        shelf.innerHTML = '';
+        return;
+    }
+    wrap.classList.remove('hidden');
+    if (countEl) countEl.textContent = String(products.length);
+    shelf.innerHTML = products.map(function (p) {
+        const feat = Number(p.id) === Number(featuredId) ? ' is-feat' : '';
+        const img = p.image
+            ? '<img src="' + liveShopEsc(p.image) + '" alt="">'
+            : '<div class="ph">—</div>';
+        const pin = liveShopIsHost
+            ? '<button type="button" class="block w-full text-[9px] font-bold text-amber-300 py-1 bg-black/30 border-0 cursor-pointer" data-pin-id="' + p.id + '">' + liveShopEsc(window.__i18n?.['live.pin'] || 'В эфир') + '</button>'
+            : '';
+        return '<div class="live-shop-shelf-item' + feat + '" data-product-id="' + p.id + '">'
+            + '<a href="' + liveShopEsc(p.url || '#') + '">' + img + '<span class="pr">' + liveShopEsc(p.price_label || '') + '</span></a>'
+            + pin
+            + '</div>';
+    }).join('');
+    if (liveShopIsHost) {
+        shelf.querySelectorAll('[data-pin-id]').forEach(function (btn) {
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                pinLiveProduct(btn.getAttribute('data-pin-id'));
+            });
+        });
+    }
+
+function pinLiveProduct(productId) {
+    if (!liveShopIsHost || !liveShopStreamId || !window.__streamLiveFeature) return;
+    const body = new FormData();
+    body.append('stream_id', String(liveShopStreamId));
+    body.append('product_id', String(productId));
+    fetch(window.__streamLiveFeature, {
+        method: 'POST',
+        body: body,
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data && data.ok) pollLiveShop();
+        })
+        .catch(function () {});
+}
+
+function pollLiveComments() {
+    if (!liveShopStreamId || !window.__streamLiveComments) return;
+    const url = window.__streamLiveComments
+        + '?stream_id=' + encodeURIComponent(liveShopStreamId)
+        + '&after=' + encodeURIComponent(liveShopCommentAfter);
+    fetch(url, {
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+    })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (!data || !data.ok) return;
+            (data.comments || []).forEach(appendLiveComment);
+        })
+        .catch(function () {});
+}
+
+function appendLiveComment(c) {
+    if (!c || !c.id) return;
+    if (c.id > liveShopCommentAfter) liveShopCommentAfter = c.id;
+    const box = document.getElementById('live-shop-comments');
+    if (!box) return;
+    const el = document.createElement('div');
+    el.className = 'live-cmt' + (c.is_host ? ' is-host' : '');
+    const hostTag = c.is_host ? '<span class="host-tag">ведущий</span>' : '';
+    el.innerHTML = hostTag + '<strong>' + liveShopEsc(c.user_name) + '</strong>' + liveShopEsc(c.body);
+    box.appendChild(el);
+    while (box.children.length > 40) box.removeChild(box.firstChild);
+    box.scrollTop = box.scrollHeight;
+}
+
+function sendLiveComment(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!window.__currentUserId) {
+        alert(window.__i18n?.['live.login_to_comment'] || 'Войдите, чтобы комментировать');
+        return false;
+    }
+    const input = document.getElementById('live-shop-comment-input');
+    const body = (input?.value || '').trim();
+    if (!body || !liveShopStreamId || !window.__streamLiveComment) return false;
+    const fd = new FormData();
+    fd.append('stream_id', String(liveShopStreamId));
+    fd.append('body', body);
+    input.value = '';
+    fetch(window.__streamLiveComment, {
+        method: 'POST',
+        body: fd,
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data && data.ok && data.comment) appendLiveComment(data.comment);
+        })
+        .catch(function () {});
+    return false;
+}
+
+function sendLiveHeart() {
+    if (!liveShopStreamId || !window.__streamLiveLike) return;
+    spawnLiveHeart();
+    const fd = new FormData();
+    fd.append('stream_id', String(liveShopStreamId));
+    fetch(window.__streamLiveLike, {
+        method: 'POST',
+        body: fd,
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data && data.ok) {
+                const l = document.getElementById('live-shop-likes');
+                if (l) l.textContent = liveShopFormatLikes(data.likes);
+            }
+        })
+        .catch(function () {});
+}
+
+function spawnLiveHeart() {
+    const box = document.getElementById('live-shop-hearts');
+    if (!box) return;
+    const colors = ['#ff4d6d', '#ff8fab', '#ffb703', '#80ed99', '#4cc9f0', '#f72585'];
+    const el = document.createElement('span');
+    el.className = 'h';
+    el.textContent = '♥';
+    el.style.color = colors[Math.floor(Math.random() * colors.length)];
+    el.style.right = (2 + Math.random() * 18) + 'px';
+    box.appendChild(el);
+    setTimeout(function () { el.remove(); }, 1500);
+}
+
+function updateLiveShopCartBadge(count) {
+    const badge = document.getElementById('live-shop-cart-badge');
+    if (!badge) return;
+    const n = Number(count) || 0;
+    if (n > 0) {
+        badge.textContent = String(n);
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
+}
+
+function updateMuteBtn() {
+    const btn = document.getElementById('stream-mute-btn');
+    const liveBtn = document.getElementById('live-shop-mute');
+    const icon = streamMuted
+        ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>'
+        : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>';
+    if (btn) {
+        btn.innerHTML = streamMuted
+            ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>'
+            : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>';
+    }
+    if (liveBtn) liveBtn.innerHTML = icon;
+}
+
 window.addEventListener('beforeunload', function () {
     if (window.__myLiveId) {
         const params = new URLSearchParams({ id: String(window.__myLiveId) });
@@ -1555,14 +1875,6 @@ function toggleStreamMute() {
         showLiveUnmuteBtn(streamMuted && !!(audioEl && audioEl.srcObject));
     }
     updateMuteBtn();
-}
-
-function updateMuteBtn() {
-    const btn = document.getElementById('stream-mute-btn');
-    if (!btn) return;
-    btn.innerHTML = streamMuted
-        ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>'
-        : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>';
 }
 
 function pauseStreamHold() {
@@ -1698,6 +2010,7 @@ function updateCartBadges(count) {
         sideBadge.textContent = label;
         sideBadge.classList.toggle('hidden', n <= 0);
     }
+    updateLiveShopCartBadge(n);
 }
 
 function setCartButtonState(btn, inCart) {

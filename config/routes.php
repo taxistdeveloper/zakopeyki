@@ -113,6 +113,11 @@ $router->post('/streams/live/heartbeat', [StreamController::class, 'heartbeat'])
 $router->post('/streams/live/end', [StreamController::class, 'endLive']);
 $router->post('/streams/live/signal', [StreamController::class, 'signal']);
 $router->get('/streams/live/signal/poll', [StreamController::class, 'signalPoll']);
+$router->get('/streams/live/shop', [StreamController::class, 'shop']);
+$router->get('/streams/live/comments', [StreamController::class, 'comments']);
+$router->post('/streams/live/comment', [StreamController::class, 'comment']);
+$router->post('/streams/live/like', [StreamController::class, 'like']);
+$router->post('/streams/live/feature', [StreamController::class, 'featureProduct']);
 $router->post('/streams/{id}/delete', [StreamController::class, 'delete']);
 
 $router->get('/admin', [AdminController::class, 'index']);

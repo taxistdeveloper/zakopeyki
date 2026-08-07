@@ -139,6 +139,16 @@ return [
         'whats_new_ok' => 'Түсінікті',
         'whats_new_code' => 'Кодта өзгерістер бар — төмендегі тізімді қараңыз',
     ],
+    'live' => [
+        'product_of_day' => 'Күн тауары',
+        'buy_now' => 'Қазір сатып алу',
+        'products_in_stream' => 'Эфирдегі тауарлар',
+        'comment_placeholder' => 'Пікір жазыңыз…',
+        'send' => 'Жіберу',
+        'login_to_comment' => 'Пікір үшін кіріңіз',
+        'pin' => 'Эфирге',
+        'no_products' => 'Сатылатын тауар жоқ',
+    ],
     'catalog' => [
         'eyebrow' => 'Каталог',
         'section' => 'Бөлім',

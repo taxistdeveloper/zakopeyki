@@ -270,6 +270,21 @@ class Product extends Model
         return $stmt->fetchAll();
     }
 
+    /** Активные товары продавца для витрины эфира */
+    public function activeShopByUser(int $userId, int $limit = 24): array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT * FROM products
+             WHERE user_id = ? AND status = 'active'
+             ORDER BY created_at DESC
+             LIMIT ?"
+        );
+        $stmt->bindValue(1, $userId, \PDO::PARAM_INT);
+        $stmt->bindValue(2, $limit, \PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+
     public function countActive(): int
     {
         return (int) $this->db->query(

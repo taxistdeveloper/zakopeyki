@@ -250,6 +250,97 @@ function url(string $path = ''): string
             background: #fff;
             border-radius: inherit;
         }
+        .live-shop-card {
+            background: rgba(20, 16, 12, 0.72);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.12);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+        }
+        .live-shop-comments .live-cmt {
+            display: block;
+            max-width: 92%;
+            padding: 6px 10px;
+            border-radius: 14px;
+            background: rgba(0,0,0,0.42);
+            backdrop-filter: blur(8px);
+            color: #fff;
+            font-size: 12px;
+            line-height: 1.35;
+            text-align: left;
+            animation: liveCmtIn .25s ease;
+        }
+        .live-shop-comments .live-cmt strong { font-weight: 700; margin-right: 4px; }
+        .live-shop-comments .live-cmt.is-host {
+            background: rgba(245, 158, 11, 0.28);
+            border: 1px solid rgba(251, 191, 36, 0.35);
+        }
+        .live-shop-comments .live-cmt.is-host .host-tag {
+            font-size: 9px;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: #fbbf24;
+            margin-right: 4px;
+        }
+        @keyframes liveCmtIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .live-shop-shelf { scrollbar-width: none; -ms-overflow-style: none; }
+        .live-shop-shelf::-webkit-scrollbar { display: none; }
+        .live-shop-shelf-item {
+            flex: 0 0 auto;
+            width: 72px;
+            background: rgba(0,0,0,0.45);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 14px;
+            overflow: hidden;
+            text-decoration: none;
+            color: #fff;
+        }
+        .live-shop-shelf-item img, .live-shop-shelf-item .ph {
+            width: 100%;
+            height: 56px;
+            object-fit: cover;
+            display: block;
+            background: rgba(255,255,255,0.08);
+        }
+        .live-shop-shelf-item .ph {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: rgba(255,255,255,0.5);
+        }
+        .live-shop-shelf-item .pr {
+            display: block;
+            padding: 4px 6px 6px;
+            font-size: 10px;
+            font-weight: 800;
+            color: #fbbf24;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .live-shop-shelf-item.is-feat { border-color: rgba(251, 191, 36, 0.7); box-shadow: 0 0 0 1px rgba(251,191,36,0.35); }
+        .live-shop-hearts .h {
+            position: absolute;
+            bottom: 0;
+            right: 4px;
+            font-size: 18px;
+            animation: liveHeartUp 1.4s ease-out forwards;
+            pointer-events: none;
+        }
+        @keyframes liveHeartUp {
+            0% { opacity: 0; transform: translateY(0) scale(.6); }
+            15% { opacity: 1; }
+            100% { opacity: 0; transform: translateY(-140px) translateX(-12px) scale(1.2); }
+        }
+        .live-shop-frame.is-live-mode #stream-classic-header,
+        .live-shop-frame.is-live-mode #stream-tap-prev,
+        .live-shop-frame.is-live-mode #stream-tap-next,
+        .live-shop-frame.is-live-mode #stream-hold-zone,
+        .live-shop-frame.is-live-mode #stream-viewer-desc { display: none !important; }
+        .live-shop-frame.is-live-mode #stream-progress { display: none !important; }
         .story-text-bg {
             background:
                 radial-gradient(ellipse 100% 70% at 50% 30%, rgba(255,255,255,0.2), transparent 55%),
@@ -617,6 +708,8 @@ function url(string $path = ''): string
             'js.now',
             'js.live_host', 'js.login_to_stream', 'js.stream_fail', 'js.stream_desc',
             'js.you', 'js.stream_error', 'js.live_connecting', 'js.live_waiting',
+            'live.product_of_day', 'live.buy_now', 'live.products_in_stream',
+            'live.login_to_comment', 'live.pin', 'live.no_products',
             'card.favorite', 'card.unfavorite',
             'card.add_cart', 'card.in_cart',
             'home.story_link_copied',

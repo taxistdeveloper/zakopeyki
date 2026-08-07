@@ -4,6 +4,8 @@ namespace App\Controllers;
 
 use App\Core\Auth;
 use App\Core\Controller;
+use App\Helpers\ProductHelper;
+use App\Models\Product;
 use App\Models\Stream;
 
 class StreamController extends Controller
@@ -148,6 +150,157 @@ class StreamController extends Controller
         $this->json(['ok' => true, 'live' => true, 'signals' => $signals]);
     }
 
+    /** Мета эфира: зрители, лайки, товар дня, товары полки */
+    public function shop(): void
+    {
+        $model = new Stream();
+        $streamId = (int) ($_GET['stream_id'] ?? 0);
+        $viewerKey = trim((string) ($_GET['viewer_key'] ?? ''));
+
+        if ($streamId <= 0) {
+            $this->json(['ok' => false], 422);
+        }
+
+        $stream = $model->findLive($streamId);
+        if (!$stream) {
+            $this->json(['ok' => false, 'live' => false], 404);
+        }
+
+        if ($viewerKey !== '' && preg_match('/^[a-zA-Z0-9_-]{8,64}$/', $viewerKey)) {
+            $model->touchViewer($streamId, $viewerKey);
+        }
+
+        $hostId = (int) $stream['user_id'];
+        $products = [];
+        foreach ((new Product())->activeShopByUser($hostId, 24) as $p) {
+            if (!ProductHelper::isPurchasable($p)) {
+                continue;
+            }
+            $products[] = $this->mapShopProduct($p);
+        }
+
+        $featuredId = (int) ($stream['featured_product_id'] ?? 0);
+        $featured = null;
+        if ($featuredId > 0) {
+            foreach ($products as $p) {
+                if ((int) $p['id'] === $featuredId) {
+                    $featured = $p;
+                    break;
+                }
+            }
+            if (!$featured) {
+                $row = (new Product())->find($featuredId);
+                if ($row && (int) $row['user_id'] === $hostId && ProductHelper::isPurchasable($row)) {
+                    $featured = $this->mapShopProduct($row);
+                }
+            }
+        }
+        if (!$featured && $products !== []) {
+            $featured = $products[0];
+        }
+
+        $started = $stream['created_at'] ?? null;
+        $elapsed = 0;
+        if ($started) {
+            $elapsed = max(0, time() - strtotime((string) $started));
+        }
+
+        $this->json([
+            'ok' => true,
+            'live' => true,
+            'viewers' => $model->countViewers($streamId),
+            'likes' => (int) ($stream['likes_count'] ?? 0),
+            'elapsed' => $elapsed,
+            'featured_id' => $featured ? (int) $featured['id'] : 0,
+            'featured' => $featured,
+            'products' => $products,
+            'host_name' => (string) ($stream['author_name'] ?? ''),
+        ]);
+    }
+
+    public function featureProduct(): void
+    {
+        Auth::requireLogin();
+        $model = new Stream();
+        $streamId = (int) ($_POST['stream_id'] ?? 0);
+        $productId = (int) ($_POST['product_id'] ?? 0);
+
+        if ($streamId <= 0 || $productId <= 0) {
+            $this->json(['ok' => false], 422);
+        }
+        if (!$model->isLiveOwned($streamId, Auth::id())) {
+            $this->json(['ok' => false, 'message' => 'forbidden'], 403);
+        }
+
+        $product = (new Product())->find($productId);
+        if (!$product || (int) $product['user_id'] !== Auth::id() || !ProductHelper::isPurchasable($product)) {
+            $this->json(['ok' => false, 'message' => 'bad product'], 422);
+        }
+
+        $model->setFeaturedProduct($streamId, Auth::id(), $productId);
+        $this->json(['ok' => true, 'featured' => $this->mapShopProduct($product)]);
+    }
+
+    public function like(): void
+    {
+        $model = new Stream();
+        $streamId = (int) ($_POST['stream_id'] ?? 0);
+        if ($streamId <= 0 || !$model->isLiveActive($streamId)) {
+            $this->json(['ok' => false], 422);
+        }
+        $likes = $model->addLike($streamId);
+        $this->json(['ok' => true, 'likes' => $likes]);
+    }
+
+    public function comments(): void
+    {
+        $model = new Stream();
+        $streamId = (int) ($_GET['stream_id'] ?? 0);
+        $after = (int) ($_GET['after'] ?? 0);
+        if ($streamId <= 0 || !$model->isLiveActive($streamId)) {
+            $this->json(['ok' => false, 'comments' => []], 404);
+        }
+        $this->json([
+            'ok' => true,
+            'comments' => $model->pollComments($streamId, $after),
+        ]);
+    }
+
+    public function comment(): void
+    {
+        if (!Auth::check()) {
+            $this->json(['ok' => false, 'message' => 'login'], 401);
+        }
+        $model = new Stream();
+        $streamId = (int) ($_POST['stream_id'] ?? 0);
+        $body = trim((string) ($_POST['body'] ?? ''));
+        $body = mb_substr(preg_replace('/\s+/u', ' ', $body) ?? '', 0, 280);
+
+        if ($streamId <= 0 || $body === '') {
+            $this->json(['ok' => false, 'message' => 'empty'], 422);
+        }
+
+        $stream = $model->findLive($streamId);
+        if (!$stream) {
+            $this->json(['ok' => false, 'live' => false], 404);
+        }
+
+        $user = Auth::user();
+        $name = (string) ($user['name'] ?? 'User');
+        $isHost = (int) $stream['user_id'] === Auth::id();
+        $id = $model->addComment($streamId, Auth::id(), $name, $body, $isHost);
+
+        $this->json([
+            'ok' => true,
+            'comment' => [
+                'id' => $id,
+                'user_name' => $name,
+                'body' => $body,
+                'is_host' => $isHost,
+            ],
+        ]);
+    }
+
     public function delete(string $id): void
     {
         Auth::requireLogin();
@@ -155,11 +308,26 @@ class StreamController extends Controller
         $stream = $model->find((int) $id);
 
         if ($stream && ((int) $stream['user_id'] === Auth::id() || Auth::isAdmin())) {
-            $model->clearSignals((int) $id);
+            $model->clearLiveData((int) $id);
             $model->delete((int) $id);
             $_SESSION['flash'] = 'Стрим закрыт';
         }
 
         $this->redirect('/');
+    }
+
+    /** @param array<string,mixed> $p */
+    private function mapShopProduct(array $p): array
+    {
+        $price = (int) ($p['price'] ?? 0);
+        return [
+            'id' => (int) $p['id'],
+            'title' => (string) ($p['title'] ?? ''),
+            'price' => $price,
+            'price_label' => ProductHelper::formatPrice($p),
+            'image' => ProductHelper::imageUrl($p),
+            'url' => ProductHelper::url('/product/' . (int) $p['id']),
+            'buy_url' => ProductHelper::checkoutUrl((int) $p['id']),
+        ];
     }
 }

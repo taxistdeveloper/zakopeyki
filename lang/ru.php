@@ -139,6 +139,16 @@ return [
         'whats_new_ok' => 'Понятно',
         'whats_new_code' => 'В коде есть изменения — смотрите список ниже',
     ],
+    'live' => [
+        'product_of_day' => 'Товар дня',
+        'buy_now' => 'Купить сейчас',
+        'products_in_stream' => 'Товары в эфире',
+        'comment_placeholder' => 'Напишите комментарий…',
+        'send' => 'Отпр.',
+        'login_to_comment' => 'Войдите, чтобы комментировать',
+        'pin' => 'В эфир',
+        'no_products' => 'Нет товаров для продажи',
+    ],
     'catalog' => [
         'eyebrow' => 'Каталог',
         'section' => 'Раздел',
