@@ -762,9 +762,9 @@ function closeStreamViewer() {
         iframe.classList.add('hidden');
     }
     if (livePanel) livePanel.classList.add('hidden');
-    // не останавливаем камеру хоста, если эфир ещё идёт (только при закрытии зрителем чужого эфира)
-    const cam = document.getElementById('stream-live-cam');
-    if (cam && !window.__myLiveId) {
+    // зритель уходит — отключаем WebRTC; хост продолжает эфир
+    if (!window.__myLiveId) {
+        stopLiveRtc();
         stopLiveCamera();
     }
     document.getElementById('stream-viewer')?.classList.add('hidden');
@@ -821,10 +821,14 @@ function renderStreamReel() {
     video.classList.add('hidden');
     endBtn.classList.add('hidden');
     if (cam && Number(stream.user_id) !== Number(window.__currentUserId)) {
-        cam.classList.add('hidden');
+        // не прячем уже подключённый эфир при повторном render
+        if (!(stream.is_live && liveViewerStreamId === stream.id && cam.srcObject)) {
+            cam.classList.add('hidden');
+        }
     }
 
     const isHost = stream.is_live && Number(stream.user_id) === Number(window.__currentUserId);
+    const hintEl = document.getElementById('stream-live-hint');
 
     if (stream.is_live) {
         livePanel.classList.remove('hidden');
@@ -832,14 +836,19 @@ function renderStreamReel() {
         document.getElementById('stream-live-host').textContent = stream.author_name || window.__i18n?.['js.live_host'] || 'Эфир';
         if (isHost) {
             endBtn.classList.remove('hidden');
+            if (hintEl) hintEl.textContent = window.__i18n?.['js.stream_desc'] || 'Прямой эфир — не сохраняется';
             startLiveCameraPreview();
             cam.classList.remove('hidden');
+            cam.muted = true;
         } else {
+            endBtn.classList.add('hidden');
+            if (hintEl) hintEl.textContent = window.__i18n?.['js.live_connecting'] || 'Подключение к эфиру…';
             stopLiveCamera();
-            cam.classList.add('hidden');
+            startLiveViewerRtc(stream.id);
         }
         animateFakeProgress(30000);
     } else {
+        stopLiveRtc();
         stopLiveCamera();
         video.classList.remove('hidden');
         video.muted = streamMuted;
@@ -884,10 +893,32 @@ function renderStreamReel() {
     document.getElementById('stream-paused')?.classList.add('hidden');
 }
 
-/* ===== Live (не хранится) ===== */
+/* ===== Live (не хранится) + WebRTC ===== */
 let liveHeartbeatTimer = null;
 window.__myLiveId = null;
 let liveMediaStream = null;
+let liveMediaPromise = null;
+let liveHostPcs = {};
+let liveHostStreamId = null;
+let liveViewerPc = null;
+let liveViewerPeerId = null;
+let liveViewerStreamId = null;
+let liveSignalPollTimer = null;
+let liveSignalAfterId = 0;
+let liveSignalRole = null;
+const LIVE_ICE_SERVERS = {
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+    ]
+};
+
+function liveRandomPeerId() {
+    if (window.crypto?.randomUUID) {
+        return window.crypto.randomUUID().replace(/-/g, '').slice(0, 32);
+    }
+    return 'p' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
 
 function startLiveStream() {
     if (!window.__currentUserId) {
@@ -909,7 +940,6 @@ function startLiveStream() {
             startLiveHeartbeat(data.id);
             startLiveCameraPreview();
 
-            // добавить в ленту локально и открыть
             const me = {
                 id: data.id,
                 user_id: window.__currentUserId,
@@ -952,6 +982,7 @@ function endLiveStream() {
     const id = window.__myLiveId;
     clearInterval(liveHeartbeatTimer);
     liveHeartbeatTimer = null;
+    stopLiveRtc();
     stopLiveCamera();
 
     const body = new FormData();
@@ -968,31 +999,67 @@ function endLiveStream() {
         }
         window.__myLiveId = null;
         closeStreamViewer();
-        // чтобы карточка исчезла у всех — обновляем страницу
         location.reload();
     });
 }
 
 function startLiveCameraPreview() {
     const cam = document.getElementById('stream-live-cam');
-    if (!cam || !navigator.mediaDevices?.getUserMedia) return;
-    if (liveMediaStream) {
-        cam.srcObject = liveMediaStream;
-        cam.classList.remove('hidden');
-        cam.play().catch(function () {});
+    if (!cam || !navigator.mediaDevices?.getUserMedia) {
+        const hint = document.getElementById('stream-live-hint');
+        if (hint) hint.textContent = window.__i18n?.['js.live_waiting'] || 'Ожидание камеры стримера…';
+        if (window.__myLiveId) startLiveHostRtc(window.__myLiveId);
         return;
     }
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true })
+
+    const attachLocal = function (stream) {
+        if (!stream) return;
+        cam.srcObject = stream;
+        cam.classList.remove('hidden');
+        cam.muted = true;
+        cam.play().catch(function () {});
+        renegotiateHostPeersWithMedia();
+        if (window.__myLiveId) startLiveHostRtc(window.__myLiveId);
+    };
+
+    if (liveMediaStream) {
+        attachLocal(liveMediaStream);
+        return;
+    }
+    if (liveMediaPromise) {
+        liveMediaPromise.then(attachLocal).catch(function () {
+            if (window.__myLiveId) startLiveHostRtc(window.__myLiveId);
+        });
+        return;
+    }
+
+    liveMediaPromise = navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true })
         .then(function (stream) {
             liveMediaStream = stream;
-            cam.srcObject = stream;
-            cam.classList.remove('hidden');
-            cam.muted = true;
-            cam.play().catch(function () {});
+            attachLocal(stream);
+            return stream;
         })
         .catch(function () {
-            // камера недоступна — эфир всё равно считается активным (метка Live)
+            const hint = document.getElementById('stream-live-hint');
+            if (hint) hint.textContent = window.__i18n?.['js.live_waiting'] || 'Ожидание камеры стримера…';
+            if (window.__myLiveId) startLiveHostRtc(window.__myLiveId);
+            return null;
+        })
+        .finally(function () {
+            liveMediaPromise = null;
         });
+}
+
+function renegotiateHostPeersWithMedia() {
+    if (!liveMediaStream || !window.__myLiveId) return;
+    Object.keys(liveHostPcs).forEach(function (peerId) {
+        const pc = liveHostPcs[peerId];
+        if (!pc) return;
+        const hasSender = pc.getSenders().some(function (s) { return !!s.track; });
+        if (hasSender) return;
+        closeHostPeer(peerId);
+        createHostOfferForPeer(peerId);
+    });
 }
 
 function stopLiveCamera() {
@@ -1001,10 +1068,240 @@ function stopLiveCamera() {
         liveMediaStream = null;
     }
     const cam = document.getElementById('stream-live-cam');
-    if (cam) {
+    if (cam && !liveViewerPc) {
         cam.srcObject = null;
         cam.classList.add('hidden');
     }
+}
+
+function livePostSignal(role, streamId, peerId, type, payload) {
+    if (!window.__streamLiveSignal) return Promise.resolve();
+    const body = new FormData();
+    body.append('role', role);
+    body.append('stream_id', String(streamId));
+    body.append('peer_id', peerId);
+    body.append('type', type);
+    if (payload != null) body.append('payload', JSON.stringify(payload));
+    return fetch(window.__streamLiveSignal, {
+        method: 'POST',
+        body: body,
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    }).then(function (r) { return r.json().catch(function () { return {}; }); }).catch(function () { return {}; });
+}
+
+function stopLiveSignalPoll() {
+    clearInterval(liveSignalPollTimer);
+    liveSignalPollTimer = null;
+    liveSignalAfterId = 0;
+    liveSignalRole = null;
+}
+
+function startLiveSignalPoll(role, streamId, peerId) {
+    stopLiveSignalPoll();
+    liveSignalRole = role;
+    liveSignalAfterId = 0;
+    const tick = function () {
+        if (!window.__streamLiveSignalPoll) return;
+        let url = window.__streamLiveSignalPoll
+            + '?stream_id=' + encodeURIComponent(streamId)
+            + '&role=' + encodeURIComponent(role)
+            + '&after=' + encodeURIComponent(liveSignalAfterId);
+        if (peerId) url += '&peer_id=' + encodeURIComponent(peerId);
+        fetch(url, {
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data || data.live === false) {
+                    if (role === 'viewer') {
+                        const hint = document.getElementById('stream-live-hint');
+                        if (hint) hint.textContent = window.__i18n?.['js.stream_fail'] || 'Эфир завершён';
+                    }
+                    return;
+                }
+                const signals = data.signals || [];
+                signals.forEach(function (sig) {
+                    if (sig.id > liveSignalAfterId) liveSignalAfterId = sig.id;
+                    if (role === 'host') handleHostSignal(sig);
+                    else handleViewerSignal(sig);
+                });
+            })
+            .catch(function () {});
+    };
+    tick();
+    liveSignalPollTimer = setInterval(tick, 1000);
+}
+
+function startLiveHostRtc(streamId) {
+    if (!window.RTCPeerConnection) return;
+    if (liveHostStreamId === streamId && liveSignalRole === 'host' && liveSignalPollTimer) return;
+    liveHostStreamId = streamId;
+    startLiveSignalPoll('host', streamId, null);
+}
+
+async function handleHostSignal(sig) {
+    const peerId = sig.peer_id;
+    if (!peerId) return;
+
+    if (sig.type === 'leave') {
+        closeHostPeer(peerId);
+        return;
+    }
+
+    if (sig.type === 'join') {
+        await createHostOfferForPeer(peerId);
+        return;
+    }
+
+    if (sig.type === 'answer') {
+        const pc = liveHostPcs[peerId];
+        if (!pc || !sig.payload?.sdp) return;
+        try {
+            await pc.setRemoteDescription({ type: 'answer', sdp: sig.payload.sdp });
+        } catch (e) { /* ignore */ }
+        return;
+    }
+
+    if (sig.type === 'ice' && sig.payload?.candidate) {
+        const pc = liveHostPcs[peerId];
+        if (!pc) return;
+        try {
+            await pc.addIceCandidate(sig.payload.candidate);
+        } catch (e) { /* ignore */ }
+    }
+}
+
+async function createHostOfferForPeer(peerId) {
+    if (!window.__myLiveId || liveHostPcs[peerId]) return;
+    const pc = new RTCPeerConnection(LIVE_ICE_SERVERS);
+    liveHostPcs[peerId] = pc;
+
+    if (liveMediaStream) {
+        liveMediaStream.getTracks().forEach(function (track) {
+            pc.addTrack(track, liveMediaStream);
+        });
+    }
+
+    pc.onicecandidate = function (ev) {
+        if (!ev.candidate || !window.__myLiveId) return;
+        livePostSignal('host', window.__myLiveId, peerId, 'ice', {
+            candidate: ev.candidate.toJSON ? ev.candidate.toJSON() : ev.candidate
+        });
+    };
+
+    pc.onconnectionstatechange = function () {
+        if (pc.connectionState === 'failed' || pc.connectionState === 'closed' || pc.connectionState === 'disconnected') {
+            // keep for a bit — viewer may reconnect via new join
+        }
+    };
+
+    try {
+        const offer = await pc.createOffer({ offerToReceiveAudio: false, offerToReceiveVideo: false });
+        await pc.setLocalDescription(offer);
+        await livePostSignal('host', window.__myLiveId, peerId, 'offer', { sdp: offer.sdp });
+    } catch (e) {
+        closeHostPeer(peerId);
+    }
+}
+
+function closeHostPeer(peerId) {
+    const pc = liveHostPcs[peerId];
+    if (pc) {
+        try { pc.close(); } catch (e) { /* ignore */ }
+        delete liveHostPcs[peerId];
+    }
+}
+
+function startLiveViewerRtc(streamId) {
+    if (!window.RTCPeerConnection || !window.__streamLiveSignal) return;
+    if (liveViewerStreamId === streamId && liveViewerPc) return;
+
+    stopLiveRtcViewerOnly();
+
+    liveViewerPeerId = liveRandomPeerId();
+    liveViewerStreamId = streamId;
+    liveViewerPc = new RTCPeerConnection(LIVE_ICE_SERVERS);
+
+    const cam = document.getElementById('stream-live-cam');
+    liveViewerPc.ontrack = function (ev) {
+        if (!cam) return;
+        const remote = ev.streams && ev.streams[0] ? ev.streams[0] : new MediaStream([ev.track]);
+        cam.srcObject = remote;
+        cam.classList.remove('hidden');
+        cam.muted = streamMuted;
+        cam.play().catch(function () {
+            cam.muted = true;
+            streamMuted = true;
+            updateMuteBtn();
+            cam.play().catch(function () {});
+        });
+        const hint = document.getElementById('stream-live-hint');
+        if (hint) hint.classList.add('hidden');
+        const av = document.getElementById('stream-live-avatar');
+        if (av) av.classList.add('hidden');
+    };
+
+    liveViewerPc.onicecandidate = function (ev) {
+        if (!ev.candidate || !liveViewerPeerId || !liveViewerStreamId) return;
+        livePostSignal('viewer', liveViewerStreamId, liveViewerPeerId, 'ice', {
+            candidate: ev.candidate.toJSON ? ev.candidate.toJSON() : ev.candidate
+        });
+    };
+
+    startLiveSignalPoll('viewer', streamId, liveViewerPeerId);
+    livePostSignal('viewer', streamId, liveViewerPeerId, 'join', null);
+}
+
+async function handleViewerSignal(sig) {
+    if (!liveViewerPc) return;
+
+    if (sig.type === 'offer' && sig.payload?.sdp) {
+        try {
+            await liveViewerPc.setRemoteDescription({ type: 'offer', sdp: sig.payload.sdp });
+            const answer = await liveViewerPc.createAnswer();
+            await liveViewerPc.setLocalDescription(answer);
+            await livePostSignal('viewer', liveViewerStreamId, liveViewerPeerId, 'answer', { sdp: answer.sdp });
+        } catch (e) { /* ignore */ }
+        return;
+    }
+
+    if (sig.type === 'ice' && sig.payload?.candidate) {
+        try {
+            await liveViewerPc.addIceCandidate(sig.payload.candidate);
+        } catch (e) { /* ignore */ }
+    }
+}
+
+function stopLiveRtcViewerOnly() {
+    if (liveViewerPeerId && liveViewerStreamId) {
+        livePostSignal('viewer', liveViewerStreamId, liveViewerPeerId, 'leave', null);
+    }
+    if (liveViewerPc) {
+        try { liveViewerPc.close(); } catch (e) { /* ignore */ }
+        liveViewerPc = null;
+    }
+    liveViewerPeerId = null;
+    liveViewerStreamId = null;
+
+    const cam = document.getElementById('stream-live-cam');
+    if (cam && !window.__myLiveId) {
+        cam.srcObject = null;
+        cam.classList.add('hidden');
+    }
+    const hint = document.getElementById('stream-live-hint');
+    if (hint) hint.classList.remove('hidden');
+    const av = document.getElementById('stream-live-avatar');
+    if (av) av.classList.remove('hidden');
+}
+
+function stopLiveRtc() {
+    stopLiveSignalPoll();
+    Object.keys(liveHostPcs).forEach(closeHostPeer);
+    liveHostPcs = {};
+    liveHostStreamId = null;
+    stopLiveRtcViewerOnly();
 }
 
 window.addEventListener('beforeunload', function () {
@@ -1013,7 +1310,16 @@ window.addEventListener('beforeunload', function () {
         if (navigator.sendBeacon) {
             navigator.sendBeacon(window.__streamLiveEnd, params);
         }
+        stopLiveRtc();
         stopLiveCamera();
+    } else if (liveViewerPeerId && liveViewerStreamId && navigator.sendBeacon && window.__streamLiveSignal) {
+        const params = new URLSearchParams({
+            role: 'viewer',
+            stream_id: String(liveViewerStreamId),
+            peer_id: liveViewerPeerId,
+            type: 'leave'
+        });
+        navigator.sendBeacon(window.__streamLiveSignal, params);
     }
 });
 
@@ -1075,7 +1381,10 @@ function prevStream() {
 function toggleStreamMute() {
     streamMuted = !streamMuted;
     const video = document.getElementById('stream-video');
+    const cam = document.getElementById('stream-live-cam');
     if (video) video.muted = streamMuted;
+    // у хоста камера всегда mute (без эха); у зрителя — по кнопке
+    if (cam && !window.__myLiveId) cam.muted = streamMuted;
     updateMuteBtn();
 }
 

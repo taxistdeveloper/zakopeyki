@@ -314,8 +314,8 @@ $changelog = $changelog ?? null;
                     <span class="text-[10px] font-black uppercase bg-red-500 px-2 py-1 rounded animate-pulse mb-4">● Live</span>
                     <div id="stream-live-avatar" class="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center text-3xl font-black mb-3"></div>
                     <p id="stream-live-host" class="font-bold text-lg"></p>
-                    <p class="text-xs text-white/70 mt-2 max-w-[220px]"><?= htmlspecialchars(t('home.live_hint')) ?></p>
-                    <video id="stream-live-cam" class="hidden absolute inset-0 w-full h-full object-cover" playsinline muted autoplay></video>
+                    <p id="stream-live-hint" class="text-xs text-white/70 mt-2 max-w-[220px]"><?= htmlspecialchars(t('home.live_hint')) ?></p>
+                    <video id="stream-live-cam" class="hidden absolute inset-0 w-full h-full object-cover z-[16]" playsinline autoplay></video>
                     <button type="button" id="stream-end-live-btn" onclick="endLiveStream()" class="hidden mt-6 relative z-20 bg-white text-red-600 font-black text-xs uppercase px-5 py-2.5 rounded-full"><?= htmlspecialchars(t('home.end_live')) ?></button>
                 </div>
             </div>
@@ -383,6 +383,8 @@ window.__streamDeleteBase = <?= js_encode(ProductHelper::url('/streams/')) ?>;
 window.__streamLiveStart = <?= js_encode(ProductHelper::url('/streams/live/start')) ?>;
 window.__streamLiveHeartbeat = <?= js_encode(ProductHelper::url('/streams/live/heartbeat')) ?>;
 window.__streamLiveEnd = <?= js_encode(ProductHelper::url('/streams/live/end')) ?>;
+window.__streamLiveSignal = <?= js_encode(ProductHelper::url('/streams/live/signal')) ?>;
+window.__streamLiveSignalPoll = <?= js_encode(ProductHelper::url('/streams/live/signal/poll')) ?>;
 window.__currentUserId = <?= (int) (Auth::id() ?? 0) ?>;
 window.__isAdmin = <?= Auth::isAdmin() ? 'true' : 'false' ?>;
 window.__whatsNew = <?= js_encode($changelog) ?>;

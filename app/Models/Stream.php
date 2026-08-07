@@ -43,6 +43,20 @@ class Stream extends Model
             $this->db->exec('ALTER TABLE streams ADD COLUMN last_heartbeat DATETIME DEFAULT NULL AFTER is_live');
         }
 
+        $this->db->exec(
+            "CREATE TABLE IF NOT EXISTS stream_signals (
+                id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                stream_id INT UNSIGNED NOT NULL,
+                peer_id VARCHAR(64) NOT NULL,
+                direction ENUM('to_host','to_viewer') NOT NULL,
+                type VARCHAR(16) NOT NULL,
+                payload MEDIUMTEXT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_host_poll (stream_id, direction, id),
+                INDEX idx_viewer_poll (stream_id, peer_id, direction, id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+        );
+
         self::$ensured = true;
     }
 
@@ -130,11 +144,23 @@ class Stream extends Model
         $stmt = $this->db->prepare(
             'DELETE FROM streams WHERE id = ? AND user_id = ? AND is_live = 1 AND video_file IS NULL'
         );
-        return $stmt->execute([$id, $userId]);
+        $ok = $stmt->execute([$id, $userId]);
+        if ($ok && $stmt->rowCount() > 0) {
+            $this->clearSignals($id);
+        }
+        return $ok;
     }
 
     public function endAllLiveForUser(int $userId): void
     {
+        $ids = $this->db->prepare(
+            'SELECT id FROM streams WHERE user_id = ? AND is_live = 1 AND video_file IS NULL'
+        );
+        $ids->execute([$userId]);
+        foreach ($ids->fetchAll(\PDO::FETCH_COLUMN) as $sid) {
+            $this->clearSignals((int) $sid);
+        }
+
         $stmt = $this->db->prepare(
             'DELETE FROM streams WHERE user_id = ? AND is_live = 1 AND video_file IS NULL'
         );
@@ -144,11 +170,111 @@ class Stream extends Model
     /** Мёртвые эфиры (нет heartbeat) — удаляем, ничего не храним */
     public function purgeStaleLive(): void
     {
+        $stale = $this->db->query(
+            'SELECT id FROM streams
+             WHERE is_live = 1
+               AND video_file IS NULL
+               AND (last_heartbeat IS NULL OR last_heartbeat < (NOW() - INTERVAL 45 SECOND))'
+        )->fetchAll(\PDO::FETCH_COLUMN);
+
+        foreach ($stale as $sid) {
+            $this->clearSignals((int) $sid);
+        }
+
         $this->db->exec(
             'DELETE FROM streams
              WHERE is_live = 1
                AND video_file IS NULL
                AND (last_heartbeat IS NULL OR last_heartbeat < (NOW() - INTERVAL 45 SECOND))'
         );
+    }
+
+    public function isLiveOwned(int $streamId, int $userId): bool
+    {
+        $stmt = $this->db->prepare(
+            'SELECT id FROM streams
+             WHERE id = ? AND user_id = ? AND is_live = 1 AND video_file IS NULL
+             LIMIT 1'
+        );
+        $stmt->execute([$streamId, $userId]);
+        return (bool) $stmt->fetch();
+    }
+
+    public function isLiveActive(int $streamId): bool
+    {
+        $this->purgeStaleLive();
+        $stmt = $this->db->prepare(
+            'SELECT id FROM streams
+             WHERE id = ? AND is_live = 1 AND video_file IS NULL
+               AND last_heartbeat >= (NOW() - INTERVAL 45 SECOND)
+             LIMIT 1'
+        );
+        $stmt->execute([$streamId]);
+        return (bool) $stmt->fetch();
+    }
+
+    public function pushSignal(int $streamId, string $peerId, string $direction, string $type, ?array $payload = null): int
+    {
+        $stmt = $this->db->prepare(
+            'INSERT INTO stream_signals (stream_id, peer_id, direction, type, payload)
+             VALUES (?, ?, ?, ?, ?)'
+        );
+        $stmt->execute([
+            $streamId,
+            $peerId,
+            $direction,
+            $type,
+            $payload === null ? null : json_encode($payload, JSON_UNESCAPED_UNICODE),
+        ]);
+        return (int) $this->db->lastInsertId();
+    }
+
+    /** @return list<array{id:int,peer_id:string,type:string,payload:?array}> */
+    public function pollSignals(int $streamId, string $direction, int $afterId, ?string $peerId = null): array
+    {
+        if ($direction === 'to_viewer' && $peerId !== null && $peerId !== '') {
+            $stmt = $this->db->prepare(
+                'SELECT id, peer_id, type, payload FROM stream_signals
+                 WHERE stream_id = ? AND direction = ? AND peer_id = ? AND id > ?
+                 ORDER BY id ASC LIMIT 100'
+            );
+            $stmt->execute([$streamId, $direction, $peerId, $afterId]);
+        } else {
+            $stmt = $this->db->prepare(
+                'SELECT id, peer_id, type, payload FROM stream_signals
+                 WHERE stream_id = ? AND direction = ? AND id > ?
+                 ORDER BY id ASC LIMIT 100'
+            );
+            $stmt->execute([$streamId, $direction, $afterId]);
+        }
+
+        $rows = $stmt->fetchAll();
+        $out = [];
+        foreach ($rows as $row) {
+            $payload = null;
+            if (!empty($row['payload'])) {
+                $decoded = json_decode((string) $row['payload'], true);
+                $payload = is_array($decoded) ? $decoded : null;
+            }
+            $out[] = [
+                'id' => (int) $row['id'],
+                'peer_id' => (string) $row['peer_id'],
+                'type' => (string) $row['type'],
+                'payload' => $payload,
+            ];
+        }
+        return $out;
+    }
+
+    public function clearSignals(int $streamId): void
+    {
+        $stmt = $this->db->prepare('DELETE FROM stream_signals WHERE stream_id = ?');
+        $stmt->execute([$streamId]);
+    }
+
+    public function clearPeerSignals(int $streamId, string $peerId): void
+    {
+        $stmt = $this->db->prepare('DELETE FROM stream_signals WHERE stream_id = ? AND peer_id = ?');
+        $stmt->execute([$streamId, $peerId]);
     }
 }

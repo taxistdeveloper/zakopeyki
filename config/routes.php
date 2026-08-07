@@ -111,6 +111,8 @@ $router->post('/stories/{id}/delete', [StoryController::class, 'delete']);
 $router->post('/streams/live/start', [StreamController::class, 'startLive']);
 $router->post('/streams/live/heartbeat', [StreamController::class, 'heartbeat']);
 $router->post('/streams/live/end', [StreamController::class, 'endLive']);
+$router->post('/streams/live/signal', [StreamController::class, 'signal']);
+$router->get('/streams/live/signal/poll', [StreamController::class, 'signalPoll']);
 $router->post('/streams/{id}/delete', [StreamController::class, 'delete']);
 
 $router->get('/admin', [AdminController::class, 'index']);
