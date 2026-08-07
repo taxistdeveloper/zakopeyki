@@ -77,6 +77,9 @@ if (!empty($appConfig['stub_mode']) && !\App\Core\Auth::hasSiteAccess(true)) {
         '/offer',
         '/privacy',
         '/data-policy',
+        '/payments/freedompay/result',
+        '/payments/freedompay/success',
+        '/payments/freedompay/failure',
     ];
     $stubAllowedPrefix = '/reset-password/';
     $stubOk = in_array($stubPath, $stubAllowed, true)

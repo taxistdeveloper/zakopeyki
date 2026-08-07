@@ -210,7 +210,8 @@ class Order extends Model
 
     /**
      * Оплата → деньги на эскроу (заморозка), товар reserved/sold.
-     * @return array{ok: bool, order_id?: int, error?: string}
+     * Карта через FreedomPay: awaiting_payment + redirect_url.
+     * @return array{ok: bool, order_id?: int, redirect_url?: string, error?: string}
      */
     public function createEscrow(int $productId, int $buyerId, string $paymentMethod, string $deliveryMethod): array
     {
@@ -237,9 +238,16 @@ class Order extends Model
             ? $deliveryMethod
             : 'kazpost';
 
+        $fp = new \App\Services\FreedomPay\Client();
+        $useFreedomPay = $method === 'card' && $fp->isConfigured();
         $allowSimulated = (bool) ($GLOBALS['appConfig']['allow_simulated_payments'] ?? false);
-        if ($method !== 'wallet' && !$allowSimulated) {
+
+        if ($method !== 'wallet' && !$useFreedomPay && !$allowSimulated) {
             return ['ok' => false, 'error' => t('wallet.payments_disabled')];
+        }
+
+        if ($useFreedomPay) {
+            return $this->createFreedomPayEscrow($product, $buyerId, $amount, $delivery, $fp);
         }
 
         $wallet = new Wallet();
@@ -305,6 +313,109 @@ class Order extends Model
             }
             return ['ok' => false, 'error' => t('checkout.payment_failed')];
         }
+    }
+
+    /**
+     * Hosted Checkout: резерв товара → init_payment → редирект на FreedomPay.
+     * Эскроу фиксируется в Payment::completeFromGateway по result_url.
+     *
+     * @param array<string, mixed> $product
+     * @return array{ok: bool, order_id?: int, redirect_url?: string, error?: string}
+     */
+    private function createFreedomPayEscrow(
+        array $product,
+        int $buyerId,
+        int $amount,
+        string $delivery,
+        \App\Services\FreedomPay\Client $fp
+    ): array {
+        $productId = (int) $product['id'];
+        $buyer = (new User())->find($buyerId);
+        $paymentModel = new Payment(); // ensure table before transaction (DDL)
+
+        try {
+            $this->db->beginTransaction();
+
+            $lock = $this->db->prepare('SELECT id, status FROM products WHERE id = ? FOR UPDATE');
+            $lock->execute([$productId]);
+            $locked = $lock->fetch();
+            if (!$locked || $locked['status'] !== 'active') {
+                $this->db->rollBack();
+                return ['ok' => false, 'error' => t('checkout.unavailable')];
+            }
+
+            $stmt = $this->db->prepare(
+                'INSERT INTO orders (
+                    product_id, buyer_id, seller_id, amount, payment_method, delivery_method,
+                    status, escrow_hold, paid_at
+                 ) VALUES (?, ?, ?, ?, \'card\', ?, \'awaiting_payment\', \'pending\', NULL)'
+            );
+            $stmt->execute([
+                $productId,
+                $buyerId,
+                (int) $product['user_id'],
+                $amount,
+                $delivery,
+            ]);
+            $orderId = (int) $this->db->lastInsertId();
+
+            $pgOrderId = 'zk-' . $orderId . '-' . bin2hex(random_bytes(4));
+            $paymentId = $paymentModel->createPending([
+                'pg_order_id' => $pgOrderId,
+                'order_id' => $orderId,
+                'product_id' => $productId,
+                'buyer_id' => $buyerId,
+                'amount' => $amount,
+                'delivery_method' => $delivery,
+                'payment_method' => 'card',
+            ]);
+
+            $reserve = $this->db->prepare(
+                "UPDATE products SET status = 'reserved' WHERE id = ? AND status = 'active'"
+            );
+            $reserve->execute([$productId]);
+
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            return ['ok' => false, 'error' => t('checkout.payment_failed')];
+        }
+
+        $init = $fp->initPayment([
+            'order_id' => $pgOrderId,
+            'amount' => $amount,
+            'description' => mb_substr((string) ($product['title'] ?? ('Order #' . $orderId)), 0, 200),
+            'user_id' => (string) $buyerId,
+            'user_email' => (string) ($buyer['email'] ?? ''),
+            'user_phone' => (string) ($buyer['phone'] ?? ''),
+            'user_ip' => (string) ($_SERVER['REMOTE_ADDR'] ?? ''),
+            'param1' => (string) $orderId,
+            'param2' => (string) $productId,
+        ]);
+
+        if (!$init['ok'] || empty($init['redirect_url'])) {
+            try {
+                $paymentModel->failFromGateway($pgOrderId);
+            } catch (\Throwable $e) {
+                // ignore cleanup errors
+            }
+            return [
+                'ok' => false,
+                'error' => $init['error'] ?? t('checkout.payment_failed'),
+            ];
+        }
+
+        if (!empty($init['payment_id'])) {
+            $paymentModel->setPgPaymentId($paymentId, (string) $init['payment_id']);
+        }
+
+        return [
+            'ok' => true,
+            'order_id' => $orderId,
+            'redirect_url' => (string) $init['redirect_url'],
+        ];
     }
 
     /** @deprecated use createEscrow */

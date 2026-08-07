@@ -37,7 +37,7 @@ class Router
             $pattern = '#^' . $pattern . '$#';
 
             if (preg_match($pattern, $path, $matches)) {
-                if (strtoupper($method) === 'POST') {
+                if (strtoupper($method) === 'POST' && !$this->csrfExempt($path)) {
                     Csrf::enforce();
                 }
                 $params = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY);
@@ -50,5 +50,13 @@ class Router
 
         http_response_code(404);
         View::render('errors/404', ['title' => 'Страница не найдена']);
+    }
+
+    private function csrfExempt(string $path): bool
+    {
+        $exempt = [
+            '/payments/freedompay/result',
+        ];
+        return in_array($path, $exempt, true);
     }
 }

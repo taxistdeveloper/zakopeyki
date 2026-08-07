@@ -1,3 +1,4 @@
 config/google.php
 config/mail.php
+config/freedompay.php
 storage/

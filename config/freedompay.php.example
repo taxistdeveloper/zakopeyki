@@ -1,0 +1,32 @@
+<?php
+
+/**
+ * FreedomPay (Hosted Checkout) — скопируйте в config/freedompay.php и заполните ключи.
+ *
+ * Ключи: ЛК FreedomPay → Разработчикам (merchant_id + секретный ключ).
+ * Можно задать через env: FREEDOMPAY_MERCHANT_ID, FREEDOMPAY_SECRET_KEY.
+ *
+ * URL в ЛК магазина:
+ *   Result:  https://zakopeyki.kz/payments/freedompay/result
+ *   Success: https://zakopeyki.kz/payments/freedompay/success
+ *   Failure: https://zakopeyki.kz/payments/freedompay/failure
+ *
+ * Документация: https://docs.freedompay.kz/
+ */
+return [
+    'merchant_id' => getenv('FREEDOMPAY_MERCHANT_ID') ?: '',
+    'secret_key' => getenv('FREEDOMPAY_SECRET_KEY') ?: '',
+    // Тест: https://test-api.freedompay.kz  |  Прод: https://api.freedompay.kz
+    'api_url' => getenv('FREEDOMPAY_API_URL') ?: 'https://test-api.freedompay.kz',
+    'testing_mode' => (int) (getenv('FREEDOMPAY_TESTING_MODE') !== false && getenv('FREEDOMPAY_TESTING_MODE') !== ''
+        ? getenv('FREEDOMPAY_TESTING_MODE')
+        : 1),
+    'currency' => 'KZT',
+    'lifetime' => 86400,
+    'language' => 'ru',
+    // Пустые = авто из ProductHelper::absoluteUrl
+    'result_url' => getenv('FREEDOMPAY_RESULT_URL') ?: 'https://zakopeyki.kz/payments/freedompay/result',
+    'success_url' => getenv('FREEDOMPAY_SUCCESS_URL') ?: 'https://zakopeyki.kz/payments/freedompay/success',
+    'failure_url' => getenv('FREEDOMPAY_FAILURE_URL') ?: 'https://zakopeyki.kz/payments/freedompay/failure',
+    'site_url' => getenv('FREEDOMPAY_SITE_URL') ?: 'https://zakopeyki.kz',
+];

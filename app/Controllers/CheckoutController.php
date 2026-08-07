@@ -72,6 +72,16 @@ class CheckoutController extends Controller
             return;
         }
 
+        if (!empty($result['redirect_url'])) {
+            ActivityLogger::info('order.pay', 'Редирект на FreedomPay, заказ #' . (int) $result['order_id'], 'order', (int) $result['order_id'], [
+                'product_id' => $productId,
+                'method' => $method,
+                'delivery' => $delivery,
+            ]);
+            $this->redirect((string) $result['redirect_url']);
+            return;
+        }
+
         ActivityLogger::info('order.pay', 'Оплачена сделка #' . (int) $result['order_id'], 'order', (int) $result['order_id'], [
             'product_id' => $productId,
             'method' => $method,

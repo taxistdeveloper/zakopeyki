@@ -1,6 +1,7 @@
 <?php
 use App\Helpers\ProductHelper;
 use App\Models\Wallet;
+use App\Services\FreedomPay\Client as FreedomPayClient;
 
 $price = ProductHelper::formatPrice($item);
 $imageUrl = ProductHelper::imageUrl($item);
@@ -8,7 +9,9 @@ $checkoutPayUrl = ProductHelper::url('/checkout/' . (int) $item['id'] . '/pay');
 $walletBalance = (int) ($walletBalance ?? 0);
 $need = (int) ($item['price'] ?? 0);
 $canWallet = $walletBalance >= $need;
-$simPayments = (bool) ($GLOBALS['appConfig']['allow_simulated_payments'] ?? false);
+$fpConfigured = (new FreedomPayClient())->isConfigured();
+$simPayments = (bool) ($GLOBALS['appConfig']['allow_simulated_payments'] ?? false) && !$fpConfigured;
+$canCard = $fpConfigured || $simPayments;
 ?>
 <section class="max-w-lg mx-auto space-y-5 fade-up pb-8">
     <div>
@@ -67,7 +70,7 @@ $simPayments = (bool) ($GLOBALS['appConfig']['allow_simulated_payments'] ?? fals
             <div class="space-y-2">
                 <h3 class="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400"><?= htmlspecialchars(t('checkout.method')) ?></h3>
                 <label class="flex items-center gap-3 p-3.5 rounded-2xl border border-black/[0.08] dark:border-white/10 cursor-pointer has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50/50 dark:has-[:checked]:bg-brand-500/10 transition <?= !$canWallet ? 'opacity-60' : '' ?>">
-                    <input type="radio" name="payment_method" value="wallet" <?= $canWallet ? 'checked' : 'disabled' ?> class="accent-brand-600">
+                    <input type="radio" name="payment_method" value="wallet" <?= $canWallet && !$fpConfigured ? 'checked' : ($canWallet ? '' : 'disabled') ?> class="accent-brand-600">
                     <span class="text-sm font-semibold text-ink-800 dark:text-gray-200 flex-1">
                         <?= htmlspecialchars(t('checkout.method_wallet')) ?>
                         <?php if (!$canWallet): ?>
@@ -75,7 +78,15 @@ $simPayments = (bool) ($GLOBALS['appConfig']['allow_simulated_payments'] ?? fals
                         <?php endif; ?>
                     </span>
                 </label>
-                <?php if ($simPayments): ?>
+                <?php if ($fpConfigured): ?>
+                <label class="flex items-center gap-3 p-3.5 rounded-2xl border border-black/[0.08] dark:border-white/10 cursor-pointer has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50/50 dark:has-[:checked]:bg-brand-500/10 transition">
+                    <input type="radio" name="payment_method" value="card" <?= !$canWallet || $fpConfigured ? 'checked' : '' ?> class="accent-brand-600">
+                    <span class="text-sm font-semibold text-ink-800 dark:text-gray-200">
+                        <?= htmlspecialchars(t('checkout.method_freedompay')) ?>
+                        <span class="block text-[11px] font-medium text-gray-400 mt-0.5"><?= htmlspecialchars(t('checkout.method_freedompay_hint')) ?></span>
+                    </span>
+                </label>
+                <?php elseif ($simPayments): ?>
                 <label class="flex items-center gap-3 p-3.5 rounded-2xl border border-black/[0.08] dark:border-white/10 cursor-pointer has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50/50 dark:has-[:checked]:bg-brand-500/10 transition">
                     <input type="radio" name="payment_method" value="card" <?= !$canWallet ? 'checked' : '' ?> class="accent-brand-600">
                     <span class="text-sm font-semibold text-ink-800 dark:text-gray-200"><?= htmlspecialchars(t('checkout.method_card')) ?></span>
@@ -94,7 +105,7 @@ $simPayments = (bool) ($GLOBALS['appConfig']['allow_simulated_payments'] ?? fals
                 <span class="font-display text-2xl font-extrabold text-ink-900 dark:text-white"><?= htmlspecialchars($price) ?></span>
             </div>
 
-            <button type="submit" <?= (!$canWallet && !$simPayments) ? 'disabled' : '' ?> class="w-full bg-accent-500 hover:bg-accent-400 disabled:opacity-50 disabled:cursor-not-allowed text-white font-display font-bold py-3.5 rounded-2xl text-sm uppercase tracking-wider transition shadow-soft">
+            <button type="submit" <?= (!$canWallet && !$canCard) ? 'disabled' : '' ?> class="w-full bg-accent-500 hover:bg-accent-400 disabled:opacity-50 disabled:cursor-not-allowed text-white font-display font-bold py-3.5 rounded-2xl text-sm uppercase tracking-wider transition shadow-soft">
                 <?= htmlspecialchars(t('checkout.pay_escrow_btn')) ?>
             </button>
             <a href="<?= ProductHelper::url('/product/' . (int) $item['id']) ?>" class="block w-full text-center text-sm text-gray-400 hover:text-brand-600 font-medium transition">
