@@ -107,7 +107,7 @@ class Client
         }
 
         $request = [
-            'pg_merchant_id' => (string) $this->config['merchant_id'],
+            'pg_merchant_id' => (string) (int) $this->config['merchant_id'],
             'pg_order_id' => (string) $payload['order_id'],
             'pg_amount' => (string) $payload['amount'],
             'pg_description' => (string) $payload['description'],
@@ -124,6 +124,11 @@ class Client
             'pg_failure_url' => $this->url('failure_url', '/payments/freedompay/failure'),
             'pg_site_url' => $this->url('site_url', '/'),
         ];
+
+        // merchant_id в API — только число; если в конфиге ключ/мусор — init упадёт
+        if ($request['pg_merchant_id'] === '0' || !ctype_digit(trim((string) $this->config['merchant_id']))) {
+            return ['ok' => false, 'error' => 'Неверный merchant_id: нужно числовой ID магазина из ЛК'];
+        }
 
         if (!empty($payload['user_id'])) {
             $request['pg_user_id'] = (string) $payload['user_id'];
@@ -171,9 +176,14 @@ class Client
         }
 
         if (($parsed['pg_status'] ?? '') !== 'ok') {
+            $code = (string) ($parsed['pg_error_code'] ?? '');
+            $desc = (string) ($parsed['pg_error_description'] ?? $parsed['pg_description'] ?? 'FreedomPay error');
+            if ($code !== '') {
+                $desc = '[' . $code . '] ' . $desc;
+            }
             return [
                 'ok' => false,
-                'error' => (string) ($parsed['pg_error_description'] ?? $parsed['pg_description'] ?? 'FreedomPay error'),
+                'error' => $desc,
                 'raw' => $parsed,
             ];
         }
