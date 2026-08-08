@@ -83,6 +83,7 @@ class Stream extends Model
         foreach ([
             'featured_product_id' => 'INT UNSIGNED NULL AFTER last_heartbeat',
             'likes_count' => 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER featured_product_id',
+            'live_setup' => 'MEDIUMTEXT NULL AFTER likes_count',
         ] as $col => $def) {
             $exists = $this->db->query("SHOW COLUMNS FROM streams LIKE '{$col}'")->fetch();
             if (!$exists) {
@@ -91,6 +92,16 @@ class Stream extends Model
         }
 
         self::$ensured = true;
+    }
+
+    /** @return array<string,mixed>|null */
+    public static function decodeSetup(?string $raw): ?array
+    {
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+        $decoded = json_decode($raw, true);
+        return is_array($decoded) ? $decoded : null;
     }
 
     /** Только живые стримы (без сохранённых видосов) */
@@ -116,10 +127,14 @@ class Stream extends Model
     public function create(array $data): int
     {
         $stmt = $this->db->prepare(
-            'INSERT INTO streams (user_id, title, description, video_url, video_file, cover, is_live, last_heartbeat)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO streams (user_id, title, description, video_url, video_file, cover, is_live, last_heartbeat, featured_product_id, live_setup)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $isLive = !empty($data['is_live']);
+        $setup = $data['live_setup'] ?? null;
+        if (is_array($setup)) {
+            $setup = json_encode($setup, JSON_UNESCAPED_UNICODE);
+        }
         $stmt->execute([
             $data['user_id'],
             $data['title'],
@@ -129,6 +144,8 @@ class Stream extends Model
             $data['cover'] ?? null,
             $isLive ? 1 : 0,
             $isLive ? date('Y-m-d H:i:s') : null,
+            $data['featured_product_id'] ?? null,
+            $setup,
         ]);
         return (int) $this->db->lastInsertId();
     }
@@ -147,10 +164,21 @@ class Stream extends Model
         return $row ?: null;
     }
 
-    public function startLive(int $userId, string $title): int
+    /**
+     * @param array<string,mixed>|null $setup
+     */
+    public function startLive(int $userId, string $title, ?string $cover = null, ?array $setup = null): int
     {
         // Один эфир на пользователя — закрываем старые
         $this->endAllLiveForUser($userId);
+
+        $featured = null;
+        if (is_array($setup) && !empty($setup['featured_product_id'])) {
+            $featured = (int) $setup['featured_product_id'];
+            if ($featured <= 0) {
+                $featured = null;
+            }
+        }
 
         return $this->create([
             'user_id' => $userId,
@@ -158,9 +186,22 @@ class Stream extends Model
             'description' => 'Прямой эфир — не сохраняется',
             'video_url' => null,
             'video_file' => null,
-            'cover' => null,
+            'cover' => $cover,
             'is_live' => true,
+            'featured_product_id' => $featured,
+            'live_setup' => $setup,
         ]);
+    }
+
+    public function deleteCoverFile(?string $cover): void
+    {
+        if (!$cover) {
+            return;
+        }
+        $path = __DIR__ . '/../../public/uploads/streams/' . basename($cover);
+        if (is_file($path)) {
+            @unlink($path);
+        }
     }
 
     public function heartbeat(int $id, int $userId): bool
@@ -174,12 +215,16 @@ class Stream extends Model
 
     public function endLive(int $id, int $userId): bool
     {
+        $row = $this->find($id);
         $stmt = $this->db->prepare(
             'DELETE FROM streams WHERE id = ? AND user_id = ? AND is_live = 1 AND video_file IS NULL'
         );
         $ok = $stmt->execute([$id, $userId]);
         if ($ok && $stmt->rowCount() > 0) {
             $this->clearLiveData($id);
+            if ($row) {
+                $this->deleteCoverFile($row['cover'] ?? null);
+            }
         }
         return $ok;
     }
@@ -187,11 +232,12 @@ class Stream extends Model
     public function endAllLiveForUser(int $userId): void
     {
         $ids = $this->db->prepare(
-            'SELECT id FROM streams WHERE user_id = ? AND is_live = 1 AND video_file IS NULL'
+            'SELECT id, cover FROM streams WHERE user_id = ? AND is_live = 1 AND video_file IS NULL'
         );
         $ids->execute([$userId]);
-        foreach ($ids->fetchAll(\PDO::FETCH_COLUMN) as $sid) {
-            $this->clearLiveData((int) $sid);
+        foreach ($ids->fetchAll() as $row) {
+            $this->clearLiveData((int) $row['id']);
+            $this->deleteCoverFile($row['cover'] ?? null);
         }
 
         $stmt = $this->db->prepare(
@@ -204,14 +250,15 @@ class Stream extends Model
     public function purgeStaleLive(): void
     {
         $stale = $this->db->query(
-            'SELECT id FROM streams
+            'SELECT id, cover FROM streams
              WHERE is_live = 1
                AND video_file IS NULL
                AND (last_heartbeat IS NULL OR last_heartbeat < (NOW() - INTERVAL 45 SECOND))'
-        )->fetchAll(\PDO::FETCH_COLUMN);
+        )->fetchAll();
 
-        foreach ($stale as $sid) {
-            $this->clearLiveData((int) $sid);
+        foreach ($stale as $row) {
+            $this->clearLiveData((int) $row['id']);
+            $this->deleteCoverFile($row['cover'] ?? null);
         }
 
         $this->db->exec(

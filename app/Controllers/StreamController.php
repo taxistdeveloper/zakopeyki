@@ -5,11 +5,29 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Controller;
 use App\Helpers\ProductHelper;
+use App\Helpers\UploadHelper;
 use App\Models\Product;
 use App\Models\Stream;
 
 class StreamController extends Controller
 {
+    private const COVER_EXT = ['jpg', 'jpeg', 'png', 'webp'];
+    private const MAX_COVER = 5 * 1024 * 1024;
+
+    /** Список активных товаров продавца для настройки эфира */
+    public function myProducts(): void
+    {
+        Auth::requireLogin();
+        $products = [];
+        foreach ((new Product())->activeShopByUser(Auth::id(), 100) as $p) {
+            if (!ProductHelper::isPurchasable($p)) {
+                continue;
+            }
+            $products[] = $this->mapShopProduct($p);
+        }
+        $this->json(['ok' => true, 'products' => $products]);
+    }
+
     /** Старт Live — без файла. После завершения не хранится. */
     public function startLive(): void
     {
@@ -17,12 +35,29 @@ class StreamController extends Controller
 
         $user = Auth::user();
         $title = 'Стрим — ' . ($user['name'] ?? 'Пользователь');
-        $id = (new Stream())->startLive(Auth::id(), $title);
+        $setup = $this->parseSetupFromRequest();
+        if (isset($setup['error'])) {
+            $this->json(['ok' => false, 'message' => $setup['error']], 422);
+        }
+
+        $cover = $this->storeCoverUpload();
+        if (isset($cover['error'])) {
+            $this->json(['ok' => false, 'message' => $cover['error']], 422);
+        }
+
+        $id = (new Stream())->startLive(
+            Auth::id(),
+            $title,
+            $cover['file'] ?? null,
+            $setup
+        );
 
         $this->json([
             'ok' => true,
             'id' => $id,
             'title' => $title,
+            'cover' => $cover['file'] ?? null,
+            'setup' => $setup,
             'message' => 'Стрим начат. После завершения ничего не сохраняется.',
         ]);
     }
@@ -171,28 +206,37 @@ class StreamController extends Controller
         }
 
         $hostId = (int) $stream['user_id'];
+        $setup = Stream::decodeSetup($stream['live_setup'] ?? null) ?? [];
+        $selectedIds = [];
+        if (!empty($setup['product_ids']) && is_array($setup['product_ids'])) {
+            $selectedIds = array_values(array_filter(array_map('intval', $setup['product_ids'])));
+        }
+
+        $productModel = new Product();
+        $rawProducts = $selectedIds !== []
+            ? $productModel->activeShopByUserAndIds($hostId, $selectedIds)
+            : $productModel->activeShopByUser($hostId, 24);
+
         $products = [];
-        foreach ((new Product())->activeShopByUser($hostId, 24) as $p) {
+        $byId = [];
+        foreach ($rawProducts as $p) {
             if (!ProductHelper::isPurchasable($p)) {
                 continue;
             }
-            $products[] = $this->mapShopProduct($p);
+            $mapped = $this->mapShopProduct($p, $setup);
+            $products[] = $mapped;
+            $byId[(int) $mapped['id']] = $mapped;
         }
 
         $featuredId = (int) ($stream['featured_product_id'] ?? 0);
-        $featured = null;
-        if ($featuredId > 0) {
-            foreach ($products as $p) {
-                if ((int) $p['id'] === $featuredId) {
-                    $featured = $p;
-                    break;
-                }
-            }
-            if (!$featured) {
-                $row = (new Product())->find($featuredId);
-                if ($row && (int) $row['user_id'] === $hostId && ProductHelper::isPurchasable($row)) {
-                    $featured = $this->mapShopProduct($row);
-                }
+        if ($featuredId <= 0 && !empty($setup['featured_product_id'])) {
+            $featuredId = (int) $setup['featured_product_id'];
+        }
+        $featured = $featuredId > 0 ? ($byId[$featuredId] ?? null) : null;
+        if (!$featured && $featuredId > 0) {
+            $row = $productModel->find($featuredId);
+            if ($row && (int) $row['user_id'] === $hostId && ProductHelper::isPurchasable($row)) {
+                $featured = $this->mapShopProduct($row, $setup);
             }
         }
         if (!$featured && $products !== []) {
@@ -205,6 +249,17 @@ class StreamController extends Controller
             $elapsed = max(0, time() - strtotime((string) $started));
         }
 
+        $giveaway = null;
+        if (!empty($setup['giveaway']) && is_array($setup['giveaway'])) {
+            $gTitle = trim((string) ($setup['giveaway']['title'] ?? ''));
+            if ($gTitle !== '') {
+                $giveaway = [
+                    'title' => mb_substr($gTitle, 0, 120),
+                    'goal' => max(50, min(5000, (int) ($setup['giveaway']['goal'] ?? 500))),
+                ];
+            }
+        }
+
         $this->json([
             'ok' => true,
             'live' => true,
@@ -215,6 +270,10 @@ class StreamController extends Controller
             'featured' => $featured,
             'products' => $products,
             'host_name' => (string) ($stream['author_name'] ?? ''),
+            'chat_enabled' => !isset($setup['chat_enabled']) || (bool) $setup['chat_enabled'],
+            'duration' => max(0, (int) ($setup['duration'] ?? 0)),
+            'visibility' => (string) ($setup['visibility'] ?? 'all'),
+            'giveaway' => $giveaway,
         ]);
     }
 
@@ -285,6 +344,11 @@ class StreamController extends Controller
             $this->json(['ok' => false, 'live' => false], 404);
         }
 
+        $setup = Stream::decodeSetup($stream['live_setup'] ?? null) ?? [];
+        if (isset($setup['chat_enabled']) && !$setup['chat_enabled']) {
+            $this->json(['ok' => false, 'message' => 'chat_off'], 403);
+        }
+
         $user = Auth::user();
         $name = (string) ($user['name'] ?? 'User');
         $isHost = (int) $stream['user_id'] === Auth::id();
@@ -309,6 +373,7 @@ class StreamController extends Controller
 
         if ($stream && ((int) $stream['user_id'] === Auth::id() || Auth::isAdmin())) {
             $model->clearLiveData((int) $id);
+            $model->deleteCoverFile($stream['cover'] ?? null);
             $model->delete((int) $id);
             $_SESSION['flash'] = 'Стрим закрыт';
         }
@@ -316,18 +381,157 @@ class StreamController extends Controller
         $this->redirect('/');
     }
 
-    /** @param array<string,mixed> $p */
-    private function mapShopProduct(array $p): array
+    /**
+     * @return array<string,mixed>|array{error:string}
+     */
+    private function parseSetupFromRequest(): array
+    {
+        $raw = $_POST['setup'] ?? '';
+        $data = [];
+        if (is_string($raw) && $raw !== '') {
+            $decoded = json_decode($raw, true);
+            if (!is_array($decoded)) {
+                return ['error' => 'Некорректные настройки стрима'];
+            }
+            $data = $decoded;
+        }
+
+        $productIds = [];
+        if (!empty($data['product_ids']) && is_array($data['product_ids'])) {
+            $productIds = array_values(array_unique(array_filter(
+                array_map('intval', $data['product_ids']),
+                static fn ($id) => $id > 0
+            )));
+        }
+        if ($productIds === []) {
+            return ['error' => 'Добавьте минимум 1 товар для начала стрима'];
+        }
+
+        $productModel = new Product();
+        $owned = [];
+        foreach ($productModel->activeShopByUserAndIds(Auth::id(), $productIds) as $p) {
+            if (ProductHelper::isPurchasable($p)) {
+                $owned[(int) $p['id']] = $p;
+            }
+        }
+        $productIds = array_values(array_filter($productIds, static fn ($id) => isset($owned[$id])));
+        if ($productIds === []) {
+            return ['error' => 'Добавьте минимум 1 товар для начала стрима'];
+        }
+
+        $featuredId = (int) ($data['featured_product_id'] ?? 0);
+        if ($featuredId > 0 && !isset($owned[$featuredId])) {
+            $featuredId = 0;
+        }
+
+        $featuredPrice = null;
+        if ($featuredId > 0 && isset($data['featured_price']) && $data['featured_price'] !== '' && $data['featured_price'] !== null) {
+            $featuredPrice = max(0, (int) $data['featured_price']);
+        }
+
+        $duration = (int) ($data['duration'] ?? 7200);
+        $allowedDurations = [1800, 3600, 7200, 10800, 14400];
+        if (!in_array($duration, $allowedDurations, true)) {
+            $duration = 7200;
+        }
+
+        $visibility = (string) ($data['visibility'] ?? 'all');
+        if (!in_array($visibility, ['all', 'followers'], true)) {
+            $visibility = 'all';
+        }
+
+        $chatEnabled = !isset($data['chat_enabled']) || (bool) $data['chat_enabled'];
+        $notifySubs = !isset($data['notify_subs']) || (bool) $data['notify_subs'];
+
+        $giveaway = null;
+        if (!empty($data['giveaway']) && is_array($data['giveaway'])) {
+            $gTitle = trim((string) ($data['giveaway']['title'] ?? ''));
+            if ($gTitle !== '') {
+                $giveaway = [
+                    'title' => mb_substr($gTitle, 0, 120),
+                    'goal' => max(50, min(5000, (int) ($data['giveaway']['goal'] ?? 500))),
+                ];
+            }
+        }
+
+        return [
+            'product_ids' => $productIds,
+            'featured_product_id' => $featuredId > 0 ? $featuredId : null,
+            'featured_price' => $featuredPrice,
+            'duration' => $duration,
+            'visibility' => $visibility,
+            'chat_enabled' => $chatEnabled,
+            'notify_subs' => $notifySubs,
+            'giveaway' => $giveaway,
+        ];
+    }
+
+    /**
+     * @return array{file?:string}|array{error:string}
+     */
+    private function storeCoverUpload(): array
+    {
+        if (empty($_FILES['cover']['name']) || ($_FILES['cover']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+            return [];
+        }
+
+        $file = $_FILES['cover'];
+        if (($file['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK || ($file['size'] ?? 0) > self::MAX_COVER) {
+            return ['error' => 'Обложка слишком большая (макс. 5 МБ)'];
+        }
+
+        $ext = strtolower(pathinfo((string) $file['name'], PATHINFO_EXTENSION));
+        if (!in_array($ext, self::COVER_EXT, true)) {
+            return ['error' => 'Формат обложки: JPG, PNG или WebP'];
+        }
+        if (!UploadHelper::isAllowedUpload((string) $file['tmp_name'], (string) $file['name'], self::COVER_EXT)) {
+            return ['error' => 'Формат обложки: JPG, PNG или WebP'];
+        }
+
+        $ext = UploadHelper::normalizeExt((string) $file['name']);
+        $dir = __DIR__ . '/../../public/uploads/streams';
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        $name = 'cover_' . Auth::id() . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+        if (!move_uploaded_file((string) $file['tmp_name'], $dir . '/' . $name)) {
+            return ['error' => 'Не удалось сохранить обложку'];
+        }
+
+        return ['file' => $name];
+    }
+
+    /**
+     * @param array<string,mixed> $p
+     * @param array<string,mixed> $setup
+     */
+    private function mapShopProduct(array $p, array $setup = []): array
     {
         $price = (int) ($p['price'] ?? 0);
-        return [
-            'id' => (int) $p['id'],
+        $id = (int) $p['id'];
+        $out = [
+            'id' => $id,
             'title' => (string) ($p['title'] ?? ''),
             'price' => $price,
             'price_label' => ProductHelper::formatPrice($p),
             'image' => ProductHelper::imageUrl($p),
-            'url' => ProductHelper::url('/product/' . (int) $p['id']),
-            'buy_url' => ProductHelper::checkoutUrl((int) $p['id']),
+            'url' => ProductHelper::url('/product/' . $id),
+            'buy_url' => ProductHelper::checkoutUrl($id),
         ];
+
+        $featuredId = (int) ($setup['featured_product_id'] ?? 0);
+        $featuredPrice = $setup['featured_price'] ?? null;
+        if ($featuredId === $id && $featuredPrice !== null && (int) $featuredPrice >= 0 && (int) $featuredPrice !== $price) {
+            $special = (int) $featuredPrice;
+            $fake = $p;
+            $fake['price'] = $special;
+            $out['old_price'] = $price;
+            $out['old_price_label'] = ProductHelper::formatPrice($p);
+            $out['price'] = $special;
+            $out['price_label'] = ProductHelper::formatPrice($fake);
+        }
+
+        return $out;
     }
 }

@@ -285,6 +285,27 @@ class Product extends Model
         return $stmt->fetchAll();
     }
 
+    /**
+     * @param list<int> $ids
+     * @return list<array<string,mixed>>
+     */
+    public function activeShopByUserAndIds(int $userId, array $ids): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn ($id) => $id > 0)));
+        if ($ids === []) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $this->db->prepare(
+            "SELECT * FROM products
+             WHERE user_id = ? AND status = 'active' AND id IN ({$placeholders})
+             ORDER BY FIELD(id, {$placeholders})"
+        );
+        $params = array_merge([$userId], $ids, $ids);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+
     public function countActive(): int
     {
         return (int) $this->db->query(

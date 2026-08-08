@@ -109,6 +109,7 @@ $router->post('/stories', [StoryController::class, 'store']);
 $router->post('/stories/{id}/delete', [StoryController::class, 'delete']);
 
 $router->post('/streams/live/start', [StreamController::class, 'startLive']);
+$router->get('/streams/live/my-products', [StreamController::class, 'myProducts']);
 $router->post('/streams/live/heartbeat', [StreamController::class, 'heartbeat']);
 $router->post('/streams/live/end', [StreamController::class, 'endLive']);
 $router->post('/streams/live/signal', [StreamController::class, 'signal']);

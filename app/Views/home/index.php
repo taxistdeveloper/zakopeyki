@@ -216,6 +216,36 @@ $changelog = $changelog ?? null;
         </form>
     </div>
 </div>
+
+<!-- LIVE START PREVIEW — камера → подтверждение → старт -->
+<div id="live-start-preview-modal" class="hidden fixed inset-0 z-[75] flex items-center justify-center bg-ink-900/70 backdrop-blur-sm p-3 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="live-preview-title" onclick="if(event.target===this)closeLiveStartPreview()">
+    <div class="bg-white dark:bg-ink-800 w-full max-w-[380px] rounded-[28px] overflow-hidden shadow-lift border border-white/60 dark:border-white/10" onclick="event.stopPropagation()">
+        <div class="p-4 sm:p-5 border-b border-black/[0.06] dark:border-white/10 flex justify-between items-center gap-3">
+            <div class="min-w-0">
+                <p class="text-[10px] font-black uppercase tracking-[0.14em] text-red-500">● Live</p>
+                <h3 id="live-preview-title" class="font-display font-bold text-sm mt-0.5 truncate"><?= htmlspecialchars(t('home.live_preview_title')) ?></h3>
+            </div>
+            <button type="button" onclick="closeLiveStartPreview()" class="w-8 h-8 rounded-xl text-gray-400 hover:bg-black/5 hover:text-ink-800 dark:hover:bg-white/10 transition flex-shrink-0" aria-label="<?= htmlspecialchars(t('home.close_stream')) ?>">✕</button>
+        </div>
+        <div class="relative bg-black aspect-[9/16] max-h-[58vh] overflow-hidden">
+            <video id="live-preview-cam" class="absolute inset-0 w-full h-full object-cover" playsinline webkit-playsinline muted autoplay></video>
+            <div id="live-preview-placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-white/80 p-6 text-center bg-gradient-to-br from-red-700 via-orange-700 to-gray-900">
+                <span class="text-3xl mb-3 opacity-80" aria-hidden="true">📷</span>
+                <p id="live-preview-status" class="text-xs font-semibold max-w-[220px]"><?= htmlspecialchars(t('home.live_preview_waiting')) ?></p>
+            </div>
+            <span class="absolute top-3 left-3 z-10 text-[9px] font-black uppercase tracking-wider bg-red-500 text-white px-2 py-1 rounded-md shadow">● Preview</span>
+        </div>
+        <div class="p-4 sm:p-5 space-y-3">
+            <p class="text-[12px] text-gray-500 dark:text-gray-400 leading-snug"><?= htmlspecialchars(t('home.live_preview_hint')) ?></p>
+            <button type="button" id="live-preview-confirm-btn" onclick="confirmStartLiveStream()" class="w-full bg-[#7c3aed] hover:bg-[#6d28d9] disabled:opacity-60 disabled:pointer-events-none text-white font-display font-bold py-3.5 rounded-2xl text-xs uppercase tracking-wider transition shadow-soft">
+                <?= htmlspecialchars(t('home.start_stream')) ?>
+            </button>
+            <button type="button" onclick="closeLiveStartPreview()" class="w-full text-[12px] font-semibold text-gray-400 hover:text-ink-800 dark:hover:text-white py-1 transition"><?= htmlspecialchars(t('home.live_preview_cancel')) ?></button>
+        </div>
+    </div>
+</div>
+
+<?php View::partial('partials/live-setup-modal'); ?>
 <?php endif; ?>
 
 <!-- STORY VIEWER — Instagram web -->
@@ -394,15 +424,15 @@ $changelog = $changelog ?? null;
                             </div>
                             <button type="button" id="live-shop-feat-buy" onclick="openLiveProductFromFeatured()" class="block w-full text-center text-[12px] font-black bg-amber-400 hover:bg-amber-300 text-ink-900 py-2.5 border-0 cursor-pointer"><?= htmlspecialchars(t('live.buy_now')) ?></button>
                         </div>
-                        <div id="live-shop-giveaway" class="live-shop-giveaway rounded-2xl overflow-hidden pointer-events-auto">
+                        <div id="live-shop-giveaway" class="hidden live-shop-giveaway rounded-2xl overflow-hidden pointer-events-auto">
                             <div class="px-2.5 pt-2 pb-2">
                                 <p class="text-[9px] font-black uppercase tracking-wider text-violet-200"><?= htmlspecialchars(t('live.giveaway')) ?></p>
-                                <p class="text-[11px] font-semibold mt-1 leading-snug"><?= htmlspecialchars(t('live.giveaway_title')) ?></p>
+                                <p id="live-shop-give-title" class="text-[11px] font-semibold mt-1 leading-snug"><?= htmlspecialchars(t('live.giveaway_title')) ?></p>
                                 <p class="text-[10px] text-white/70 mt-0.5"><span id="live-shop-give-count">0</span> <?= htmlspecialchars(t('live.participants')) ?></p>
                                 <div class="h-1.5 rounded-full bg-white/15 mt-2 overflow-hidden">
                                     <div id="live-shop-give-bar" class="h-full bg-violet-400 rounded-full transition-all" style="width:0%"></div>
                                 </div>
-                                <p class="text-[9px] text-white/60 mt-1"><span id="live-shop-give-prog">0</span> / 500 ♥</p>
+                                <p class="text-[9px] text-white/60 mt-1"><span id="live-shop-give-prog">0</span> / <span id="live-shop-give-goal">500</span> ♥</p>
                                 <button type="button" id="live-shop-give-btn" onclick="joinLiveGiveaway()" class="mt-2 w-full text-[11px] font-black bg-violet-500 hover:bg-violet-400 text-white py-2 rounded-xl"><?= htmlspecialchars(t('live.participate')) ?></button>
                             </div>
                         </div>
@@ -533,6 +563,8 @@ window.__storyDeleteBase = <?= js_encode(ProductHelper::url('/stories/')) ?>;
 window.__streams = <?= js_encode($streamsForJs) ?>;
 window.__streamDeleteBase = <?= js_encode(ProductHelper::url('/streams/')) ?>;
 window.__streamLiveStart = <?= js_encode(ProductHelper::url('/streams/live/start')) ?>;
+window.__streamLiveMyProducts = <?= js_encode(ProductHelper::url('/streams/live/my-products')) ?>;
+window.__streamCoverBase = <?= js_encode(ProductHelper::url('public/uploads/streams/')) ?>;
 window.__streamLiveHeartbeat = <?= js_encode(ProductHelper::url('/streams/live/heartbeat')) ?>;
 window.__streamLiveEnd = <?= js_encode(ProductHelper::url('/streams/live/end')) ?>;
 window.__streamLiveSignal = <?= js_encode(ProductHelper::url('/streams/live/signal')) ?>;

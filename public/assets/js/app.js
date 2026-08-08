@@ -273,7 +273,7 @@ document.addEventListener('click', function (e) {
 // Переносим полноэкранные модалки в body: внутри анимированных/overflow-обёрток
 // position:fixed позиционируется неверно, и просмотрщик уезжает вниз страницы.
 function portalStoryModals() {
-    ['story-viewer', 'stream-viewer', 'story-create-modal', 'whats-new-modal'].forEach(function (id) {
+    ['story-viewer', 'stream-viewer', 'story-create-modal', 'whats-new-modal', 'live-start-preview-modal', 'live-setup-modal', 'live-product-picker', 'live-giveaway-editor'].forEach(function (id) {
         const el = document.getElementById(id);
         if (el && el.parentElement !== document.body) {
             document.body.appendChild(el);
@@ -704,6 +704,27 @@ function timeAgo(dateStr) {
 document.addEventListener('keydown', function (e) {
     const storyViewer = document.getElementById('story-viewer');
     const streamViewer = document.getElementById('stream-viewer');
+    const livePreview = document.getElementById('live-start-preview-modal');
+    const livePicker = document.getElementById('live-product-picker');
+    const liveGive = document.getElementById('live-giveaway-editor');
+    const liveSetup = document.getElementById('live-setup-modal');
+
+    if (livePicker && !livePicker.classList.contains('hidden')) {
+        if (e.key === 'Escape') closeLiveProductPicker();
+        return;
+    }
+    if (liveGive && !liveGive.classList.contains('hidden')) {
+        if (e.key === 'Escape') closeLiveGiveawayEditor();
+        return;
+    }
+    if (livePreview && !livePreview.classList.contains('hidden')) {
+        if (e.key === 'Escape') closeLiveStartPreview();
+        return;
+    }
+    if (liveSetup && !liveSetup.classList.contains('hidden')) {
+        if (e.key === 'Escape') closeLiveSetup();
+        return;
+    }
 
     if (storyViewer && !storyViewer.classList.contains('hidden')) {
         if (e.key === 'Escape') closeStoryViewer();
@@ -936,46 +957,631 @@ function liveRandomPeerId() {
     return 'p' + Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
+let liveStartConfirmBusy = false;
+const LIVE_SETUP_DRAFT_KEY = 'live_setup_draft_v1';
+let liveSetupState = {
+    products: [],
+    catalog: [],
+    featuredId: 0,
+    featuredPrice: null,
+    giveaway: null,
+    duration: 7200,
+    visibility: 'all',
+    chatEnabled: true,
+    notifySubs: true,
+    coverFile: null,
+    coverUrl: null
+};
+let livePickerMode = 'products'; // products | pod
+let livePickerSelected = {};
+
 function startLiveStream() {
     if (!window.__currentUserId) {
         alert(window.__i18n?.['js.login_to_stream'] || 'Войдите, чтобы начать эфир');
         return;
     }
+    if (window.__myLiveId) {
+        openStreamViewer(0);
+        return;
+    }
+    openLiveSetup();
+}
+
+function openLiveSetup() {
+    const modal = document.getElementById('live-setup-modal');
+    if (!modal) {
+        openLiveStartPreview();
+        return;
+    }
+    loadLiveSetupDraft();
+    renderLiveSetup();
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    fetchLiveSetupCatalog();
+}
+
+function closeLiveSetup() {
+    const modal = document.getElementById('live-setup-modal');
+    if (modal) modal.classList.add('hidden');
+    closeLiveProductPicker();
+    closeLiveGiveawayEditor();
+    const preview = document.getElementById('live-start-preview-modal');
+    const previewOpen = preview && !preview.classList.contains('hidden');
+    if (!previewOpen) {
+        document.body.style.overflow = '';
+        if (!window.__myLiveId) stopLiveCamera();
+    }
+}
+
+function openLiveStartPreviewFromSetup() {
+    syncLiveSetupFromForm();
+    openLiveStartPreview();
+}
+
+function submitLiveSetupStart() {
+    syncLiveSetupFromForm();
+    if (!liveSetupState.products.length) {
+        alert(window.__i18n?.['home.live_setup_need_product'] || 'Добавьте минимум 1 товар');
+        return;
+    }
+    openLiveStartPreview();
+}
+
+function openLiveStartPreview() {
+    const modal = document.getElementById('live-start-preview-modal');
+    if (!modal) {
+        confirmStartLiveStream();
+        return;
+    }
+    liveStartConfirmBusy = false;
+    const btn = document.getElementById('live-preview-confirm-btn');
+    if (btn) {
+        btn.disabled = false;
+        btn.textContent = window.__i18n?.['home.start_stream'] || '● Начать стрим';
+    }
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    startLivePreviewCamera();
+}
+
+function closeLiveStartPreview(stopCamera) {
+    const modal = document.getElementById('live-start-preview-modal');
+    if (modal) modal.classList.add('hidden');
+    const previewCam = document.getElementById('live-preview-cam');
+    if (previewCam) previewCam.srcObject = null;
+
+    const setup = document.getElementById('live-setup-modal');
+    const setupOpen = setup && !setup.classList.contains('hidden');
+    if (!setupOpen) {
+        if (!document.getElementById('stream-viewer') || document.getElementById('stream-viewer').classList.contains('hidden')) {
+            document.body.style.overflow = '';
+        }
+        if (stopCamera !== false && !window.__myLiveId) {
+            stopLiveCamera();
+        }
+    } else if (stopCamera !== false && !window.__myLiveId) {
+        // остаёмся в настройках — камеру можно отпустить
+        stopLiveCamera();
+    }
+    liveStartConfirmBusy = false;
+}
+
+function startLivePreviewCamera() {
+    const cam = document.getElementById('live-preview-cam');
+    const placeholder = document.getElementById('live-preview-placeholder');
+    const status = document.getElementById('live-preview-status');
+    if (!cam) return;
+
+    const showCam = function (stream) {
+        if (!stream) return;
+        cam.srcObject = stream;
+        cam.muted = true;
+        cam.play().catch(function () {});
+        if (placeholder) placeholder.classList.add('hidden');
+    };
+
+    const showError = function () {
+        if (placeholder) placeholder.classList.remove('hidden');
+        if (status) {
+            status.textContent = window.__i18n?.['home.live_preview_cam_error']
+                || 'Камера недоступна. Можно начать эфир — зрители увидят заглушку.';
+        }
+    };
+
+    if (liveMediaStream) {
+        showCam(liveMediaStream);
+        return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+        showError();
+        return;
+    }
+    if (status) {
+        status.textContent = window.__i18n?.['home.live_preview_waiting'] || 'Подключаем камеру…';
+    }
+    if (placeholder) placeholder.classList.remove('hidden');
+
+    const attach = function (stream) {
+        if (stream) showCam(stream);
+        else showError();
+    };
+
+    if (liveMediaPromise) {
+        liveMediaPromise.then(attach).catch(showError);
+        return;
+    }
+
+    liveMediaPromise = Promise.all([
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false }),
+        navigator.mediaDevices.getUserMedia({
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+            },
+            video: false
+        }).catch(function () { return null; })
+    ])
+        .then(function (parts) {
+            const videoStream = parts[0];
+            const audioStream = parts[1];
+            const tracks = videoStream.getVideoTracks().slice();
+            if (audioStream) {
+                audioStream.getAudioTracks().forEach(function (t) {
+                    t.enabled = true;
+                    tracks.push(t);
+                });
+            }
+            const stream = new MediaStream(tracks);
+            liveMediaStream = stream;
+            attach(stream);
+            return stream;
+        })
+        .catch(function () {
+            showError();
+            return null;
+        })
+        .finally(function () {
+            liveMediaPromise = null;
+        });
+}
+
+function buildLiveSetupPayload() {
+    syncLiveSetupFromForm();
+    return {
+        product_ids: liveSetupState.products.map(function (p) { return p.id; }),
+        featured_product_id: liveSetupState.featuredId || null,
+        featured_price: liveSetupState.featuredPrice,
+        duration: liveSetupState.duration,
+        visibility: liveSetupState.visibility,
+        chat_enabled: liveSetupState.chatEnabled,
+        notify_subs: liveSetupState.notifySubs,
+        giveaway: liveSetupState.giveaway
+    };
+}
+
+function confirmStartLiveStream() {
+    if (!window.__currentUserId) {
+        alert(window.__i18n?.['js.login_to_stream'] || 'Войдите, чтобы начать эфир');
+        return;
+    }
+    if (liveStartConfirmBusy || window.__myLiveId) return;
+
+    const payload = buildLiveSetupPayload();
+    if (!payload.product_ids.length) {
+        alert(window.__i18n?.['home.live_setup_need_product'] || 'Добавьте минимум 1 товар');
+        closeLiveStartPreview(true);
+        return;
+    }
+
+    liveStartConfirmBusy = true;
+    const btn = document.getElementById('live-preview-confirm-btn');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = window.__i18n?.['home.live_preview_starting'] || 'Запуск…';
+    }
+
+    const body = new FormData();
+    body.append('setup', JSON.stringify(payload));
+    if (liveSetupState.coverFile) {
+        body.append('cover', liveSetupState.coverFile);
+    }
+
     fetch(window.__streamLiveStart, {
         method: 'POST',
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
-        credentials: 'same-origin'
+        credentials: 'same-origin',
+        body: body
     })
         .then(function (r) { return r.json(); })
         .then(function (data) {
             if (!data.ok) {
+                liveStartConfirmBusy = false;
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = window.__i18n?.['home.start_stream'] || '● Начать стрим';
+                }
                 alert(data.message || window.__i18n?.['js.stream_fail'] || 'Не удалось начать эфир');
                 return;
             }
+            try { localStorage.removeItem(LIVE_SETUP_DRAFT_KEY); } catch (e) { /* ignore */ }
+            closeLiveStartPreview(false);
+            closeLiveSetup();
             window.__myLiveId = data.id;
             startLiveHeartbeat(data.id);
             startLiveCameraPreview();
 
+            const hostName = document.getElementById('live-setup-host-name');
             const me = {
                 id: data.id,
                 user_id: window.__currentUserId,
                 title: data.title,
                 description: window.__i18n?.['js.stream_desc'] || 'Прямой эфир — не сохраняется',
-                author_name: window.__i18n?.['js.you'] || 'Вы',
+                author_name: (hostName && hostName.textContent) || window.__i18n?.['js.you'] || 'Вы',
                 author_avatar: '●',
                 is_live: true,
                 file: null,
                 url: null,
                 embed: null,
-                cover: null
+                cover: data.cover || null
             };
             window.__streams = window.__streams || [];
             window.__streams.unshift(me);
             openStreamViewer(0);
+            liveStartConfirmBusy = false;
         })
         .catch(function () {
+            liveStartConfirmBusy = false;
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = window.__i18n?.['home.start_stream'] || '● Начать стрим';
+            }
             alert(window.__i18n?.['js.stream_error'] || 'Ошибка старта эфира');
         });
+}
+
+function fetchLiveSetupCatalog() {
+    if (!window.__streamLiveMyProducts) return;
+    fetch(window.__streamLiveMyProducts, {
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+    })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (!data || !data.ok) return;
+            liveSetupState.catalog = data.products || [];
+            // синхронизируем выбранные с актуальным каталогом
+            const byId = {};
+            liveSetupState.catalog.forEach(function (p) { byId[p.id] = p; });
+            liveSetupState.products = liveSetupState.products
+                .map(function (p) { return byId[p.id] || p; })
+                .filter(function (p) { return byId[p.id]; });
+            if (liveSetupState.featuredId && !byId[liveSetupState.featuredId]) {
+                liveSetupState.featuredId = 0;
+                liveSetupState.featuredPrice = null;
+            }
+            renderLiveSetup();
+        })
+        .catch(function () {});
+}
+
+function syncLiveSetupFromForm() {
+    const duration = document.getElementById('live-setup-duration');
+    const visibility = document.getElementById('live-setup-visibility');
+    const chat = document.getElementById('live-setup-chat');
+    if (duration) liveSetupState.duration = Number(duration.value) || 7200;
+    if (visibility) liveSetupState.visibility = visibility.value || 'all';
+    if (chat) liveSetupState.chatEnabled = chat.value !== '0';
+}
+
+function toggleLiveSetupNotify() {
+    liveSetupState.notifySubs = !liveSetupState.notifySubs;
+    const btn = document.getElementById('live-setup-notify-toggle');
+    if (btn) {
+        btn.classList.toggle('is-on', liveSetupState.notifySubs);
+        btn.setAttribute('aria-checked', liveSetupState.notifySubs ? 'true' : 'false');
+    }
+}
+
+function onLiveSetupCoverChange(e) {
+    const file = e.target && e.target.files && e.target.files[0];
+    if (!file) return;
+    if (liveSetupState.coverUrl) URL.revokeObjectURL(liveSetupState.coverUrl);
+    liveSetupState.coverFile = file;
+    liveSetupState.coverUrl = URL.createObjectURL(file);
+    const wrap = document.getElementById('live-setup-cover-preview');
+    const img = document.getElementById('live-setup-cover-img');
+    if (img) img.src = liveSetupState.coverUrl;
+    if (wrap) wrap.classList.remove('hidden');
+}
+
+function clearLiveSetupCover() {
+    if (liveSetupState.coverUrl) URL.revokeObjectURL(liveSetupState.coverUrl);
+    liveSetupState.coverFile = null;
+    liveSetupState.coverUrl = null;
+    const input = document.getElementById('live-setup-cover-input');
+    if (input) input.value = '';
+    const wrap = document.getElementById('live-setup-cover-preview');
+    if (wrap) wrap.classList.add('hidden');
+}
+
+function saveLiveSetupDraft() {
+    syncLiveSetupFromForm();
+    const draft = {
+        product_ids: liveSetupState.products.map(function (p) { return p.id; }),
+        featuredId: liveSetupState.featuredId,
+        featuredPrice: liveSetupState.featuredPrice,
+        giveaway: liveSetupState.giveaway,
+        duration: liveSetupState.duration,
+        visibility: liveSetupState.visibility,
+        chatEnabled: liveSetupState.chatEnabled,
+        notifySubs: liveSetupState.notifySubs
+    };
+    try {
+        localStorage.setItem(LIVE_SETUP_DRAFT_KEY, JSON.stringify(draft));
+        alert(window.__i18n?.['home.live_setup_draft_saved'] || 'Черновик сохранён');
+    } catch (e) {
+        alert(window.__i18n?.['home.live_setup_draft_saved'] || 'Черновик сохранён');
+    }
+}
+
+function loadLiveSetupDraft() {
+    let draft = null;
+    try {
+        draft = JSON.parse(localStorage.getItem(LIVE_SETUP_DRAFT_KEY) || 'null');
+    } catch (e) {
+        draft = null;
+    }
+    if (!draft || typeof draft !== 'object') return;
+    liveSetupState.featuredId = Number(draft.featuredId) || 0;
+    liveSetupState.featuredPrice = draft.featuredPrice != null ? Number(draft.featuredPrice) : null;
+    liveSetupState.giveaway = draft.giveaway || null;
+    liveSetupState.duration = Number(draft.duration) || 7200;
+    liveSetupState.visibility = draft.visibility || 'all';
+    liveSetupState.chatEnabled = draft.chatEnabled !== false;
+    liveSetupState.notifySubs = draft.notifySubs !== false;
+    liveSetupState._draftProductIds = Array.isArray(draft.product_ids) ? draft.product_ids.map(Number) : [];
+}
+
+function renderLiveSetup() {
+    const duration = document.getElementById('live-setup-duration');
+    const visibility = document.getElementById('live-setup-visibility');
+    const chat = document.getElementById('live-setup-chat');
+    const notify = document.getElementById('live-setup-notify-toggle');
+    if (duration) duration.value = String(liveSetupState.duration);
+    if (visibility) visibility.value = liveSetupState.visibility;
+    if (chat) chat.value = liveSetupState.chatEnabled ? '1' : '0';
+    if (notify) {
+        notify.classList.toggle('is-on', liveSetupState.notifySubs);
+        notify.setAttribute('aria-checked', liveSetupState.notifySubs ? 'true' : 'false');
+    }
+
+    // восстановить товары из черновика после загрузки каталога
+    if (liveSetupState._draftProductIds && liveSetupState._draftProductIds.length && liveSetupState.catalog.length) {
+        const byId = {};
+        liveSetupState.catalog.forEach(function (p) { byId[p.id] = p; });
+        liveSetupState.products = liveSetupState._draftProductIds
+            .map(function (id) { return byId[id]; })
+            .filter(Boolean);
+        liveSetupState._draftProductIds = null;
+    }
+
+    const list = document.getElementById('live-setup-products-list');
+    if (list) {
+        list.innerHTML = liveSetupState.products.map(function (p) {
+            const img = p.image
+                ? 'background-image:url(\'' + String(p.image).replace(/'/g, '\\\'') + '\')'
+                : '';
+            return '<div class="live-setup-product-row" data-id="' + p.id + '">'
+                + '<span class="thumb" style="' + img + '"></span>'
+                + '<div class="meta"><p class="title line-clamp-2">' + escapeLiveHtml(p.title) + '</p>'
+                + '<p class="price">' + escapeLiveHtml(p.price_label || '') + '</p></div>'
+                + '<div class="actions">'
+                + '<button type="button" class="live-setup-icon-btn" onclick="removeLiveSetupProduct(' + p.id + ')" aria-label="Delete">🗑</button>'
+                + '</div></div>';
+        }).join('');
+    }
+
+    const podEmpty = document.getElementById('live-setup-pod-empty');
+    const podCard = document.getElementById('live-setup-pod-card');
+    const featured = liveSetupState.products.find(function (p) { return p.id === liveSetupState.featuredId; })
+        || liveSetupState.catalog.find(function (p) { return p.id === liveSetupState.featuredId; });
+    if (featured && liveSetupState.featuredId) {
+        if (podEmpty) podEmpty.classList.add('hidden');
+        if (podCard) {
+            podCard.classList.remove('hidden');
+            const priceLabel = liveSetupState.featuredPrice != null
+                ? (Number(liveSetupState.featuredPrice).toLocaleString('ru-RU') + ' ₸')
+                : (featured.price_label || '');
+            const img = featured.image
+                ? 'background-image:url(\'' + String(featured.image).replace(/'/g, '\\\'') + '\')'
+                : '';
+            podCard.innerHTML = '<div class="live-setup-product-row">'
+                + '<span class="thumb" style="' + img + '"></span>'
+                + '<div class="meta"><p class="title line-clamp-2">' + escapeLiveHtml(featured.title) + '</p>'
+                + '<p class="price">' + escapeLiveHtml(priceLabel) + '</p></div>'
+                + '<div class="actions">'
+                + '<button type="button" class="live-setup-icon-btn" onclick="clearLiveSetupPod()" aria-label="Delete">🗑</button>'
+                + '</div></div>';
+        }
+    } else {
+        if (podEmpty) podEmpty.classList.remove('hidden');
+        if (podCard) {
+            podCard.classList.add('hidden');
+            podCard.innerHTML = '';
+        }
+    }
+
+    const giveEmpty = document.getElementById('live-setup-give-empty');
+    const giveCard = document.getElementById('live-setup-give-card');
+    if (liveSetupState.giveaway && liveSetupState.giveaway.title) {
+        if (giveEmpty) giveEmpty.classList.add('hidden');
+        if (giveCard) {
+            giveCard.classList.remove('hidden');
+            giveCard.innerHTML = '<p class="text-[12px] font-bold">' + escapeLiveHtml(liveSetupState.giveaway.title) + '</p>'
+                + '<p class="text-[11px] text-gray-500 mt-1">♥ ' + (liveSetupState.giveaway.goal || 500) + '</p>'
+                + '<button type="button" class="mt-2 text-[11px] font-semibold text-[#7c3aed]" onclick="openLiveGiveawayEditor()">✎</button>';
+        }
+    } else {
+        if (giveEmpty) giveEmpty.classList.remove('hidden');
+        if (giveCard) {
+            giveCard.classList.add('hidden');
+            giveCard.innerHTML = '';
+        }
+    }
+}
+
+function escapeLiveHtml(s) {
+    return String(s || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function removeLiveSetupProduct(id) {
+    liveSetupState.products = liveSetupState.products.filter(function (p) { return p.id !== id; });
+    if (liveSetupState.featuredId === id) {
+        liveSetupState.featuredId = 0;
+        liveSetupState.featuredPrice = null;
+    }
+    renderLiveSetup();
+}
+
+function clearLiveSetupPod() {
+    liveSetupState.featuredId = 0;
+    liveSetupState.featuredPrice = null;
+    renderLiveSetup();
+}
+
+function openLiveProductPicker(mode) {
+    livePickerMode = mode === 'pod' ? 'pod' : 'products';
+    livePickerSelected = {};
+    if (livePickerMode === 'products') {
+        liveSetupState.products.forEach(function (p) { livePickerSelected[p.id] = true; });
+    } else if (liveSetupState.featuredId) {
+        livePickerSelected[liveSetupState.featuredId] = true;
+    }
+    const title = document.getElementById('live-picker-title');
+    if (title) {
+        title.textContent = livePickerMode === 'pod'
+            ? (window.__i18n?.['home.live_setup_add_pod'] || 'Добавить товар дня')
+            : (window.__i18n?.['home.live_setup_add_product'] || 'Добавить товар');
+    }
+    const priceWrap = document.getElementById('live-picker-pod-price');
+    if (priceWrap) priceWrap.classList.toggle('hidden', livePickerMode !== 'pod');
+    const priceInput = document.getElementById('live-picker-price-input');
+    if (priceInput) {
+        priceInput.value = liveSetupState.featuredPrice != null ? String(liveSetupState.featuredPrice) : '';
+    }
+    renderLiveProductPicker();
+    document.getElementById('live-product-picker')?.classList.remove('hidden');
+}
+
+function closeLiveProductPicker() {
+    document.getElementById('live-product-picker')?.classList.add('hidden');
+}
+
+function renderLiveProductPicker() {
+    const list = document.getElementById('live-picker-list');
+    if (!list) return;
+    const source = livePickerMode === 'pod' && liveSetupState.products.length
+        ? liveSetupState.products
+        : liveSetupState.catalog;
+    if (!source.length) {
+        list.innerHTML = '<p class="text-xs text-gray-400 text-center py-8">'
+            + escapeLiveHtml(window.__i18n?.['home.live_setup_no_products'] || 'Нет активных товаров')
+            + '</p>';
+        return;
+    }
+    list.innerHTML = source.map(function (p) {
+        const selected = !!livePickerSelected[p.id];
+        const img = p.image
+            ? 'background-image:url(\'' + String(p.image).replace(/'/g, '\\\'') + '\')'
+            : '';
+        return '<button type="button" class="live-picker-item' + (selected ? ' is-selected' : '') + '" onclick="toggleLivePickerItem(' + p.id + ')">'
+            + '<span class="thumb" style="' + img + '"></span>'
+            + '<span class="min-w-0 flex-1 text-left"><span class="block text-[12px] font-semibold line-clamp-2">' + escapeLiveHtml(p.title) + '</span>'
+            + '<span class="block text-[12px] font-bold text-[#7c3aed] mt-0.5">' + escapeLiveHtml(p.price_label || '') + '</span></span>'
+            + '<span class="text-[#7c3aed] font-bold">' + (selected ? '✓' : '') + '</span></button>';
+    }).join('');
+}
+
+function toggleLivePickerItem(id) {
+    if (livePickerMode === 'pod') {
+        livePickerSelected = {};
+        livePickerSelected[id] = true;
+    } else if (livePickerSelected[id]) {
+        delete livePickerSelected[id];
+    } else {
+        livePickerSelected[id] = true;
+    }
+    renderLiveProductPicker();
+}
+
+function confirmLiveProductPicker() {
+    const byId = {};
+    liveSetupState.catalog.forEach(function (p) { byId[p.id] = p; });
+    liveSetupState.products.forEach(function (p) { byId[p.id] = p; });
+
+    if (livePickerMode === 'pod') {
+        const id = Number(Object.keys(livePickerSelected)[0] || 0);
+        if (!id) {
+            closeLiveProductPicker();
+            return;
+        }
+        const product = byId[id];
+        if (product && !liveSetupState.products.some(function (p) { return p.id === id; })) {
+            liveSetupState.products.push(product);
+        }
+        liveSetupState.featuredId = id;
+        const priceInput = document.getElementById('live-picker-price-input');
+        const val = priceInput && priceInput.value !== '' ? Number(priceInput.value) : null;
+        liveSetupState.featuredPrice = (val != null && !isNaN(val) && val >= 0) ? val : null;
+    } else {
+        liveSetupState.products = Object.keys(livePickerSelected)
+            .map(function (id) { return byId[Number(id)]; })
+            .filter(Boolean);
+        if (liveSetupState.featuredId && !liveSetupState.products.some(function (p) { return p.id === liveSetupState.featuredId; })) {
+            liveSetupState.featuredId = 0;
+            liveSetupState.featuredPrice = null;
+        }
+    }
+    closeLiveProductPicker();
+    renderLiveSetup();
+}
+
+function openLiveGiveawayEditor() {
+    const title = document.getElementById('live-give-title-input');
+    const goal = document.getElementById('live-give-goal-input');
+    if (title) title.value = (liveSetupState.giveaway && liveSetupState.giveaway.title) || '';
+    if (goal) goal.value = String((liveSetupState.giveaway && liveSetupState.giveaway.goal) || 500);
+    document.getElementById('live-giveaway-editor')?.classList.remove('hidden');
+}
+
+function closeLiveGiveawayEditor() {
+    document.getElementById('live-giveaway-editor')?.classList.add('hidden');
+}
+
+function confirmLiveGiveawayEditor() {
+    const title = (document.getElementById('live-give-title-input')?.value || '').trim();
+    const goal = Number(document.getElementById('live-give-goal-input')?.value || 500);
+    if (!title) {
+        liveSetupState.giveaway = null;
+    } else {
+        liveSetupState.giveaway = {
+            title: title.slice(0, 120),
+            goal: Math.max(50, Math.min(5000, goal || 500))
+        };
+    }
+    closeLiveGiveawayEditor();
+    renderLiveSetup();
+}
+
+function clearLiveGiveaway() {
+    liveSetupState.giveaway = null;
+    closeLiveGiveawayEditor();
+    renderLiveSetup();
 }
 
 function startLiveHeartbeat(id) {
@@ -1484,6 +2090,7 @@ let liveShopElapsedTick = null;
 let liveShopIsHost = false;
 let liveShopGiveJoined = false;
 let liveShopGiveCount = 0;
+let liveShopGiveGoal = 500;
 
 function liveShopEsc(s) {
     return String(s == null ? '' : s)
@@ -1518,6 +2125,7 @@ function startLiveShop(stream) {
     liveShopCommentAfter = 0;
     liveShopElapsedBase = 0;
     liveShopGiveJoined = false;
+    liveShopGiveGoal = 500;
 
     ui.classList.remove('hidden');
     document.body.classList.add('live-stream-open');
@@ -1589,9 +2197,11 @@ function pollLiveShop() {
             if (v) v.textContent = String(data.viewers || 0);
             if (l) l.textContent = liveShopFormatLikes(data.likes || 0);
             if (ht) ht.textContent = liveShopFormatLikes(data.likes || 0);
-            updateLiveGiveawayProgress(data.likes || 0);
+            updateLiveGiveawayProgress(data.likes || 0, data.giveaway);
+            applyLiveShopChatEnabled(data.chat_enabled !== false);
             renderLiveShopFeatured(data.featured, data.featured_id);
             renderLiveShopShelf(data.products || [], data.featured_id);
+            applyLiveShopGiveaway(data.giveaway);
         })
         .catch(function () {});
 }
@@ -1803,14 +2413,49 @@ function liveSheetBuyNow() {
     }
 }
 
-function updateLiveGiveawayProgress(likes) {
-    const goal = 500;
+function applyLiveShopChatEnabled(enabled) {
+    const form = document.getElementById('live-shop-comment-form');
+    const input = document.getElementById('live-shop-comment-input');
+    if (input) {
+        if (!enabled) {
+            input.disabled = true;
+            input.placeholder = window.__i18n?.['home.live_setup_chat_off'] || 'Чат выключен';
+        } else if (window.__currentUserId) {
+            input.disabled = false;
+            input.placeholder = window.__i18n?.['live.comment_placeholder'] || 'Напишите комментарий…';
+        }
+    }
+    if (form) form.classList.toggle('opacity-60', !enabled);
+}
+
+function applyLiveShopGiveaway(giveaway) {
+    const box = document.getElementById('live-shop-giveaway');
+    if (!box) return;
+    if (!giveaway || !giveaway.title) {
+        box.classList.add('hidden');
+        return;
+    }
+    box.classList.remove('hidden');
+    liveShopGiveGoal = Math.max(50, Number(giveaway.goal) || 500);
+    const titleEl = document.getElementById('live-shop-give-title');
+    if (titleEl) titleEl.textContent = giveaway.title;
+    const goalEl = document.getElementById('live-shop-give-goal');
+    if (goalEl) goalEl.textContent = String(liveShopGiveGoal);
+}
+
+function updateLiveGiveawayProgress(likes, giveaway) {
+    if (giveaway && giveaway.goal) {
+        liveShopGiveGoal = Math.max(50, Number(giveaway.goal) || 500);
+    }
+    const goal = liveShopGiveGoal || 500;
     const n = Math.min(goal, Number(likes) || 0);
     const bar = document.getElementById('live-shop-give-bar');
     const prog = document.getElementById('live-shop-give-prog');
     const count = document.getElementById('live-shop-give-count');
+    const goalEl = document.getElementById('live-shop-give-goal');
     if (bar) bar.style.width = Math.round((n / goal) * 100) + '%';
     if (prog) prog.textContent = String(n);
+    if (goalEl) goalEl.textContent = String(goal);
     if (count && !liveShopGiveJoined) {
         liveShopGiveCount = Math.max(liveShopGiveCount || 0, Math.floor(n / 2));
         count.textContent = String(liveShopGiveCount);
