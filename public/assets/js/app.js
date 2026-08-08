@@ -2156,6 +2156,15 @@ function startLiveShop(stream) {
         input.placeholder = window.__currentUserId
             ? (window.__i18n?.['live.comment_placeholder'] || 'Напишите комментарий…')
             : (window.__i18n?.['live.login_to_comment'] || 'Войдите, чтобы комментировать');
+        input.onfocus = function () {
+            document.getElementById('live-shop-ui')?.classList.add('is-composing');
+        };
+        input.onblur = function () {
+            // delay so tap on buy/end still works
+            setTimeout(function () {
+                document.getElementById('live-shop-ui')?.classList.remove('is-composing');
+            }, 180);
+        };
     }
 
     if (window.__cartCount != null) updateLiveShopCartBadge(window.__cartCount);
@@ -2183,6 +2192,7 @@ function stopLiveShop() {
     document.getElementById('live-shop-featured')?.classList.add('hidden');
     document.getElementById('live-shop-shelf-wrap')?.classList.add('hidden');
     if (typeof closeLiveShopShelf === 'function') closeLiveShopShelf();
+    document.getElementById('live-shop-ui')?.classList.remove('is-composing');
     document.body.classList.remove('live-stream-open');
 }
 

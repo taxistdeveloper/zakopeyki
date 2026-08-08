@@ -189,6 +189,7 @@ return [
         'buy_short' => 'Купить',
         'shop' => 'Товары',
         'hide_products' => 'Скрыть',
+        'end_short' => 'Стоп',
         'products_in_stream' => 'Товары в эфире',
         'comment_placeholder' => 'Напишите комментарий…',
         'send' => 'Отпр.',

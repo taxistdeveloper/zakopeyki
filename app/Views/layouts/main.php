@@ -40,7 +40,7 @@ function url(string $path = ''): string
     <noscript><div><img src="https://mc.yandex.ru/watch/111029736" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
     <!-- /Yandex.Metrika counter -->
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <?= \App\Core\Csrf::meta() ?>
     <title><?= htmlspecialchars($title ?? 'Zakopeyki') ?> — zakopeyki.kz</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -260,6 +260,9 @@ function url(string $path = ''): string
             --live-line: rgba(255,255,255,0.14);
             --live-danger: #ef4444;
             font-family: 'DM Sans', system-ui, sans-serif;
+            overflow: hidden;
+            max-width: 100%;
+            box-sizing: border-box;
         }
         #live-shop-ui .sr-only {
             position: absolute; width: 1px; height: 1px;
@@ -445,8 +448,10 @@ function url(string $path = ''): string
             align-items: center;
             gap: 10px;
             width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
             margin-bottom: 8px;
-            padding: 8px 8px 8px 8px;
+            padding: 8px;
             border-radius: 18px;
             background: linear-gradient(135deg, rgba(18,14,10,0.78), rgba(28,22,14,0.72));
             backdrop-filter: blur(18px);
@@ -518,7 +523,7 @@ function url(string $path = ''): string
             margin: 0;
             border: 0; cursor: pointer;
             border-radius: 999px;
-            padding: 10px 14px;
+            padding: 10px 12px;
             font-family: Sora, system-ui, sans-serif;
             font-size: 11px; font-weight: 800;
             background: linear-gradient(135deg, var(--live-gold-hi), var(--live-gold));
@@ -527,6 +532,11 @@ function url(string $path = ''): string
             box-shadow: 0 4px 14px rgba(201,162,39,0.35);
             transition: transform .15s ease, filter .15s ease;
             white-space: nowrap;
+            max-width: 42%;
+        }
+        .live-v2-deal-buy span {
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .live-v2-deal-buy:hover { filter: brightness(1.05); }
         .live-v2-deal-buy:active { transform: scale(0.97); }
@@ -639,7 +649,13 @@ function url(string $path = ''): string
             100% { opacity: 0; transform: translateY(-150px) translateX(-10px) scale(1.25); }
         }
 
-        .live-v2-dock { padding: 0 max(12px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); }
+        .live-v2-dock {
+            padding: 0 max(12px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
         .live-v2-shelf {
             margin-bottom: 8px;
             padding: 10px;
@@ -698,9 +714,13 @@ function url(string $path = ''): string
         }
         .live-v2-composer {
             display: flex; align-items: center; gap: 8px;
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
         }
         .live-v2-input {
-            flex: 1; min-width: 0;
+            flex: 1 1 auto; min-width: 0;
             display: flex; align-items: center;
             padding: 0 14px;
             height: 42px;
@@ -708,20 +728,46 @@ function url(string $path = ''): string
             background: var(--live-glass);
             backdrop-filter: blur(14px);
             border: 1px solid var(--live-line);
+            box-sizing: border-box;
         }
         .live-v2-input input {
             width: 100%; background: transparent; border: 0; outline: none;
-            color: #fff; font-size: 13px;
+            color: #fff; font-size: 16px; /* prevent iOS Safari zoom on focus */
+            line-height: 1.2;
         }
-        .live-v2-input input::placeholder { color: rgba(255,255,255,0.45); }
+        .live-v2-input input::placeholder { color: rgba(255,255,255,0.45); font-size: 14px; }
         .live-v2-end {
-            height: 42px; padding: 0 14px; border-radius: 999px;
+            height: 42px; padding: 0 12px; border-radius: 999px;
             border: 1.5px solid rgba(239,68,68,0.55);
             background: rgba(255,255,255,0.95); color: #dc2626;
             font-size: 10px; font-weight: 900; text-transform: uppercase;
-            letter-spacing: 0.02em; cursor: pointer; flex-shrink: 0;
+            letter-spacing: 0.02em; cursor: pointer;
+            flex: 0 1 auto;
+            max-width: 38%;
+            min-width: 0;
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            box-sizing: border-box;
         }
+        .live-v2-end-full { display: none; }
+        .live-v2-end-short { display: inline; }
+        @media (min-width: 420px) {
+            .live-v2-end { max-width: none; flex-shrink: 0; }
+            .live-v2-end-full { display: inline; }
+            .live-v2-end-short { display: none; }
+        }
+
+        /* While typing — hide heavy overlays so keyboard fits */
+        #live-shop-ui.is-composing .live-v2-deal,
+        #live-shop-ui.is-composing .live-v2-rail,
+        #live-shop-ui.is-composing .live-v2-support,
+        #live-shop-ui.is-composing .live-v2-deal-col,
+        #live-shop-ui.is-composing .live-v2-shelf {
+            display: none !important;
+        }
+        #live-shop-ui.is-composing .live-v2-chat { max-height: 22vh; }
+        #live-shop-ui.is-composing .live-v2-scrim--bottom { height: 22%; }
 
         /* Product sheet v2 */
         .live-v2-sheet {
@@ -855,7 +901,7 @@ function url(string $path = ''): string
             .live-v2-deal-img { width: 44px; height: 44px; border-radius: 12px; }
             .live-v2-deal-title { font-size: 11px; }
             .live-v2-deal-price #live-shop-feat-price { font-size: 12px; }
-            .live-v2-deal-buy { padding: 8px 10px; font-size: 10px; }
+            .live-v2-deal-buy { padding: 8px 10px; font-size: 10px; max-width: 36%; }
             .live-v2-deal-buy svg { display: none; }
             .live-v2-chat { width: min(54%, 190px); max-height: 24vh; }
             .live-shop-comments .live-cmt { font-size: 10px; padding: 5px 8px; }

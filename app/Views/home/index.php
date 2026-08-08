@@ -482,7 +482,10 @@ $changelog = $changelog ?? null;
                         <form id="live-shop-comment-form" class="live-v2-input" onsubmit="return sendLiveComment(event)">
                             <input id="live-shop-comment-input" type="text" maxlength="280" autocomplete="off" placeholder="<?= htmlspecialchars(t('live.comment_placeholder')) ?>">
                         </form>
-                        <button type="button" id="stream-end-live-btn" onclick="endLiveStream()" class="hidden live-v2-end"><?= htmlspecialchars(t('home.end_live')) ?></button>
+                        <button type="button" id="stream-end-live-btn" onclick="endLiveStream()" class="hidden live-v2-end" title="<?= htmlspecialchars(t('home.end_live')) ?>">
+                            <span class="live-v2-end-full"><?= htmlspecialchars(t('home.end_live')) ?></span>
+                            <span class="live-v2-end-short"><?= htmlspecialchars(t('live.end_short')) ?></span>
+                        </button>
                     </div>
                 </footer>
             </div>

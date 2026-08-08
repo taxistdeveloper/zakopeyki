@@ -189,6 +189,7 @@ return [
         'buy_short' => 'Сатып алу',
         'shop' => 'Тауарлар',
         'hide_products' => 'Жасыру',
+        'end_short' => 'Стоп',
         'products_in_stream' => 'Эфирдегі тауарлар',
         'comment_placeholder' => 'Пікір жазыңыз…',
         'send' => 'Жіберу',
