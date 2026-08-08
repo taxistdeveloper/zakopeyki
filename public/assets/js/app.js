@@ -2143,6 +2143,12 @@ function startLiveShop(stream) {
     if (followers) {
         followers.textContent = '— ' + (window.__i18n?.['live.followers'] || 'подписчиков');
     }
+    closeLiveShopShelf();
+    const prodBadge = document.getElementById('live-shop-products-badge');
+    if (prodBadge) {
+        prodBadge.textContent = '0';
+        prodBadge.classList.add('hidden');
+    }
 
     const input = document.getElementById('live-shop-comment-input');
     if (input) {
@@ -2176,6 +2182,8 @@ function stopLiveShop() {
     document.getElementById('live-shop-ui')?.classList.add('hidden');
     document.getElementById('live-shop-featured')?.classList.add('hidden');
     document.getElementById('live-shop-shelf-wrap')?.classList.add('hidden');
+    if (typeof closeLiveShopShelf === 'function') closeLiveShopShelf();
+    document.body.classList.remove('live-stream-open');
 }
 
 function pollLiveShop() {
@@ -2505,14 +2513,30 @@ function renderLiveShopShelf(products, featuredId) {
     const wrap = document.getElementById('live-shop-shelf-wrap');
     const shelf = document.getElementById('live-shop-shelf');
     const countEl = document.getElementById('live-shop-shelf-count');
+    const badge = document.getElementById('live-shop-products-badge');
+    const btn = document.getElementById('live-shop-products-btn');
     if (!wrap || !shelf) return;
     if (!products.length) {
         wrap.classList.add('hidden');
+        wrap.classList.remove('is-open');
         shelf.innerHTML = '';
+        if (badge) {
+            badge.textContent = '0';
+            badge.classList.add('hidden');
+        }
+        if (btn) btn.classList.add('opacity-50');
         return;
     }
-    wrap.classList.remove('hidden');
+    if (btn) btn.classList.remove('opacity-50');
     if (countEl) countEl.textContent = String(products.length);
+    if (badge) {
+        badge.textContent = String(products.length);
+        badge.classList.remove('hidden');
+    }
+    // Keep shelf collapsed by default so the streamer stays visible
+    if (!wrap.classList.contains('is-open')) {
+        wrap.classList.add('hidden');
+    }
     window.__liveShopProducts = products;
     shelf.innerHTML = products.map(function (p) {
         const feat = Number(p.id) === Number(featuredId) ? ' is-feat' : '';
@@ -2520,7 +2544,7 @@ function renderLiveShopShelf(products, featuredId) {
             ? '<img src="' + liveShopEsc(p.image) + '" alt="">'
             : '<div class="ph">—</div>';
         const pin = liveShopIsHost
-            ? '<button type="button" class="block w-full text-[9px] font-bold text-amber-300 py-1 bg-black/30 border-0 cursor-pointer" data-pin-id="' + p.id + '">' + liveShopEsc(window.__i18n?.['live.pin'] || 'В эфир') + '</button>'
+            ? '<button type="button" class="block w-full text-[8px] font-bold text-amber-300 py-0.5 bg-black/30 border-0 cursor-pointer" data-pin-id="' + p.id + '">' + liveShopEsc(window.__i18n?.['live.pin'] || 'В эфир') + '</button>'
             : '';
         return '<div class="live-shop-shelf-item' + feat + '" data-product-id="' + p.id + '">'
             + '<button type="button" class="live-shelf-open block w-full text-left border-0 bg-transparent p-0 cursor-pointer text-inherit" data-open-id="' + p.id + '">'
@@ -2528,24 +2552,50 @@ function renderLiveShopShelf(products, featuredId) {
             + pin
             + '</div>';
     }).join('');
-    shelf.querySelectorAll('[data-open-id]').forEach(function (btn) {
-        btn.addEventListener('click', function (e) {
+    shelf.querySelectorAll('[data-open-id]').forEach(function (btnOpen) {
+        btnOpen.addEventListener('click', function (e) {
             e.preventDefault();
             e.stopPropagation();
-            const pid = Number(btn.getAttribute('data-open-id'));
+            const pid = Number(btnOpen.getAttribute('data-open-id'));
             const prod = (window.__liveShopProducts || []).find(function (x) { return Number(x.id) === pid; });
             if (prod) openLiveProductSheet(prod);
         });
     });
     if (liveShopIsHost) {
-        shelf.querySelectorAll('[data-pin-id]').forEach(function (btn) {
-            btn.addEventListener('click', function (e) {
+        shelf.querySelectorAll('[data-pin-id]').forEach(function (pinBtn) {
+            pinBtn.addEventListener('click', function (e) {
                 e.preventDefault();
                 e.stopPropagation();
-                pinLiveProduct(btn.getAttribute('data-pin-id'));
+                pinLiveProduct(pinBtn.getAttribute('data-pin-id'));
             });
         });
     }
+}
+
+function toggleLiveShopShelf(forceOpen) {
+    const wrap = document.getElementById('live-shop-shelf-wrap');
+    const btn = document.getElementById('live-shop-products-btn');
+    if (!wrap) return;
+    const products = window.__liveShopProducts || [];
+    if (!products.length) return;
+    const open = forceOpen === true ? true : forceOpen === false ? false : !wrap.classList.contains('is-open');
+    if (open) {
+        wrap.classList.remove('hidden');
+        wrap.classList.add('is-open');
+        if (btn) btn.classList.add('is-active');
+    } else {
+        closeLiveShopShelf();
+    }
+}
+
+function closeLiveShopShelf() {
+    const wrap = document.getElementById('live-shop-shelf-wrap');
+    const btn = document.getElementById('live-shop-products-btn');
+    if (wrap) {
+        wrap.classList.add('hidden');
+        wrap.classList.remove('is-open');
+    }
+    if (btn) btn.classList.remove('is-active');
 }
 
 function pinLiveProduct(productId) {

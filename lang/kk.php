@@ -186,6 +186,9 @@ return [
     'live' => [
         'product_of_day' => 'Күн тауары',
         'buy_now' => 'Қазір сатып алу',
+        'buy_short' => 'Сатып алу',
+        'shop' => 'Тауарлар',
+        'hide_products' => 'Жасыру',
         'products_in_stream' => 'Эфирдегі тауарлар',
         'comment_placeholder' => 'Пікір жазыңыз…',
         'send' => 'Жіберу',

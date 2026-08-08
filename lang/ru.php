@@ -186,6 +186,9 @@ return [
     'live' => [
         'product_of_day' => 'Товар дня',
         'buy_now' => 'Купить сейчас',
+        'buy_short' => 'Купить',
+        'shop' => 'Товары',
+        'hide_products' => 'Скрыть',
         'products_in_stream' => 'Товары в эфире',
         'comment_placeholder' => 'Напишите комментарий…',
         'send' => 'Отпр.',
