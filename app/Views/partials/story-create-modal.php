@@ -87,16 +87,22 @@ $myInitial = AvatarHelper::initial($me);
                         <span class="live-setup-tag"><?= htmlspecialchars(t('home.live_setup_optional')) ?></span>
                     </div>
                     <p class="live-setup-card-hint"><?= htmlspecialchars(t('home.story_create_style_hint')) ?></p>
-                    <div class="story-create-style-grid">
-                        <label class="live-setup-field">
-                            <span class="live-setup-field-label"><?= htmlspecialchars(t('home.story_emoji')) ?></span>
-                            <input type="text" id="story-create-emoji" name="emoji" value="✨" maxlength="4" class="story-create-input text-center text-xl" autocomplete="off">
-                        </label>
-                        <label class="live-setup-field">
-                            <span class="live-setup-field-label"><?= htmlspecialchars(t('home.story_color')) ?></span>
-                            <input type="color" id="story-create-bg" name="bg_color" value="#7c3aed" class="story-create-color">
-                        </label>
+                    <div class="live-setup-field mb-3">
+                        <span class="live-setup-field-label"><?= htmlspecialchars(t('home.story_emoji')) ?></span>
+                        <input type="hidden" id="story-create-emoji" name="emoji" value="✨">
+                        <div id="story-create-emoji-grid" class="story-create-emoji-grid" role="listbox" aria-label="<?= htmlspecialchars(t('home.story_emoji')) ?>">
+                            <?php
+                            $storyEmojis = ['✨','🔥','❤️','😍','🎉','🛍️','💰','⭐','👏','🙌','😎','🤩','💯','🚀','💎','🎁','📸','🌟','😊','🥳','💪','👍','🧡','💜','🌸','☀️','🌙','⚡','🎯','🏆'];
+                            foreach ($storyEmojis as $i => $em):
+                            ?>
+                            <button type="button" class="story-create-emoji-btn<?= $i === 0 ? ' is-selected' : '' ?>" data-emoji="<?= htmlspecialchars($em) ?>" onclick="selectStoryEmoji(this)" role="option" aria-selected="<?= $i === 0 ? 'true' : 'false' ?>"><?= $em ?></button>
+                            <?php endforeach; ?>
+                        </div>
                     </div>
+                    <label class="live-setup-field">
+                        <span class="live-setup-field-label"><?= htmlspecialchars(t('home.story_color')) ?></span>
+                        <input type="color" id="story-create-bg" name="bg_color" value="#7c3aed" class="story-create-color">
+                    </label>
                 </section>
 
                 <!-- Заголовок -->

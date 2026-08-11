@@ -378,6 +378,37 @@ function updateStoryCreateCounters() {
     if (desc && dCount) dCount.textContent = (desc.value || '').length + '/200';
 }
 
+function selectStoryEmoji(btn) {
+    if (!btn) return;
+    const emoji = btn.getAttribute('data-emoji') || '✨';
+    const input = document.getElementById('story-create-emoji');
+    if (input) input.value = emoji;
+    document.querySelectorAll('#story-create-emoji-grid .story-create-emoji-btn').forEach(function (el) {
+        const on = el === btn;
+        el.classList.toggle('is-selected', on);
+        el.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+}
+
+function applyStoryEmojiSelection(emoji) {
+    const value = emoji || '✨';
+    const input = document.getElementById('story-create-emoji');
+    if (input) input.value = value;
+    const grid = document.getElementById('story-create-emoji-grid');
+    if (!grid) return;
+    let matched = null;
+    grid.querySelectorAll('.story-create-emoji-btn').forEach(function (el) {
+        const on = el.getAttribute('data-emoji') === value;
+        el.classList.toggle('is-selected', on);
+        el.setAttribute('aria-selected', on ? 'true' : 'false');
+        if (on) matched = el;
+    });
+    if (!matched) {
+        const first = grid.querySelector('.story-create-emoji-btn');
+        if (first) selectStoryEmoji(first);
+    }
+}
+
 function toggleStoryCreateNotify() {
     const btn = document.getElementById('story-create-notify-toggle');
     if (!btn) return;
@@ -416,12 +447,11 @@ function loadStoryCreateDraft() {
         const data = JSON.parse(raw);
         const caption = document.getElementById('story-create-caption');
         const desc = document.getElementById('story-create-desc');
-        const emoji = document.getElementById('story-create-emoji');
         const bg = document.getElementById('story-create-bg');
         const notify = document.getElementById('story-create-notify-toggle');
         if (caption && data.caption != null) caption.value = data.caption;
         if (desc && data.desc != null) desc.value = data.desc;
-        if (emoji && data.emoji) emoji.value = data.emoji;
+        if (data.emoji) applyStoryEmojiSelection(data.emoji);
         if (bg && data.bg_color) bg.value = data.bg_color;
         if (notify) {
             const on = data.notify !== false;

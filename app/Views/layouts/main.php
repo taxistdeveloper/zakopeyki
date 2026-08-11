@@ -1438,6 +1438,7 @@ function url(string $path = ''): string
             .live-setup-settings-grid { grid-template-columns: 1fr; }
             .live-setup-draft-btn span,
             .live-setup-preview-btn { font-size: 10px; }
+            .story-create-emoji-grid { grid-template-columns: repeat(5, 1fr); }
         }
 
         /* ===== Story create (reuse live-setup shell) ===== */
@@ -1487,6 +1488,36 @@ function url(string $path = ''): string
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 10px;
+        }
+        .story-create-emoji-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .story-create-emoji-btn {
+            height: 42px;
+            border-radius: 12px;
+            border: 1.5px solid rgba(0,0,0,0.08);
+            background: #fafafa;
+            font-size: 22px;
+            line-height: 1;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: border-color .15s, background .15s, box-shadow .15s, transform .12s;
+            padding: 0;
+        }
+        .story-create-emoji-btn:hover {
+            background: #faf5ff;
+            border-color: #c4b5fd;
+        }
+        .story-create-emoji-btn.is-selected {
+            background: #faf5ff;
+            border-color: #7c3aed;
+            box-shadow: 0 0 0 1px #7c3aed;
+            transform: scale(1.04);
         }
         .story-create-input {
             width: 100%;
@@ -1555,6 +1586,14 @@ function url(string $path = ''): string
             background: #1f2937;
             color: #f9fafb;
             border-color: rgba(255,255,255,0.1);
+        }
+        .dark .story-create-emoji-btn {
+            background: #1f2937;
+            border-color: rgba(255,255,255,0.1);
+        }
+        .dark .story-create-emoji-btn.is-selected,
+        .dark .story-create-emoji-btn:hover {
+            background: rgba(124,58,237,0.18);
         }
         .dark .story-create-upload { background: rgba(124,58,237,0.12); }
 
