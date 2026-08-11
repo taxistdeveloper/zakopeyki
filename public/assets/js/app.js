@@ -1,4 +1,4 @@
-function csrfToken() {
+﻿function csrfToken() {
     const meta = document.querySelector('meta[name="csrf-token"]');
     return (meta && meta.content) || window.__csrfToken || '';
 }
@@ -2412,6 +2412,7 @@ function updateLiveShopFollowBtn(isFollowing, followersCount, resetOnly) {
         return;
     }
     btn.classList.remove('hidden');
+    btn.setAttribute('data-user-id', String(liveShopHostId));
     btn.dataset.userId = String(liveShopHostId);
     setFollowButtonState(btn, !!isFollowing);
 }
@@ -3351,6 +3352,7 @@ function renderSellerProfile(data) {
             const follow = document.createElement('button');
             follow.type = 'button';
             follow.className = 'follow-btn inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition';
+            follow.setAttribute('data-user-id', String(data.id));
             follow.dataset.userId = String(data.id);
             setFollowButtonState(follow, !!data.is_following);
             actions.appendChild(follow);
@@ -3633,16 +3635,26 @@ document.addEventListener('click', function (e) {
         return;
     }
 
-    const userId = btn.dataset.userId;
-    if (!userId || btn.dataset.busy === '1') return;
+    const userId = btn.getAttribute('data-user-id') || btn.dataset.userId || '';
+    if (!userId || userId === '0' || btn.dataset.busy === '1') return;
 
-    const base = window.__usersFollowBase || '/users/';
+    const base = window.__usersFollowBase
+        || (window.__usersBase)
+        || ((window.__homeUrl || '/').replace(/\/?$/, '/') + 'users/');
     btn.dataset.busy = '1';
     btn.classList.add('opacity-60');
 
-    fetch(base + userId + '/follow', {
+    const body = new FormData();
+    const token = (typeof csrfToken === 'function' ? csrfToken() : '') || window.__csrfToken || '';
+    if (token) body.append('_csrf', token);
+
+    fetch(String(base).replace(/\/?$/, '/') + userId + '/follow', {
         method: 'POST',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        },
+        body: body,
         credentials: 'same-origin'
     })
         .then(function (r) {
@@ -3650,11 +3662,16 @@ document.addEventListener('click', function (e) {
                 window.location.href = window.__loginUrl || '/login';
                 return null;
             }
-            return r.json();
+            return r.json().then(function (data) {
+                return { status: r.status, data: data };
+            }).catch(function () {
+                return { status: r.status, data: null };
+            });
         })
-        .then(function (data) {
-            if (!data) return;
-            if (data.ok) {
+        .then(function (res) {
+            if (!res) return;
+            const data = res.data;
+            if (data && data.ok) {
                 setFollowButtonState(btn, data.following);
                 const followers = document.getElementById('live-shop-followers');
                 if (followers && data.followers_count != null && btn.id === 'live-shop-follow') {
@@ -3676,9 +3693,22 @@ document.addEventListener('click', function (e) {
                         window.location.reload();
                     }
                 }
+                return;
             }
+            const err = (data && data.error) ? String(data.error) : '';
+            if (err === 'login' || res.status === 401) {
+                window.location.href = window.__loginUrl || '/login';
+                return;
+            }
+            if (err === 'self') {
+                alert(window.__i18n?.['seller.follow_self'] || 'Нельзя подписаться на себя');
+                return;
+            }
+            alert(window.__i18n?.['seller.follow_error'] || 'Не удалось изменить подписку');
         })
-        .catch(function () { /* ignore */ })
+        .catch(function () {
+            alert(window.__i18n?.['seller.follow_error'] || 'Не удалось изменить подписку');
+        })
         .finally(function () {
             btn.dataset.busy = '0';
             btn.classList.remove('opacity-60');

@@ -20,15 +20,19 @@ class Follow extends Model
         if (self::$ensured) {
             return;
         }
-        $this->db->exec(
-            "CREATE TABLE IF NOT EXISTS user_follows (
-                follower_id INT UNSIGNED NOT NULL,
-                following_id INT UNSIGNED NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (follower_id, following_id),
-                INDEX idx_following (following_id)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
-        );
+        try {
+            $this->db->exec(
+                "CREATE TABLE IF NOT EXISTS user_follows (
+                    follower_id INT UNSIGNED NOT NULL,
+                    following_id INT UNSIGNED NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (follower_id, following_id),
+                    INDEX idx_following (following_id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+            );
+        } catch (\Throwable $e) {
+            // таблица может уже существовать / нет прав CREATE — пробуем работать дальше
+        }
         self::$ensured = true;
     }
 

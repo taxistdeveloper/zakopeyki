@@ -2144,6 +2144,7 @@ function url(string $path = ''): string
             'seller.write', 'seller.rating', 'seller.sales', 'seller.response',
             'seller.stat_followers', 'seller.stat_following', 'seller.show_more',
             'seller.buyer_reviews', 'seller.all_reviews', 'seller.no_reviews', 'seller.no_bio',
+            'seller.follow_error', 'seller.follow_self',
             'card.favorite', 'card.unfavorite', 'card.add_cart', 'card.in_cart',
             'card.add_cart', 'card.in_cart',
             'home.story_link_copied',
