@@ -56,7 +56,7 @@ $navIcon = static fn (string $name): string => IconHelper::svg($name, 'w-[18px] 
             <?= $navIcon('gift') ?> <span><?= htmlspecialchars(t('nav.free')) ?></span>
         </a>
 
-
+    
 
         <?php
             $sidebarCartCount = 0;
