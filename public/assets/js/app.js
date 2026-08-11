@@ -3605,44 +3605,6 @@ function renderSellerReviewCard(r) {
     main.appendChild(stars);
     if (r.comment) main.appendChild(comment);
 
-    // Always show product block when API sent product fields (id or title).
-    const hasProduct = !!(Number(r.product_id) > 0 || (r.product_title && String(r.product_title).trim()));
-    if (hasProduct) {
-        const productRow = document.createElement(r.product_url ? 'a' : 'div');
-        if (r.product_url) {
-            productRow.href = r.product_url;
-            productRow.addEventListener('click', function () { closeSellerProfile(); });
-        }
-        productRow.className = 'seller-shop-review-product';
-        const thumb = document.createElement('div');
-        thumb.className = 'seller-shop-review-product-thumb' + (r.product_image ? '' : ' is-empty');
-        if (r.product_image) {
-            thumb.innerHTML = '<img src="' + sellerEsc(r.product_image) + '" alt="">';
-        } else {
-            thumb.textContent = '·';
-        }
-        productRow.appendChild(thumb);
-        const info = document.createElement('div');
-        info.className = 'min-w-0 flex-1';
-        const label = document.createElement('div');
-        label.className = 'text-[10px] font-semibold uppercase tracking-wider text-gray-400';
-        label.textContent = window.__i18n?.['seller.review_about_product'] || 'Товар';
-        const title = document.createElement('div');
-        title.className = 'text-xs font-semibold text-ink-800 dark:text-gray-100 line-clamp-2';
-        title.textContent = (r.product_title && String(r.product_title).trim())
-            || (window.__i18n?.['seller.review_product_fallback'] || 'Товар из сделки');
-        info.appendChild(label);
-        info.appendChild(title);
-        if (r.product_price_label) {
-            const price = document.createElement('div');
-            price.className = 'text-xs font-bold text-[#7c3aed] mt-0.5';
-            price.textContent = r.product_price_label;
-            info.appendChild(price);
-        }
-        productRow.appendChild(info);
-        main.appendChild(productRow);
-    }
-
     wrap.appendChild(main);
     return wrap;
 }

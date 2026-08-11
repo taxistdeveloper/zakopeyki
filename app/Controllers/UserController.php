@@ -131,9 +131,6 @@ class UserController extends Controller
                 'images' => $r['product_images'] ?? null,
             ];
             $productTitle = trim((string) ($r['product_title'] ?? ''));
-            if ($productTitle === '' && $productId > 0) {
-                $productTitle = t('seller.review_product_fallback');
-            }
             $reviews[] = [
                 'id' => (int) ($r['id'] ?? 0),
                 'rating' => (int) ($r['rating'] ?? 0),

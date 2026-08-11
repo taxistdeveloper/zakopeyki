@@ -354,8 +354,6 @@ return [
         'stat_people' => 'человек',
         'stat_response_sub' => 'в среднем',
         'stat_response_empty' => 'нет данных',
-        'review_about_product' => 'Товар',
-        'review_product_fallback' => 'Товар из сделки',
         'notify_live' => ':name начал(а) прямой эфир',
         'notify_story' => ':name добавил(а) новую историю',
         'notify_product' => ':name добавил(а) товар «:title»',
