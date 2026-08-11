@@ -114,13 +114,17 @@ unset($_SESSION['flash']);
                         <span class="font-semibold text-indigo-800 dark:text-indigo-200"><?= htmlspecialchars($item['exchange_for']) ?></span>
                     </div>
                 <?php endif; ?>
-                <p class="text-sm text-gray-400 mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                <p class="text-sm text-gray-400 mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
                     <?= htmlspecialchars($item['location']) ?>
                     <span class="text-gray-300">·</span>
                     <button type="button"
-                            class="seller-profile-trigger font-semibold text-ink-700 dark:text-gray-200 hover:text-brand-600 dark:hover:text-brand-400 transition underline-offset-2 hover:underline"
-                            data-seller-id="<?= (int) $item['user_id'] ?>">
-                        <?= htmlspecialchars($item['seller_name']) ?>
+                            class="seller-profile-trigger inline-flex items-center gap-1.5 max-w-full px-2.5 py-1 rounded-xl bg-brand-50 dark:bg-brand-500/10 border border-brand-200/70 dark:border-brand-500/25 text-brand-700 dark:text-brand-300 font-semibold hover:bg-brand-100 dark:hover:bg-brand-500/20 hover:border-brand-300 transition"
+                            data-seller-id="<?= (int) $item['user_id'] ?>"
+                            aria-label="<?= htmlspecialchars(t('seller.title') . ': ' . ($item['seller_name'] ?? '')) ?>">
+                        <svg class="w-3.5 h-3.5 shrink-0 opacity-80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                        </svg>
+                        <span class="truncate"><?= htmlspecialchars($item['seller_name']) ?></span>
                     </button>
                     <?php
                     $sr = $sellerRating ?? ['avg' => 0, 'count' => 0];
