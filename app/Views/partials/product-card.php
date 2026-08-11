@@ -29,8 +29,10 @@ $showCardCategory = in_array($type, ProductHelper::PRODUCT_TYPES_WITH_CATEGORY, 
     && !empty($item['category'])
     && ($item['category'] ?? '') !== 'Разное';
 
-$ctaBtn = 'inline-flex items-center justify-center gap-1.5 min-w-0 flex-1 font-display font-bold text-[10px] sm:text-[11px] py-2.5 px-2.5 rounded-xl transition uppercase tracking-wider';
+$ctaBtn = 'inline-flex items-center justify-center gap-1.5 min-w-0 flex-1 h-9 sm:h-10 font-display font-bold text-[10px] sm:text-[11px] px-2.5 rounded-xl transition uppercase tracking-wider';
 $ctaSolo = 'inline-flex items-center justify-center gap-1.5 w-full font-display font-bold text-[10px] sm:text-[11px] py-2.5 px-3 rounded-xl transition uppercase tracking-wider';
+$ctaCartIcon = 'cart-btn inline-flex items-center justify-center shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-xl border border-black/[0.08] dark:border-white/10 text-ink-800 dark:text-gray-200 hover:border-brand-400/50 hover:text-brand-600 transition'
+    . ($inCart ? ' is-in-cart bg-brand-50/80 dark:bg-brand-500/10 text-brand-700 dark:text-brand-400' : '');
 $cartBtnClass = 'border border-black/[0.08] dark:border-white/10 text-ink-800 dark:text-gray-200 hover:border-brand-400/50 hover:text-brand-600'
     . ($inCart ? ' is-in-cart bg-brand-50/80 dark:bg-brand-500/10 text-brand-700 dark:text-brand-400' : '');
 
@@ -65,7 +67,7 @@ if ($type === 'course') {
 }
 
 $showBuyCartPair = $canCart && $primaryHref && in_array($type, ['used', 'new', 'course', 'service'], true) && !$isFreePrice;
-$cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>';
+$cartIcon = '<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>';
 ?>
 <article class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 overflow-hidden shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition duration-300 flex flex-col h-full cursor-pointer group backdrop-blur-sm relative"
          data-card-href="<?= htmlspecialchars($showUrl) ?>">
@@ -135,12 +137,12 @@ $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" s
                 <?php if ($showBuyCartPair): ?>
                     <a href="<?= $primaryHref ?>" class="<?= $ctaBtn ?> <?= $primaryClass ?>"><?= htmlspecialchars($primaryLabel) ?></a>
                     <button type="button"
-                            class="cart-btn <?= $ctaBtn ?> <?= $cartBtnClass ?>"
+                            class="<?= $ctaCartIcon ?>"
                             data-product-id="<?= (int) $item['id'] ?>"
                             data-in-cart="<?= $inCart ? '1' : '0' ?>"
-                            aria-label="<?= htmlspecialchars($inCart ? t('card.in_cart') : t('card.add_cart')) ?>">
+                            aria-label="<?= htmlspecialchars($inCart ? t('card.in_cart') : t('card.add_cart')) ?>"
+                            title="<?= htmlspecialchars($inCart ? t('card.in_cart') : t('card.add_cart')) ?>">
                         <?= $cartIcon ?>
-                        <span class="cart-btn-label truncate"><?= htmlspecialchars($inCart ? t('card.in_cart') : t('card.add_cart')) ?></span>
                     </button>
                 <?php else: ?>
                     <?php if ($primaryHref): ?>
