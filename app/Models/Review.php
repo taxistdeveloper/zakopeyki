@@ -123,7 +123,8 @@ class Review extends Model
         $stmt = $this->db->prepare(
             'SELECT r.*,
                     a.name AS author_name, a.avatar AS author_avatar, a.avatar_file AS author_avatar_file,
-                    p.title AS product_title
+                    p.id AS product_id, p.title AS product_title, p.image AS product_image,
+                    p.price AS product_price, p.price_label AS product_price_label, p.type AS product_type
              FROM reviews r
              JOIN users a ON a.id = r.author_id
              JOIN orders o ON o.id = r.order_id

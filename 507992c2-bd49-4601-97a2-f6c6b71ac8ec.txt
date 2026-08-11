@@ -1,0 +1,303 @@
+### Directory of error codes possible when making requests
+
+| Error code | Error description |
+| --- | --- |
+| 9992 | The called method is not enabled for the merchant |
+| 9993 | Success/error/post-link URL not found/not specified |
+| 9994 | Requested action disabled in merchant settings |
+| 9995 | Payment in test mode |
+| 9996 | Missing or invalid merchant contract |
+| 9997 | Invalid merchant ID |
+| 9998 | Invalid request signature |
+| 9999 | System error |
+| 10000 | Service temporarily unavailable. Please try again later |
+| 10001 | Payment error. Contact your bank. |
+| 10003 | You have exceeded the allowed number of attempts to enter the verification code. |
+| 10004 | Incorrect verification code entered. |
+| 10005 | Incorrect card details entered. |
+| 10006 | Exceeded allowed number of payment attempts. |
+| 10007 | Transaction failed due to card data security violation. Contact your bank. |
+| 10008 | Incorrect card data entered. Please try again. |
+| 10009 | Insufficient funds on card. |
+| 10010 | Card restrictions. Contact your bank. |
+| 10011 | Payment completed successfully |
+| 10012 | Transaction cannot be canceled. Contact the merchant. |
+| 10013 | Use another card. Cards from this country cannot be used for payment. |
+| 10014 | Payment session expired. Please try again. |
+| 10015 | Payment error, transaction already completed. Contact the merchant. |
+| 10016 | Payment error. Contact the merchant. |
+| 10017 | Card expired. Use another card. |
+| 10018 | Payment not completed. Session expired. Contact the merchant. |
+| 10019 | The operation was not completed. Try using a different card |
+| 10020 | Refund amount exceeds payment amount. Contact the merchant. |
+| 10021 | Invalid transaction. Please try again. |
+| 10025 | International payment system error. Try again later. |
+| 10026 | Payment error. Contact the merchant. |
+| 10028 | Payment frequency limit exceeded. |
+| 10029 | Payouts to IBAN are not working at the moment. Please try again later or contact the store |
+| 10030 | Incorrect payment amount. Contact the merchant. |
+| 10031 | Incorrect phone number. |
+| 10032 | Incorrect card number. Check details. |
+| 11000 | Transaction failed. Contact mobile operator support service. |
+| 11001 | Payment error. Contact mobile operator support service. |
+| 11002 | Incorrect verification code. Please try again. |
+| 11003 | There is a debt on your phone balance. |
+| 11004 | An incorrect or non-existent number entered. |
+| 11005 | Incorrect amount entered. |
+| 11006 | Insufficient funds. Please top up your balance |
+| 11007 | Exceeded number of failed attempts to enter the verification code |
+| 11008 | Verification code expired. Please try again |
+| 11009 | Transaction declined. Contact your mobile operator support service |
+| 11010 | You have exceeded the number of unsuccessful attempts to enter SMS. Contact your carrier. |
+| 11011 | Restrictions on phone number. Contact your mobile operator support service |
+| 11012 | Exceeded number of failed attempts to enter the verification code |
+| 11013 | This transaction has already been completed. Repeated transaction is impossible |
+| 11014 | Payment error. Please try again |
+| 11015 | You exceeded allowed payment limit. Please split your payment |
+| 11016 | Minimum payment amount 1000 KZT |
+| 11017 | Payment already canceled |
+| 11018 | Payment already returned |
+| 11019 | You exceeded monthly payment limit. Try again later |
+| 11020 | The daily limit on the number of payments is 30 payments |
+| 12000 | NCC error |
+| 10033 | Payment already cancelled. Repeated cancellation impossible |
+| 10034 | Refund temporarily unavailable. Try again later |
+| 10035 | Payment clearing error, unsuccessful payments cannot being cleared |
+| 10036 | Payment already made. Contact the merchant |
+| 10022 | Payment amount limit exceeded. Check your limits |
+| 10037 | Card temporarily blocked. Contact your bank |
+| 99999 | Unknown payment system error |
+| 11021 | Incorrect phone number. Please try again |
+| 11022 | Параметры платежа нарушают ограничения. |
+| 11023 | Платежи с номеров этого мобильного оператора не разрешены. |
+| 10038 | Card blocked. Use another card |
+| 10039 | Payment error. Contact your bank |
+| 10040 | Incorrect card details entered. Please try again |
+| 10041 | Account/card closed. Contact your bank |
+| 9013 | Payment cancellation error. Contact the merchant |
+| 10023 | Exceeded number of PIN entering attempts. Try again later |
+| 10024 | Неподтвержденный PIN, обратитесь в банк |
+| 11024 | Contact your bank. Transaction declined due to card data security |
+| 11026 | По платежу имеется ChargeBack. Возврат невозможен. |
+| 11025 | Refund temporarily unavailable, the amount is being processed by the bank. |
+| 11027 | Ошибка оплаты. Географические ограничения по банковской карте. |
+| 11028 | Карта временно заблокирована. Повторите запрос после 30 дней. |
+| 11036 | Card temporarily blocked in the system. Use another card |
+| 11049 | Код подтверждения 3DS не введен |
+| 11037 | 3DSecure не введен |
+| 11050 | The debit card PIN is entered incorrectly. Check the data and try again |
+| 11051 | Increase limits or contact your bank |
+| 11052 | Transaction declined. Contact your bank |
+| 11053 | Your bank failed to authorize the verification code. Contact your bank |
+| 8888 | Недостаточно средств! Пополните выплатной баланс |
+| 8889 | Card authenticity verification failed |
+| 11054 | С момента проведения данной транзакции прошло более 180 дней. |
+| 9991 | Order with this number already exists. Enter another order number |
+| 11030 | Абоненту необходимо пройти идентификацию |
+| 11031 | Maximum payment amount is 15,000 KGS |
+| 11032 | Minimum payment amount is 5 KGS |
+| 9990 | Карта уже сохранена. Введите другую карту на предыдущем шаге |
+| 9909 | Transaction not found |
+| 9403 | Incorrect validation |
+| 9908 | Payment with given order_id already exists |
+| 10042 | Card does not support payment confirmation by code. Contact your bank |
+| 9901 | Card expired |
+| 9073 | Choose another payment method or contact the merchant |
+| 11055 | Use another card. Cards from this country cannot be used for payment |
+| 9090 | Payment amount exceeds the limit. Identification required |
+| 11089 | Cards of this payment system are not supported |
+| 11085 | Требуется заполнить схему pg_split_refunds |
+| 11086 | Не установлены параметры сплитования |
+| 11076 | Неверный id продавца или продавец заблокирован |
+| 11064 | Неверный ИИН/БИН |
+| 11062 | Incorrect sender card number |
+| 11063 | Неверный номер карты получателя |
+| 11069 | Incorrect payment status |
+| 11067 | Неверный тип запроса |
+| 11065 | Incorrect CVC/CVV. Please try again |
+| 11066 | Некорректный XML |
+| 11071 | Неправильный идентификатор первого платежа |
+| 11070 | Неправильный идентификатор реккурентного платежа |
+| 11084 | Сумма возврата не равна сумме частичных возвратов |
+| 11072 | Your payment has already been processed, cancellation is impossible |
+| 11080 | Параметр pg_split_refunds заполнен для несплитованного платежа |
+| 11068 | Платеж не найден |
+| 11079 | Необходимо прислать скорректированную схему сплитования |
+| 11082 | Сумма возврата позиции слишком большая |
+| 11078 | Сумма не должна превышать сумму платежа минус комиссия |
+| 11083 | Сумма возмещения позиции слишком большая |
+| 11077 | Сумма оплат покупателем по всем позициям не равна сумме платежа |
+| 11081 | Указан неверный идентификатор позиции |
+| 11087 | Заявка аннулирована провайдером |
+| 11061 | Неверный номер/идентификатор платежа |
+| 11088 | Отказ со стороны банка провайдера |
+| 11074 | The amount debited exceeds the amount processed by the bank. Contact the merchant |
+| 11060 | Merchant error. Contact the merchant |
+| 10043 | SMS notifications are not enabled. Contact your bank |
+| 11040 | Вы не можете установить скидку на комиссию |
+| 11041 | Вы должны выбрать один тип скидки |
+| 11042 | Вы должны выбрать тип скидки |
+| 11090 | Ошибка клиринга платежа, платеж был ранее отменен. |
+| 9102 | Ошибка возврата платежа, возврат находится в процессе выполнения |
+| 9103 | Ошибка отмены платежа, отмена находится в процессе выполнения |
+| 9043 | Ошибка файла конфигурации терминала платежной системы. |
+| 100066 | Card restrictions. Check limits |
+| 10089 | Payment to the specified card in this currency is unavailable |
+| 10088 | Перевод с указанной карты и в указанной валюте недоступен. |
+| 10110 | Ограничения на карте получателя. |
+| 100161 | Technical payment error. Try again later |
+| 100091 | Not sufficient funds. Please top up your account or make a payment from another card. |
+| 100011 | Payment error. Contact your bank |
+| 1000661 | Transaction limit exceeded. Contact your bank |
+| 100162 | Payment failed. Contact site support. |
+| 12095 | Payment error. Use another card |
+| 90081 | Incorrect refund amount. Check and try again |
+| 100181 | Transaction timeout. Please try again |
+| 100231 | The number of attempts to enter the payment card PIN code has been exceeded. Repeat later |
+| 110051 | Incorrect payment amount entered. Please try again |
+| 100371 | Card temporarily blocked. Use another card. |
+| 100221 | The amount exceeds the allowable limit on the payout card. Contact the bank that issued the card |
+| 100241 | Transaction declined due to card data security violation. Contact your bank. |
+| 100171 | Card expired. Enter another card. |
+| 100381 | Card blocked. Use another card. |
+| 100401 | Incorrect card details entered. Please try again. |
+| 1001612 | Card debit error. Contact your bank. |
+| 100101 | Card restriction. Contact your bank. |
+| 100391 | Payment transaction error. Try again later |
+| 9105 | Операция проверки данных для оплаты в процессе выполнения |
+| 1823 | The BIC field is filled in incorrectly, correct and resend the submission |
+| 10111 | Списание с карты отменено пользователем. Повторите попытку. |
+| 10112 | Payment error. Contact your bank. |
+| 10113 | Payment error. Contact your bank |
+| 10114 | Техническая ошибка проведения транзакции на стороне эквайера |
+| 10115 | Error. Authorization failed. Please try using another card. |
+| 10044 | Ошибка отмены платежа |
+| 10045 | Contact your bank. Declined due to card data security violation |
+| 110100 | Incorrect bank code entered. |
+| 9027 | Ключ уже используется для другого платежа |
+| 11029 | Карта бренда China Union Pay не поддерживается |
+| 10027 | Тест |
+| 11091 | тест 2 |
+| 1202 | Некорректный номер платежа. Повторите позже либо проверьте |
+| 1207 | Перевод между текущими банками эмитентами запрещен. Сменить карту отправителя/получателя |
+| 110631 | Неверный номер карты получателя |
+| 110641 | Неверный ИИН/БИН |
+| 1210 | Неправильный/несуществующий номер тестовой карты, проверьте корректность ввода данных. |
+| 18231 | Поле БИК заполнено некорректно. Исправьте и повторите отправку |
+| 1824 | Поле БИК заполнено некорректно. Исправьте и повторите отправку. |
+| 88881 | Недостаточно средств! Пополните выплатной баланс. |
+| 90271 | Ключ уже используется для другого платежа. |
+| 90901 | Сумма выплаты превышает предельную. |
+| 91021 | Ошибка возврата платежа, возврат находится в процессе |
+| 91031 | Ошибка отмены платежа, отмена находится в процессе |
+| 94031 | Data validation error. |
+| 99081 | Платеж с данным order_id уже существует. |
+| 100351 | Ошибка платежа, неуспешные платежи не могут пройти клиринг. |
+| 100361 | Ошибка. Списание денежных средств уже было произведено. |
+| 110661 | Некорректный XML. |
+| 110671 | Неверный тип запроса. |
+| 110691 | Invalid payment status. |
+| 110741 | The amount debited exceeds the amount processed by the bank. Contact the merchant. |
+| 110761 | Неверный id продавца или продавец заблокирован. |
+| 900811 | Incorrect refund amount. Check and try again |
+| 9100 | Partial refund unavailable. Contact the merchant |
+| 1871 | Некорректно введена проверочная сумма |
+| 1380 | Ошибка комиссии. Свяжитесь с вашим менеджером |
+| 1382 | Указана неверная валюта в запросе |
+| 1804 | Карта не найдена |
+| 1806 | Корпоротивная карта не найдена |
+| 1817 | Карта отправителя заблокирована |
+| 1818 | Карта получателя заблокирована |
+| 8018 | Транзакция отклонена мерчантом |
+| 8030 | Превышен лимит |
+| 8032 | Превышен лимит на одну транзакцию |
+| 9011 | Неверный рекуррентный профиль |
+| 90131 | Ошибка возврата. Нельзя произвести возврат неуспешного платежа |
+| 9014 | Ошибка возврата |
+| 9021 | Частичный клиринг недоступен. Свяжитесь с вашим менеджером |
+| 90731 | Сумма возмещений продавцам не должна превышать сумму платежа |
+| 9077 | Сумма возврата позиции слишком большая. |
+| 9080 | Для частичного возврата сплитовнного платежа нужен split_refunds |
+| 9081 | Не установлены параметры. |
+| 9104 | Ошибка выплаты, выплата находится в процессе выполнения |
+| 2200 | Ошибка рассрочки |
+| 9070 | Сплитование платежей отключено в настройках магазина |
+| 9072 | Сумма оплат покупателем по всем позициям не равна сумме платежа. |
+| 9074 | При изменении суммы сплитованного платежа необходимо прислать скорректированную схему сплитования |
+| 9075 | Параметр pg_split_refunds заполнен для несплитованного платежа |
+| 9076 | Указан неверный идентификатор позиции. |
+| 9078 | Сумма возмещения позиции слишком большая. |
+| 9079 | Общая сумма возврата не равна сумме частичных возвратов по схеме |
+| 12086 | Вы не можете установить скидку на комиссию. Свяжитесь с менеджером |
+| 12088 | Для использования скидки необходимо отправить commission_discount_fix или commission_discount_percentage |
+| 12089 | Для использования скидки необходимо отправить commission_discount_fix или commission_discount_percentage |
+| 9500 | Некорректный формат поля pg_order_id |
+| 9501 | Исходный платёж не найден |
+| 9502 | Валюта не соответствует валюте исходного платежа |
+| 9503 | Необходимо провести клиринг исходного платежа |
+| 9504 | Сумма выплаты превышает доступную к возврату сумму исходного платежа |
+| 100450 | Перевод был отклонен из-за нарушения мер безопасности карты отправителя |
+| 100090 | Insufficient funds on card. Please top up your account |
+| 100010 | Произошла ошибка при переводе на стороне банка-эмитента. Используйте другую карту или повторите попытку позже |
+| 100040 | Код 3DS карты отправителя не был введен или введен неверно. Повторите попытку |
+| 1000660 | Лимит списания с карты отправителя превышен. Используйте, пожалуйста, другую карту |
+| 100160 | Произошла техническая ошибка при переводе с карты отправителя. Повторите попытку позже |
+| 100390 | Перевод с карты отправителя не выполнен. Попробуйте использовать другую карту или повторите попытку позже |
+| 101120 | Invalid card. Contact your bank |
+| 100230 | Превышено допустимое количество попыток ввода PIN-кода карты отправителя. Пожалуйста, повторите попытку позже |
+| 110240 | Перевод был отклонен из-за нарушения безопасности данных карты отправителя банком, выпустившим карту. Попробуйте другую карту |
+| 100190 | Перевод с карты отправителя не выполнен. Попробуйте использовать другую карту или повторите попытку позже |
+| 100170 | Срок действия карты отправителя истек. Используйте другую карту |
+| 100050 | Неверно указаны данные карты отправителя. Проверьте вводимые данные |
+| 110050 | Некорректная сумма перевода. Пожалуйста, проверьте и повторите попытку |
+| 100000 | Произошла ошибка при переводе. Повторите попытку |
+| 110500 | PIN-код карты отправителя введен неверно. Проверьте данные и повторите попытку |
+| 100380 | Карта отправителя заблокирована. Обратитесь банк, выпустивший карту или используйте другу карту |
+| 110360 | Карта отправителя заблокирована на 30 дней. Воспользуйтесь, пожалуйста, другой картой |
+| 100890 | Выплата на указанную карту в указанной валюте недоступна |
+| 100220 | Сумма перевода превышает допустимый лимит списания по карте отправителя. Обратитесь в банк, выпустивший карту |
+| 100070 | Перевод был отклонен из-за нарушения мер безопасности карты отправителя. Воспользуйтесь другой картой или обратитесь в банк, выпустивший карту |
+| 110650 | Некорректный CVC/CVV карты отправителя. Пожалуйста, проверьте и повторите попытку |
+| 100400 | Неверно введен номер карты отправителя. Пожалуйста, проверьте и повторите попытку |
+| 101130 | Произошла ошибка при переводе на стороне банка-эмитента. Используйте другую карту или повторите попытку позже |
+| 1000110 | Ошибка зачисления перевода на карту получателя. Повторите попытку или обратитесь в банк выпустивший карту (en) |
+| 1001610 | Техническая ошибка зачисления перевода на карту получателя. Повторите позже |
+| 1002210 | Сумма превышает допустимый лимит по карте получателя. Обратитесь в банк, выпустивший карту |
+| 1004010 | Неверный номер карты получателя перевода. Проверьте данные и повторите попытку |
+| 1002410 | Операция перевода на карту получателя отклонена по соображениям безопасности |
+| 1001710 | Срок действия карты получателя истек. Укажите другую карту получателя |
+| 110891 | This payment method is not supported. Contact the merchant |
+| 1001013 | Ваша карта неактивна. Пожалуйста, свяжитесь с банком. |
+| 110242 | Отказано по соображениям безопасности. Обратитесь в ваш банк. |
+| 100163 | Транзакция не может быть выполнена по техническим причинам. Обратитесь в ваш банк |
+| 100056 | Номер карты/счета недействителен. Обратитесь в банк. |
+| 100403 | Эмитент карты не найден. Пожалуйста, свяжитесь с банком. |
+| 100416 | Счет карты закрыт Вашим банком. Свяжитесь с банком и используйте другую карту. |
+| 1003816 | Операция с данной картой запрещена. Пожалуйста, свяжитесь с банком. |
+| 13713 | Платеж не может быть выполнен. Обратитесь в банк. |
+| 100094 | Insufficient funds on your card. Please top up your account or use another card. |
+| 1000669 | The transaction amount limit on your card has been exceeded. Please contact your bank. |
+| 100228 | Вы превысили лимит по количеству операций. Свяжитесь с банком. |
+| 100232 | Количество попыток ввода PIN-кода превышено. Пожалуйста, обратитесь в банк |
+| 100384 | Ваша карта заблокирована или не активна. Пожалуйста, свяжитесь с банком. |
+| 110501 | Неверный PIN-код. Проверьте и введите PIN-код заново или обратитесь в банк. |
+| 101156 | Банк-эмитент временно недоступен. Попробуйте повторить операцию позже. |
+| 999993 | Ошибка обработки транзакции вашим банком. Попробуйте позже. |
+| 110343 | Операция временно невозможна из-за нарушения политики безопасности. Свяжитесь с банком |
+| 101481 | Операция временно запрещена для данной карты. Пожалуйста свяжитесь с банком |
+| 100141 | Ошибка перевода с карты отправителя |
+| 130284 | Saved card limit reached for this user |
+| 1102 | Неверный номер запроса. |
+| 1361 | Debit transaction failed. Try again later. |
+| 1004011 | The amount is below the minimum. Please try again with a higher amount. |
+| 1362 | Оплата отклонена. Используйте сохраненную карту VISA. |
+| 199401 | Сумма операции меньше минимально допустимой на терминале |
+| 199402 | Сумма операции больше максимально допустимой на терминале |
+| 199403 | Превышен суточный лимит по сумме операций на терминале |
+| 199404 | Превышен месячный лимит по сумме операций на терминале |
+| 199405 | Превышен суточный лимит по количеству операций на терминале |
+| 199406 | Превышен месячный лимит по количеству операций на терминале |
+| 12001 | Technical card debit error. Try again later |
+| 10046 | Verification code sending failed. Try again later |
+| 10101 | The bank declined the transaction. Please pay with another card. |
+| 90404 | The transaction was declined for security reasons. Please try paying again later or use a different card. |

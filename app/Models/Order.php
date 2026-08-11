@@ -161,6 +161,16 @@ class Order extends Model
         return $stmt->fetchAll();
     }
 
+    public function countCompletedSales(int $sellerId): int
+    {
+        $this->ensureTable();
+        $stmt = $this->db->prepare(
+            "SELECT COUNT(*) FROM orders WHERE seller_id = ? AND status = 'completed'"
+        );
+        $stmt->execute([$sellerId]);
+        return (int) $stmt->fetchColumn();
+    }
+
     /** @return list<array> */
     public function findByStatus(string $status): array
     {

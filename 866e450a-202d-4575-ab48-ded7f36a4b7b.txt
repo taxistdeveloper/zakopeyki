@@ -1,0 +1,1081 @@
+# Create payment
+
+## OpenAPI Specification
+
+```yaml
+openapi: 3.0.1
+info:
+  title: ''
+  description: ''
+  version: 1.0.0
+paths:
+  /init_payment:
+    post:
+      summary: Create payment
+      deprecated: false
+      description: >-
+        :::warning[]
+
+        There are two options for using the method:
+
+        - direct data transfer from the merchant to FreedomPay
+
+        - data transfer via the user's browser to FreedomPay
+
+        :::
+
+        :::info[]
+
+        - When directly transferring data from the merchant to FreedomPay, the
+        merchant must send data to init_payment. When transferring data via the
+        user's browser to FreedomPay, the merchant must redirect the user with
+        the data to payment.php
+
+        - You can transfer arbitrary additional parameters whose names do not
+        begin with pg_. All these parameters will be transferred to pg_check_url
+        and pg_result_url
+
+        - The names of additional merchant parameters must be unique
+
+        - After receiving the pg_redirect_url parameter, the user is redirected
+        to the payment page, where the payer completes the payment
+
+        - If successful, the user will be redirected to the payment page
+
+        - If the merchant has not transferred all the parameters necessary to
+        create a payment transaction (payment system, user's phone number and
+        parameters necessary for the selected payment system), they are
+        requested from the user on the freedompay.kz website
+
+        - Frame is an embeddable HTML element that loads page content from the
+        Freedom Pay Gateway. It is used to display the payment form (e.g.,
+        fields for entering the card number and CVV code) directly on the
+        merchant's page
+
+        - To invoke the Frame method, the parameter `pg_payment_route = frame`
+        must be included in the request to the Freedom Pay Gateway. To use this
+        method, you should contact your manager
+
+        - When redirecting to `failure_url` or `success_url`, the following
+        parameters will be passed:
+
+        | property | type | description  |
+
+        | --- | --- | --- |
+
+        | `pg_order_id` |  string | Payment ID in the merchant system |
+
+        | `pg_payment_id` | int | Transaction ID |
+
+        | `pg_salt` | string | Random string |
+
+        | `pg_sig` | string | Request signature |
+
+        - When redirecting to `success_url`, the following parameters will be
+        passed (frame only:  if `pg_payment_route` equals `frame`):
+
+        | property | type | description  |
+
+        | --- | --- | --- |
+
+        | `pg_order_id` |  string | Payment ID in the merchant system |
+
+        | `pg_payment_id` | int | Transaction ID |
+
+        | `pg_salt` | string | Random string |
+
+        | `pg_sig` | string | Request signature |
+
+        - When redirecting to `failure_url`, the following parameters will be
+        passed (frame only: if `pg_payment_route` equals `frame`):
+
+        | property | type | description  |
+
+        | --- | --- | --- |
+
+        | `pg_order_id` |  string | Payment ID in the merchant system |
+
+        | `pg_status` | string | Transaction ID |
+
+        | `pg_error_code` | string | Error code ID |
+
+        | `pg_error_description` | string | Text description of the error |
+
+        - `pg_template_params` is used to control the appearance and behavior of
+        the payment page. Parameters are passed as part of the `init_payment`
+        request and affect frontend rendering. Required if customization is used
+
+        - Recurring payments are repeat payments where a recurring profile is
+        created during the first payment. Subsequent payments are made according
+        to this profile.
+
+        - To create a profile, the following parameters are passed in
+        init_payment:
+
+        `pg_recurring_start` — profile creation
+
+        `pg_recurring_lifetime` — validity period
+
+        - If **pg_recurring_lifetime** exceeds the card's expiration date, the
+        profile remains active until the card expires.
+
+        - The profile number (**pg_recurring_profile_id**) is passed in the
+        **Result URL**.
+
+        - It is also supported for Apple Pay and Google Pay.
+
+        - For connection, please contact the manager.
+
+        - `pg_token_3ds` is applied only to token payments, such as Apple Pay
+        and Google Pay. For regular card payments, the parameter is ignored.
+         
+        :::
+
+        :::tip[]
+
+        Status: *success/error/pending*
+
+        :::
+
+        ![Create.png](https://api.apidog.com/api/v1/projects/640842/resources/359042/image-preview)
+      tags:
+        - Merchant API/Purchase
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pg_merchant_id:
+                  type: integer
+                  description: Merchant ID
+                  examples:
+                    - 123234
+                pg_order_id:
+                  type: string
+                  description: Payment ID in the merchant system
+                  examples:
+                    - 550e8400-e29b-41d4-a716-446655440000
+                pg_amount:
+                  type: number
+                  description: Payment amount
+                  format: float
+                  examples:
+                    - 123.12
+                pg_currency:
+                  type: string
+                  title: ISO 4217
+                  description: >-
+                    Currency in which the amount is specified. Default value is
+                    based on settings
+                  examples:
+                    - KZT
+                pg_description:
+                  type: string
+                  description: Payment description
+                  maxLength: 1024
+                  examples:
+                    - Payment for goods
+                pg_testing_mode:
+                  type: integer
+                  description: Creating a payment in test mode
+                  enum:
+                    - 0
+                    - 1
+                  x-apidog-enum:
+                    - value: 0
+                      name: ''
+                      description: 'false'
+                    - value: 1
+                      name: ''
+                      description: 'true'
+                  examples:
+                    - 0
+                  default: 0
+                pg_lifetime:
+                  type: integer
+                  description: Time (in seconds) during which the payment must be completed
+                  examples:
+                    - 60
+                pg_language:
+                  type: string
+                  description: The language of the payment page
+                  enum:
+                    - ru
+                    - en
+                    - kk
+                    - kg
+                    - uz
+                  x-apidog-enum:
+                    - value: ru
+                      name: ''
+                      description: Russian
+                    - value: en
+                      name: ''
+                      description: ' English'
+                    - value: kk
+                      name: ''
+                      description: ' Kazakh'
+                    - value: kg
+                      name: ''
+                      description: ' Kyrgyz'
+                    - value: uz
+                      name: ''
+                      description: ' Uzbek'
+                  default: ru
+                  examples:
+                    - ru
+                  title: ISO 639-1:2002
+                pg_auto_clearing:
+                  type: string
+                  description: Auto clearing payment
+                  enum:
+                    - '0'
+                    - '1'
+                  x-apidog-enum:
+                    - value: '0'
+                      name: ''
+                      description: 'false'
+                    - value: '1'
+                      name: ''
+                      description: 'true'
+                  default: '0'
+                  examples:
+                    - '0'
+                pg_token_3ds:
+                  type: integer
+                  description: >-
+                    Controls 3DS authentication for token payments. Supported
+                    values: `0` or `1`. If `1`, 3DS authentication is always
+                    requested for Apple Pay / Google Pay token payments,
+                    regardless of ECI. If `0` or not sent, the need for 3DS is
+                    determined automatically based on the ECI indicator. This
+                    parameter does not affect regular card payments.
+                  title: ''
+                  enum:
+                    - 0
+                    - 1
+                  x-apidog-enum:
+                    - value: 0
+                      name: ''
+                      description: >-
+                        Default value. 3DS is requested only when required based
+                        on ECI logic: Visa ECI 07, Mastercard ECI 00, missing or
+                        unknown ECI.
+                    - value: 1
+                      name: ''
+                      description: >-
+                        Forces 3DS authentication for token payments. ECI value
+                        is ignored.
+                pg_recurring_start:
+                  type: string
+                  description: Recurring start option
+                  enum:
+                    - '0'
+                    - '1'
+                  x-apidog-enum:
+                    - value: '0'
+                      name: ''
+                      description: 'false'
+                    - value: '1'
+                      name: ''
+                      description: 'true'
+                pg_recurring_lifetime:
+                  type: integer
+                  description: >-
+                    The time period during which the merchant expects to use the
+                    recurring payment profile
+                  maximum: 12
+                  minimum: 1
+                  examples:
+                    - 12
+                pg_timeout_after_payment:
+                  type: integer
+                  description: Specifies the payment page closing time in seconds
+                  default: 10
+                  examples:
+                    - 10
+                pg_3ds_challenge:
+                  type: integer
+                  enum:
+                    - 0
+                    - 1
+                  x-apidog-enum:
+                    - value: 0
+                      name: ''
+                      description: 'false'
+                    - value: 1
+                      name: ''
+                      description: 'true'
+                  default: 0
+                  description: >-
+                    Determines the need to complete the Challenge Flow (1 - it
+                    is mandatory to conduct the Challenge Requested)
+                pg_user_id:
+                  type: string
+                  description: User ID in the merchant system
+                  maxLength: 50
+                  pattern: ^[a-zA-Z0-9_-]+$
+                  examples:
+                    - No65GFR755789T
+                pg_user_ip:
+                  type: string
+                  description: Client's IP address
+                  format: ipv4
+                  examples:
+                    - 1.1.1.1
+                pg_user_phone:
+                  type: number
+                  description: The user's phone number (starting with the country code)
+                  examples:
+                    - 77777777777
+                pg_user_contact_email:
+                  type: string
+                  format: email
+                  examples:
+                    - mail@customer.kz
+                  description: User's contact email address
+                pg_payment_method:
+                  type: string
+                  description: |-
+                    Displays payment methods on the payment page
+                    wallet - Электронные деньги
+                    internetbank - Интернет-банкинг
+                    other - Терминалы
+                    bankcard - Банковские карты
+                    cash - Точки приема платежей
+                    mobile_commerce - Мобильная коммерция
+                  enum:
+                    - bankcard
+                    - mobile_commerce
+                  x-apidog-enum:
+                    - value: bankcard
+                      name: ''
+                      description: ''
+                    - value: mobile_commerce
+                      name: ''
+                      description: ''
+                  examples:
+                    - mobile_commerce
+                  default: bankcard
+                pg_request_method:
+                  type: string
+                  description: Method for calling store scripts (Check URL)
+                  enum:
+                    - GET
+                    - POST
+                    - XML
+                  x-apidog-enum:
+                    - value: GET
+                      name: ''
+                      description: ''
+                    - value: POST
+                      name: ''
+                      description: ''
+                    - value: XML
+                      name: ''
+                      description: ''
+                  examples:
+                    - GET
+                  default: GET
+                pg_check_url:
+                  type: string
+                  description: >-
+                    URL to check the possibility of payment. Called before the
+                    payment if supported by the payment system
+                  examples:
+                    - https://site.com/check
+                  format: uri
+                pg_result_url:
+                  type: string
+                  description: >-
+                    URL to report the result of the payment. Called after
+                    payment on success or failure. If not specified
+                  examples:
+                    - https://site.com/check
+                  format: uri
+                pg_success_url:
+                  type: string
+                  description: >-
+                    URL to which the user is sent in case of a successful
+                    payment (for online systems only)
+                  format: uri
+                  examples:
+                    - https://site.com/check
+                pg_failure_url:
+                  type: string
+                  description: >-
+                    URL to which the user is sent in case of unsuccessful
+                    payment (for online systems only)
+                  format: uri
+                  examples:
+                    - https://site.com/check
+                pg_site_url:
+                  type: string
+                  description: >-
+                    URL of the store's site to show the customer a link to
+                    return to the store after creating an invoice. Applies to
+                    offline payment systems (cash)
+                  format: uri
+                  examples:
+                    - https://site.com/check
+                pg_state_url:
+                  type: string
+                  description: >-
+                    URL of the script on the merchant's website where the
+                    customer is redirected to wait for a response from the
+                    payment system
+                  format: uri
+                  examples:
+                    - https://site.com/check
+                pg_success_url_method:
+                  type: string
+                  description: Method for the button submitted to confirm payment
+                  enum:
+                    - GET
+                    - POST
+                  x-apidog-enum:
+                    - value: GET
+                      name: ''
+                      description: ''
+                    - value: POST
+                      name: ''
+                      description: ''
+                  default: GET
+                  examples:
+                    - GET
+                pg_failure_url_method:
+                  type: string
+                  description: Method for the button submitted in case of payment failure.
+                  enum:
+                    - GET
+                    - POST
+                  x-apidog-enum:
+                    - value: GET
+                      name: ''
+                      description: ''
+                    - value: POST
+                      name: ''
+                      description: ''
+                  default: GET
+                  examples:
+                    - GET
+                pg_state_url_method:
+                  type: string
+                  description: Method for state URL submission
+                  enum:
+                    - GET
+                    - POST
+                  x-apidog-enum:
+                    - value: GET
+                      name: ''
+                      description: ''
+                    - value: POST
+                      name: ''
+                      description: ''
+                  default: GET
+                  examples:
+                    - GET
+                pg_receipt_positions:
+                  type: array
+                  items:
+                    type: object
+                    x-apidog-refs:
+                      01KGES4N3DJ4NWAFWVEK4832YF:
+                        $ref: '#/components/schemas/GoodsForTax'
+                        x-apidog-overrides:
+                          tax_type: &ref_0
+                            type: integer
+                            description: Tax type
+                            enum:
+                              - 0
+                              - 3
+                              - 7
+                              - 11
+                            x-apidog-enum:
+                              - value: 0
+                                name: ''
+                                description: Without tax
+                              - value: 3
+                                name: ''
+                                description: VAT 16/116
+                              - value: 7
+                                name: ''
+                                description: VAT 10/110
+                              - value: 11
+                                name: ''
+                                description: VAT 5/105
+                    properties:
+                      count:
+                        type: integer
+                        description: Product quantity
+                      name:
+                        type: string
+                        description: Product name
+                      tax_type: *ref_0
+                      price:
+                        type: number
+                        description: Price per unit product
+                        format: float
+                      pg_receipt_positions[0][UnitCode]:
+                        type: integer
+                        description: Unit of measurement
+                      pg_receipt_positions[0][GTIN]:
+                        type: string
+                        description: Barcode
+                      pg_receipt_positions[0][NTIN]:
+                        type: string
+                        description: >-
+                          Barcode assigned to goods by the National Goods
+                          Catalog of the Republic of Kazakhstan
+                      pg_receipt_positions[0][mark_list][]:
+                        type: array
+                        items:
+                          type: string
+                        description: >-
+                          Array of marking codes for labeled goods. Number of
+                          elements must match the `count` value. 
+
+                          Example: `"mark_list": ["code1"]` for count = 1,
+                          `"mark_list": ["code1", "code2"]` for count = 2
+                    x-apidog-orders:
+                      - 01KGES4N3DJ4NWAFWVEK4832YF
+                      - pg_receipt_positions[0][UnitCode]
+                      - pg_receipt_positions[0][GTIN]
+                      - pg_receipt_positions[0][NTIN]
+                      - pg_receipt_positions[0][mark_list][]
+                    x-apidog-ignore-properties:
+                      - count
+                      - name
+                      - tax_type
+                      - price
+                pg_param1:
+                  type: string
+                  description: Additional parameter 1
+                pg_param2:
+                  type: string
+                  description: Additional parameter 2
+                pg_param3:
+                  type: string
+                  description: Additional parameter 3
+                pg_extra_params:
+                  type: object
+                  properties:
+                    payer_identificator:
+                      type: string
+                      description: >-
+                        Payer's IIN/BIN. Required field for processing
+                        government fee payments
+                    payer_name:
+                      type: string
+                      description: >-
+                        Payer's Name. Depends on the payer's
+                        registration.Required field for processing government
+                        fee payments
+                    beneficiar_name:
+                      type: string
+                      description: >-
+                        Benificiar's Full Name. Required field for processing
+                        government fee payments
+                  x-apidog-orders:
+                    - payer_identificator
+                    - payer_name
+                    - beneficiar_name
+                  x-apidog-ignore-properties: []
+                pg_commission_discount:
+                  type: integer
+                  enum:
+                    - 0
+                    - 1
+                  x-apidog-enum:
+                    - value: 0
+                      name: ''
+                      description: 'false'
+                    - value: 1
+                      name: ''
+                      description: 'true'
+                  description: If you want to use a discount on the commission
+                pg_commission_discount_fix:
+                  type: number
+                  description: To use a fixed discount amount
+                pg_commission_discount_percentage:
+                  type: number
+                  description: To use a percentage discount
+                pg_generate_qr:
+                  type: integer
+                  enum:
+                    - 0
+                    - 1
+                  x-apidog-enum:
+                    - value: 0
+                      name: ''
+                      description: 'false'
+                    - value: 1
+                      name: ''
+                      description: 'true'
+                  description: Generate QR code
+                pg_idempotency_key:
+                  type: string
+                  description: >-
+                    Idempotency key. Used to prevent duplicate request creation.
+                    A unique value within the merchant's scope; the same key
+                    cannot be used for different operations
+                  examples:
+                    - 550e8400-e29b-41d4-a716-446655440000
+                pg_loyalty_id:
+                  type: number
+                  description: Identifier in the loyalty system
+                pg_loyalty_amount:
+                  type: number
+                  description: Amount of accrued units in the loyalty system
+                pg_freedom_id:
+                  type: string
+                  description: User identifier in the Freedom ecosystem
+                pg_payment_route:
+                  type: string
+                  description: >-
+                    Static value. To open a bank card only frame, if the frame
+                    is set
+                  enum:
+                    - frame
+                  x-apidog-enum:
+                    - value: frame
+                      name: ''
+                      description: ''
+                  examples:
+                    - frame
+                pg_template:
+                  type: string
+                  description: >-
+                    Payment page template. Options for the values ​​of the
+                    pg_template field can be obtained from your manager after
+                    signing the contract
+                pg_template_params:
+                  type: object
+                  properties:
+                    applepay:
+                      type: integer
+                      enum:
+                        - 0
+                        - 1
+                      x-apidog-enum:
+                        - value: 0
+                          name: ''
+                          description: ''
+                        - value: 1
+                          name: ''
+                          description: ''
+                      default: 1
+                      examples:
+                        - 1
+                      description: Enables Apple Pay
+                    googlepay:
+                      type: integer
+                      enum:
+                        - 0
+                        - 1
+                      x-apidog-enum:
+                        - value: 0
+                          name: ''
+                          description: ''
+                        - value: 1
+                          name: ''
+                          description: ''
+                      default: 1
+                      examples:
+                        - 1
+                      description: Enables Google Pay
+                    can_save_card:
+                      type: integer
+                      description: Enables card saving functionality
+                      enum:
+                        - 0
+                        - 1
+                      x-apidog-enum:
+                        - value: 0
+                          name: ''
+                          description: ''
+                        - value: 1
+                          name: ''
+                          description: ''
+                      default: 0
+                      examples:
+                        - 1
+                    css_override:
+                      type: string
+                      description: Custom CSS file name (hosted in CDN)
+                    show_details:
+                      type: integer
+                      enum:
+                        - 0
+                        - 1
+                      x-apidog-enum:
+                        - value: 0
+                          name: ''
+                          description: ''
+                        - value: 1
+                          name: ''
+                          description: ''
+                      default: 0
+                      examples:
+                        - 1
+                      description: Enables the "Payment Details" section
+                    freedom_loyalty:
+                      type: integer
+                      enum:
+                        - 0
+                        - 1
+                      x-apidog-enum:
+                        - value: 0
+                          name: ''
+                          description: ''
+                        - value: 1
+                          name: ''
+                          description: ''
+                      default: 1
+                      examples:
+                        - 1
+                      description: Enables request to Freedom Loyalty system
+                    show_email:
+                      type: integer
+                      enum:
+                        - 0
+                        - 1
+                      x-apidog-enum:
+                        - value: 0
+                          name: ''
+                          description: ''
+                        - value: 1
+                          name: ''
+                          description: ''
+                      default: 1
+                      examples:
+                        - 1
+                      description: Enables email field if not previously provided
+                    show_phone:
+                      type: integer
+                      enum:
+                        - 0
+                        - 1
+                      x-apidog-enum:
+                        - value: 0
+                          name: ''
+                          description: ''
+                        - value: 1
+                          name: ''
+                          description: ''
+                      default: 1
+                      examples:
+                        - 1
+                      description: Enables phone field if not previously provided
+                    show_freedom_logo:
+                      type: integer
+                      enum:
+                        - 0
+                        - 1
+                      x-apidog-enum:
+                        - value: 0
+                          name: ''
+                          description: ''
+                        - value: 1
+                          name: ''
+                          description: ''
+                      default: 1
+                      examples:
+                        - 1
+                      description: Freedom logo visibility
+                    theme:
+                      type: string
+                      enum:
+                        - white
+                        - dark
+                      x-apidog-enum:
+                        - value: white
+                          name: ''
+                          description: ''
+                        - value: dark
+                          name: ''
+                          description: ''
+                      default: white
+                      examples:
+                        - white
+                      description: Payment page theme
+                  x-apidog-orders:
+                    - applepay
+                    - googlepay
+                    - can_save_card
+                    - css_override
+                    - show_details
+                    - freedom_loyalty
+                    - show_email
+                    - show_phone
+                    - show_freedom_logo
+                    - theme
+                  x-apidog-ignore-properties: []
+                pg_salt:
+                  type: string
+                  description: >-
+                    Random string consisting of arbitrary numbers and Latin
+                    letters
+                pg_sig:
+                  type: string
+                  description: Request signature
+                pg_payment_system:
+                  type: string
+                  description: |-
+                    О!Деньги = ODENGIKGSV2
+                    MegaPay = MEGAPAYKGS
+                    Balancekg = BEELINEKGS
+                    MBANK = MBANKKGS
+              x-apidog-orders:
+                - pg_merchant_id
+                - pg_order_id
+                - pg_amount
+                - pg_currency
+                - pg_description
+                - pg_testing_mode
+                - pg_lifetime
+                - pg_language
+                - pg_auto_clearing
+                - pg_token_3ds
+                - pg_recurring_start
+                - pg_recurring_lifetime
+                - pg_timeout_after_payment
+                - pg_3ds_challenge
+                - pg_user_id
+                - pg_user_ip
+                - pg_user_phone
+                - pg_user_contact_email
+                - pg_payment_method
+                - pg_request_method
+                - pg_check_url
+                - pg_result_url
+                - pg_success_url
+                - pg_failure_url
+                - pg_site_url
+                - pg_state_url
+                - pg_success_url_method
+                - pg_failure_url_method
+                - pg_state_url_method
+                - pg_receipt_positions
+                - pg_param1
+                - pg_param2
+                - pg_param3
+                - pg_extra_params
+                - pg_commission_discount
+                - pg_commission_discount_fix
+                - pg_commission_discount_percentage
+                - pg_generate_qr
+                - pg_idempotency_key
+                - pg_loyalty_id
+                - pg_loyalty_amount
+                - pg_freedom_id
+                - pg_payment_route
+                - pg_template
+                - pg_template_params
+                - pg_salt
+                - pg_sig
+                - pg_payment_system
+              required:
+                - pg_merchant_id
+                - pg_amount
+                - pg_description
+                - pg_salt
+                - pg_sig
+              x-apidog-ignore-properties: []
+            example:
+              pg_merchant_id: 123234
+              pg_amount: 5000
+              pg_description: 'Payment for order #8841'
+              pg_auto_clearing: 1
+              pg_token_3ds: 1
+              pg_recurring_start: 0
+              pg_salt: random_string_here
+              pg_sig: ...
+      responses:
+        '200':
+          description: ''
+          content:
+            application/xml:
+              schema:
+                type: object
+                properties:
+                  pg_status:
+                    type: string
+                    description: Shows the result of the query
+                  pg_payment_id:
+                    type: integer
+                    description: >-
+                      The unique identifier of the payment transaction in
+                      {{project}}; serves as the key for all further work with
+                      the transaction.
+                  pg_redirect_url:
+                    type: string
+                    description: >-
+                      The URL to redirect the user to. It can be both on the
+                      site {{site}} and on the site of the payment system.
+                  pg_redirect_url_type:
+                    type: string
+                    description: >-
+                      The type of page to which the redirect occurs. Possible
+                      values: <br>need data - dialogue with the buyer to clarify
+                      the parameters: payment system, phone number, parameters
+                      required for this payment system; <br>payment system -
+                      page of the payment system website or a page with
+                      instructions for paying through this payment system. The
+                      page with instructions can be located both on the {{site}}
+                      site and on the merchant's site.<br><br>If the merchant
+                      receives a response with pg_redirect_url_type='need data',
+                      the merchant may not redirect the buyer to the received
+                      URL, but clarify missing parameters on your site. In this
+                      case, after specifying the parameters and re-requesting
+                      the creation of a payment transaction, a new transaction
+                      will be created.
+                  pg_redirect_qr:
+                    type: string
+                    description: >-
+                      URL to redirect the user as a QR code. Transmitted in
+                      base64 format.
+                  pg_salt:
+                    type: string
+                    description: Random string.
+                  pg_sig:
+                    type: string
+                    description: Request signature.
+                x-apidog-orders:
+                  - pg_status
+                  - pg_payment_id
+                  - pg_redirect_url
+                  - pg_redirect_url_type
+                  - pg_redirect_qr
+                  - pg_salt
+                  - pg_sig
+                required:
+                  - pg_status
+                  - pg_payment_id
+                  - pg_redirect_url
+                  - pg_redirect_url_type
+                  - pg_redirect_qr
+                  - pg_salt
+                  - pg_sig
+                x-apidog-ignore-properties: []
+          headers: {}
+          x-apidog-name: Success
+        x-200:Error:
+          description: ''
+          content:
+            application/xml:
+              schema:
+                title: ''
+                type: object
+                properties:
+                  pg_status:
+                    type: string
+                    description: Shows the result of the query
+                  pg_error_code:
+                    type: string
+                    description: Error code ID
+                  pg_error_description:
+                    type: string
+                    description: Text description of the error
+                x-apidog-orders:
+                  - pg_status
+                  - pg_error_code
+                  - pg_error_description
+                required:
+                  - pg_status
+                  - pg_error_code
+                  - pg_error_description
+                x-apidog-ignore-properties: []
+          headers: {}
+          x-apidog-name: Error
+      security: []
+      x-apidog-folder: Merchant API/Purchase
+      x-apidog-status: released
+      x-run-in-apidog: https://app.apidog.com/web/project/640842/apis/api-11620859-run
+components:
+  schemas:
+    GoodsForTax:
+      type: object
+      properties:
+        count:
+          type: integer
+          description: Product quantity
+        name:
+          type: string
+          description: Product name
+        tax_type:
+          type: integer
+          description: Tax type
+          enum:
+            - 0
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
+            - 8
+            - 9
+          x-apidog-enum:
+            - value: 0
+              name: ''
+              description: Without tax
+            - value: 1
+              name: ''
+              description: VAT 0%
+            - value: 2
+              name: ''
+              description: VAT 12%
+            - value: 3
+              name: ''
+              description: VAT 12/112
+            - value: 4
+              name: ''
+              description: VAT 18%
+            - value: 5
+              name: ''
+              description: VAT 18/118
+            - value: 6
+              name: ''
+              description: VAT 10%
+            - value: 7
+              name: ''
+              description: VAT 10/110
+            - value: 8
+              name: ''
+              description: VAT 20%
+            - value: 9
+              name: ''
+              description: VAT 20/120
+        price:
+          type: number
+          description: Price per unit product
+          format: float
+      x-apidog-orders:
+        - count
+        - name
+        - tax_type
+        - price
+      x-apidog-ignore-properties: []
+      x-apidog-folder: ''
+  securitySchemes:
+    card-api:
+      type: jwt
+      scheme: bearer
+      bearerFormat: JWT
+      x-apidog:
+        addTokenTo: header
+        headerPrefix: Bearer
+servers:
+  - url: https://api.freedompay.kz
+    description: KZ
+  - url: https://api.freedompay.uz
+    description: UZ
+  - url: https://api.freedompay.kg
+    description: KG
+security: []
+
+```

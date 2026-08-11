@@ -3176,12 +3176,15 @@ function setFollowButtonState(btn, on) {
 
 /* ===== Seller profile modal ===== */
 let sellerProfileRequestId = 0;
+let sellerProfileData = null;
+let sellerProductsVisible = 6;
 
 function closeSellerProfile() {
     const modal = document.getElementById('seller-profile-modal');
     if (!modal) return;
     modal.classList.add('hidden');
     document.body.style.overflow = '';
+    sellerProfileData = null;
     try {
         const url = new URL(window.location.href);
         if (url.searchParams.has('seller')) {
@@ -3209,6 +3212,7 @@ function openSellerProfile(userId) {
 
     modal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
+    setSellerShopTab('products');
 
     const req = ++sellerProfileRequestId;
     const base = window.__usersBase || '/users/';
@@ -3226,6 +3230,7 @@ function openSellerProfile(userId) {
         .then(function (data) {
             if (req !== sellerProfileRequestId) return;
             if (!data || !data.ok) throw new Error('fail');
+            sellerProductsVisible = 6;
             renderSellerProfile(data);
         })
         .catch(function () {
@@ -3238,7 +3243,44 @@ function openSellerProfile(userId) {
         });
 }
 
+function sellerFmtCount(n) {
+    n = Number(n) || 0;
+    if (n >= 1000) {
+        const v = n / 1000;
+        return (v >= 10 ? Math.round(v) : v.toFixed(1).replace(/\.0$/, '')) + 'K';
+    }
+    return String(n);
+}
+
+function sellerParsePrice(label) {
+    const digits = String(label || '').replace(/[^\d]/g, '');
+    return digits ? parseInt(digits, 10) : 0;
+}
+
+function sellerStars(rating) {
+    const n = Math.max(0, Math.min(5, Math.round(Number(rating) || 0)));
+    return '★'.repeat(n) + '☆'.repeat(5 - n);
+}
+
+function sellerEsc(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function setSellerShopTab(tab) {
+    document.querySelectorAll('.seller-shop-tab').forEach(function (btn) {
+        btn.classList.toggle('is-active', btn.dataset.sellerTab === tab);
+    });
+    document.querySelectorAll('[data-seller-pane]').forEach(function (pane) {
+        pane.classList.toggle('hidden', pane.dataset.sellerPane !== tab);
+    });
+}
+
 function renderSellerProfile(data) {
+    sellerProfileData = data;
     const loading = document.getElementById('seller-profile-loading');
     const body = document.getElementById('seller-profile-body');
     if (loading) loading.classList.add('hidden');
@@ -3253,51 +3295,47 @@ function renderSellerProfile(data) {
             img.alt = '';
             img.className = 'w-full h-full object-cover';
             avatar.appendChild(img);
-            avatar.classList.remove('bg-brand-400', 'dark:bg-brand-600', 'font-black', 'text-white', 'text-2xl');
-            avatar.classList.add('bg-gray-200');
+            avatar.classList.remove('font-black', 'text-white', 'text-2xl');
         } else {
             avatar.textContent = data.avatar_initial || '?';
-            avatar.classList.add('bg-brand-400', 'dark:bg-brand-600', 'font-black', 'text-white', 'text-2xl');
-            avatar.classList.remove('bg-gray-200');
+            avatar.classList.add('font-black', 'text-white', 'text-2xl');
         }
     }
 
     const nameEl = document.getElementById('seller-profile-name');
     if (nameEl) nameEl.textContent = data.name || '';
 
-    const loginEl = document.getElementById('seller-profile-login');
-    if (loginEl) {
-        if (data.login) {
-            loginEl.textContent = '@' + data.login;
-            loginEl.classList.remove('hidden');
-        } else {
-            loginEl.classList.add('hidden');
-        }
+    const sinceEl = document.getElementById('seller-profile-since');
+    if (sinceEl) sinceEl.textContent = data.member_since || '';
+
+    const onlineEl = document.getElementById('seller-profile-online');
+    if (onlineEl) onlineEl.classList.toggle('hidden', !data.is_online);
+
+    const reviewsCountEl = document.getElementById('seller-tab-reviews-count');
+    if (reviewsCountEl) {
+        const rc = Number(data.rating_count || 0);
+        reviewsCountEl.textContent = rc > 0 ? ' ' + rc : '';
     }
 
-    const meta = document.getElementById('seller-profile-meta');
-    if (meta) {
-        const followersLabel = window.__i18n?.['seller.followers'] || window.__i18n?.['live.followers'] || 'подписчиков';
-        let html = '<span id="seller-profile-followers">' + Number(data.followers_count || 0) + ' ' + followersLabel + '</span>';
-        if (Number(data.rating_count) > 0) {
-            html += '<span class="text-gray-300">·</span>'
-                + '<span class="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-semibold">'
-                + '<span class="text-amber-500">★</span> '
-                + Number(data.rating_avg || 0).toFixed(1)
-                + ' <span class="text-gray-400 font-normal">(' + Number(data.rating_count) + ')</span></span>';
-        }
-        meta.innerHTML = html;
-    }
-
-    const bio = document.getElementById('seller-profile-bio');
-    if (bio) {
-        if (data.bio) {
-            bio.textContent = data.bio;
-            bio.classList.remove('hidden');
-        } else {
-            bio.textContent = '';
-            bio.classList.add('hidden');
-        }
+    const stats = document.getElementById('seller-profile-stats');
+    if (stats) {
+        const ratingText = Number(data.rating_count || 0) > 0
+            ? Number(data.rating_avg || 0).toFixed(1)
+            : '—';
+        const responseText = data.response_time || '—';
+        stats.innerHTML = [
+            { label: window.__i18n?.['seller.rating'] || 'рейтинг', value: ratingText, icon: '★', sub: Number(data.rating_count || 0) > 0 ? '(' + data.rating_count + ')' : '' },
+            { label: window.__i18n?.['seller.sales'] || 'продажи', value: sellerFmtCount(data.sales_count), icon: '🛒' },
+            { label: window.__i18n?.['seller.stat_followers'] || 'Подписчики', value: '<span id="seller-profile-followers">' + sellerFmtCount(data.followers_count) + '</span>', icon: '👥' },
+            { label: window.__i18n?.['seller.stat_following'] || 'Подписки', value: sellerFmtCount(data.following_count), icon: '👤' },
+            { label: window.__i18n?.['seller.response'] || 'ответ', value: responseText, icon: '⏱' }
+        ].map(function (s) {
+            return '<div class="seller-shop-stat">'
+                + '<span class="seller-shop-stat-label">' + sellerEsc(s.label) + '</span>'
+                + '<span class="seller-shop-stat-value"><span class="seller-shop-stat-icon" aria-hidden="true">' + s.icon + '</span>'
+                + s.value + (s.sub ? ' <span class="text-gray-400 font-semibold text-xs">' + sellerEsc(s.sub) + '</span>' : '')
+                + '</span></div>';
+        }).join('');
     }
 
     const actions = document.getElementById('seller-profile-actions');
@@ -3305,71 +3343,271 @@ function renderSellerProfile(data) {
         actions.innerHTML = '';
         if (data.is_own) {
             const a = document.createElement('a');
-            a.href = data.profile_url || (window.__homeUrl || '/') + 'profile';
-            a.className = 'inline-flex w-full items-center justify-center h-11 px-5 rounded-xl bg-ink-100 dark:bg-white/10 text-ink-800 dark:text-white font-display font-bold text-xs uppercase tracking-wider transition hover:bg-ink-200 dark:hover:bg-white/15';
+            a.href = data.profile_url || '#';
+            a.className = 'inline-flex items-center justify-center h-10 px-4 rounded-xl bg-ink-100 dark:bg-white/10 text-ink-800 dark:text-white font-display font-bold text-xs uppercase tracking-wider transition hover:bg-ink-200 dark:hover:bg-white/15';
             a.textContent = window.__i18n?.['seller.edit_profile'] || 'Мой профиль';
             actions.appendChild(a);
         } else {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'follow-btn inline-flex w-full items-center justify-center h-11 px-5 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition';
-            btn.dataset.userId = String(data.id);
-            setFollowButtonState(btn, !!data.is_following);
-            actions.appendChild(btn);
+            const follow = document.createElement('button');
+            follow.type = 'button';
+            follow.className = 'follow-btn inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition';
+            follow.dataset.userId = String(data.id);
+            setFollowButtonState(follow, !!data.is_following);
+            actions.appendChild(follow);
+
+            const msg = document.createElement('a');
+            msg.href = window.__isLoggedIn
+                ? (data.chat_url || ((window.__chatStartUrl || '/chat/start') + '?user_id=' + data.id))
+                : (window.__loginUrl || '/login');
+            msg.className = 'inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-xl border border-black/[0.1] dark:border-white/15 bg-white dark:bg-white/5 text-ink-800 dark:text-white font-display font-bold text-xs uppercase tracking-wider transition hover:border-[#7c3aed]/40';
+            msg.innerHTML = '<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>'
+                + '<span>' + sellerEsc(window.__i18n?.['seller.write'] || 'Написать') + '</span>';
+            actions.appendChild(msg);
         }
     }
 
-    const lots = document.getElementById('seller-profile-lots');
-    if (lots) {
-        lots.innerHTML = '';
-        const products = Array.isArray(data.products) ? data.products : [];
-        if (!products.length) {
-            const empty = document.createElement('div');
-            empty.className = 'rounded-2xl border border-black/[0.06] dark:border-white/10 bg-ink-50/80 dark:bg-white/[0.03] px-4 py-6 text-center text-sm text-gray-500';
-            empty.textContent = window.__i18n?.['seller.no_lots'] || 'Пока нет активных объявлений';
-            lots.appendChild(empty);
-            return;
+    const bio = document.getElementById('seller-profile-bio');
+    const bioEmpty = document.getElementById('seller-profile-bio-empty');
+    if (bio && bioEmpty) {
+        if (data.bio) {
+            bio.textContent = data.bio;
+            bio.classList.remove('hidden');
+            bioEmpty.classList.add('hidden');
+        } else {
+            bio.textContent = '';
+            bio.classList.add('hidden');
+            bioEmpty.classList.remove('hidden');
         }
-        products.forEach(function (p) {
-            const a = document.createElement('a');
-            a.href = p.url || '#';
-            a.className = 'flex items-center gap-3 rounded-2xl border border-black/[0.06] dark:border-white/10 bg-ink-50/60 dark:bg-white/[0.03] p-2.5 hover:bg-ink-100/80 dark:hover:bg-white/[0.06] transition';
-            const thumb = document.createElement('div');
-            thumb.className = 'w-14 h-14 rounded-xl bg-ink-100 dark:bg-white/10 overflow-hidden shrink-0 flex items-center justify-center';
-            if (p.image) {
-                const img = document.createElement('img');
-                img.src = p.image;
-                img.alt = '';
-                img.className = 'w-full h-full object-cover';
-                thumb.appendChild(img);
-            } else {
-                thumb.textContent = '·';
-                thumb.className += ' text-gray-400 text-lg';
-            }
-            const metaBox = document.createElement('div');
-            metaBox.className = 'min-w-0 flex-1';
-            const title = document.createElement('div');
-            title.className = 'text-sm font-semibold text-ink-800 dark:text-gray-100 line-clamp-2';
-            title.textContent = p.title || '';
-            const price = document.createElement('div');
-            price.className = 'text-sm font-bold text-brand-600 mt-0.5';
-            price.textContent = p.price_label || '';
-            metaBox.appendChild(title);
-            metaBox.appendChild(price);
-            a.appendChild(thumb);
-            a.appendChild(metaBox);
-            a.addEventListener('click', function () { closeSellerProfile(); });
-            lots.appendChild(a);
+    }
+
+    const search = document.getElementById('seller-products-search');
+    const sort = document.getElementById('seller-products-sort');
+    if (search) search.value = '';
+    if (sort) sort.value = 'new';
+
+    renderSellerProducts();
+    renderSellerReviews();
+}
+
+function getSellerFilteredProducts() {
+    if (!sellerProfileData) return [];
+    let list = Array.isArray(sellerProfileData.products) ? sellerProfileData.products.slice() : [];
+    const q = (document.getElementById('seller-products-search')?.value || '').trim().toLowerCase();
+    if (q) {
+        list = list.filter(function (p) {
+            return String(p.title || '').toLowerCase().indexOf(q) !== -1;
         });
     }
+    const sort = document.getElementById('seller-products-sort')?.value || 'new';
+    if (sort === 'price_asc') {
+        list.sort(function (a, b) { return sellerParsePrice(a.price_label) - sellerParsePrice(b.price_label); });
+    } else if (sort === 'price_desc') {
+        list.sort(function (a, b) { return sellerParsePrice(b.price_label) - sellerParsePrice(a.price_label); });
+    }
+    return list;
+}
+
+function renderSellerProducts() {
+    const lots = document.getElementById('seller-profile-lots');
+    const empty = document.getElementById('seller-products-empty');
+    const moreBtn = document.getElementById('seller-products-more');
+    if (!lots) return;
+
+    const list = getSellerFilteredProducts();
+    lots.innerHTML = '';
+    if (!list.length) {
+        if (empty) empty.classList.remove('hidden');
+        if (moreBtn) moreBtn.classList.add('hidden');
+        return;
+    }
+    if (empty) empty.classList.add('hidden');
+
+    const visible = list.slice(0, sellerProductsVisible);
+    visible.forEach(function (p) {
+        const card = document.createElement('article');
+        card.className = 'seller-shop-card';
+
+        const imgWrap = document.createElement('div');
+        imgWrap.className = 'seller-shop-card-img';
+        const imgLink = document.createElement('a');
+        imgLink.href = p.url || '#';
+        imgLink.addEventListener('click', function () { closeSellerProfile(); });
+        if (p.image) {
+            const img = document.createElement('img');
+            img.src = p.image;
+            img.alt = '';
+            imgLink.appendChild(img);
+        } else {
+            imgLink.className = 'w-full h-full flex items-center justify-center text-gray-300 text-2xl';
+            imgLink.textContent = '·';
+        }
+        imgWrap.appendChild(imgLink);
+
+        const fav = document.createElement('button');
+        fav.type = 'button';
+        fav.className = 'favorite-btn absolute top-2 right-2 z-10 w-8 h-8 rounded-xl bg-white/90 dark:bg-ink-900/80 border border-black/[0.06] dark:border-white/10 shadow-sm flex items-center justify-center transition hover:scale-105 '
+            + (p.favorited ? 'is-favorited text-red-500' : 'text-gray-400 hover:text-red-500');
+        fav.dataset.productId = String(p.id);
+        fav.dataset.favorited = p.favorited ? '1' : '0';
+        fav.innerHTML = '<svg class="w-4 h-4" viewBox="0 0 24 24" fill="' + (p.favorited ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>';
+        imgWrap.appendChild(fav);
+
+        const bodyBox = document.createElement('div');
+        bodyBox.className = 'seller-shop-card-body';
+        const title = document.createElement('a');
+        title.href = p.url || '#';
+        title.className = 'text-sm font-semibold text-ink-800 dark:text-gray-100 line-clamp-2 min-h-[2.5rem]';
+        title.textContent = p.title || '';
+        title.addEventListener('click', function () { closeSellerProfile(); });
+        const price = document.createElement('div');
+        price.className = 'text-sm font-display font-extrabold text-ink-900 dark:text-white';
+        price.textContent = p.price_label || '';
+        bodyBox.appendChild(title);
+        bodyBox.appendChild(price);
+
+        if (p.can_cart) {
+            const cart = document.createElement('button');
+            cart.type = 'button';
+            cart.className = 'cart-btn mt-auto w-full h-9 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-display font-bold text-[10px] uppercase tracking-wider transition';
+            cart.dataset.productId = String(p.id);
+            cart.dataset.inCart = '0';
+            cart.textContent = window.__i18n?.['card.add_cart'] || 'В корзину';
+            bodyBox.appendChild(cart);
+        }
+
+        card.appendChild(imgWrap);
+        card.appendChild(bodyBox);
+        lots.appendChild(card);
+    });
+
+    if (moreBtn) {
+        moreBtn.classList.toggle('hidden', list.length <= sellerProductsVisible);
+    }
+}
+
+function renderSellerReviewCard(r) {
+    const wrap = document.createElement('article');
+    wrap.className = 'seller-shop-review';
+
+    const main = document.createElement('div');
+    main.className = 'min-w-0 space-y-2';
+
+    const head = document.createElement('div');
+    head.className = 'flex items-center gap-2.5';
+    const av = document.createElement('div');
+    av.className = 'w-9 h-9 rounded-full overflow-hidden bg-[#7c3aed] text-white text-xs font-black flex items-center justify-center shrink-0';
+    if (r.author_avatar_url) {
+        const img = document.createElement('img');
+        img.src = r.author_avatar_url;
+        img.alt = '';
+        img.className = 'w-full h-full object-cover';
+        av.appendChild(img);
+    } else {
+        av.textContent = r.author_initial || '?';
+    }
+    const meta = document.createElement('div');
+    meta.className = 'min-w-0';
+    meta.innerHTML = '<div class="text-sm font-semibold text-ink-900 dark:text-white truncate">' + sellerEsc(r.author_name || '') + '</div>'
+        + '<div class="text-[11px] text-gray-400">' + sellerEsc((r.created_at || '').slice(0, 10)) + '</div>';
+    head.appendChild(av);
+    head.appendChild(meta);
+
+    const stars = document.createElement('div');
+    stars.className = 'seller-shop-stars';
+    stars.textContent = sellerStars(r.rating);
+
+    const comment = document.createElement('p');
+    comment.className = 'text-sm text-ink-700 dark:text-gray-300 leading-relaxed';
+    comment.textContent = r.comment || '';
+
+    main.appendChild(head);
+    main.appendChild(stars);
+    if (r.comment) main.appendChild(comment);
+
+    wrap.appendChild(main);
+
+    if (r.product_id && (r.product_image || r.product_price_label)) {
+        const side = document.createElement('a');
+        side.href = r.product_url || '#';
+        side.className = 'w-20 sm:w-24 shrink-0 text-center';
+        side.addEventListener('click', function () { closeSellerProfile(); });
+        if (r.product_image) {
+            const thumb = document.createElement('div');
+            thumb.className = 'w-full aspect-square rounded-xl overflow-hidden bg-ink-100 dark:bg-white/10 mb-1';
+            thumb.innerHTML = '<img src="' + sellerEsc(r.product_image) + '" alt="" class="w-full h-full object-cover">';
+            side.appendChild(thumb);
+        }
+        const price = document.createElement('div');
+        price.className = 'text-[11px] font-bold text-[#7c3aed]';
+        price.textContent = r.product_price_label || '';
+        side.appendChild(price);
+        wrap.appendChild(side);
+    }
+
+    return wrap;
+}
+
+function renderSellerReviews() {
+    const previewWrap = document.getElementById('seller-reviews-preview');
+    const previewList = document.getElementById('seller-reviews-preview-list');
+    const full = document.getElementById('seller-reviews-full');
+    const empty = document.getElementById('seller-reviews-empty');
+    const reviews = Array.isArray(sellerProfileData?.reviews) ? sellerProfileData.reviews : [];
+
+    if (previewList) previewList.innerHTML = '';
+    if (full) full.innerHTML = '';
+
+    if (!reviews.length) {
+        if (previewWrap) previewWrap.classList.add('hidden');
+        if (empty) empty.classList.remove('hidden');
+        return;
+    }
+    if (empty) empty.classList.add('hidden');
+    if (previewWrap) previewWrap.classList.remove('hidden');
+
+    reviews.slice(0, 2).forEach(function (r) {
+        previewList?.appendChild(renderSellerReviewCard(r));
+    });
+    reviews.forEach(function (r) {
+        full?.appendChild(renderSellerReviewCard(r));
+    });
 }
 
 document.addEventListener('click', function (e) {
     const trigger = e.target.closest('.seller-profile-trigger');
-    if (!trigger) return;
-    e.preventDefault();
-    e.stopPropagation();
-    openSellerProfile(trigger.dataset.sellerId);
+    if (trigger) {
+        e.preventDefault();
+        e.stopPropagation();
+        openSellerProfile(trigger.dataset.sellerId);
+        return;
+    }
+    const tab = e.target.closest('.seller-shop-tab');
+    if (tab) {
+        setSellerShopTab(tab.dataset.sellerTab || 'products');
+        return;
+    }
+    if (e.target.closest('[data-seller-goto-reviews]')) {
+        setSellerShopTab('reviews');
+        return;
+    }
+    if (e.target.closest('#seller-products-more')) {
+        sellerProductsVisible += 6;
+        renderSellerProducts();
+    }
+});
+
+document.addEventListener('input', function (e) {
+    if (e.target && e.target.id === 'seller-products-search') {
+        sellerProductsVisible = 6;
+        renderSellerProducts();
+    }
+});
+
+document.addEventListener('change', function (e) {
+    if (e.target && e.target.id === 'seller-products-sort') {
+        sellerProductsVisible = 6;
+        renderSellerProducts();
+    }
 });
 
 document.addEventListener('keydown', function (e) {
@@ -3384,7 +3622,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (seller) openSellerProfile(seller);
     } catch (err) { /* ignore */ }
 });
-
 document.addEventListener('click', function (e) {
     const btn = e.target.closest('.follow-btn, #live-shop-follow');
     if (!btn) return;
@@ -3425,8 +3662,9 @@ document.addEventListener('click', function (e) {
                 }
                 const modalFollowers = document.getElementById('seller-profile-followers');
                 if (modalFollowers && data.followers_count != null) {
-                    const followersLabel = window.__i18n?.['seller.followers'] || window.__i18n?.['live.followers'] || 'подписчиков';
-                    modalFollowers.textContent = Number(data.followers_count) + ' ' + followersLabel;
+                    modalFollowers.textContent = typeof sellerFmtCount === 'function'
+                        ? sellerFmtCount(data.followers_count)
+                        : String(Number(data.followers_count) || 0);
                 }
                 document.querySelectorAll('.follow-btn[data-user-id="' + userId + '"], #live-shop-follow').forEach(function (other) {
                     if (other !== btn) setFollowButtonState(other, data.following);

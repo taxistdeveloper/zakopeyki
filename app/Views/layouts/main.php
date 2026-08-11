@@ -1880,6 +1880,114 @@ function url(string $path = ''): string
                 animation: none !important;
             }
         }
+        /* ===== Seller shop modal ===== */
+        .seller-shop-tab {
+            position: relative;
+            padding: 0.65rem 0 0.85rem;
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: #9ca3af;
+            white-space: nowrap;
+            background: transparent;
+            border: 0;
+            cursor: pointer;
+        }
+        .seller-shop-tab.is-active {
+            color: #7c3aed;
+        }
+        .seller-shop-tab.is-active::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 2px;
+            border-radius: 2px 2px 0 0;
+            background: #7c3aed;
+        }
+        .seller-shop-stat {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.2rem;
+            padding: 0.7rem 0.8rem;
+            border-radius: 1rem;
+            border: 1px solid rgba(0,0,0,0.06);
+            background: #fafafa;
+            min-width: 0;
+        }
+        .dark .seller-shop-stat {
+            background: rgba(255,255,255,0.03);
+            border-color: rgba(255,255,255,0.08);
+        }
+        .seller-shop-stat-label {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #9ca3af;
+        }
+        .seller-shop-stat-value {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: #111827;
+            line-height: 1.2;
+        }
+        .dark .seller-shop-stat-value { color: #f9fafb; }
+        .seller-shop-stat-icon { color: #7c3aed; flex-shrink: 0; }
+        .seller-shop-card {
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+            border: 1px solid rgba(0,0,0,0.06);
+            border-radius: 1.1rem;
+            overflow: hidden;
+            transition: box-shadow .2s, transform .2s;
+        }
+        .dark .seller-shop-card {
+            background: rgba(255,255,255,0.03);
+            border-color: rgba(255,255,255,0.08);
+        }
+        .seller-shop-card:hover {
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+            transform: translateY(-1px);
+        }
+        .seller-shop-card-img {
+            position: relative;
+            aspect-ratio: 1 / 1;
+            background: #f3f4f6;
+            overflow: hidden;
+        }
+        .dark .seller-shop-card-img { background: rgba(255,255,255,0.06); }
+        .seller-shop-card-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .seller-shop-card-body {
+            padding: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.45rem;
+            flex: 1;
+        }
+        .seller-shop-review {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 0.85rem;
+            padding: 0.95rem 1rem;
+            border-radius: 1.1rem;
+            border: 1px solid rgba(0,0,0,0.06);
+            background: #fff;
+        }
+        .dark .seller-shop-review {
+            background: rgba(255,255,255,0.03);
+            border-color: rgba(255,255,255,0.08);
+        }
+        .seller-shop-stars { color: #7c3aed; letter-spacing: 0.05em; font-size: 0.8rem; }
         /* Product photo watermark */
         .photo-wm {
             position: relative;
@@ -2033,7 +2141,10 @@ function url(string $path = ''): string
             'live.added_cart', 'live.buy_new_tab', 'live.buy_short', 'live.shop', 'live.hide_products',
             'seller.subscribe', 'seller.unsubscribe', 'seller.edit_profile', 'seller.no_lots',
             'seller.followers', 'seller.loading', 'seller.close', 'seller.not_found',
-            'card.favorite', 'card.unfavorite',
+            'seller.write', 'seller.rating', 'seller.sales', 'seller.response',
+            'seller.stat_followers', 'seller.stat_following', 'seller.show_more',
+            'seller.buyer_reviews', 'seller.all_reviews', 'seller.no_reviews', 'seller.no_bio',
+            'card.favorite', 'card.unfavorite', 'card.add_cart', 'card.in_cart',
             'card.add_cart', 'card.in_cart',
             'home.story_link_copied',
             'home.story_create_draft_saved', 'home.story_create_need_content', 'home.story_create_need_photo',

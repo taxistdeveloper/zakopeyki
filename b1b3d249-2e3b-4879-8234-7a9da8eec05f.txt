@@ -1,0 +1,1880 @@
+API Reference NAV
+
+GET Xml
+
+- Русский
+- English
+
+# General principles of interaction
+
+Rules for forming a request:
+
+In all monetary amounts:
+
+- a dot is used to separate the fractional part.
+- if the number is an integer, then indicating the fractional part is optional.
+- the number of characters after the dot is no more than two.
+- thousands are not separated by any signs.
+
+## Signature formation
+
+Example of a call http://domain.com/path/to/script.php
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<request>
+    <pg_salt>9imM909TH820jwk387</pg_salt>
+    <pg_t_param>value3</pg_t_param>
+    <pg_a_param>value1</pg_a_param>
+    <pg_z_param>
+        <pg_q_subparam>subvalue2</pg_q_subparam>
+        <pg_m_subparam>subvalue1</pg_m_subparam>
+    </pg_z_param>
+    <pg_b_param>value2</pg_b_param>
+    <pg_sig>a8a4d5a9188f24038a14a4d65c387bf7</pg_sig>
+</request>
+
+```
+
+In this example pg_sig is calculated using the formula:
+
+```
+pg_sig = md5('script.php' + ';' + pg_a_param + ';' + pg_b_param + ';' + pg_salt + ';' + pg_t_param + ';' + pg_m_subparam + ';' + pg_q_subparam + ';' + secret_key);
+
+```
+
+If it was specified in the settings that secret_key is equal mypasskey, then after substituting the values you get:
+
+```
+pg_sig = md5('script.php;value1;value2;9imM909TH820jwk387;value3;subvalue1;subvalue2;mypasskey')
+pg_sig = 'a8a4d5a9188f24038a14a4d65c387bf7'
+
+```
+
+To ensure security, all messages between Platron and third-party merchants are specially signed. To generate a signature, you must complete the following steps:
+
+1. Any messages (requests and responses) between Platron and the merchant are signed.
+2. Get the name of the script being called. Is this the part of the URL from the last slash “/" to the end or the question mark “?".
+3. Get all message parameters. If the message is in XML format, the parameters are taken from all nested tags in alphabetical order. Parameters with the same name are taken in the order in which they are present in the message.
+4. Get a random string pg_salt. This is a string consisting of an arbitrary number of numbers and letters of the Latin alphabet.
+5. Concatenate the resulting values with the separator “;". The concatenation order is as follows: script name, all message fields, pg_salt and payment password secret_key, which is set in the merchant settings.
+6. Calculate MD5-hash from the resulted string.
+7. Write the resulting MD5-hash as a hexadecimal string in lowercase 32 characters long (pg_sig).
+8. Add pg_sig parameter to request or response.
+
+Any party may add additional parameters to a request or response that are not specified in the documentation. These parameters are also involved in the signature calculation.
+
+If Platron cannot identify the merchant (merchant), so it does not know its secret key (secret_key), then the message is not signed and therefore pg_salt и pg_sig parameters are missing. In this case field pg_error_code, which contains the numeric error code, takes the value 101. To check the correctness of the signature formation, it is recommended to use a special tool in the personal account of the merchant: Verifying the signature to a request.
+
+## Direct interaction
+
+When transferring complex structured data via GET, such as multidimensional arrays, the following recording format is used:
+
+```
+https://www.platron.ru/script.php?param_1=val1&m_2[subparam_1]=val2&m_2[subparam_2]=val3&m_3=val4
+
+```
+
+Example of xml request:
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<request>
+    <pg_param1>value1</pg_param1>
+    <pg_param2>value2</pg_param2>
+    <pg_param3>value3</pg_param3>
+</request>
+
+```
+
+Example of a successful response:
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<response>
+    <pg_status>ok</pg_status>
+    <pg_param1>value1</pg_param1>
+    <pg_param2>value2</pg_param2>
+    <pg_param3>value3</pg_param3>
+</response>
+
+```
+
+Example of an error response:
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<response>
+    <pg_salt>19imfwM909TH820jwk387</pg_salt>
+    <pg_status>error</pg_status>
+    <pg_error_code>200</pg_error_code>
+    <pg_error_description>amount not specified</pg_error_description>
+    <pg_sig>ccde41a4f425d124a23c3a53a3140bdc158ac</pg_sig>
+</response>
+
+```
+
+There are three ways to transfer information directly between the merchant and Platron:
+
+1. GET method – data is transferred in parameters using the GET method.
+2. POST method – data is transferred in parameters using the POST method.
+3. Via XML – requests are transmitted using the POST method in a single parameter pg_xml:
+
+Regardless of the method of forming the request (GET, POST or XML), the response is always given in XML format.
+
+The response always contains the pg_status parameter, which indicates the result of the query execution. It takes the value`ok` if the request was successfully completed and`error` if an error occurred. In the latter case, the response will contain the following fields:
+
+- pg_error_code – numeric error code (possible values are listed in the section Error code reference book)
+- pg_error_description – error description (optional field).
+
+## Through the user's browser
+
+Platron and the merchant can transfer information to each other at the same time as the control is transferred to the buyer. The transfer can take place by the buyer's action or automatically.
+
+### Transfer of information on the buyer's action
+
+The transfer of buyer and information between Platron and the merchant is possible in the following ways::
+
+1. A link that leads to another site
+2. A form whose action redirects to another resource. The user presses the button himself.
+
+### Automatic transmission of information
+
+Example of auto-submit form
+
+```
+
+<html>
+<body onload="document.forms[0].submit()">
+<form method="POST" action="https://www.platron.ru/payment.php">
+    <input type="hidden" name="pg_param1" value="value1"/>
+    <input type="hidden" name="pg_param2" value="value2"/>
+    <input type="hidden" name="pg_param3" value="value3"/>
+    <input type="hidden" name="pg_param4" value="value4"/>
+</form>
+</body>
+</html>
+
+```
+
+Automatic transfer of buyer and information between Platron and the merchant is possible in the following ways:
+
+1. Using HTTP redirect 302 (Location header) - only for GET method.
+2. Automatic form submission. GET and POST methods are supported. The website provides the user with a page containing a form whose action redirects to another resource. The form contains only hidden fields and is automatically submitted on onload event, so the user does not see this page.
+
+# Merchant settings
+
+Before you start working, you need to fill in the following merchant settings in Platron.
+
+| Parameter | Description |
+| --- | --- |
+| Merchant Name | The name of the merchant will be displayed on the pages of platron.ru when interacting with the buyer |
+| Merchant logo | The merchant logo will be displayed on the pages of platron.ru when interacting with the buyer |
+| Request Method | This parameter defines the method of data transfer when Platron directly requests your merchant. Possible values: GET, POST and XML. |
+| Check URL | URL of your merchant script that calls Platron to verify the possibility of making a payment. This is necessary to prevent payments for overdue orders (for example, if the booking period for tickets has expired). If you do not specify the URL of the verification script, the verification will not be performed.. |
+| Result URL | URL of your merchant script to which Platron sends payment results. If you do not specify the address of this script, the results will not be sent. |
+| Refund URL | URL of your merchant script to which Platron sends payment cancellation notifications. If you do not specify the address of this script, notifications will not be sent. |
+| Capture URL | URL of your merchant script to which Platron sends a notification about clearing of a bank card payment. If you do not specify the address of this script, notifications will not be sent. |
+| Success URL | The URL of your merchant script that the user is redirected to after a successful payment. |
+| Success URL Method | Possible values: GET, POST, AUTOGET, AUTOPOST. Depending on the selected value, the user is either shown a page on the platron.ru website and asked to click a button to return to the merchant's website (GET, POST), or it is automatically redirected back to the merchant's website without viewing this page (AUTOGET, AUTOPOST) |
+| Failure URL | URL of your merchant script, to which the user is redirected in case of unsuccessful payment. |
+| Failure URL Method | See Call Method Success URL |
+| State URL | URL of your merchant script, to which the user is redirected to wait for a response from the payment system. |
+| State URL Method | See Call Method Success URL |
+| Site URL | URL of your merchant script that the user can return to after creating an account. Used for offline PS (cash). |
+| To take an overpayment | In all payment systems where possible, Platron allows the client to pay only the exact amount that is expected of him. However, some payment systems, such as payment via bank transfer, do not allow you to prevent overpayment. This setting tells whether the merchant is ready to take on the overpayment. |
+| Send SMS notifications to the buyer | The setting is responsible for whether SMS notifications will be sent to the client about the transaction status (if the SMS notification service is enabled). By default the client is notified. |
+| Send email notifications to the buyer | The setting is responsible for whether notifications about the transaction status will be sent to the client via email. By default the client is notified. |
+| Payment password (secret_key) | It is used to protect the data transmitted by Platron to the merchant and the Platron merchant |
+
+All specified parameters, except for merchant information and secret_key, can be redefined for each specific payment at the time of payment initialization.
+
+# List of PS
+
+```
+https://www.platron.ru/ps_list.php?pg_salt=123&pg_merchant_id=456&pg_amount=800.45&pg_currency=RUB&pg_sig=aec5f9d237952f83bd05c602d287098d
+
+```
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<request>
+    <pg_salt>123</pg_salt>
+    <pg_merchant_id>456</pg_merchant_id>
+    <pg_amount>800.45</pg_amount>
+    <pg_currency>RUB</pg_currency>
+    <pg_sig>aec5f9d237952f83bd05c602d287098d</pg_sig>
+</request>
+
+```
+
+This method allows you to get information about available payment systems and final amounts taking into account commissions.
+
+### Request URL
+
+`https://www.platron.ru/ps_list.php`
+
+### Request parameters
+
+Required parameters are highlighted in bold
+
+| Parameter | Default value | Description |
+| --- | --- | --- |
+| pg_merchant_id | (string[16]) merchant's ID |
+| pg_amount | (decimal) the amount of the invoice in the merchant's system in currency pg_currency. |
+| pg_currency | RUB | (string[3]) account currency |
+| pg_testing_mode | 0 | Flag, takes the value 0 or 1. For a detailed description, see the section Testing. |
+| pg_salt | Random string |
+| pg_sig | Signature |
+
+### Response parameters
+
+Example answer:
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<response>
+    <pg_salt>9938745</pg_salt>
+    <pg_status>ok</pg_status>
+    <pg_payment_system>
+        <pg_name>MIXPLATMTS</pg_name>
+        <pg_description>Payment from a mobile phone account МТС</pg_description>
+        <pg_payment_scenario>offline</pg_payment_scenario>
+        <pg_amount_to_pay>808.67</pg_amount_to_pay>
+        <pg_amount_to_pay_currency>RUB</pg_amount_to_pay_currency>
+        <pg_category>mobile</pg_category>
+    </pg_payment_system>
+    <pg_payment_system>
+        <pg_name>CASH</pg_name>
+        <pg_description>Cash: Euroset, OSMP, Elecsnet</pg_description>
+        <pg_payment_scenario>offline</pg_payment_scenario>
+        <pg_amount_to_pay>830.00</pg_amount_to_pay>
+        <pg_amount_to_pay_currency>RUB</pg_amount_to_pay_currency>
+        <pg_category>cash</pg_category>
+        <pg_sub_payment_systems>
+            <pg_sub_payment_system>
+                <pg_sub_name>ELECSNET</pg_sub_name>
+                <pg_sub_description>Elecsnet</pg_sub_description>
+            </pg_sub_payment_system>
+            <pg_sub_payment_system>
+                <pg_sub_name>EUROSET</pg_sub_name>
+                <pg_sub_description>Евросеть</pg_sub_description>
+            </pg_sub_payment_system>
+            <pg_sub_payment_system>
+                <pg_sub_name>QIWI</pg_sub_name>
+                <pg_sub_description>QIWI</pg_sub_description>
+            </pg_sub_payment_system>
+        </pg_sub_payment_systems>
+    </pg_payment_system>
+    <pg_payment_system>
+        <pg_name>WEBMONEYRBANK</pg_name>
+        <pg_description>Система WebMoney</pg_description>
+        <pg_payment_scenario>online</pg_payment_scenario>
+        <pg_amount_to_pay>810.35</pg_amount_to_pay>
+        <pg_amount_to_pay_currency>RUB</pg_amount_to_pay_currency>
+        <pg_category>wallet</pg_category>
+    </pg_payment_system>
+    <pg_payment_system>
+        <pg_name>YANDEXMONEY</pg_name>
+        <pg_description>Yandex-money system</pg_description>
+        <pg_payment_scenario>online</pg_payment_scenario>
+        <pg_amount_to_pay>812.15</pg_amount_to_pay>
+        <pg_amount_to_pay_currency>RUB</pg_amount_to_pay_currency>
+        <pg_category>wallet</pg_category>
+    </pg_payment_system>
+    <pg_sig>73daf9d237952f56bd05c602d2878dc2</pg_sig>
+</response>
+
+```
+
+The response tag contains a list of payment systems and a signature. The description of each payment system is located inside the pg_payment_system tag with a unique identifier in the pg_name attribute – the name of the payment system. Parameters can be returned for each system:
+
+| Parameter | Description |
+| --- | --- |
+| pg_name | (string[32]) payment system name |
+| pg_description | (string[256]) description of the system, can be shown to the user |
+| pg_payment_scenario | Payment acceptance scenario: offline or online |
+| pg_amount_to_pay | (decimal) the amount the user will pay |
+| pg_amount_to_pay_currency | the currency that the user will pay |
+| pg_category | Payment system category for convenient display of the list of PS on the merchant side. For possible values, see in section Handbook of payment systems and groups |
+| pg_required | (string[32]) name of the required parameter, if any. If there are several required parameters, each is displayed in a separate pg_required tag. |
+| pg_additional | (string[32]) Optional parameter similarly pg_required |
+| pg_sub_payment_systems | container for payment systems in the group |
+| pg_sub_name | (string[32]) name of the payment system in the group |
+| pg_sub_description | (string[256]) description of the payment system in the group, can be shown to the user instead of or in addition to the pg_description of the payment system |
+| pg_salt | Random string |
+| pg_sig | Signature |
+
+The response to the request is XML (in utf-8 encoding) containing a list of payment systems available for this merchant and their attributes. The attributes are the amount and currency of the payment, the name and description of the PS, as well as a list of additional pg_required parameters required for this PS. The response also contains a list of parameters that can be sent additionally for pg_additional payment systems.
+
+Merchant must control the filling of these parameters. If a payment system is selected for which there is a mandatory parameter to fill in, but this parameter is not transmitted, then it will be requested from the buyer on the website www.platron.ru.
+
+The list of payment systems in the response is sorted by the pg_name parameter, and within the group by pg_sub_name. If the payment system is a group of payment systems, then the list of payment systems included in the group is presented in the tag pg_sub_payment_systems.
+
+An example of constructing a list for selecting a payment system can be seen on the website www.platron.ru, if you do not transmit the PS identifier when initializing the payment.
+
+# Initializing payment
+
+## Common
+
+To create a payment transaction (initialize a payment), the merchant must perform two actions:
+
+1. transfer payment data to Platron
+2. transfer the buyer to the management of Platron
+
+This can be done in two ways:
+
+1. transfer payment information through the user's browser, while at the same time the user goes to the Platron website.
+2. transfer the payment information directly to Platron, in response, receive the payment transaction ID and URL for subsequent redirection of the buyer, and then redirect the buyer to this URL.
+
+In both cases, the composition of the transmitted data is completely identical, only the transmission method and response format differ.
+
+### Required parameters:
+
+| Parameter | Description |
+| --- | --- |
+| pg_merchant_id | Merchant ID in Platron. Issued upon connection. |
+| pg_amount | Payment amount in currency pg_currency |
+| pg_description | (string[1024]) Description of the product or service. Displayed to the buyer during the payment process. |
+| pg_salt | Random string |
+| pg_sig | Signature |
+
+### Optional parameters:
+
+| Parameter | Default value | Description |
+| --- | --- | --- |
+| pg_order_id | (string[50]) The payment ID in the seller's system. It is recommended to maintain the uniqueness of this field. |
+| pg_currency | RUB | (string[3]) The currency in which the amount is indicated. Possible options: RUB, USD, EUR. If the buyer chooses a payment method in another currency, the conversion is made at the Central Bank rate on the day of payment. For a full list of possible values, see the section Currency Handbook. |
+| pg_result_url | From the merchant settings Result URL | (string[1024]) URL for notification of the payment result. It is called after the payment in case of success or failure. If the parameter is not specified, it is taken from the merchant settings. If the parameter is set to an empty string, Platron does not inform the merchant about the result of the payment. |
+| pg_refund_url | From the merchant settings Refund URL | (string[1024]) URL for notification about paymant cancellation. It is called after the payment in case of cancellation of the payment on the Platron or PS side. If the parameter is not specified, it is taken from the merchant settings. |
+| pg_capture_url | From the merchant settings Capture URL | (string[1024]) URL for a message about clearing a bank card payment. If the parameter is not specified, it is taken from the merchant settings. |
+| pg_request_method | From the merchant settings Request Method | (string[4]) GET, POST or XML – method of calling store scripts Check URL, Result URL, Refund URL, Capture URL to transfer information from the payment gate. |
+| pg_success_url | From the merchant settings Success URL | (string[1024]) url, to which the user is sent in case of successful payment (only for online system) |
+| pg_failure_url | From the merchant settings Failure URL | (string[1024]) url, to which the user is sent in case of unsuccessful payment (only for online system) |
+| pg_success_url_method | From the merchant settings Success URL Method | Possible values: GET, POST, AUTOGET, AUTOPOST. Depending on the selected value, the user is either shown a page on the website platron.ru and it is suggested to click the button to return to the merchant's website (GET, POST), or it is automatically redirected back to the merchant's website without viewing this page (AUTOGET, AUTOPOST) |
+| pg_failure_url_method | From the merchant settings Failure URL Method | See the method of calling Success URL |
+| pg_payment_system | ID of the selected PS or group of PS. Examples: webmoney yandexmoney EUROSET cyberplat CASH cash For a full list of possible values, see the section Handbook of payment systems and groups. This parameter is passed only if the payment system is selected on the seller's website. If the parameter is not specified, then the PS is selected on the website platron.ru[1] |
+| pg_lifetime | 86400 (day) | The time in seconds during which the payment must be completed, otherwise the order during the payment Platron will refuse to process the payment system. This parameter is controlled by Platron and, if the payment system supports this feature, by the payment system. See Handbook of payment systems and groups. Minimum allowed value: 300 seconds (5 minutes). Maximum allowed value: 604800 seconds (7 days). In case of exceeding the boundary values, the minimum or maximum value will be assigned, respectively |
+| pg_user_phone | (int[14]) user phone (for Russia starting with digits 79..), necessary for identification of the buyer. If not specified, the choice will be offered to the user on the payment gateway website. |
+| pg_user_contact_email | (string[100]) The user's contact email address. If specified, notifications about transaction status changes will be sent to this address. |
+| pg_user_ip | IPv4 customer address. Necessary for resolving controversial situations in case of suspected fraud. The parameter may not be transmitted when transmitting information through the user's browser; in this case, the IP from which the user went to the payment initialization page will be recorded. |
+| pg_user_ipv6 | IPv6 customer address (if any). Necessary for resolving controversial situations in case of suspected fraud. The parameter may not be transmitted when transmitting information through the user's browser; in this case, the IP from which the user went to the payment initialization page will be recorded. |
+| pg_testing_mode | From the merchant settings | Flag, takes the value 0 or 1. For a detailed description, see the section Testing. |
+| pg_recurring_start | 0 | Flag, takes the value 0 or 1. For a detailed description, see the section Recurring payments. |
+| pg_items | Receipt positions for sending to OFD. The data format is the same as in the pg_items parameter in the request to send a receipt to the OFD. The service must be enabled, and you need to contact your manager for configuration. |
+| Merchant parameters | You can pass arbitrary additional parameters whose names do not begin with pg_. All these parameters will be passed to pg_check_url, pg_result_url, pg_success_url, pg_failure_url. The names of the seller's additional parameters must be unique. |
+
+| Parameter | Default value | Description |
+| --- | --- | --- |
+| pg_check_url | From the merchant settings Check URL | (string[1024]) URL for checking payment possibility. It is called before the payment, if the payment system provides such an opportunity. If the parameter is not specified, it is taken from the merchant settings. If the parameter is set to an empty line, then the possibility of payment is not checked. |
+| pg_state_url | From the merchant settings State URL | (string[1024]) URL of the script on the store's website where the buyer is redirected to wait for a response from the payment system. |
+| pg_state_url_method | From the merchant settings State URL Method | See the method of calling URL |
+| pg_site_url | From the merchant settings Site URL | URL of the merchant's website to show the buyer a link that he can use to return to the merchant's website after creating an invoice. Used for offline PS (cash). |
+| pg_need_phone_notification | 1 | The need to notify the client (if the service is connected) via SMS about the transaction status. 0 – do not notify. |
+| pg_need_email_notification | 1 | Whether to notify the client (if the service is enabled) via email about the transaction status. 0 – do not notify. |
+| pg_language | ru | The language of payment pages on the Platron website and (if possible) payment systems. The value ru sets the Russian language, en – English. |
+| pg_recurring_lifetime | The time during which the seller expects to use the recurring payment profile. The minimum allowed value is 1 (1 month). The maximum allowed value is 156 (13 years). If the boundary values are exceeded, the minimum or maximum value will be assigned, respectively. For a detailed description, see the section Recurring payments. |
+| pg_postpone_payment | Create a deferred payment if «1» is passed in this parameter. In this case, the buyer will be redirected to a page with information that he has been sent a letter with a link to a page to continue the payment. If this parameter is present in the request, it must also be specified pg_user_contact_email, otherwise, the user will be redirected to clarify payment parameters, where he will be able to specify an email and try to postpone the payment again. |
+
+## Host-To-Host
+
+When transferring data directly from a merchant to Platron, the merchant must send data to a URL
+
+### Request URL
+
+`https://www.platron.ru/init_payment.php`
+
+### Response parameters
+
+Example of response:
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<response>
+    <pg_salt>ijoi894j4ik39lo9</pg_salt>
+    <pg_status>ok</pg_status>
+    <pg_payment_id>15826</pg_payment_id>
+    <pg_redirect_url>
+        https://www.platron.ru/payment_params.php?customer=ccaa41a4f425d124a23c3a53a3140bdc15826
+    </pg_redirect_url>
+    <pg_redirect_url_type>need data</pg_redirect_url_type>
+    <pg_sig>af8e41a4f425d124a23c3a53a3140bdc17ea0</pg_sig>
+</response>
+
+```
+
+Response in case of error:
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<response>
+    <pg_status>error</pg_status>
+    <pg_error_code>101</pg_error_code>
+    <pg_error_description>Empty merchant</pg_error_description>
+</response>
+
+```
+
+| Parameter | Description |
+| --- | --- |
+| pg_payment_id | The unique identifier of the payment transaction in Platron. It serves as the key for all further work with the transaction. |
+| pg_redirect_url | The URL for redirecting the user. It can be like on the website www.platron.ru , and on the website of the payment system |
+| pg_redirect_url_type | The type of page that is being redirected to. Possible values: need data – dialogue with the buyer in order to clarify the parameters: payment system, phone number, required parameters for this payment system; payment system – a page on the payment system's website or a page with payment instructions through this payment system. The instructions page can be located as on the website platron.ru , and on the merchant's website. |
+| pg_salt | Random string |
+| pg_sig | Signature |
+| pg_error_code | Error code |
+| pg_error_description | Error description |
+
+If the merchant receives a response with pg_redirect_url_type="need data", the merchant may not redirect the buyer to the received URL, but specify the missing parameters on its website. In this case, after clarifying the parameters and re-requesting the creation of a payment transaction, a new transaction will be created.
+
+## Through the user's browser
+
+```
+https://www.platron.ru/payment.php?pg_merchant_id=111&pg_amount=1000&pg_order_id=123&pg_check_url=http://www.shop.ru/check.php&pg_result_url=http://www.shop.ru/result.php&pg_success_url=http://www.shop.ru/thankyou.php&pg_failure_url=http://www.shop.ru/failed.php&pg_description=Ticket+SU1234+Moscow-Berlin+1+Jun+2008&custom_param1=gagaga&custom_param2=gugugu&pg_sig=af8e41a4f425d124a23c3a53a3140bdc17ea0
+
+```
+
+When transmitting information through the user's browser, the user must be transmitted using the POST or GET method.
+
+### Request URL
+
+`https://www.platron.ru/payment.php`
+
+In case of an error, an error message is displayed on the user's screen.
+
+If merchant does not transmit all the parameters necessary to create a payment transaction (payment system, user's phone number and parameters necessary for the selected payment system), they are requested from the user on the website www.platron.ru
+
+# Recurring payments
+
+To use the recurring payment profile, the store should initialize the payment in the usual way by passing the additional parameter pg_recurring_start, indicating the requirement to create a recurring profile and specifying a payment system that supports recurring payments in the parameter pg_payment_system (see Payment systems Handbook). The profile number for repeating the payment will be transmitted when notifying about the payment result in the parameter pg_recurring_profile. Before using recurring payments, you need to contact your manager to clarify the details.
+
+## Payment recurrence
+
+```
+https://www.platron.ru/make_recurring_payment.php?pg_merchant_id=82&pg_recurring_profile=109642&pg_description=example&pg_salt=my_salt&pg_sig=3fe59db16e24d78bfecfd8d72324b83c
+
+```
+
+Response
+
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<response>
+    <pg_salt>my_salt</pg_salt>
+    <pg_status>ok</pg_status>
+    <pg_payment_id>22241128</pg_payment_id>
+    <pg_amount>1</pg_amount>
+    <pg_currency>RUB</pg_currency>
+    <pg_recurring_profile_id>109642</pg_recurring_profile_id>
+    <pg_recurring_profile_expiry_date>2029-01-29 00:00:00</pg_recurring_profile_expiry_date>
+    <pg_sig>5b2ff43cfa1b7588e5844484f0843b11</pg_sig>
+</response>
+
+```
+
+Merchant may repeat payments for a recurring profile at any time at its discretion.
+
+### Request URL
+
+`https://www.platron.ru/make_recurring_payment.php`
+
+### Request parameters
+
+| Parameter | Default value | Description |
+| --- | --- | --- |
+| pg_merchant_id | Merchant ID in Platron. Issued upon connection. |
+| pg_order_id | The payment ID in the seller's system. It is recommended to maintain the uniqueness of this field. |
+| pg_recurring_profile | ID of the recurrent profile. It was received by the seller when creating a recurring payment profile |
+| pg_amount | The meaning of the initial payment | Payment amount in pg_currency. If no amount was passed, the amount for repeating the payment will be the value of the initial payment. |
+| pg_result_url | From the merchant settings Result URL | (string[256]) URL for the message about the payment result. It is called after the payment in case of success or failure. If the parameter is not specified, it is taken from the merchant settings. If the parameter is set to an empty line, Platron does not inform the store about the payment result. |
+| pg_refund_url | From the merchant settings Refund URL | (string[256]) URL for payment cancellation message. Called after payment in case of payment cancellation on the Platron or PS side. If the parameter is not specified, it is taken from the merchant settings. |
+| pg_request_method | From the merchant settings Request Method | (string[4]) GET, POST or XML – method for calling merchant scripts Check URL, Result URL, Refund URL, Capture URL to transmit information from the payment gate. |
+| pg_description | (string[1024]) Description of the product or service. Displayed to the buyer during the payment process. |
+| Merchant parameters | You can pass arbitrary additional parameters whose names do not begin with pg_. All these parameters will be passed to pg_check_url, pg_result_url, pg_success_url, pg_failure_url. Additional seller parameter names must be unique. |
+| pg_salt | Random string |
+| pg_sig | Signature |
+
+### Response parameters
+
+| Параметр | Описание |
+| --- | --- |
+| pg_payment_id | The unique identifier of the payment transaction in Platron. It serves as the key for all further work with the transaction. |
+| pg_amount | Payment amount in pg_currency. |
+| pg_currency | The currency in which the amount is indicated. |
+| pg_recurring_profile_id | Recurring Payments Profile ID |
+| pg_recurring_profile_expiry_date | The date until which the recurring profile is available for use |
+| pg_salt | Random string |
+| pg_sig | Signature |
+| pg_error_code | Error code |
+| pg_error_description | Error description |
+
+Platron will notify the seller about the result of the payment at Result URL
+
+## On schedule
+
+For a recurring profile, you can specify a payment schedule. In this case, payments will be made automatically according to the specified schedule. You can specify the schedule either as a template or as a simple list of dates.
+
+### Creating a schedule
+
+An example indicating a template.
+
+```
+For better readability, service characters are not escaped in the example.
+https://www.platron.ru/index.php/api/recurring/set-schedule?pg_merchant_id=82&pg_recurring_profile=337146&pg_amount=21.23&pg_template[pg_start_date]=2018-08-15 15:30:00&pg_template[pg_interval]=week&pg_template[pg_period]=2&pg_template[pg_max_periods]=5&pg_salt=salt&pg_sig=5036eda9b1a31d5d8ed825c5d658ad43
+
+```
+
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<request>
+    <pg_merchant_id>82</pg_merchant_id>
+    <pg_recurring_profile>337146</pg_recurring_profile>
+    <pg_amount>12.41</pg_amount>
+    <pg_template>
+        <pg_start_date>2018-08-15 15:30:00</pg_start_date>
+        <pg_interval>week</pg_interval>
+        <pg_period>2</pg_period>
+        <pg_max_periods>5</pg_max_periods>
+    </pg_template>
+    <pg_salt>salt</pg_salt>
+    <pg_sig>458a8161df06e21bcc6967c44e9965qw</pg_sig>
+</request>
+
+```
+
+Example with a list of dates.
+
+```
+For better readability, service characters are not escaped in the example.
+https://www.platron.ru/index.php/api/recurring/set-schedule?pg_merchant_id=82&pg_recurring_profile=337146&pg_amount=21.23&pg_dates[]=2018-08-15 14:00:00&pg_dates[]=2018-08-15 14:30:00&pg_dates[]=2018-08-15 15:00:00&pg_salt=salt&pg_sig=0d32e1bfb8795a7c2a7ff86973vct5er
+
+```
+
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<request>
+    <pg_merchant_id>82</pg_merchant_id>
+    <pg_recurring_profile>337146</pg_recurring_profile>
+    <pg_amount>12.41</pg_amount>
+    <pg_dates>2018-08-15 14:00:00</pg_dates>
+    <pg_dates>2018-08-15 14:30:00</pg_dates>
+    <pg_dates>2018-08-15 15:00:00</pg_dates>
+    <pg_salt>salt</pg_salt>
+    <pg_sig>b71988a7cc47ae411d9292a0933944ac</pg_sig>
+</request>
+
+```
+
+### Request URL
+
+`https://www.platron.ru/index.php/api/recurring/set-schedule`
+
+### Request parameters
+
+| Parameter | Description |
+| --- | --- |
+| pg_merchant_id | Merchant ID |
+| pg_recurring_profile | ID of the recurrent profile |
+| pg_amount | The amount of the recurring payment |
+| pg_template* | Template data (parameter description below) |
+| pg_dates* | List of dates in format YYYY-MM-DD HH:MM:SS |
+| pg_salt | Random string |
+| pg_sig | Signature |
+
+*To create a schedule, you must specify either template data or a list of dates. If both template data and a list of dates are specified, the list of dates will be used to create the schedule.
+
+### Template Parameters (pg_template):
+
+| Parameter | Description |
+| --- | --- |
+| pg_start_date | Date and time of the first payment in the format YYYY-MM-DD HH:MM:SS |
+| pg_interval* | Interval. Possible values: day, week, month |
+| pg_period* | Period. |
+| pg_max_periods | Maximum number of payments. |
+
+*The period is used in combination with the interval. For example, 1 month means once a month, 2 week means once every two weeks.
+
+Response when the schedule is successfully created.
+
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<response>
+    <pg_status>ok</pg_status>
+    <pg_recurring_profile>337146</pg_recurring_profile>
+    <pg_salt>salt</pg_salt>
+    <pg_sig>a764fb36af2e607ee2e841989adr65ty</pg_sig>
+</response>
+
+```
+
+## Closing a recurring profile
+
+It is necessary to delete the schedule in Platron, if it was created, and mark such a profile as closed in your accounting system.
+
+# Payment status
+
+```
+https://www.platron.ru/get_status.php?pg_salt=9865&pg_merchant_id=82&pg_payment_id=765432&pg_sig=a1b7ccc945c0a60949f6bd6383f5f768
+
+```
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<request>
+    <pg_salt>9865</pg_salt>
+    <pg_merchant_id>82</pg_merchant_id>
+    <pg_payment_id>765432</pg_payment_id>
+    <pg_sig>a1b7ccc945c0a60949f6bd6383f5f768</pg_sig>
+</request>
+
+```
+
+The merchant may query Platron about the status of any payment initiated by the merchant. This can be useful, for example, if the Result URL call was not received by the merchant due to a temporary communication failure, and the customer was already transferred to the Success URL, but the transaction status is not yet known to the mechant.
+
+### Request URL
+
+`https://www.platron.ru/get_status.php`
+
+### Request Parameters
+
+All parameters are required
+
+| Parameter | Description |
+| --- | --- |
+| pg_merchant_id | Merchant ID |
+| pg_payment_id* | The payment ID in Platron. |
+| pg_order_id* | Payment ID in the merchant's system. |
+| pg_salt | Random string |
+| pg_sig | Signature |
+
+*Either pg_payment_id or pg_order_id is required. In the case of pg_order_id, if it is not unique, information will be provided for the last payment with this order_id.
+
+### Response parameters
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<response>
+    <pg_salt>9865</pg_salt>
+    <pg_status>ok</pg_status>
+    <pg_payment_id>1234567</pg_payment_id>
+    <pg_transaction_status>ok</pg_transaction_status>
+    <pg_can_reject>1</pg_can_reject>
+    <pg_create_date>2009-01-12 10:22:30</pg_create_date>
+    <pg_result_date>2009-01-12 10:25:07</pg_result_date>
+    <pg_payment_system>RUSSIANSTANDARD</pg_payment_system>
+    <pg_card_brand>CA</pg_card_brand>
+    <pg_card_pan>527594******4984</pg_card_pan>
+    <pg_card_hash>022380c107141f7e11f4271d7f6412a715222c32</pg_card_hash>
+    <pg_auth_code>014318</pg_auth_code>
+    <pg_captured>0</pg_captured>
+    <pg_sig>8380d43c7719e6ce48da0c79aa7eb2ba</pg_sig>
+</response>
+
+```
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<response>
+    <pg_salt>9865</pg_salt>
+    <pg_status>ok</pg_status>
+    <pg_payment_id>1234567</pg_payment_id>
+    <pg_transaction_status>pending</pg_transaction_status>
+    <pg_can_reject>1</pg_can_reject>
+    <pg_create_date>2009-01-12 10:22:30</pg_create_date>
+    <pg_sig>8380d43c7719e6ce48da0c79aa7eb2ba</pg_sig>
+</response>
+
+```
+
+| Parameter | Description |
+| --- | --- |
+| pg_status | The result of request processing (not to be confused with the payment status) is ok if the payment is found and actually belongs to this merchant, error in any other case. |
+| pg_payment_id | Internal payment ID in the Platron system |
+| pg_transaction_status | Transaction status. See Handbook of status transaction |
+| pg_can_reject | 0 or 1 – can a payment be cancelled. The value 1 is possible only if the payment status is ok and the payment system provides the ability to revoke the payment. In this case, merchant may cause revoke.php as described in the section Cancel invoice after payment |
+| pg_create_date | Date and time the payment transaction was created. |
+| pg_result_date | Date and time of successful (ok) or unsuccessful (failed) completion of the payment. This is the date the Result URL was called. The parameter is filled in only when the transaction status is ok, failed or revoked. |
+| pg_revoke_date | Date and time of payment cancellation. The parameter is filled in only when the transaction status is revoked. |
+| pg_payment_system | The ID of the payment system through which the payment has passed (must pass). |
+| pg_card_issuer | Issuer name. This parameter is only transmitted if the payment was successful with a bank card. |
+| pg_card_brand | Card brand: CA – MasterCard and their products, VI – Visa, AX – AmericanExpress. This parameter is transmitted only in case of successful payment by bank card. |
+| pg_card_pan | Masked card number (part of the card number digits are hidden). This parameter is transmitted only in case of successful payment by bank card. |
+| pg_card_hash | Hashed card number (card number encrypted with an irreversible encryption algorithm). This parameter is transmitted only in case of successful payment by bank card. |
+| pg_is_3ds | 0 or 1. Transmitted only in case of successful payment by bank card and indicates whether the payment was made using 3-D Secure. |
+| pg_auth_code | Authorization code. This parameter is transmitted only in case of successful payment by bank card. |
+| pg_rrn | RRN. This parameter is only transmitted if the payment by bank card is successful. |
+| pg_captured | 0 or 1. It is transmitted only in case of successful payment by bank card and shows whether clearing was performed at the time of authorization (which depends only on the merchant settings). If the value of this parameter is 0, the store must subsequently issue a clearing command (see section Clearing) or wait for Platron to do it itself. |
+| pg_recurring_profile_id | Recurring Payments Profile ID |
+| pg_recurring_profile_expiry_date | The date until which the recurring profile is available for use |
+| pg_failure_code | Reason of failure code (For a list of codes and their descriptions, see the Failure Reasons Handbook). Present only if pg_transaction_status = failed or revoked. |
+| pg_failure_description | Description of the reason for payment failure. Transmitted in transaction language. This description is formulated in terms understandable to the user and can be communicated to him in any accessible way. Present only if pg_transaction_status = failed or revoked. |
+| pg_error_description | Description of the query execution error in case pg_status=error (not to be confused with failure payment) |
+| pg_salt | Random string |
+| pg_sig | Signature |
+
+All dates are written in the format YYYY-MM-DD hh:mm:ss.
+
+### Response parameters that are no longer returned
+
+| Parameter | Description |
+| --- | --- |
+| pg_accepted_payment_systems | List of payment systems to which the payment was successfully submitted. Present if the payment status is pendind |
+| pg_overpayment | The amount of overpayment in the currency of the payment system. The parameter is passed only if the client has paid more than expected, and overpayment is allowed in merchant settings. If exactly as much as expected was paid, or the transaction status is not ok, this parameter is not passed. |
+| pg_qr_code | QR link for payment of the transaction |
+
+# Clearing
+
+```
+https://www.platron.ru/do_capture.php?pg_salt=123&pg_merchant_id=456&pg_payment_id=1234567&pg_sig=7f3af9d237952f56bd05c602d2879a3c
+
+```
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<request>
+    <pg_salt>123</pg_salt>
+    <pg_merchant_id>456</pg_merchant_id>
+    <pg_payment_id>1234567</pg_payment_id>
+    <pg_sig>7f3af9d237952f56bd05c602d2879a3c</pg_sig>
+</request>
+
+```
+
+Merchant can independently request clearing from the bank via Platron if the bank is configured to process payments in two steps - authorization and clearing.
+
+If the system is configured accordingly, after the transaction is carried out, the transaction will be authorized, but not calculated. The maximum authorization time is regulated on the Platron side and can be up to 5 calendar days. The possibility of setting up deferred clearing should be clarified with your supervising manager.
+
+### Request URL
+
+`https://www.platron.ru/do_capture.php`
+
+### Request parameters
+
+| Parameter | Description |
+| --- | --- |
+| pg_merchant_id | Merchant id |
+| pg_payment_id | Payment id |
+| pg_long_record | Long entry, see additional documentation. It can be obtained from the technical department staff. |
+| pg_amount | Clearing amount. May be less than or equal to the authorization amount. |
+| pg_salt | Random string |
+| pg_sig | Signature |
+
+### Response parameters
+
+Example of response
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<response>
+    <pg_salt>1111</pg_salt>
+    <pg_status>ok</pg_status>
+    <pg_sig>c38ebf6a6b7f5e30316bc984dc69ce37</pg_sig>
+</response>
+
+```
+
+| Parameter | Description |
+| --- | --- |
+| pg_status | The result of request processing. ok if the request is accepted for processing. Based on the result, the Capture URL of merchant will be called. error in any other case. |
+| pg_error_description | Description of the error in case pg_status=error |
+| pg_salt | Random string |
+| pg_sig | Signature |
+
+### Response parameters that are no longer returned
+
+| Parameter | Description |
+| --- | --- |
+| pg_clearing_refund_id | id of the return operation during clearing for an amount less than the authorization amount. Required to create a refund check for the difference between the authorization and clearing amounts |
+
+# Cancel payment
+
+## Before payment
+
+```
+https://www.platron.ru/cancel.php?pg_salt=123&pg_merchant_id=456&pg_payment_id=1234567&pg_sig=628e300c3204c8ee398d878a5109b520
+
+```
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<request>
+  <pg_salt>123</pg_salt>
+  <pg_merchant_id>456</pg_merchant_id>
+  <pg_payment_id>1234567</pg_payment_id>
+  <pg_sig>628e300c3204c8ee398d878a5109b520</pg_sig>
+</request>
+
+```
+
+Merchant can cancel payment that has been issued but not yet paid. After this operation, Platron will refuse to process the payment at the stage of checking the possibility of making the payment. Cancellation of the payment on the payment system side is possible if such functionality is supported by it. ( See Payment systems handbook))
+
+### Request URL
+
+`https://www.platron.ru/cancel.php`
+
+### Request parameters
+
+| Parameter | Description |
+| --- | --- |
+| pg_merchant_id | Merchant id |
+| pg_payment_id | Payment id |
+| pg_salt | Random string |
+| pg_sig | Signature |
+
+### Response parameters
+
+Example of response:
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<response>
+    <pg_salt>9865</pg_salt>
+    <pg_status>ok</pg_status>
+    <pg_sig>48caf9d237952f56bd05c602d28762da</pg_sig>
+</response>
+
+```
+
+In case of error:
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<response>
+    <pg_salt>9865</pg_salt>
+    <pg_status>error</pg_status>
+    <pg_error_code>200</pg_error_code>
+    <pg_error_description>
+        transaction not found
+    </pg_error_description>
+    <pg_sig>ac08f9d237952f5bc4e5c602d2873481</pg_sig>
+</response>
+
+```
+
+| Parameter | Description |
+| --- | --- |
+| pg_status | The result of processing the request. |
+| pg_error_code | Error code |
+| pg_error_description | Description of the error cause |
+| pg_salt | Random string |
+| pg_sig | Signature |
+
+The "ok" response means that the request to cancel the has been accepted. The invoice may still be paid if the PS to which the invoice was issued does not support invoice cancellation operations and does not make preliminary requests to confirm the possibility of making a payment.
+
+## After payment
+
+```
+https://www.platron.ru/revoke.php?pg_salt=123&pg_merchant_id=456&pg_payment_id=1234567&pg_refund_amount=800&pg_sig=6dd2a9d237952f56bd05c602d2872af8
+
+```
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<request>
+  <pg_salt>123</pg_salt>
+  <pg_merchant_id>456</pg_merchant_id>
+  <pg_payment_id>1234567</pg_payment_id>
+  <pg_refund_amount>800</pg_refund_amount>
+  <pg_sig>6dd2a9d237952f56bd05c602d2872af8</pg_sig>
+</request>
+
+```
+
+Merchant can cancel a successfully completed payment if the payment system allows it (for example, Bank cards). In this case, the money is returned to the buyer. You can return either the full amount of the payment or part of the amount. You can make several partial refunds until the total amount of refunds reaches the amount of the original payment.
+
+### Request URL
+
+`https://www.platron.ru/revoke.php`
+
+### Request Parameters
+
+| Parameter | Description |
+| --- | --- |
+| pg_merchant_id | Merchant id |
+| pg_payment_id | Payment id |
+| pg_refund_amount | The refund amount. If the parameter is omitted or 0 is passed, the entire amount is returned. |
+| pg_items | Receipt position for sending to OFD. The data format is the same as in the pg_items parameter in the request for sending a receipt to OFD. |
+| pg_salt | Random string |
+| pg_sig | Signature |
+
+### Request parameters that are no longer used
+
+| Parameter | Description |
+| --- | --- |
+| pg_description | Description. If this parameter is not specified, the default value is set: «from revoke.php» |
+
+### Response parameters
+
+Example of response:
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<response>
+    <pg_salt>9865</pg_salt>
+    <pg_status>ok</pg_status>
+    <pg_sig>48caf9d237952f56bd05c602d28762da</pg_sig>
+</response>
+
+```
+
+In case of error:
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<response>
+    <pg_salt>9865</pg_salt>
+    <pg_status>error</pg_status>
+    <pg_error_code>490</pg_error_code>
+    <pg_error_description>this transaction can’t be revoked</pg_error_description>
+    <pg_sig>4df0f9d237952f56bd05c602d2873ed0</pg_sig>
+</response>
+
+```
+
+| Parameter | Description |
+| --- | --- |
+| pg_status | The result of processing the request. ok if the request is accepted for processing. As a result, the Refund URL of merchant will be called. error in any other case. |
+| pg_error_code | Error code |
+| pg_error_description | Description of the error cause |
+| pg_salt | Random string |
+| pg_sig | Signature |
+
+# Receipts (ФЗ-54)
+
+Before setting up, you need to contact the manager.
+
+## Creating a receipt
+
+```
+https://www.platron.ru/receipt.php?pg_merchant_id=123&pg_salt=your_salt&pg_sig=generated_sig&pg_operation_type=payment&pg_payment_id=payment_id&pg_customer_name=customer_name&pg_customer_inn=12345678901&pg_items[0][pg_label]=item1&pg_items[0][pg_price]=1.1&pg_items[0][pg_quantity]=2&pg_items[0][pg_vat]=20&pg_items[0][pg_type]=product&pg_items[0][pg_payment_type]=full_payment&pg_items[0][pg_agent_type]=agent&pg_items[0][pg_agent_name]=name&pg_items[0][pg_agent_inn]=12345678902&pg_items[0][pg_agent_phone]=79999999999
+
+```
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<request>
+    <pg_merchant_id>123</pg_merchant_id>
+    <pg_salt>your_salt</pg_salt>
+    <pg_sig>generated_sig</pg_sig>
+    <pg_operation_type>payment</pg_operation_type>
+    <pg_payment_id>payment_id</pg_payment_id>
+    <pg_customer_name>customer_name</pg_customer_name>
+    <pg_customer_inn>12345678901</pg_customer_inn>
+    <pg_items>
+        <pg_label>item1</pg_label>
+        <pg_price>1.1</pg_price>
+        <pg_quantity>2</pg_quantity>
+        <pg_vat>20</pg_vat>
+        <pg_type>product</pg_type>
+        <pg_payment_type>full_payment</pg_payment_type>
+        <pg_agent_type>agent</pg_agent_type>
+        <pg_agent_name>name</pg_agent_name>
+        <pg_agent_inn>12345678902</pg_agent_inn>
+        <pg_agent_phone>79999999999</pg_agent_phone>
+    </pg_items>
+</request>
+
+```
+
+It is necessary to generate data for the receipt immediately after creating the operation. The receipt will be sent to the OFD and the buyer only after the successful completion of the operation.
+
+To be able to test the functionality, you need to contact the supervising manager.
+
+If the payment is made in a foreign currency or a payment system is used that charges an additional fee in excess of the payment amount, the receipt must be issued after receiving a notification on the Result Url about the successful payment.
+
+### Request URL
+
+`https://www.platron.ru/receipt.php`
+
+### Request Parameters
+
+| Parameter | Description |
+| --- | --- |
+| pg_merchant_id | Merchant id |
+| pg_operation_type | Type of operation (enum) payment — payment refund – refund |
+| pg_payment_id* | Payment transaction id (int) |
+| pg_order_id* | Mechantrder number |
+| pg_salt | Random string |
+| pg_sig | Signature |
+| pg_items | An array of items in the receipt. See the table below |
+| pg_customer_name | The buyer's name (string). It is filled in together with pg_customer_inn. Required only for certain merchants. |
+| pg_customer_inn | Сustomer's Taxpayer Identification Number (TIN) |
+
+*Either pg_payment_id or pg_order_id is required. If pg_order_id is not unique, the receipt will be created for the last order.
+
+### Request parameters that are no longer used
+
+| Parameter | Description |
+| --- | --- |
+| pg_additional_payment_type | Additional payment. Possible values: prepayment credit |
+| pg_additional_payment_amount | The amount of the additional payment. The parameter is required if the parameter is passed pg_additional_payment_type |
+
+### Position parameters in the receipt:
+
+| Parameter | Description |
+| --- | --- |
+| pg_label | Product name (string) The maximum length is 128 characters |
+| pg_nomenclature_code | Product labeling by format (string) |
+| pg_price | The price of the product, including all discounts and extra charges (float, 2 decimal places) |
+| pg_quantity | Quantity (float) |
+| pg_vat | VAT rate. See possible values below. The default value is`none` |
+| pg_type | Type of service/product. See below for possible values. Default is`product` |
+| pg_payment_type | Payment method. See below for possible values. Default value is`full_payment` |
+| pg_agent_type | Payment agent type. See below for possible values. |
+| pg_agent_phone | Agent's phone number (digits only) |
+| pg_agent_name | Agent's name |
+| pg_agent_inn | Agent's TIN (numbers only) |
+
+If at least one of the pg_agent parameters is passed, all remaining fields must be filled.
+
+If the store does not need to pass additional parameters, no changes need to be made.
+
+| VAT rate |
+| --- |
+| 0 | VAT rate 0% |
+| 5 | VAT rate 5% |
+| 7 | VAT rate 7% |
+| 10 | VAT rate 10% |
+| 22 | VAT rate 22% |
+| 105 | VAT rate 5/105 |
+| 107 | VAT rate 7/107 |
+| 110 | VAT rate 10/110 |
+| 122 | VAT rate 22/122 |
+| none | not subject to VAT |
+
+* New VAT rates are available from 01.01.2026.
+
+| Type of service/product |
+| --- |
+| product | product, except excisable product |
+| product_practical | excisable product |
+| work | work |
+| service | service |
+| gambling_bet | accepting bets when carrying out gambling activities |
+| gambling_win | payment of funds in the form of winnings in the implementation of gambling activities |
+| lottery_bet | acceptance of funds from the sale of lottery tickets, electronic lottery tickets, acceptance of lottery bets when carrying out activities related to lotteries |
+| lottery_win | about the payment of funds in the form of winnings in the implementation of lottery activities |
+| rid | granting rights to use the results of intellectual activity or means of individualization "GRANTING OF RID" or "RID" |
+| payment | about the advance payment, deposit, prepayment, loan, payment contribution, penalty, fine, reward bonus and other similar subject of calculation |
+| commission | remuneration of a user who is a payment agent (subagent), bank payment agent (subagent), commission agent, attorney or other agent |
+| composite | about the subject of calculation, consisting of items, each of which can be assigned a value from "0" to "11" (0-11 are the above) |
+| other | about the subject of calculation, not related to the subjects of calculation, which can be assigned a value from "0" to "12" (0-12 are the above) |
+
+| Method of calculation |
+| --- |
+| pre_payment_full | full advance payment before the transfer of the subject of the calculation "100% PREPAYMENT" |
+| pre_payment_part | partial advance payment before the transfer of the payment item — "PREPAYMENT" |
+| full_payment | full payment, including taking into account the advance payment (advance payment) at the time of transfer of the payment item — "FULL PAYMENT" |
+| advance | advance |
+| credit_part | partial payment for item of settlement at the time of its transfer with subsequent payment on credit - "PARTIAL PAYMENT AND CREDIT" |
+| credit_pay | payment for the item of settlement after its transfer with payment on credit (credit payment) - "CREDIT PAYMENT" |
+| credit | transfer of the item of payment without payment at the time of its transfer with subsequent payment on credit - "TRANSFER ON CREDIT" |
+
+| Type of payment agent |
+| --- |
+| commissionaire | settlement with the buyer (client) by a user who is a commission agent |
+| bank_payment_agent | provision of services to the buyer (client) by a user who is a bank payment agent |
+| bank_payment_subagent | provision of services to the buyer (client) by a user who is a bank payment subagent |
+| payment_agent | provision of services to the buyer (client) by a user who is a payment agent |
+| payment_subagent | provision of services to the buyer (client) by a user who is a payment subagent |
+| solicitor | settlement with the buyer (client) by the user who is an solicitor |
+| agent | settlement with the buyer (client) by a user who is an agent and is not a bank payment agent (subagent), payment agent (subagent), solicitor, commission agent |
+
+### Response Parameters
+
+The response to the request is XML of the following format if the request is successful:
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<response>
+    <pg_status>ok</pg_status>
+    <pg_receipt_id>135</pg_receipt_id>
+    <pg_salt>salt</pg_salt>
+    <pg_sig>60beff140b3c9c6dt87603522cc1c07f</pg_sig>
+</response>
+
+```
+
+In case of error:
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<response>
+    <pg_salt>9865</pg_salt>
+    <pg_status>error</pg_status>
+    <pg_error_code>100</pg_error_code>
+    <pg_error_description>Incorrect signature</pg_error_description>
+    <pg_sig>4df0f9d237952f56bd05c602d2873ed0</pg_sig>
+</response>
+
+```
+
+| Parameter | Description |
+| --- | --- |
+| pg_receipt_id | The number of the created receipt |
+| pg_status | The result of processing the request |
+| pg_error_code | Error code |
+| pg_error_description | Description of the error cause |
+| pg_salt | Random string |
+| pg_sig | Signature |
+
+## The status of the receipt in the OFD
+
+```
+https://www.platron.ru/get_receipt_status.php?pg_merchant_id=82&pg_receipt_id=10000&pg_salt=aaaaaaaaaa&pg_sig=b2c010162d43d2ba98a7f68caee24761
+
+```
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<request>
+    <pg_merchant_id>82</pg_merchant_id>
+    <pg_receipt_id>10000</pg_receipt_id>
+    <pg_salt>aaaaaaaaaa</pg_salt>
+    <pg_sig>b2c010162d43d2ba98a7f68caee24761</pg_sig>
+</request>
+
+```
+
+### Request URL
+
+`https://www.platron.ru/get_receipt_status.php`
+
+### Request parameters
+
+| Parameter | Description |
+| --- | --- |
+| pg_merchant_id | Merchant ID (int) |
+| pg_receipt_id | The ID of the receipt received in the response to the receipt creation request |
+| pg_salt | Random string |
+| pg_sig | Signature |
+
+### Response Parameters
+
+The response to the request is XML of the following format if the request is successful:
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<response>
+    <pg_status>ok</pg_status>
+    <pg_receipt_status>ok</pg_receipt_status>
+    <pg_fiscal_receipt_number>6</pg_fiscal_receipt_number>
+    <pg_shift_number>23</pg_shift_number>
+    <pg_receipt_date>2017-04-12 20:16:00</pg_receipt_date>
+    <pg_fn_number>1110000100238211</pg_fn_number>
+    <pg_ecr_registration_number>0000111118041361</pg_ecr_registration_number>
+    <pg_fiscal_document_number>133</pg_fiscal_document_number>
+    <pg_fiscal_document_attribute>3449555941</pg_fiscal_document_attribute>
+    <pg_salt>aaaaaa</pg_salt>
+    <pg_sig>531b7999c74d984fa8c9e1ff029a40d7</pg_sig>
+</response>
+
+```
+
+In case there is no information on the receipt yet:
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<response>
+    <pg_salt>9865</pg_salt>
+    <pg_status>ok</pg_status>
+    <pg_receipt_status>pending</pg_receipt_status>
+    <pg_sig>75ed486aa0dfd5363e2e5a87e8e30634</pg_sig>
+</response>
+
+```
+
+In case of error:
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<response>
+    <pg_salt>9865</pg_salt>
+    <pg_status>error</pg_status>
+    <pg_error_code>100</pg_error_code>
+    <pg_error_description>Incorrect signature</pg_error_description>
+    <pg_sig>4df0f9d237952f56bd05c602d2873ed0</pg_sig>
+</response>
+
+```
+
+| Parameter | Description |
+| --- | --- |
+| pg_status | The result of processing the request. |
+| pg_error_code | Error code |
+| pg_error_description | Description of the error cause |
+| pg_salt | Random string |
+| pg_sig | Signature |
+| pg_receipt_status | Receipt status (ok or pending) |
+| pg_fiscal_receipt_number | Receipt number in shift. |
+| pg_shift_number | Shift number. |
+| pg_receipt_date | Date and time of document from FN. |
+| pg_fn_number | FN_number. |
+| pg_ecr_registration_number | ECR registration number. |
+| pg_fiscal_document_number | Fiscal document number. |
+| pg_fiscal_document_attribute | Fiscal document attribute. |
+
+# Register of Operations
+
+## Sending by email
+
+In the merchant's parameters, it is possible to set an e-mail address to which the register of payments for the previous day will be sent every day. The register is formed at 0:10 Moscow time.
+
+The headers of the letter contain the following information:
+
+1. X-Merchant-ID: Merchant ID, issued to merchant (example: 14)
+2. X-Registry-Date: The date on which the register was compiled, in the format YYYY-MM-DD (example: 2009-12-02)
+3. The "From" field of the letter contains info@platron.ru
+4. Subject of the letter: Platron report for merchant #id [YYYY-MM-DD]
+
+For security purposes, merchant is advised to check the letter headers to ensure the authenticity of the received registry.
+
+The registry is sent in the body of the letter or in an attachment, depending on the settings in the personal account, it is a set of data with tab separators. The first line contains the names of the fields. If the field is not defined, two tabs follow in a row.
+
+The register is sent even if there were no transactions in the past day. In this case, the body of the letter contains only the header line.
+
+### Description of registry fields
+
+| Field code | Field name | Description |
+| --- | --- | --- |
+| order_id | Order id | The number transmitted by merchant as the order id |
+| pg_payment_id | Payment_id | BILLNUMBER, Payment id, formed Platron. |
+| op_date | Date of operation |
+| op_time | Time of operation |
+| type | Type of operation | Three-letter operation code: “pay" – bill payment operation, “ref" – refund (through the same payment system through which the transaction was made) “rev" – reversal “mb" – refund (through a payment system different from the payment system of the transaction) “rev_mb" – cancellation of refund “par" – refund on partial clearing |
+| payment_system | Name of payment system | Name of the payment system (from the Handbook of payment systems and groups). |
+| payment_type | Payment type (direct or transit) | Type of contract with the Payment System: direct – direct contract between mechant and PS, transit – contract between Platron and ПС |
+| bill_amount | Invoice amount | The amount of the invoice originally issued by the merchant, in the currency in which it was originally issued |
+| bill_cur_symbol | The currency in which the invoice is issued | Currency code in the international standard (RUB, EUR, USD) |
+| amount | Amount | The amount paid by the payer to merchant |
+| pg_commission | Agent's commission | Platron commission for the transaction. |
+| ps_commission | Payment System Commission | Payment system commission for the transaction (absent if type="transit") |
+| to_pay | To pay | The difference between the transaction amount and the commission fee. |
+| currency | Currency | Currency code in the international standard (RUB, EUR, USD) |
+| description | Description | Description of the order passed in the request to create a transaction |
+
+### Example of registry
+
+| order_id | pg_payment_id | op_date | op_time | type | payment_system | payment_type | bill_amount | bill_cur_symbol | amount | pg_commission | ps_commission | to_pay | currency | description |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 289 | 79004 | 02.12.09 | 13:32:56 | pay | WEBMONEYE | direct | 0.13 | EUR | 0.1300 | 0.0003 | 0.0000 | 0.13 | EUR | Order №4077 |
+| 291 | 79212 | 02.12.09 | 19:39:41 | pay | TEST | transit | 10 | RUB | 10.0000 | 0.0000 | 10.00 | RUB | Payment for the transfer |
+| 293 | 79216 | 02.12.09 | 19:42:10 | pay | TEST | transit | 0.30 | USD | 10.0000 | 0.0000 | 10.00 | RUB | Agent's commission |
+| 76392 | 78930 | 02.12.09 | 00:08:22 | pay | RAIFFEISEN | direct | 35.87 | USD | 1076.1400 | 2.5951 | 35.5100 | 1073.54 | RUB | Additional payment for the product Б75540 |
+| 76394 | 78932 | 02.12.09 | 00:15:02 | pay | RAIFFEISEN | direct | 994.26 | RUB | 994.2600 | 2.3976 | 32.8100 | 991.86 | RUB | Delivery |
+
+## Registry Request
+
+```
+https://www.platron.ru/get_registry.php?pg_merchant_id=1234&pg_date=2016-11-15&pg_salt=f387f3h3&pg_sig=bfc5f9d2379d287052f56bd05c60296e
+
+```
+
+### Request URL
+
+`https://www.platron.ru/get_registry.php`
+
+### Request parameters
+
+| Parameter | Description |
+| --- | --- |
+| pg_merchant_id | Merchant id |
+| pg_date | The date for which you will receive the transactions. Format yyyy-mm-dd |
+| pg_salt | Random string |
+| pg_sig | Signature |
+
+You cannot make another request until the first request has been processed. In this case, you will get an error.
+
+### Response parameters
+
+If successful, the following response will be returned:
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<response>
+    <pg_status>ok</pg_status>
+    <operation>
+        <type>pay</type>
+        <payment_type>direct</payment_type>
+        <pg_payment_id>28236796</pg_payment_id>
+        <order_id>9789932</order_id>
+        <description>hotel reservetion description</description>
+        <merchant_id>82</merchant_id>
+        <payment_system>GDSHOTELWITHRUSSIANSTANDARD</payment_system>
+        <bill_amount>5138.0000</bill_amount>
+        <amount>0.0000</amount>
+        <currency>RUB</currency>
+        <bill_cur_symbol>RUB</bill_cur_symbol>
+        <op_date>15.11.2016</op_date>
+        <op_time>10:26:45</op_time>
+        <to_pay>0.0000</to_pay>
+        <pg_commission>0.0000</pg_commission>
+        <ps_commission>0.0000</ps_commission>
+    </operation>
+    <pg_salt>f387f3h3</pg_salt>
+    <pg_sig>cac84530938b7e51b2d272e1d0212457</pg_sig>
+</response>
+
+```
+
+In case of an error, the response will look like this:
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<response>
+    <pg_status>error</pg_status>
+    <pg_error_code>200</pg_error_code>
+    <pg_description>Required parameter is missing</pg_description>
+</response>
+
+```
+
+See the description of the fields of the file sent to email
+
+# Notifications
+
+## Payment result
+
+Example of a GET call to merchant by a gate, when paying via a regular payment system:
+
+```
+http://store.ru/result.php?pg_salt=0bd68e&pg_order_id=654&pg_payment_id=765432&pg_amount=100.0000&pg_currency=RUB&pg_net_amount=100.00&pg_ps_amount=105.00&pg_ps_full_amount=105.00&pg_ps_currency=RUB&pg_payment_system=INPLATMTS&pg_result=1&pg_payment_date=2008-12-30+23:59:30&pg_can_reject=0&pg_user_phone=79818244116&pg_need_phone_notification=1&pg_user_contact_email=test@test.ru&pg_need_email_notification=1&uservar1=45363456&pg_sig=da61f9d237952f56bd05c602d28780b3
+
+```
+
+Example of an xml call (POST with XML in the pg_xml parameter) of a gate merchant, when paying via a regular payment system:
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<request>
+    <pg_salt>0bd68e</pg_salt>
+    <pg_order_id>654</pg_order_id>
+    <pg_payment_id>765432</pg_payment_id>
+    <pg_amount>100.0000</pg_amount>
+    <pg_currency>RUB</pg_currency>
+    <pg_net_amount>100.00</pg_net_amount>
+    <pg_ps_amount>105.00</pg_ps_amount>
+    <pg_ps_full_amount>105.00</pg_ps_full_amount>
+    <pg_ps_currency>RUB</pg_ps_currency>
+    <pg_payment_system>INPLATMTS</pg_payment_system>
+    <pg_result>1</pg_result>
+    <pg_payment_date>2008-12-30 23:59:30</pg_payment_date>
+    <pg_can_reject>0</pg_can_reject>
+    <pg_user_phone>79818244116</pg_user_phone>
+    <pg_need_phone_notification>1</pg_need_phone_notification>
+    <pg_user_contact_email>test@test.ru</pg_user_contact_email>
+    <pg_need_email_notification>1</pg_need_email_notification>
+    <uservar1>45363456</uservar1>
+    <pg_sig>da61f9d237952f56bd05c602d28780b3</pg_sig>
+</request>
+
+```
+
+Example of a GET call to merchant by a gate, when paying by card payment system:
+
+```
+http://store.ru/result.php?pg_salt=0bd68e&pg_order_id=654&pg_payment_id=765432&pg_amount=100.0000&pg_currency=RUB&pg_net_amount=100.00&pg_ps_amount=105.00&pg_ps_full_amount=105.00&pg_ps_currency=RUB&pg_payment_system=RUSSIANSTANDARD&pg_result=1&pg_payment_date=2008-12-30+23:59:30&pg_can_reject=1&pg_card_brand=CA&pg_card_pan=527594******4984&pg_card_hash=022380c107141f7e11f4271d7f6412a715222c32&pg_auth_code=014318&pg_captured=0&pg_user_phone=79818244116&pg_need_phone_notification=1&pg_user_contact_email=test@test.ru&pg_need_email_notification=1&uservar1=45363456&pg_sig=da61f9d237952f56bd05c602d28780b3
+
+```
+
+Example of an xml call (POST with XML in the pg_xml parameter) of a gate merchant, when paying by card payment system:
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<request>
+    <pg_salt>0bd68e</pg_salt>
+    <pg_order_id>654</pg_order_id>
+    <pg_payment_id>765432</pg_payment_id>
+    <pg_amount>100.0000</pg_amount>
+    <pg_currency>RUB</pg_currency>
+    <pg_net_amount>100.00</pg_net_amount>
+    <pg_ps_amount>105.00</pg_ps_amount>
+    <pg_ps_full_amount>105.00</pg_ps_full_amount>
+    <pg_ps_currency>RUB</pg_ps_currency>
+    <pg_payment_system>RUSSIANSTANDARD</pg_payment_system>
+    <pg_result>1</pg_result>
+    <pg_payment_date>2008-12-30 23:59:30</pg_payment_date>
+    <pg_can_reject>1</pg_can_reject>
+    <pg_card_brand>CA</pg_card_brand>
+    <pg_card_pan>527594******4984</pg_card_pan>
+    <pg_card_hash>022380c107141f7e11f4271d7f6412a715222c32</pg_card_hash>
+    <pg_auth_code>014318</pg_auth_code>
+    <pg_captured>0</pg_captured>
+    <pg_user_phone>79818244116</pg_user_phone>
+    <pg_need_phone_notification>1</pg_need_phone_notification>
+    <pg_user_contact_email>test@test.ru</pg_user_contact_email>
+    <pg_need_email_notification>1</pg_need_email_notification>
+    <uservar1>45363456</uservar1>
+    <pg_sig>da61f9d237952f56bd05c602d28780b3</pg_sig>
+</request>
+
+```
+
+If merchant accepts the payment, it should respond in XML with the ok status.:
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<response>
+    <pg_salt>kdjdope983</pg_salt>
+    <pg_status>ok</pg_status>
+    <pg_description>The product has been transferred to the buyer</pg_description>
+    <pg_sig>9bfc5f602d287096ed237952f56bd05c</pg_sig>
+</response>
+
+```
+
+After receiving money from the client or if it is impossible to make a payment, Platron calls the merchant's Result URL and sends information about the payment result to it using the Request Method. Upon receipt of this request, the store must perform the necessary actions to transfer products or services to the buyer, if the payment was successful.
+
+If the merchant's server is unavailable at the time of calling the Result URL (no response for more than 30 seconds) or its response could not be interpreted, Platron will make repeated attempts to call it for 2 hours, even if the pg_lifetime of the invoice expires. If the first attempt to call the Result URL is unsuccessful, the payment is not cancelled, and if the payment system allows you to cancel the payment only immediately after the payment, then Platron accepts the payment from the payment system and in subsequent calls to the Result URL does not allow the merchant to cancel the payment. The merchant must be prepared for the Result URL to be called again for the same payment. The responses to the repeated calls must match the original response, even if the transaction lifetime (pg_lifetime) has expired.
+
+### Request parameters
+
+| Parameter | Description |
+| --- | --- |
+| pg_order_id | Payment ID in the merchant's system |
+| pg_payment_id | Internal payment id in the Platron system |
+| pg_amount | The invoice amount (in pg_ps_currency) matches pg_amount at the time of payment initiation |
+| pg_currency | The currency of the invoice, matches the pg_currency at the time of payment initiation |
+| pg_ps_amount | The invoice amount (in pg_ps_currency currency) issued in the PS. The parameter may be absent in case of an unsuccessful payment. |
+| pg_net_amount | Same as pg_ps_amount |
+| pg_ps_full_amount | Same as pg_ps_amount |
+| pg_ps_currency | The currency in which the payment was made in the payment system. |
+| pg_payment_system | Payment system id |
+| pg_result | 1 - success, 0 - failure |
+| pg_payment_date | Date and time of payment in the format YYYY-MM-DD HH:MM:SS |
+| pg_can_reject | 1 – payment can be rolled back (for example Bank cards), 0 – payment is irrevocable. By default, pg_can_reject=0. |
+| pg_card_issuer | Issuer name. This parameter is only transmitted if the payment was successful with a bank card. |
+| pg_card_brand | Card brand: CA – MasterCard and their products, VI – Visa, AX – AmericanExpress. This parameter is passed only in case of successful payment by bank card. |
+| pg_card_pan | Masked card number (some of the digits of the card number are hidden). This parameter is passed only in case of successful payment by bank card. |
+| pg_card_hash | Hashed card number (card number encrypted with an irreversible encryption algorithm). This parameter is transmitted only in case of successful payment by bank card. |
+| pg_is_3ds | 0 or 1. Transmitted only in case of successful payment by bank card and indicates whether the payment was made using 3-D Secure. |
+| pg_auth_code | Authorization code. This parameter is transmitted only in case of successful payment by bank card. |
+| pg_rrn | RRN. This parameter is only transmitted if the payment by bank card is successful. |
+| pg_captured | 0 or 1. It is transmitted only in case of successful payment by bank card and shows whether clearing was performed at the time of authorization (which depends only on the merchant settings). If the value of this parameter is 0, merchant must subsequently issue a clearing command (see section Clearing ) or wait for Platron to do it itself. |
+| pg_user_phone | Buyer's phone number (specified when initializing the payment) |
+| pg_user_contact_email | Buyer's email address, if entered. It is sent only if there is an email |
+| pg_failure_code | Refusal Reason Code (for a list of codes and their descriptions, see section [Refusal Reasons Handbook])(#handbook-failure-code)). The parameter is present only in case of unsuccessful payment. |
+| pg_failure_description | Description of the reason for payment failure. Transmitted in transaction language. This description is formulated in terms understandable to the user and can be communicated to him in any accessible way. The parameter is present only in case of unsuccessful payment. |
+| pg_recurring_profile_id | Recurring Payments Profile ID |
+| pg_recurring_profile_expiry_date | The date until which the recurring profile is available for use |
+| Merchant parameters | All fields passed from the merchant's website that do not have the prefix "pg_" |
+| pg_salt | Random string |
+| pg_sig | Signature |
+
+### Request parameters that are no longer used
+
+| Parameter | Description |
+| --- | --- |
+| pg_overpayment | The amount of overpayment in the currency of the payment system. The parameter is passed only if the customer has paid more than expected and overpayment is allowed in the merchant settings. If exactly the amount expected was paid, this parameter is not passed. |
+| pg_need_phone_notification | The need to notify the client (if the service is connected) via SMS about the transaction status. 0 – do not notify. |
+| pg_need_email_notification | The need to notify the client (if the service is connected) by email about the transaction status. 0 – do not notify. It is sent only if there is pg_user_contact_email |
+
+### Response parameters (merchant)
+
+If the merchant refuses the payment and the pg_can_reject=1 parameter was passed in the request, the merchant must respond in the form XML with status rejected:
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<response>
+    <pg_salt>kdjdope983</pg_salt>
+    <pg_status>rejected</pg_status>
+    <pg_description>Бронь истекла</pg_description>
+    <pg_sig>a3fc5f602d287096ed237952f56bd5fa</pg_sig>
+</response>
+
+```
+
+| Parameter | Description |
+| --- | --- |
+| pg_status | ok – payment accepted rejected – payment rejected (if pg_can_reject=1 ) error – error in data interpretation |
+| pg_description | (string[1024]) – If the payment is accepted, the parameter is not transmitted. In case of refusal to accept payment, a description of the reason for the refusal for the client. In case of an error – a description of the error, may duplicate the parameter pg_error_description. |
+| pg_error_description | description of the error, in case pg_status=error |
+| pg_salt | Random string |
+| pg_sig | Signature |
+
+The rejected status can be returned by the merchant only if the incoming request from the gate specified the parameter pg_can_reject=1, otherwise, regardless of the store's response, the payment will be considered completed. If the merchant refused the payment (responded with rejected), the buyer is redirected to the Failure URL, otherwise - to the Success URL.
+
+## Clearing result
+
+Example of a GET call to merchant by a gate:
+
+```
+http://store.ru/onCapture.php?pg_salt=gw41b38vc&pg_order_id=2614&pg_payment_id=825941&pg_sig=afaef9d237932f57bd05c602d287df34&uservar1=45363456
+
+```
+
+Example of xml call (POST with XML in pg_xml parameter) of the gate merchant:
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<request>
+    <pg_salt>gw41b38vc</pg_salt>
+    <pg_order_id>2614</pg_order_id>
+    <pg_payment_id>825941</pg_payment_id>
+    <uservar1>45363456</uservar1>
+    <pg_sig>afaef9d237932f57bd05c602d287df34</pg_sig>
+</request>
+
+```
+
+If merchant is configured to conduct transactions on bank cards in two stages - authorization and clearing - Platron notifies merchant about the execution of clearing immediately after sending the corresponding command to the bank.
+
+Clearing is usually performed at the initiative of merchant, when merchant Platron a clearing command (see the Clearing section), however, if the store has not given this command within the period specified in merchant settings (no more than 5 days) after authorization, Platron independently sends a clearing command to the bank.
+
+To notify merchant about clearing, Platron calls merchant's Capture URL script using the Request Method. Platron transmits information about the order number and waits for a response within 30 seconds. If the merchant's server is unavailable at the time of calling the Capture URL (no response for more than 30 seconds) or its response could not be interpreted, Platron will make repeated attempts to call it within 2 hours.
+
+### Request parameters
+
+| Parameter | Description |
+| --- | --- |
+| pg_order_id | Payment ID in the merchant's system |
+| pg_payment_id | Internal payment id in the Platron system |
+| Merchant parameters | All fields passed from the merchant's website that do not have a prefix «pg_» |
+| pg_salt | Random string |
+| pg_sig | signature |
+
+### Response parameters (merchant)
+
+Example of merchant response:
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<response>
+    <pg_salt>eyhfh42za22h</pg_salt>
+    <pg_status>ok</pg_status>
+    <pg_sig>ea362f52d23770986bd05c6fc5f9427d</pg_sig>
+</response>
+
+```
+
+| Parameter | Description |
+| --- | --- |
+| pg_status | ok – information received error – error in data interpretation |
+| pg_error_description | Error description, in case of pg_status=error |
+| pg_salt | Random string |
+| pg_sig | Signature |
+
+## Payment refund
+
+In case of a full or partial refund of the payment on the Platron or payment system side, the payment gate calls the Refund URL store script using the Request Method method. The request will be made in the encoding set by the merchant when initializing the payment, by default utf-8. The gate transmits information about the order number and properties and waits for a response within 30 seconds. If the merchant's server is unavailable at the time of calling the Refund URL (no response for more than 30 seconds) or its response could not be interpreted, Platron will make repeated attempts to call it within 2 hours.
+
+### Request parameters
+
+| Parameter | Description |
+| --- | --- |
+| pg_order_id | Payment ID in the merchant's system |
+| pg_payment_id | Internal payment id in the Platron system |
+| pg_amount | The invoice amount (in pg_currency) matches with pg_amount at the time of payment initiation |
+| pg_currency | The currency of the invoice is the same as pg_currency at the time of payment initiation |
+| pg_net_amount | The amount (in pg_ps_currency) that will be debited from merchant |
+| pg_ps_full_amount | The total amount (in pg_ps_currency) that will be returned to the buyer |
+| pg_ps_currency | The currency in which the payment will be refunded in the payment system |
+| pg_payment_system | Payment system id |
+| pg_refund_date | Date and time of the payment cancellation in the format YYYY-MM-DD HH:MM:SS |
+| pg_refund_type | Refund method: reversal – full refund before clearing (for bank cards) refund – full or partial refund. It makes sense to distinguish between reverse and refund only for bank cards. Reversal can occur only before clearing, refund only after clearing. |
+| pg_refund_system | Matches pg_payment_system |
+| pg_refund_id | Unique refund id to filter duplicate notifications for the same refund. In case of reversal, an empty value is passed. |
+| pg_result | 1 – success, 0 – failure |
+| Merchant parameters | All fields passed from the merchant's website that do not have the prefix «pg_» |
+| pg_salt | Random string |
+| pg_sig | signature |
+
+### Response parameters (merchant)
+
+| Parameter | Description |
+| --- | --- |
+| pg_status | ok – information received, error – error in data interpretation |
+| pg_error_description | description of the error, in case pg_status=error |
+| pg_salt | Random string |
+| pg_sig | signature |
+
+# Return of the buyer to the merchant's website
+
+Example of a GET or AUTOGET transition if successful:
+
+```
+https://store.ru/success.php?pg_salt=54c6a8786f19e&pg_order_id=654&pg_payment_id=765432&uservar1=45363456&pg_card_brand=CA&pg_card_pan=527594******4984&pg_card_hash=022380c107141f7e11f4271d7f6412a715222c32&pg_auth_code=014318&pg_auth_code=014318&pg_sig=20bcedd8320ac8868b97706abedec0b4
+
+```
+
+After completing the payment the buyer is redirected to the merchant's Success URL page or Failure URL, depending on the result of the payment. Redirection occurs using the Success URL Method or Failure URL Method specified when initiating the payment.
+
+### Request parameters
+
+| Parameter | Description |
+| --- | --- |
+| pg_order_id | Payment ID in the merchant's system |
+| pg_payment_id | Internal payment id in the platron.ru system |
+| pg_card_issuer | Issuer name. This parameter is only transmitted if the payment was successful with a bank card. |
+| pg_card_brand | Card brand: CA – MasterCard and their products, VI – Visa, AX – AmericanExpress. This parameter is passed only in case of successful payment by bank card. |
+| pg_card_pan | Masked card number (some of the digits of the card number are hidden). This parameter is passed only in case of successful payment by bank card. |
+| pg_card_hash | Hashed card number (card number encrypted with an irreversible encryption algorithm). This parameter is transmitted only in case of successful payment by bank card. |
+| pg_is_3ds | 0 or 1. Transmitted only in case of successful payment by bank card and indicates whether the payment was made using 3-D Secure. |
+| pg_auth_code | Authorization code. This parameter is passed only in case of successful payment by bank card. |
+| pg_rrn | RRN. This parameter is only transmitted if the payment by bank card is successful. |
+| pg_captured | 0 or 1. It is transmitted only in case of successful payment by bank card and shows whether clearing was performed at the time of authorization (which depends only on the merchant settings). If the value of this parameter is 0, merchant must subsequently issue a clearing command. (see section Clearing) or wait until Platron does it itself. |
+| pg_failure_code | Refusal Reason Code (for a list of codes and their descriptions, see the Refusal Reason Handbook). Transmitted only to Failure URL. |
+| pg_failure_description | Description of the reason for the payment failure. Transmitted in the transaction language. This description is formulated in terms understandable to the user and can be communicated to him in any accessible way. Transmitted only to Failure URL. |
+| pg_recurring_profile_id | Recurring Payments Profile ID |
+| pg_recurring_profile_expiry_date | The date until which the recurring profile is available for use |
+| Merchant parameters | All fields passed from the merchant's website that do not have the prefix «pg_» |
+| pg_salt | Random string |
+| pg_sig | signature |
+
+### Request parameters that are no longer used
+
+| Parameter | Description |
+| --- | --- |
+| pg_overpayment | The amount of overpayment in the currency of the payment system. The parameter is passed only if the client has paid more than expected, and overpayment is allowed in the merchant settings. If exactly the amount expected was paid, this parameter is not passed. |
+
+If the Success URL or Failure URL already contains parameters in the query string, then the additional parameters pg_order_id, pg_payment_id and the merchant's custom variables are appended to the end of the query string. The merchant must ensure that the names of the additional parameters do not match the names of the existing parameters.
+
+It is important to clearly understand the difference between Result URL and Success URL. Result URL is called directly from Platron server, while Success URL is called by user's browser when user is redirected back to the merchant's website.
+
+It is incorrect to use the Success URL as the only way to know about the payment completion, because the user may, for various reasons (for example, a connection interruption), not reach the Success URL after payment. The most reliable way to know about the payment completion is to implement a Result URL, which is obliged to call again within 2 hours after payment, if the first attempt failed for any reason.
+
+# Testing
+
+All new merchants are initially in test mode. After testing is completed and sent by the merchant to Platron signed the Act of connection, it can be downloaded from the link https://www.platron.ru/admin/documents.php, the Platron administration switches the store to working mode.
+
+To debug the integration with Platron in test mode, you need to select pg_payment_system=TEST or pg_payment_system=TESTCARD, in this case a fictitious test PS will be used, conducting settlements in a fictitious currency "testiks", and real funds will not be transferred. In test mode, you can use only test payment systems, and in working mode, on the contrary, payment by test payment systems is impossible. To test the integration of the TESTCARD payment system, you must use the currency — RUB.
+
+After the merchant switches to the working mode, you can create individual transactions in test mode by passing the pg_testing_mode parameter in requests for creating a payment, repeating a recurring payment, and getting a list of payment systems. The pg_testing_mode=1 value enables test mode for one specific transaction. If the merchant itself is in test mode, the value of the passed pg_testing_mode flag does not matter. Enabling and disabling test mode in the merchant settings is carried out only by the Platron administration.
+
+When filling in the payment details, you can specify the following special phone numbers:
+
+- 79009999999 — for automatic successful payment
+- 79008888888 — for automatic unsuccessful payment
+
+If you specify any other phone number, then after the transaction is created, no automatic actions will occur with it. In order to test the further progress of the transaction, you need to go to the administrative panel on the transaction page and manage its actions using the test buttons.
+
+To emulate the user's transition to the 3DS passage page when using the TESTCARD payment system, you need to ask your manager to enable client authorization via 3DS.
+
+The test payment system allows testing of clearing, PCI DSS, long record and recurring payments.
+
+When paying through a test card payment system, you must enter the card number. You can use a real card (no write-off occurs), select a card number (according to the luna rule), or use test cards. Test cards are not validated by the fraud monitoring module. List of test cards:
+
+- 5285 0000 0000 0005 valid until 01/2035
+- 4276 0000 0000 0009 valid until 01/2035
+- 5241 0000 0000 0016 valid until 01/2035
+- 5326 0000 0000 0006 valid until 01/2035
+- 4257 0000 0000 0002 valid until 01/2035
+
+# Anti-fraud
+
+A task. Integrate into the Platron system only for anti-fraud solutions.
+
+Solution. Integration is performed in a standard way. To transfer card details, the merchant must have a PCI DSS certificate. Additional documentation on integration with the presence of PCI DSS can be requested from the manager.
+
+1. To create a transaction, you must use the payment initialization method — Host-to-host
+2. When creating a transaction, the payment system must be specified ANTIFRAUD (pg_payment_system=ANTIFRAUD).
+3. In response (see Payment result or Payment status) an additional parameter will be given fraud_filter_action
+
+Possible response options:
+
+| fraud_filter_action | Description |
+| --- | --- |
+| pass | The transaction is not considered fraudulent. |
+| pass_and_warn | Merchant should pay attention to the order. The order may contain a suspicious set of products |
+| mpi3ds_or_block | If possible make a transaction via a terminal with 3DS verification. If a 3DS terminal is used by default, the transaction is considered secure. |
+| block | It is necessary to block the transaction |
+| manual_check_or_block | It is necessary to request a photo of the payment card from the buyer. If the card is not provided, block the transaction. |
+
+Required parameters, in addition to the parameters from the Payment Initialization section, necessary for the correct operation of the anti-fraud:
+
+| Parameter | Description |
+| --- | --- |
+| pg_user_phone | Buyer's phone number |
+| pg_user_ip | Buyer's IP address |
+| pg_card_number | Card number |
+| pg_user_cardholder | The name of the cardholder, from 3 to 27 Latin letters (depending on the type of card) |
+| pg_exp_year | The expiration date of the card, 4 digits. |
+| pg_exp_month | The month of expiration of the card, 2 digits. |
+| pg_cvv2 | CVV2/CVC2 code, 3 or 4 digits. Any value can be passed. |
+| pg_user_contact_email | Email address |
+
+For e-travel segment stores, the following data can be transmitted in additional fields:
+
+| Parameter | Description |
+| --- | --- |
+| airports (array) | Departure/arrival airports |
+| airlines (array) | The airline operating the flight |
+| departure_time (YYYY-MM-DD HH:MM:SS) | Departure date and time |
+| document_attributes_passengers (series+number+space+country+space+document type, example 77АУ666717 RU russian internal passport, IVAN IVANOV 16.03.1990 lastname firstname date of birth) * | Passenger documents. russian internal passport – internal passport of the Russian Federation russian international passport – Russian Federation foreign passport foreign passport – foreign passport birth certificate – birth certificate temporary certificate – temporary certificate lastname firstname date of birth – passenger's surname and name + date of birth |
+| passenger_names (name + space + surname, only latin letters, space and dash) | Names and surnames of passengers |
+| point_countries (array) | Departure and destination country. ISO Alpha 2 3166-1 is used to designate the country. |
+
+# Handbooks
+
+## Payment systems
+
+### Working payment systems
+
+| ID (pg_payment_system) | Currency | Category (pg_category) | Description |
+| --- | --- | --- | --- |
+| BANKCARD | RUB | bankcard | Bank card |
+| RUSSIANSTANDARD | RUB | bankcard | Bank cards through the processing of Russian Standard Bank |
+| TINKOFFBANKCARD | RUB | bankcard | Bank cards through the processing of Tinkoff Bank |
+| YANDEXMONEY | RUB | wallet | EPS Yandex Money |
+| YANDEXPAY | RUB | yandexpay | EPS Yandex Pay |
+| SBP | RUB | sbp | Fast payment system (SBP) |
+| MIRPAY | RUB | mirpay | Mir Pay |
+| SBERPAY | RUB | sberpay | SberPay |
+| TPAY | RUB | tpay | T-Pay |
+
+### Test payment systems
+
+| ID (pg_payment_system) | Currency | Category (pg_category) | Description |
+| --- | --- | --- | --- |
+| TEST | testik | wallet | Test payment systems |
+| TESTCARD | testik | bankcard | Test payment system for cards |
+| TESTELIXIRSBP | testik | sbp | Test payment system for SBP |
+
+### Bank cards
+
+| ID (pg_payment_system) | Checking the possibility of making a payment (is it called Check URL) | Account lifetime support by the payment system (pg_lifetime) | The possibility of revoking a payment (could it be pg_can_reject=1) | The possibility of canceling the invoice before payment | The possibility of using recurring payments | Refund method |
+| --- | --- | --- | --- | --- | --- | --- |
+| BANKCARD | no | no | Check with the manager | on the Platron side, reverse after payment | Check with the manager | Check with the manager |
+| RUSSIANSTANDARD | no | no | yes | on the Platron side, reverse after payment | yes | online, to the card |
+| TINKOFFBANKCARD | no | no | yes | on the Platron side, reverse after payment | yes | online, to the card |
+| SBP | yes | yes | yes | on the Platron side, refund after payment | no | online |
+| SBERPAY | no | yes | yes | on the Platron side, refund after payment | no | online |
+| MIRPAY | no | no | yes | on the Platron side, refund after payment | no | online |
+| YANDEXMONEY | yes | no | yes | on the Platron side, refund after payment | no | online, to the wall |
+
+### Test payment systems
+
+| ID (pg_payment_system) | Name | Base currency | PS Commission Location |
+| --- | --- | --- | --- |
+| TEST | Test payment system with transfers in virtual currency, used to debug payment processing | testik | inside |
+| TESTCARD | Test payment system with transfers in virtual currency, used to debug payment processing by cards | testik | inside |
+| TESTELIXIRSBP | Test payment system with transfers in virtual currency, used to debug payment processing by SBP | testik | inside |
+
+## Currencies
+
+Currently, all currencies that have an official exchange rate of the Central Bank of the Russian Federation are supported.
+
+| ID (pg_currency) | Name |
+| --- | --- |
+| AUD | Australian Dollar |
+| AZN | Azerbaijanian Manat |
+| AMD | Armenian Dram |
+| BYN | Belarussian Ruble |
+| BGN | Bulgarian Lev |
+| BRL | Brazilian Real |
+| HUF | Hungarian Forint |
+| KRW | Won of the Republic of Korea |
+| HKD | Hong Kong dollar |
+| DKK | Danish krone |
+| USD | US Dollar |
+| EUR | Euro |
+| INR | Indian Rupee |
+| KZT | Kazakhstani tenge |
+| CAD | Canadian dollar |
+| KGS | Kyrgyz som |
+| CNY | Chinese Yuan |
+| MDL | Moldovan Leu |
+| TMT | New Turkmen Manat |
+| NOK | Norwegian krone |
+| PLN | Polish Zloty |
+| RON | Romanian Leu |
+| XDR | SDR (Special Drawing Rights) |
+| SGD | Singapore dollar |
+| TJS | Tajik Somoni |
+| TRY | Turkish Lira |
+| UZS | Uzbek sum |
+| UAH | Ukrainian hryvnia |
+| GBP | Pound Sterling of the United Kingdom |
+| CZK | Czech crown |
+| SEK | Swedish krona |
+| CHF | Swiss Franc |
+| ZAR | South African Rand |
+| JPY | Japanese Yen |
+
+## Payment statuses
+
+Each payment transaction can be in one of the following states:
+
+| Status (pg_transaction_status) | Description |
+| --- | --- |
+| partial | The payment transaction is not yet fully created, for example, the payment system is not defined. From this state, the payment can only move to the pending state. |
+| pending | The payment transaction has been created and is awaiting payment. From this state, the payment can only move to the ok or failed states. |
+| ok | The payment was completed successfully. From this state, the payment can only move to the revoked state |
+| failed | Payment failed. This is the final status. |
+| revoked | The payment was successful but was then cancelled. This is the final status. |
+
+## Error codes
+
+| Error code | Error description |
+| --- | --- |
+| 100 | Invalid request signature * |
+| 101 | Invalid merchant number |
+| 110 | There is no contract with the merchant or it is not valid |
+| 120 | The requested action is disabled in the merchant settings. |
+| 200 | Missing or invalid request parameter |
+| 340 | Transaction not found |
+| 350 | Transaction blocked |
+| 360 | Transaction is expired |
+| 365 | The lifetime of the recurrent profile has expired |
+| 373 | The operation is not available for the current transaction status |
+| 400 | The payment was canceled by the buyer or the payment system |
+| 420 | Payment cancelled due to limit exceeded |
+| 465 | Error connecting to payment system |
+| 466 | SSL certificate expired |
+| 470 | Error on the payment system side |
+| 475 | General failure of the payment system |
+| 490 | Payment cancellation is not possible |
+| 600 | General error |
+| 700 | Error in data entered by buyer |
+| 701 | Incorrect phone number |
+| 711 | The phone number is not acceptable for the selected PS |
+| 850 | None of the payment systems are ready to accept the request |
+| 1000 | Internal service error (may not reoccur upon repeated request) |
+
+*To analyze the reasons for the signature error that occurred, you can use the "Request signature check" page in your Personal Account.
+
+## Reasons for refusal
+
+| Refusal code | Description of the reason for refusal |
+| --- | --- |
+| 0 | No error (the description will show an empty line) |
+| 1 | Unknown reason for refusal |
+| 2 | General error |
+| 3 | Error on the payment system side |
+| 4 | Failed to issue an invoice to any of the payment systems |
+| 5 | Invalid request to the payment system |
+| 40 | Exceeding limits |
+| 50 | Payment cancelled |
+| 60 | Payment timed out |
+| 100 | Error in buyer data |
+| 101 | Incorrect phone number |
+| 300 | Incorrect transaction by card |
+| 301 | Incorrect card number |
+| 302 | Invalid cardholder name |
+| 303 | Invalid value CVV2/CVC2 |
+| 304 | Invalid card expiration date |
+| 305 | This type of card is not supported by the bank |
+| 306 | Incorrect amount |
+| 310 | Client card is expired |
+| 315 | Invalid payment token |
+| 316 | Refusal for recurring payment |
+| 320 | Refusal for security reasons |
+| 321 | 3ds authentication failed |
+| 329 | The card has been stolen, lost or compromised. |
+| 330 | Unknown acquiring bank |
+| 340 | Unknown issuing bank |
+| 350 | Exceeding the number of uses of the client's card for a certain period of time |
+| 351 | Exceeding the card limit set by the issuer. |
+| 352 | There are not enough funds in the client's account |
+| 353 | Refusal from the issuing bank without explanation. |
+| 354 | The transaction is not allowed for the acquirer's bank |
+| 355 | The issuer prohibits online payment for this card |
+| 356 | Payment with a foreign card is not available |
+| 389 | General technical error of the system |
+| 390 | Card restrictions |
+| 391 | The card is blocked |
+| 392 | Repeated request not allowed |
+| 400 | The transaction is blocked by the decision of fraud filters |
+| 410 | The client has not confirmed his phone number |
+
+GET Xml

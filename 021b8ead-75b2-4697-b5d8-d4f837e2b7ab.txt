@@ -1,0 +1,379 @@
+Gateway API | Pay In
+
+---
+
+Freedom Docs
+
+Introduction
+
+Pay In
+
+Making a payment
+
+Making a payment with 3DSecure after receiving data from the ACS server
+
+Non-acceptance payments
+
+Any amount method
+
+Payment page
+
+Google Pay
+
+Test cards
+
+After payment
+
+Payout
+
+Money transfer
+
+Loyalty
+
+Saving bank cards
+
+Error codes
+
+Home
+
+Gateway API - Pay In
+
+- /
+
+# Pay
+
+Access pointMain server address: https://api.freedompay.kz Test server adreess: https://test-api.freedompay.kz The data is passed as parameters using the POST method. Responses to requests are presented in XML format
+
+Making a paymentRequest URLPOST https://api.freedompay.kz/g2g/paymentTest Request URLPOST https://test-api.freedompay.kz/g2g/paymentRequest fields
+
+Name;Description;Type;
+
+pg_amount required; Payment amount. Minimum 0.01 Example:10;number pg_currency;Payment/transfer currency Example:KZT;string pg_description required; Payment description.Letters, numbers, dash (-), space Example:Payment description;string pg_merchant_id required; Merchant ID. Numbers;integer pg_order_id required; Order ID in the shop system.Numbers and Latin characters Example:123;string pg_card_name required; Name and surname of card holders. Letters (Latin), dash (-) and space Example:TEST TESTOV;string pg_card_pan required; Card number Number of digits: from 13 to 20.;integer pg_card_cvc required; CVC/CVC2/CVV card password Numbers.;integer pg_card_year required; Card expiration year Number of digits: 2;integer pg_card_month required; Card expiration month Number of digits: 2.;integer pg_auto_clearing; Clearing type (0 or 1). 1 - automatic write-off after successful authorization, 0 - write-off by launching the clearing method Number of digits: 1;integer pg_testing_mode; Payment mode. 0 - production, 1 - test. If the mode is not specified, then the mode set in the shop settings is taken;integer pg_result_url; URL for payment results messages. Called after the payment is successful or unsuccessful. If the parameter is not specified, you should use the store settings. This value is required if it is not set in the store. If the parameter is set equal, then Freedom Pay does not inform the store about the payment results.;string pg_3ds_challenge; Determines the need to complete the Challenge Flow (1 - it is mandatory to conduct the Challenge Requested, 0 or empty - the method is determined by the issuer) the issuing bank can ignore this parameter and make a payment according to its own Challenge Flow;integer pg_language; Error text language. Available languages: ru, en, kz, kg, uz, de;string pg_param1; Additional parameter 1 String;string pg_param2; Additional parameter 2 String;string pg_param3; Additional parameter 3 String;string pg_sig required; Digital signature of the request.Numbers and Latin letters;string pg_salt required; Random string. Random numbers and Latin letters Example: some random string;string
+
+Parameters for the effective operation of the SecureBox anti-fraud service(These parameters may include parameters from other sections. For Securebox to work effectively, it is recommended to follow the validation recommendations and field examples from this section)
+
+Title;Description;Type;
+
+pg_description;Description of payment purpose;Letters, numbers, dash (-), space. Format example: Wallet replenishment NoT02265795060, Account replenishment 41225232 pg_user_id;User ID in the merchant system.; Letters, numbers, dashes (-). Format example: No65GFR755789T, 25642588 pg_user_email;Payer's email or Email linked (specified as String in the example@site.com format during registration) to the ID of the personal cabinet or account or the payer's wallet number;A string in the format example@site.com pg_user_phone; Payer's phone number or Phone number linked (specified during registration) to the ID of the personal cabinet or account or the payer's wallet number;Numbers without spaces pluses and brackets. Format example: 89686810502, 87001234567 pg_user_ip;Client IP address; IP address in IPv4 format or IPv6. Examples: 185.102.131.54 2001:0DB0:0000:123A:0000:0000: 0000:0030 2001:DB0:0:123A:0:0:0:30
+
+Optional parameters required when paying through tokenized PS's
+
+Title;Description;Type;
+
+pg_payment_method;Payment via tokenized method (apple pay, google pay, samsung pay, yandex pay);Letters (Latin script). Example: apple_pay, google_pay, samsung_pay, yandex_pay pg_online_payment_cryptogram;Ephemeral public key bytes. EC_v1 only;Encrypted string. Related to the field [pg_eci_indicator] pg_eci_indicator;Optional. ECI indicator, as definition of 3d secure. Confirmation from Apple;String. Related to the field [pg_online_payment_cryptogram]
+
+Response parametersResponse parameters for a successful request:
+
+Title;Description;Validation;
+
+pg_payment_id;Transaction ID;Numbers pg_status;Shows the result of the query. Ok - Request successful. Error - The request failed. Pending - Waiting for payer or payment system;Latin characters pg_3ds;Flag indicating the need to request 3ds. 1 - 3ds is set, 0 - no;Digit pg_3d_acsurl;Card Issuer Bank Url for 3ds Validation;url pg_3d_md;Parameter for request 3ds;Letters, numbers pg_3d_pareq;Parameter for request 3ds;Letters, numbers, dashes (-), pg_recurring_profile;Recurring profile ID;Digits (If a parameter was specified in the payment request, pg_recurring_start = 1) pg_card_id;ID Saved card ID for next payments (Deprecated);Numbers (If parameters were specified, saving the card, pg_save_card and pg_user_id) pg_card_token;Saved card token for next payments;Letters, numbers, dashes (-) (If parameters were specified, saving the card, pg_save_card and pg_user_id) pg_auth_code;Bank payment authorization code;Numbers, length 6 pg_salt;Random string;Arbitrary numbers and Latin letters pg_sig;Request digital signature;Numbers and Latin letters pg_datetime;Date and time of the request; Format: YYYY-MM-DDThh:mm:ss±hh:mm
+
+In case of errors, there will be additional response parameters:
+
+Title;Description;Validation;
+
+pg_error_code;Error code ID;Numbers pg_error_description;Text description of the error; String
+
+Note. If 3ds is installed on the card, a request must be made to the ACS server of the card issuer's bank.On this page the client enters his 3ds password.The server url can be obtained from the pg_3d_acsurl parameter.Request parameters to the ACS server of the issuer's bank:
+
+Title;Description;
+
+PaReq;The pg_3d_pareq parameter from the Payment request response MD;The pg_3d_md parameter from the response to the requestPayment TermUrl;Url to which the answer will come in case of success
+
+Response if successful:
+
+Title;Description;
+
+PaRes;The parameter is required for the paymentAc request MD;The parameter is required to request paymentAcs
+
+Request for store result_url. Payment resultExample of a positive store response
+
+Request
+
+```
+curl --location --request POST '{{result_url}}' \
+--form 'pg_order_id=123456789' \
+--form 'pg_payment_id=12345' \
+--form 'pg_amount=500' \
+--form 'pg_currency=KZT' \
+--form 'pg_net_amount=482.5' \
+--form 'pg_ps_amount=500' \
+--form 'pg_ps_full_amount=500' \
+--form 'pg_ps_currency=KZT' \
+--form 'pg_description=Покупка в интернет магазине Site.kz' \
+--form 'pg_result=1' \
+--form 'pg_payment_date=2019-01-01 12:00:00' \
+--form 'pg_can_reject=1' \
+--form 'pg_user_phone=7077777777777' \
+--form 'pg_user_contact_email=mail@customer.kz' \
+--form 'pg_need_email_notification=1' \
+--form 'pg_testing_mode=1' \
+--form 'pg_captured=0' \
+--form 'pg_reference=111111111111' \
+--form 'pg_card_pan=5483-18XX-XXXX-0293' \
+--form 'Параметры мерчанта=' \
+--form 'pg_salt=some random string' \
+--form 'pg_sig={{paybox_signature}}' \
+--form 'pg_payment_method=bankcard'
+
+```
+
+Response
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<response>
+    <pg_status>ok</pg_status>
+    <pg_description>Заказ оплачен</pg_description>
+    <pg_salt>random string</pg_salt>
+    <pg_sig>ksdjrimzjedkljsujjemnjsuj</pg_sig>
+</response>
+
+```
+
+Example of a negative store response
+
+Request
+
+```
+curl --location --request POST '{{result_url}}' \
+--form 'pg_order_id=123456789' \
+--form 'pg_payment_id=12345' \
+--form 'pg_amount=500' \
+--form 'pg_currency=KZT' \
+--form 'pg_net_amount=482.5' \
+--form 'pg_ps_amount=500' \
+--form 'pg_ps_full_amount=500' \
+--form 'pg_ps_currency=KZT' \
+--form 'pg_description=Покупка в интернет магазине Site.kz' \
+--form 'pg_result=0' \
+--form 'pg_payment_date=2019-01-01 12:00:00' \
+--form 'pg_can_reject=1' \
+--form 'pg_user_phone=7077777777777' \
+--form 'pg_user_contact_email=mail@customer.kz' \
+--form 'pg_need_email_notification=1' \
+--form 'pg_testing_mode=1' \
+--form 'pg_captured=0' \
+--form 'pg_reference=111111111111' \
+--form 'pg_card_pan=5483-18XX-XXXX-0293' \
+--form 'Параметры мерчанта=' \
+--form 'pg_salt=some random string' \
+--form 'pg_sig={{paybox_signature}}' \
+--form 'pg_payment_method=bankcard'
+
+```
+
+Response
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<response>
+    <pg_status>rejected</pg_status>
+    <pg_description>Платеж отменен</pg_description>
+    <pg_salt>random string</pg_salt>
+    <pg_sig>ksdjrimzjedkljsujjemnjsuj</pg_sig>
+</response>
+
+```
+
+After accepting payment from the customer or in case of failure to make the payment, FreedomPay calls the store's Result URL and sends information about the payment result to it using the Request Method.Upon receiving this request, the merchant must take the necessary actions to transfer the product or service to the customer if the payment was successful. If pg_can_reject is 1 and the merchant cannot accept the payment (e.g. the reservation for tickets has expired), the merchant must respond with a rejected status and FreedomPay will cancel the payment. In this case, the pg_description field from the merchant's response is shown to the user as the reason for the rejection.The Result URL on the merchant side must be publicly accessible, without authorization.If the Merchant's server is unavailable at the time the Result URL is invoked, or if the response from the server was not status 200, FreedomPay will retry to invoke it every half hour for 2 hours, even if the pg_lifetime account expires.If the first attempt to call the Result URL is unsuccessful, the payment is not canceled, and in subsequent calls to the Result URL, it does not allow the store to decline the payment.The store must be prepared for the Result URL to be called repeatedly for the same payment. Responses to repeated invocations must match the original response, even if the transaction pg_lifetime has expired.Response to result_url from the merchantThe rejected status can be returned by the merchant only if the pg_can_reject parameter was set to 1 in the incoming request from the gate, otherwise, regardless of the merchant's response, the payment will be considered complete. If the merchant rejected the payment (replied rejected), the buyer is redirected to Failure URL, otherwise - to Success URL.
+
+- ok - payment accepted
+- rejected - rejected payment if pg_can_reject is equal to 1.
+- error - error in data interpretation
+
+Request URLPOST {{result_url}}
+
+Name;Description;Type;
+
+pg_order_id; Order ID in the Merchant's system Example: 123456789 ;string pg_payment_id; Internal payment identifier in FreedomPay system. Example: 12345; integer pg_amount; The billed amount in pg_currency, matches the pg_amount at the time of initialization Example: 500; string pg_currency; The invoiced currency, matches the pg_currency at the time of payment initialization. Example: KZT; string pg_net_amount; The amount (in pg_currency) that will be transferred to the store in case of successful completion of the payment Example: 482.5; string pg_ps_amount; Invoice amount (in `pg_ps_currency) invoiced in the SAR. The field may be absent in case of unsuccessful payment. Example: 500; string pg_ps_full_amount; The full amount (in pg_ps_currency) paid by the buyer including all fees. The field may be absent in case of unsuccessful payment. Example: 500; string pg_ps_currency; Currency in which the payment was made in the payment system. The field may be absent in case of unsuccessful payment. Example: KZT; string pg_description; Payment Description. Example: Покупка в интернет магазине Site.kz; string pg_result; Payment Result. 2 - Not completed. 1 - success, 0 - failure. Example: 1; integer pg_payment_date; Date and time of payment in the format YYYYY-MM-DD HH:MM:SS. Example: 2019-01-01 12:00:00; datetime pg_can_reject; 1 - payment can be rolled back (e.g. Bank Cards), 0 - payment is irrevocable. Example: 1; integer pg_user_phone;Buyer's phone number (specified during payment initialization). Example: 7077777777777; string pg_user_contact_email;Buyer's Email (specified during payment initialization). Example: mail@customer.kz; string pg_testing_mode;Test mode. 1 - test, 0 - combat. Example: 1; integer pg_captured; It is transmitted only in case of successful payment by bank card and indicates whether clearing was performed at the time of authorization (which depends only on the merchant settings). If the value of this field is 0, the merchant must subsequently issue a clearing command (see Request for clearing bank card transactions) or wait for FreedomPay to do it itself. Example: 0; integer pg_card_id; Optional parameter. Card ID for payment by stored card (Deprecated) Example: 1234; string pg_card_token; Optional parameter. Card token for payment with a stored card. Example: ef741cfc-f85e-41a0-84e6-2ba964912182;string pg_card_pan; Masked card number (some digits of the card number are hidden). This parameter is transmitted only in case of successful payment by bank card. Example: 5483-18XX-XXXX-0293; string Параметры мерчанта; All fields transferred from the merchant's website that do not have the prefix pg_; string pg_salt; Random string. Example: some random string; string pg_sig; Signature of request; string pg_payment_method; Payment Method. Wallet - Electronic money. Internetbank - Internet banking. Other - Terminals. Bankcard - Bank cards. Cash - Payment acceptance points. Mobile_commerce - Mobile commerce. Example: bankcard; string pg_card_exp; Card Expiration Date. Example: 03/23; string pg_card_owner; Cardholder's Name. Example: Ivan Ivanov; string pg_card_brand; Card Brand Code. Example: VI;string
+
+Making a payment with 3DSecure after receiving data from the ACS serverRequest URLPOST https://api.freedompay.kz/g2g/paymentAcsTest Request URLPOST https://test-api.freedompay.kz/g2g/paymentAcsRequest fields
+
+Name;Description;Type;
+
+pg_md required; Parameter from the response. ACS server of the issuer. Сard.Numbers and Latin letters;string pg_pares required;Parameter from response.ACS server of the issuer. Сard. Letters, numbers, dashes (-);string pg_payment_id required; Transaction ID. Numbers.;integer pg_merchant_id required; Merchant ID. Numbers;integer pg_sig required; Digital signature of the request.Numbers and Latin letters;string pg_salt required; Random string. Random numbers and Latin letters;string
+
+Response parametersResponse parameters for a successful request:
+
+Title;Description;Validation;
+
+pg_payment_id;Transaction ID;Numbers pg_status;Shows the result of the query. Ok - Request successful. Error - The request failed. Pending - Waiting for payer or payment system;Latin characters pg_card_id;ID Saved card ID for next payments (Deprecated); Numbers (If parameters were specified, saving the card, pg_save_card and pg_user_id) pg_card_token;Saved card token for next payments;Letters, numbers, dashes (-) (If parameters were specified, saving the card, pg_save_card and pg_user_id) pg_auth_code;Bank payment authorization code;Numbers, length 6 pg_salt;Random string;Arbitrary numbers and Latin letters pg_sig;Request digital signature;Numbers and Latin letters pg_datetime;Date and time of the request; Format: YYYY-MM-DDThh:mm:ss±hh:mm
+
+In case of errors, there will be additional response parameters:
+
+Title;Description;Validation;
+
+pg_error_code;Error code ID;Numbers pg_error_description;Text description of the error; String
+
+Non-acceptance paymentsTo use this parameter, you should contact your manager.Method: This scenario is similar to Saved card with cvc input. But in the case when the card on which the payment is made is confirmed, the cvc is not requested from the user.Approved cards are marked with the approved status in the list of cards.In this scenario, a payment request can be sent without user interactionCard payment initializationPayment with a saved card takes place in two stages:
+
+- Payment initialization
+- Carrying out payment
+
+Request URLPOST https://api.freedompay.kz/g2g/paymentTest Request URLPOST https://test-api.freedompay.kz/g2g/paymentRequest fields
+
+Title;Description;Type;
+
+pg_merchant_id required;Merchant ID in the system FreedomPay;integer pg_amount required;Payment amount. Minimum 0.01 Example: 100;number pg_order_id required;IOrder ID in the merchant system Example:12345;string pg_user_id required;User ID in the merchant system. Example: No65GFR755789T, 25642588; string pg_card_id required if no pg_card_token;Card ID. (Deprecated). Example: 56;integer pg_card_token required if no pg_card_id;Card token. Example: ef741cfc-f85e-41a0-84e6-2ba964912182;string pg_description required;Order description Example: Payment Description;string pg_currency;Currency of payment/transfer. Only KZT is allowed in Kazakhstan;string pg_salt required;A random string consisting of arbitrary numbers and Latin letters. Example: some random string;string pg_language;Error text language. Available languages: ru, en, kz, kg, uz, de.;string pg_sig required;Request signature;string pg_param1;Additional Information;string pg_param2;Additional Information;string pg_param3;Additional Information;string
+
+Response parameters
+
+Title;Description;Type;
+
+pg_status;Shows the result of the query. Ok -Request successful. Error - The request failed. Pending - Waiting for payer or payment system;string pg_payment_id;The unique identifier of the payment transaction in FreedomPay. Serves as a key for all further work with the transaction;integer pg_merchant_id;Merchant ID in the system FreedomPay;integer pg_order_id;Order ID in the merchant system;string pg_salt;Random string;string pg_sig;Request signature;string pg_datetime;Date and time of the request;datetime
+
+In case of errors, there will be additional response parameters:
+
+Title;Description;Validation;
+
+pg_error_code;Error code ID;Numbers pg_error_description;Text description of the error; String
+
+Any amount methodIf you want the payer to enter the payment amount himself, you must use this method.When making a payment, the payer first gets to the form where he enters the amount of the payment. Then it is redirected to the payment page where the payment takes place.Request URLPOST https://api.freedompay.kz/g2g/any_amountTest Request URLPOST https://test-api.freedompay.kz/g2g/any_amountRequest fields
+
+Name;Description;Type;
+
+pg_order_id required;Payment ID in the merchant system. It is recommended to keep this field unique. If the merchant did not send this field, then it becomes mandatory for the payer to fill in Example: 00102;string pg_merchant_id required;Merchant ID in FreedomPay. Issued upon connection ; integer pg_amount required;Payment amount in pg_currency. Minimum 0.01 Example: 10; integer pg_description required;Description of the product or service. Displayed to the customer during the payment process. Example: Ticket;string pg_salt required;Random string Example: some random string;string pg_sig required;Request signature;string pg_currency; The currency in which the amount is specified. KZT, USD, EUR. If the buyer chooses a payment method in another currency, the recalculation is made at the exchange rate of the Central Bank on the day of payment. Example: KZT;string pg_check_url; URL to check the possibility of payment. Called before the payment, if the payment system provides such an opportunity. If the parameter is not specified, then it is taken from the merchant settings. If the parameter is set to an empty string, then the check of the possibility of payment is not performed.;string pg_result_url;URL to report the result of the payment. Called after payment on success or failure. If the parameter is not specified, then it is taken from the merchant settings. If the parameter is set to an empty string, then FreedomPay does not tell the merchant y about payment result.; string pg_request_method;GET, POST or XML – method for calling merchant scripts Check URL, Result URL, for transferring information from the payment gate. Example: POST;string pg_success_url;url to which the user is sent in case of a successful payment (for online systems only);string pg_failure_url;url to which the user is sent in case of a successful payment (for online systems only);string pg_success_url_method;GET is a button that is submitted by the GET method. POST is a button that is submitted using the POST method. If the GET or POST method is selected, then the payment confirmation page is shown to the user on the freedompay.kz site and prompted to click a button to return to the merchant's site. Example:GET;string pg_failure_url_method;GET is a button that is submitted by the GET method. POST is a button that is submitted using the POST method. If the GET or POST method is selected, then a page with a message about failed payment is shown to the user on the site freedompay.kz, and prompted to click a button to return to the merchant's site. Example:GET;string pg_site_url;URL of the merchant's site to show the buyer a link by which he can return to the merchant's site after creating an account. Applies to offline PS (cash). Example: http://site.kz/return;string pg_lifetime;Default: "86400".Time (in seconds) during which the payment must be completed, otherwise the order during the payment FreedomPay will refuse to process the payment system. This parameter is controlled by FreedomPay and, if the payment system supports it, by the payment system. The minimum allowed value is 300 seconds (5 minutes). The maximum allowed value is 604800 seconds (7 days). In case of exceeding the boundary values, the minimum or maximum value will be assigned, respectively. Example: 86400;integer pg_user_phone;The user's phone number (starting with the country code) is required to identify the buyer. If not specified, the choice will be offered to the user on the payment gate website. If the merchant did not send this field, then it becomes mandatory for the payer to fill in Example: 77777777777;string pg_user_contact_email; User's contact email address. If specified, notifications about changes in transaction status will be sent to this address. If the merchant did not send this field, then it becomes mandatory for the payer to fill in Example: mail@customer.kz;string pg_user_ip;Client's IP address. It is necessary for the analysis of disputable situations in case of suspected fraud. The parameter can be omitted when transmitting information through the user's browser, in which case the IP from which the user went to the payment initialization page will be recorded. Example: 127.0.0.1;string pg_language; The language of the payment pages on the FreedomPay site and (if possible) payment systems. "en", "ru" Example: ru;string pg_testing_mode;Creating a payment in test mode. Example:1;integer pg_user_id;User ID in the merchant system. Example:No65GFR755789T, 25642588;string pg_param1;Additional parameter 1. Example: Additional information;string pg_param2;Additional parameter 2. Example: Additional information;string pg_param3;Additional parameter 3. Example: Additional information;string pg_payment_method;Value - Payment method. mobile_commerce - Mobile commerce Example: mobile_commerce;string pg_amount_interval_from;The lower limit of the payment amount. If the parameter is not passed, then there is no lower threshold;integer pg_amount_interval_to; The highest threshold for the payment amount. If the parameter is not passed, then there is no upper threshold;integer pg_generate_qr;In case you want to receive a QR code with a link to the FreedomPay payment form in base64 format, send "1" in the pg_generate_qr parameter;boolean
+
+Response parameters
+
+Title;Description;Type;
+
+pg_status;Shows the result of the query. Ok -Request successful. Error - The request failed. Pending - Waiting for payer or payment system;string pg_payment_id;The unique identifier of the payment transaction in FreedomPay. Serves as a key for all further work with the transaction; integer pg_redirect_url;The URL to redirect the user to. It can be both on the site freedompay.kz and on the site of the payment system;string pg_redirect_url_type;The type of page to which the redirect occurs. Possible values: need data - dialogue with the buyer to clarify the parameters: payment system, phone number, parameters required for this payment system. payment system - page of the payment system website or a page with instructions for paying through this payment system. The page with instructions can be located both on the freedompay.kz site and on the merchant's site. If the merchant receives a response with pg_redirect_url_type=”need data”, the merchant may not redirect the buyer to the received URL, but clarify missing parameters on your site. In this case, after specifying the parameters and re-requesting the creation of a payment transaction, a new transaction will be created;string pg_redirect_qr;URL to redirect the user as a QRCode. Transmitted in base64 format;string pg_salt;Random string;string pg_sig;Request signature;string
+
+In case of errors, there will be additional response parameters:
+
+Название;Описание;Валидация;
+
+pg_error_code;Error code ID;Numbers pg_error_description;Text description of the error;String
+
+Payment pageRequest URLPOST https://api.freedompay.kz/g2g/payment_pageTest Request URLPOST https://test-api.freedompay.kz/g2g/payment_pageRequest fields
+
+Name;Description;Type;
+
+pg_order_id required;Payment ID in the merchant system. It is recommended to keep this field unique. Example: 00102;string pg_merchant_id required;Merchant ID in FreedomPay. Issued upon connection.; integer pg_amount required;Payment amount in pg_currency. Minimum 0.01 Example:10;number pg_description required;Description of the product or service. Displayed to the customer during the payment process. Example:Ticket;string pg_salt required;Random string Example:some random string;string pg_sig required;Request signature;string pg_currency;The currency in which the amount is specified. KZT, USD, EUR. If the buyer chooses a payment method in another currency, the recalculation is made at the exchange rate of the Central Bank on the day of payment. Example: KZT;string pg_check_url; URL to check the possibility of payment. Called before the payment, if the payment system provides such an opportunity. If the parameter is not specified, then it is taken from the merchant settings. If the parameter is set to an empty string, then the check of the possibility of payment is not performed.; string pg_result_url;URL to report the result of the payment. Called after payment on success or failure. If the parameter is not specified, then it is taken from the merchant settings. If the parameter is set to an empty string, then FreedomPay does not tell the merchant y about payment result.; string pg_request_method;GET, POST or XML – method for calling merchant scripts Check URL, Result URL, for transferring information from the payment gate. Example: POST;string pg_success_url;url to which the user is sent in case of a successful payment (for online systems only);string pg_failure_url;url to which the user is sent in case of unsuccessful payment (for online systems only);string pg_success_url_method;GET is a button that is submitted by the GET method. POST is a button that is submitted using the POST method. If the GET or POST method is selected, then the payment confirmation page is shown to the user on the freedompay.kz site and prompted to click a button to return to the merchant's site. Example:GET;string pg_failure_url_method;GET is a button that is submitted by the GET method. POST is a button that is submitted using the POST method. If the GET or POST method is selected, then a page with a message about failed payment is shown to the user on the site freedompay.kz, and prompted to click a button to return to the merchant's site. Example : GET;string pg_site_url;URL of the merchant's site to show the buyer a link by which he can return to the merchant's site after creating an account. Applies to offline PS (cash).. Example: http://site.kz/return;string pg_lifetime;Default: "86400". Time (in seconds) during which the payment must be completed, otherwise the order during the payment FreedomPay will refuse to process the payment system. This parameter is controlled by FreedomPay and, if the payment system supports it, by the payment system. The minimum allowed value is 300 seconds (5 minutes). The maximum allowed value is 604800 seconds (7 days). In case of exceeding the boundary values, the minimum or maximum value will be assigned, respectively. Example:86400;integer pg_user_phone;The user's phone number (starting with the country code) is required to identify the buyer. If not specified, the choice will be offered to the user on the payment gate website. Example: 77777777777;string pg_user_contact_email;User's contact email address. If specified, notifications about changes in transaction status will be sent to this address. Example:mail@customer.kz;string pg_user_ip;Client's IP address. It is necessary for the analysis of disputable situations in case of suspected fraud. The parameter can be omitted when transmitting information through the user's browser, in which case the IP from which the user went to the payment initialization page will be recorded. Example:127.0.0.1;string pg_language; The language of the payment pages on the FreedomPay site and (if possible) payment systems. "en", "ru" Example: ru;string pg_testing_mode;Creating a payment in test mode. Example: 1;integer pg_user_id;User ID in the merchant system. Example: No65GFR755789T, 25642588;string pg_param1;Additional parameter 1 Example: Additional information;string pg_param2;Additional parameter 2 Example: Additional information;string pg_param3;Additional parameter 3 Example: Additional information;string pg_payment_method;Value - Payment method. mobile_commerce - Mobile commerce Example: mobile_commerce;string pg_generate_qr;In case you want to receive a QR code with a link to the FreedomPay payment form in base64 format, send "1" in the pg_generate_qr parameter; boolean
+
+Response parameters
+
+Title;Description;Type;
+
+pg_status;Shows the result of the query. Ok -Request successful. Error - The request failed. Pending - ОWaiting for payer or payment system;string pg_payment_id;The unique identifier of the payment transaction in FreedomPay. Serves as a key for all further work with the transaction;integer pg_redirect_url;The URL to redirect the user to. It can be both on the site freedompay.kz and on the site of the payment system;string pg_redirect_url_type;The type of page to which the redirect occurs. Possible values: need data - dialogue with the buyer to clarify the parameters: payment system, phone number, parameters required for this payment system. payment system - page of the payment system website or a page with instructions for paying through this payment system. The page with instructions can be located both on the freedompay.kz site and on the merchant's site. If the merchant receives a response with pg_redirect_url_type=”need data”, the merchant may not redirect the buyer to the received URL, but clarify missing parameters on your site. In this case, after specifying the parameters and re-requesting the creation of a payment transaction, a new transaction will be created;string pg_redirect_qr;URL to redirect the user as a QRCode. Transmitted in base64 format;string pg_salt;Random string;string pg_sig;Request signature;string
+
+In case of errors, there will be additional response parameters:
+
+Title;Description;Validation;
+
+pg_error_code;Error code ID;Numbers pg_error_description;Text description of the error;String
+
+Google PayGoogle Pay™ is a fast and secure way for one-touch online purchases. A customer of the store can pay with any card saved in his Google account. For merchant this payment will be processed like a regular payment by card.If the purchase is made from a mobile device supporting Google Pay, the customer will be asked to confirm the payment using a password, fingerprint or face recognition.If the purchase is made from a device without the Google Pay app, the customer can select any saved card in his Google account and confirm payment by passing 3D Secure authentication.
+
+All merchants must adhere to the Google Pay APIs Acceptable Use Policy and accept the terms defined in the Google Pay API Terms of Service
+
+The principle of working with the serviceBy clicking on the Google Pay button, the user goes to the page where the payment methods saved in his Google account are indicated. This way he will be able to quickly choose the method of payment convenient for him.Payment process:
+
+1. By clicking the Google Pay button, the user goes to a page with a list of available payment methods and selects the desired one.
+2. Google Pay securely transfers the token corresponding to the specified payment method to your site.
+3. Your site sends its server a token and other payment details.
+4. The server processes the data and transfers the token to the payment service provider.
+
+Hosted Payments Page IntegrationInstructions detailing how to integrate Google Pay™ into your Website using the Paybox Hosted Payments PagePre-requisites
+
+- Read the Google Pay Web Brand Guidelines
+- Read the Google Pay APIs Acceptable Use Policy
+- Prior to implementing Google Pay, contact the manager to have Google Pay enabled on your account. You will be required to agree to the Google Pay Terms of Services. Paybox support representative will provide instructions on how to do this.
+
+Implementation StepsFollow the instructions of your manager. A Google Pay button will be displayed by default on the Hosted Payments Page once Google Pay has been enabled on your accountWeb IntegrationInstructions detailing how to integrate Google Pay™ into your Website using Paybox as your gatewayPre-requisites
+
+1. Read the Google Pay Web Brand Guidelines
+2. Follow Google Pay's [Deploy production environment guidelines](Follow Google Pay's Deploy production environment guidelines). In this step you will obtain a merchantID. By integrating Google Pay, you agree to Google's terms of service.
+3. Contact your manager to have Google Pay enabled on your account. You will be supplied a gatewayMerchantID.
+
+Implementation StepsFollow the instructions in the following Google guides to implement a Google Pay button in your app:
+
+- Google Pay Web developer documentation
+- Google Pay Web integration checklist
+
+When setting up the tokenizationSpecification object, specify the following values for the gateway and gatewayMerchantId values:gateway - freedompaygatewayMerchantId - The Google Pay button will generate an encrypted token that you must then include in a request to the Paybox API to:
+
+- Create a purchase using the card in the Google Pay payload
+- Or tokenize the card details in the Google Pay payload
+
+The following documentation outlines the format of the two API calls:
+
+- Create a purchase using a wallet
+- Tokenize a card with wallet credentials
+
+Supported authentication methods: PAN_ONLY and CRYPTOGRAM_3DS. Supported card networks are Visa and MasterCard.There is no need to transfer the billing address.The payment token received from Google must be passed in the token parameter in string format. It must be transferred in the same form in which you received it from Google. The rest of the options are described below.Payment via APITo work through the API, the company needs PCI DSS certification. During registration, you will be given the data that you will need to use when making a payment:
+
+- MerchantID – store ID
+- ClientID – client ID
+- ClientSecret – secret key
+
+Request URLPOST https://api.freedompay.kz/g2g/paymentTest Request URLPOST https://test-api.freedompay.kz/g2g/paymentRequest fields
+
+```
+{
+    "pg_amount": "500",
+    "pg_auto_clearing": "0",
+    "pg_currency": "KZT",
+    "pg_description": "Payment #1",
+    "pg_merchant_id": "9970",
+    "pg_order_id": "302911642",
+    "pg_payment_method": "google_pay",
+    "pg_tokenized_payment_data": "{"signature":"MEQCIG4rKsp0ldpV20ujIxji9KZRtMvbicCnDzgKCLZxvkmiAiAXuke7uzcdzRKq6sAifb4ST5dZjy/1lzd1Y566xLMIIg\u003d\u003d","intermediateSigningKey":{"signedKey":"{\"keyValue\":\"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEJ9E0ixlcIPr5Pw0mJQaxmCF0ALdoSdtUp/Vn6ctWuNY0NdN0Tj9pO02NE+m5tdetboUfqP6s4ZwWNjZQXAJDKQ\\u003d\\u003d\",\"keyExpiration\":\"1672120937000\"}","signatures":["MEQCIH+zIK9y8EZpuEQ0Dw9xAEpC20IGmG0A2pZWkKmg1YezAiB02QD0qDIGisw+KjwLlFss0eK1yEXlYkgyOtJWmOweXA\u003d\u003d"]},"protocolVersion":"ECv2","signedMessage":"{\"encryptedMessage\":\"ygBdahs6ZSvmc6ip8OqaNrJOJgr7p+S6xALIMUodL83knnyoztbCm5Ok6ZqmHuzsD0Fs1JgWp5SexQrlHGbigwyNwLn4002/fwWPuFIykYH+aJMG9azcSn8GvRLiU+0AtuHZ9LzQQtsgMlFZTpTCIoBajWl/7xgHI6hy555JmT8Y8TgiY6jsYdjUD28FxOOFPUQEx3M4IsgjTaerXO8o5VYr7ymdoPWeWpPy/ZlT+RL4mwLiVn7bnqfXeUVS0e+Ogzb/lgAdRARPIwIbkcsquVRrKN66t8X15OhqPbxewk/xbD0A3IzKk8pDaLhNIoTwCa+7fuNT0xs13f/oZmzitRapHkBGNbH7/xKkbunianzUDM1blr2oH6JiOFJXPYyKOP+5tLI/Z5PrybK1A0j1TsdhOYiLCgZXKO+HOXmKiUUBtHJAr1mW6v0Y0eyXghhFiEqsH4PvTgHCWkLz1yP22UoH3E0oiOXcN3xwNIzLVX+ck75AknNdtL2CIWcw2Pcz10a5x28r1P3o262PKhEjIstLrPIj/nHhd2jA3cm/gyRNV0uoGZS9pyljzhDGdDpN6NmrczMEdW1HkRclyNaPWGIdw/xKUiVhsmqYmR7rsbIbIh/PaM5fEYANJMZBH8A3Lbe5gUTr1mAR\",\"ephemeralPublicKey\":\"BIiEqj+GZlQREoaVEKLrmN3Lf9S0xgWE+qYNGlkKOib7w6XYl5IbiFMIsGYn+xD8N2p5rE4+SMwpcueS4ZZhX+w\\u003d\",\"tag\":\"qjQlnu+6vq72q4FHlylj+IV9Q4fFpox2m4KqlUixeII\\u003d\"}"}"
+    "pg_salt": "7fe2b875f72542e3b3704288e92661cd",
+    "pg_user_ip": "95.83.118.177",
+    "pg_sig": "bfe9284b46b020c8528e4191c58f2222"
+}
+
+```
+
+Response parameters no 3DS
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<response>
+    <pg_payment_id>685462745</pg_payment_id>
+    <pg_status>ok</pg_status>
+    <pg_3ds>0</pg_3ds>
+    <pg_auth_code>116658</pg_auth_code>
+    <pg_reference>482481615785</pg_reference>
+    <pg_salt>ntb4oJhg46xnJqlU</pg_salt>
+    <pg_sig>7828753fe55bea789974fcd233197669</pg_sig>
+</response>
+
+```
+
+Response parameters 3DSIf you receive this response go to Making a payment with 3DSecure
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<response>
+    <pg_payment_id>685462745</pg_payment_id>
+    <pg_status>ok</pg_status>
+    <pg_3ds>1</pg_3ds>
+    <pg_3d_md>YTE5OThjNTEtOGNjZi00MDQ1LWE3M2ItZTcxMjI0NjkzMTVl</pg_3d_md>
+    <pg_3d_acsurl>https://secure.freedompay.kz/v1/v2_3ds_way4/user/3ds-page/561a9397-81ed-480a-a777-21b38dc02de9</pg_3d_acsurl>
+    <pg_3d_pareq>eyJtZXNzYWdlVHlwZSI6IkNSZXEiLCJtZXNzYWdlVmVyc2lvbiI6IjIuMS4wIiwidGhyZWVEU1NlcnZlclRyYW5zSUQiOiJhMTk5OGM1MS04Y2NmLTQwNDUtYTczYi1lNzEyMjQ2OTMxNWUiLCJhY3NUcmFuc0lEIjoiZDk1OTM3NGYtZDE0Yi00MjEzLTkwMmItN2Q1YmYwOWFkYTdlIiwiY2hhbGxlbmdlV2luZG93U2l6ZSI6IjA1In0</pg_3d_pareq>
+    <pg_salt>GGADkDBS8eLFtQtL</pg_salt>
+    <pg_sig>7b1da0a4639625f2686bd7084d09a641</pg_sig>
+</response>
+
+```
+
+Standard integration (only for web-sites)Standard integration refers to hosting checkout page with Google Pay on merchant's website. To make a payment, you need to receive a payment token from Google Pay and transfer it to the freedompay payment gateway.Before you begin the integration, make sure that:
+
+- You have read with Google Pay API Overview;
+- Your web-page supports HTTPS protocol and has a domain-validated TLS certificate;
+- One of the following web browsers is being used: Google Chrome, Mozilla Firefox, Apple Safari, Microsoft Edge, Opera, or UCWeb UC.
+
+Upon completion of the integration, you must ensure that:
+
+- You have completed all the required steps of Google Pay Web integration checklist
+- You followed Google Pay Web Brand Guidelines.
+
+Test cards
+
+Card number;Expiration date;CVC;Response code;Response
+
+4111111111111111;2024/12;123;0;Successful operation. 5555555555555599;2024/12;123;0;Successful operation. 4444444444446666;2024/12;123;10001;Payment error. Contact card issuer 4563960122001999;2024/12;123;11006;Insufficient funds for the operation. Top up the balance and repeat the payment. 5555555555555557;2024/12;123;10010;Card restrictions. Contact card issuer 4444444444444422;2024/12;123;10016;Payment error. Contact the support service of the site you are paying to. 4444444411111111;2024/12;123;10025; The operation was unsuccessful, an error appears on the side of the Payment System. Repeat payment later.
