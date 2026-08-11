@@ -121,10 +121,15 @@ class Review extends Model
     public function forSubject(int $subjectId, int $limit = 50): array
     {
         $stmt = $this->db->prepare(
-            'SELECT r.*,
+            'SELECT r.id, r.order_id, r.author_id, r.subject_id, r.role, r.rating, r.body, r.created_at,
                     a.name AS author_name, a.avatar AS author_avatar, a.avatar_file AS author_avatar_file,
-                    p.id AS product_id, p.title AS product_title, p.image AS product_image,
-                    p.price AS product_price, p.price_label AS product_price_label, p.type AS product_type
+                    o.product_id AS product_id,
+                    p.title AS product_title,
+                    p.image AS product_image_file,
+                    p.images AS product_images,
+                    p.price AS product_price,
+                    p.price_label AS product_price_label,
+                    p.type AS product_type
              FROM reviews r
              JOIN users a ON a.id = r.author_id
              JOIN orders o ON o.id = r.order_id

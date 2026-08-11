@@ -211,8 +211,29 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                                         <a href="<?= ProductHelper::url('/orders/' . (int) $r['order_id']) ?>" class="text-[11px] font-semibold text-brand-600 hover:underline flex-shrink-0">#<?= (int) $r['order_id'] ?></a>
                                     <?php endif; ?>
                                 </div>
-                                <?php if (!empty($r['product_title'])): ?>
-                                    <p class="text-xs text-gray-400 truncate"><?= htmlspecialchars($r['product_title']) ?></p>
+                                <?php
+                                $productId = (int) ($r['product_id'] ?? 0);
+                                $productTitle = trim((string) ($r['product_title'] ?? ''));
+                                $productStub = [
+                                    'image' => $r['product_image_file'] ?? null,
+                                    'images' => $r['product_images'] ?? null,
+                                ];
+                                $productImage = $productId > 0 ? ProductHelper::imageUrl($productStub) : null;
+                                if ($productId > 0):
+                                ?>
+                                    <a href="<?= ProductHelper::url('/product/' . $productId) ?>" class="flex items-center gap-2.5 rounded-xl border border-black/[0.06] dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] px-2.5 py-2 hover:border-brand-500/40 transition">
+                                        <span class="w-11 h-11 rounded-lg overflow-hidden bg-ink-100 dark:bg-white/10 flex items-center justify-center shrink-0 text-gray-300">
+                                            <?php if ($productImage): ?>
+                                                <img src="<?= htmlspecialchars($productImage) ?>" alt="" class="w-full h-full object-cover">
+                                            <?php else: ?>
+                                                ·
+                                            <?php endif; ?>
+                                        </span>
+                                        <span class="min-w-0">
+                                            <span class="block text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('seller.review_about_product')) ?></span>
+                                            <span class="block text-xs font-semibold text-ink-800 dark:text-gray-100 truncate"><?= htmlspecialchars($productTitle !== '' ? $productTitle : t('seller.review_product_fallback')) ?></span>
+                                        </span>
+                                    </a>
                                 <?php endif; ?>
                                 <?php if (!empty($r['body'])): ?>
                                     <p class="text-sm text-ink-700 dark:text-gray-300 leading-relaxed"><?= nl2br(htmlspecialchars($r['body'])) ?></p>

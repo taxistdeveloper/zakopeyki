@@ -122,15 +122,18 @@ class UserController extends Controller
                 'avatar' => $r['author_avatar'] ?? null,
                 'avatar_file' => $r['author_avatar_file'] ?? null,
             ];
-            $productImage = null;
-            if (!empty($r['product_image'])) {
-                $productImage = ProductHelper::url('public/uploads/products/' . basename((string) $r['product_image']));
-            }
+            $productId = (int) ($r['product_id'] ?? 0);
             $productStub = [
                 'type' => $r['product_type'] ?? 'used',
                 'price' => $r['product_price'] ?? 0,
                 'price_label' => $r['product_price_label'] ?? null,
+                'image' => $r['product_image_file'] ?? null,
+                'images' => $r['product_images'] ?? null,
             ];
+            $productTitle = trim((string) ($r['product_title'] ?? ''));
+            if ($productTitle === '' && $productId > 0) {
+                $productTitle = t('seller.review_product_fallback');
+            }
             $reviews[] = [
                 'id' => (int) ($r['id'] ?? 0),
                 'rating' => (int) ($r['rating'] ?? 0),
@@ -139,14 +142,14 @@ class UserController extends Controller
                 'author_name' => (string) ($r['author_name'] ?? ''),
                 'author_avatar_url' => AvatarHelper::url($author),
                 'author_initial' => AvatarHelper::initial($author),
-                'product_id' => (int) ($r['product_id'] ?? 0),
-                'product_title' => (string) ($r['product_title'] ?? ''),
-                'product_image' => $productImage,
-                'product_price_label' => !empty($r['product_id'])
+                'product_id' => $productId,
+                'product_title' => $productTitle,
+                'product_image' => $productId > 0 ? ProductHelper::imageUrl($productStub) : null,
+                'product_price_label' => $productId > 0
                     ? ProductHelper::formatPrice($productStub)
                     : '',
-                'product_url' => !empty($r['product_id'])
-                    ? ProductHelper::url('/product/' . (int) $r['product_id'])
+                'product_url' => $productId > 0
+                    ? ProductHelper::url('/product/' . $productId)
                     : '',
             ];
         }

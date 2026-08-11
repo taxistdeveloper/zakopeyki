@@ -2258,6 +2258,6 @@ function url(string $path = ''): string
             'product.close_photo', 'product.prev_photo', 'product.next_photo', 'product.zoom',
         ])) ?>;
     </script>
-    <script src="<?= url('public/assets/js/app.js') ?>"></script>
+    <script src="<?= url('public/assets/js/app.js') ?>?v=<?= (int) (@filemtime(__DIR__ . '/../../../public/assets/js/app.js') ?: time()) ?>"></script>
 </body>
 </html>
