@@ -1,13 +1,18 @@
 <!-- Seller shop modal (по макету профиля продавца) -->
-<div id="seller-profile-modal" class="hidden fixed inset-0 z-[85] flex items-stretch sm:items-center justify-center bg-ink-900/50 backdrop-blur-[2px] p-0 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="seller-profile-name" onclick="if(event.target===this)closeSellerProfile()">
-    <div class="seller-shop-panel w-full sm:max-w-5xl bg-[#f7f7fb] dark:bg-ink-950 sm:rounded-[24px] shadow-lift border-0 sm:border border-black/[0.06] dark:border-white/10 overflow-hidden h-[100dvh] sm:h-[min(94vh,880px)] flex flex-col" onclick="event.stopPropagation()">
+<div id="seller-profile-modal" class="hidden fixed inset-0 z-[85] flex items-stretch sm:items-center justify-center bg-ink-900/50 backdrop-blur-[2px] p-0 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="seller-profile-name">
+    <div class="seller-shop-panel w-full sm:max-w-5xl bg-[#f7f7fb] dark:bg-ink-950 sm:rounded-[24px] shadow-lift border-0 sm:border border-black/[0.06] dark:border-white/10 overflow-hidden h-[100dvh] sm:h-[min(94vh,880px)] flex flex-col relative">
         <header class="seller-shop-top shrink-0 flex items-center justify-between gap-3 px-4 sm:px-5 h-14 bg-white dark:bg-ink-900 border-b border-black/[0.06] dark:border-white/10">
-            <button type="button" onclick="closeSellerProfile()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-ink-700 dark:text-gray-200 hover:text-brand-600 transition" aria-label="<?= htmlspecialchars(t('seller.close')) ?>">
+            <button type="button" id="seller-profile-back" class="inline-flex items-center gap-1.5 text-sm font-semibold text-ink-700 dark:text-gray-200 hover:text-brand-600 transition" aria-label="<?= htmlspecialchars(t('seller.close')) ?>">
                 <span class="text-lg leading-none" aria-hidden="true">←</span>
                 <span class="hidden sm:inline"><?= htmlspecialchars(t('seller.back')) ?></span>
             </button>
             <span class="font-display font-extrabold text-sm tracking-tight text-ink-900 dark:text-white">za<span class="text-[#7c3aed]">kopeyki</span>.kz</span>
-            <button type="button" id="seller-profile-menu" class="w-9 h-9 rounded-xl text-ink-500 hover:bg-ink-50 dark:hover:bg-white/10 transition flex items-center justify-center text-xl leading-none" aria-label="menu">⋯</button>
+            <div class="relative">
+                <button type="button" id="seller-profile-menu" class="w-9 h-9 rounded-xl text-ink-500 hover:bg-ink-50 dark:hover:bg-white/10 transition flex items-center justify-center text-xl leading-none" aria-label="<?= htmlspecialchars(t('seller.menu')) ?>" aria-expanded="false" aria-haspopup="true">⋯</button>
+                <div id="seller-profile-menu-dd" class="hidden absolute right-0 top-full mt-1 z-20 min-w-[11rem] rounded-xl border border-black/[0.08] dark:border-white/10 bg-white dark:bg-ink-900 shadow-lift py-1 text-sm">
+                    <button type="button" id="seller-profile-copy-link" class="w-full text-left px-3.5 py-2.5 hover:bg-ink-50 dark:hover:bg-white/5 text-ink-800 dark:text-gray-100 font-medium"><?= htmlspecialchars(t('seller.copy_link')) ?></button>
+                </div>
+            </div>
         </header>
 
         <div id="seller-profile-loading" class="flex-1 flex items-center justify-center text-sm text-gray-400 px-5"><?= htmlspecialchars(t('seller.loading')) ?></div>
@@ -35,7 +40,7 @@
                     </div>
                 </div>
 
-                <div id="seller-profile-stats" class="mt-5 grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3"></div>
+                <div id="seller-profile-stats" class="seller-shop-stats mt-5"></div>
             </div>
 
             <div class="bg-white dark:bg-ink-900 px-4 sm:px-6 pt-3 border-b border-black/[0.06] dark:border-white/10 sticky top-0 z-10">

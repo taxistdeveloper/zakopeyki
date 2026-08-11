@@ -3186,6 +3186,7 @@ function closeSellerProfile() {
     modal.classList.add('hidden');
     document.body.style.overflow = '';
     sellerProfileData = null;
+    closeSellerProfileMenu();
     try {
         const url = new URL(window.location.href);
         if (url.searchParams.has('seller')) {
@@ -3193,6 +3194,42 @@ function closeSellerProfile() {
             window.history.replaceState({}, '', url.pathname + url.search + url.hash);
         }
     } catch (e) { /* ignore */ }
+}
+
+function closeSellerProfileMenu() {
+    const dd = document.getElementById('seller-profile-menu-dd');
+    const btn = document.getElementById('seller-profile-menu');
+    if (dd) dd.classList.add('hidden');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+
+function toggleSellerProfileMenu() {
+    const dd = document.getElementById('seller-profile-menu-dd');
+    const btn = document.getElementById('seller-profile-menu');
+    if (!dd) return;
+    const open = dd.classList.contains('hidden');
+    dd.classList.toggle('hidden', !open);
+    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function copySellerProfileLink() {
+    const id = sellerProfileData && sellerProfileData.id;
+    if (!id) return;
+    const base = window.__usersBase || '/users/';
+    const link = window.location.origin + String(base).replace(/\/?$/, '/') + id;
+    const done = function () {
+        alert(window.__i18n?.['seller.link_copied'] || 'Ссылка скопирована');
+        closeSellerProfileMenu();
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link).then(done).catch(function () {
+            window.prompt(window.__i18n?.['seller.copy_link'] || 'Скопировать ссылку', link);
+            closeSellerProfileMenu();
+        });
+    } else {
+        window.prompt(window.__i18n?.['seller.copy_link'] || 'Скопировать ссылку', link);
+        closeSellerProfileMenu();
+    }
 }
 
 function openSellerProfile(userId) {
@@ -3320,22 +3357,64 @@ function renderSellerProfile(data) {
 
     const stats = document.getElementById('seller-profile-stats');
     if (stats) {
-        const ratingText = Number(data.rating_count || 0) > 0
-            ? Number(data.rating_avg || 0).toFixed(1)
-            : '—';
-        const responseText = data.response_time || '—';
+        const ratingCount = Number(data.rating_count || 0);
+        const ratingText = ratingCount > 0 ? Number(data.rating_avg || 0).toFixed(1) : '—';
+        const ratingSub = ratingCount > 0
+            ? (window.__i18n?.['seller.stat_rating_sub'] || 'на основе :n отзывов').replace(':n', String(ratingCount))
+            : (window.__i18n?.['seller.stat_rating_empty'] || 'пока нет отзывов');
+        const responseRaw = data.response_time;
+        const responseText = responseRaw ? String(responseRaw) : '—';
+        const responseSub = responseRaw
+            ? (window.__i18n?.['seller.stat_response_sub'] || 'в среднем')
+            : (window.__i18n?.['seller.stat_response_empty'] || 'нет данных');
+
+        const iconStar = '<svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.9 6.9L22 10l-5 4.6L18.2 22 12 18.2 5.8 22 7 14.6 2 10l7.1-1.1L12 2z"/></svg>';
+        const iconBag = '<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 7h12l-1 13H7L6 7z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>';
+        const iconUsers = '<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+        const iconUser = '<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+        const iconClock = '<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+
         stats.innerHTML = [
-            { label: window.__i18n?.['seller.rating'] || 'рейтинг', value: ratingText, icon: '★', sub: Number(data.rating_count || 0) > 0 ? '(' + data.rating_count + ')' : '' },
-            { label: window.__i18n?.['seller.sales'] || 'продажи', value: sellerFmtCount(data.sales_count), icon: '🛒' },
-            { label: window.__i18n?.['seller.stat_followers'] || 'Подписчики', value: '<span id="seller-profile-followers">' + sellerFmtCount(data.followers_count) + '</span>', icon: '👥' },
-            { label: window.__i18n?.['seller.stat_following'] || 'Подписки', value: sellerFmtCount(data.following_count), icon: '👤' },
-            { label: window.__i18n?.['seller.response'] || 'ответ', value: responseText, icon: '⏱' }
+            {
+                label: window.__i18n?.['seller.stat_rating'] || 'Рейтинг продавца',
+                value: ratingText,
+                sub: ratingSub,
+                icon: iconStar,
+                iconClass: 'is-star'
+            },
+            {
+                label: window.__i18n?.['seller.stat_sales'] || 'Продаж',
+                value: sellerFmtCount(data.sales_count),
+                sub: window.__i18n?.['seller.stat_sales_sub'] || 'успешных',
+                icon: iconBag
+            },
+            {
+                label: window.__i18n?.['seller.stat_followers'] || 'Подписчики',
+                value: '<span id="seller-profile-followers">' + sellerFmtCount(data.followers_count) + '</span>',
+                sub: window.__i18n?.['seller.stat_people'] || 'человек',
+                icon: iconUsers
+            },
+            {
+                label: window.__i18n?.['seller.stat_following'] || 'Подписки',
+                value: sellerFmtCount(data.following_count),
+                sub: window.__i18n?.['seller.stat_people'] || 'человек',
+                icon: iconUser
+            },
+            {
+                label: window.__i18n?.['seller.stat_response'] || 'Время ответа',
+                value: responseText,
+                sub: responseSub,
+                icon: iconClock
+            }
         ].map(function (s) {
             return '<div class="seller-shop-stat">'
                 + '<span class="seller-shop-stat-label">' + sellerEsc(s.label) + '</span>'
-                + '<span class="seller-shop-stat-value"><span class="seller-shop-stat-icon" aria-hidden="true">' + s.icon + '</span>'
-                + s.value + (s.sub ? ' <span class="text-gray-400 font-semibold text-xs">' + sellerEsc(s.sub) + '</span>' : '')
-                + '</span></div>';
+                + '<span class="seller-shop-stat-value">'
+                + '<span class="seller-shop-stat-icon' + (s.iconClass ? ' ' + s.iconClass : '') + '">' + s.icon + '</span>'
+                + s.value
+                + '</span>'
+                + '<span class="seller-shop-stat-sub">' + sellerEsc(s.sub) + '</span>'
+                + '</div>';
         }).join('');
     }
 
@@ -3576,23 +3655,50 @@ function renderSellerReviews() {
 }
 
 document.addEventListener('click', function (e) {
+    const modal = document.getElementById('seller-profile-modal');
+    const modalOpen = modal && !modal.classList.contains('hidden');
+
+    if (modalOpen && e.target === modal) {
+        closeSellerProfile();
+        return;
+    }
+    if (e.target.closest('#seller-profile-back')) {
+        closeSellerProfile();
+        return;
+    }
+    if (e.target.closest('#seller-profile-menu')) {
+        e.preventDefault();
+        toggleSellerProfileMenu();
+        return;
+    }
+    if (e.target.closest('#seller-profile-copy-link')) {
+        e.preventDefault();
+        copySellerProfileLink();
+        return;
+    }
+    if (modalOpen && !e.target.closest('#seller-profile-menu-dd') && !e.target.closest('#seller-profile-menu')) {
+        closeSellerProfileMenu();
+    }
+
     const trigger = e.target.closest('.seller-profile-trigger');
     if (trigger) {
         e.preventDefault();
-        e.stopPropagation();
-        openSellerProfile(trigger.dataset.sellerId);
+        openSellerProfile(trigger.dataset.sellerId || trigger.getAttribute('data-seller-id'));
         return;
     }
     const tab = e.target.closest('.seller-shop-tab');
     if (tab) {
+        e.preventDefault();
         setSellerShopTab(tab.dataset.sellerTab || 'products');
         return;
     }
     if (e.target.closest('[data-seller-goto-reviews]')) {
+        e.preventDefault();
         setSellerShopTab('reviews');
         return;
     }
     if (e.target.closest('#seller-products-more')) {
+        e.preventDefault();
         sellerProductsVisible += 6;
         renderSellerProducts();
     }

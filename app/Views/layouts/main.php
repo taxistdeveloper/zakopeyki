@@ -1905,39 +1905,97 @@ function url(string $path = ''): string
             border-radius: 2px 2px 0 0;
             background: #7c3aed;
         }
+        .seller-shop-stats {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 0;
+            border: 1px solid rgba(0,0,0,0.08);
+            border-radius: 1rem;
+            background: #fff;
+            overflow: hidden;
+        }
+        .dark .seller-shop-stats {
+            background: rgba(255,255,255,0.03);
+            border-color: rgba(255,255,255,0.1);
+        }
         .seller-shop-stat {
             display: flex;
             flex-direction: column;
             align-items: flex-start;
-            gap: 0.2rem;
-            padding: 0.7rem 0.8rem;
-            border-radius: 1rem;
-            border: 1px solid rgba(0,0,0,0.06);
-            background: #fafafa;
+            gap: 0.35rem;
+            padding: 0.85rem 0.9rem 0.95rem;
             min-width: 0;
+            border-right: 1px solid rgba(0,0,0,0.08);
+            background: transparent;
         }
+        .seller-shop-stat:last-child { border-right: 0; }
         .dark .seller-shop-stat {
-            background: rgba(255,255,255,0.03);
-            border-color: rgba(255,255,255,0.08);
+            background: transparent;
+            border-right-color: rgba(255,255,255,0.1);
         }
         .seller-shop-stat-label {
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 600;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-            color: #9ca3af;
+            letter-spacing: 0;
+            text-transform: none;
+            color: #6b7280;
+            line-height: 1.25;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
         }
         .seller-shop-stat-value {
             display: inline-flex;
             align-items: center;
-            gap: 0.35rem;
-            font-size: 0.95rem;
+            gap: 0.4rem;
+            font-size: 1.35rem;
             font-weight: 800;
             color: #111827;
-            line-height: 1.2;
+            line-height: 1.1;
+            font-family: Sora, system-ui, sans-serif;
         }
         .dark .seller-shop-stat-value { color: #f9fafb; }
-        .seller-shop-stat-icon { color: #7c3aed; flex-shrink: 0; }
+        .seller-shop-stat-icon {
+            color: #7c3aed;
+            flex-shrink: 0;
+            width: 1.05rem;
+            height: 1.05rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .seller-shop-stat-icon.is-star { color: #f5b301; }
+        .seller-shop-stat-sub {
+            font-size: 11px;
+            color: #9ca3af;
+            line-height: 1.25;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+        @media (max-width: 640px) {
+            .seller-shop-stats {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .seller-shop-stat {
+                border-right: 1px solid rgba(0,0,0,0.08);
+                border-bottom: 1px solid rgba(0,0,0,0.08);
+            }
+            .dark .seller-shop-stat {
+                border-right-color: rgba(255,255,255,0.1);
+                border-bottom-color: rgba(255,255,255,0.1);
+            }
+            .seller-shop-stat:nth-child(2n) { border-right: 0; }
+            .seller-shop-stat:nth-child(n+4) { border-bottom: 0; }
+            .seller-shop-stat:last-child {
+                grid-column: 1 / -1;
+                border-right: 0;
+                border-bottom: 0;
+            }
+            .seller-shop-stat-value { font-size: 1.15rem; }
+        }
         .seller-shop-card {
             display: flex;
             flex-direction: column;
@@ -2142,9 +2200,12 @@ function url(string $path = ''): string
             'seller.subscribe', 'seller.unsubscribe', 'seller.edit_profile', 'seller.no_lots',
             'seller.followers', 'seller.loading', 'seller.close', 'seller.not_found',
             'seller.write', 'seller.rating', 'seller.sales', 'seller.response',
-            'seller.stat_followers', 'seller.stat_following', 'seller.show_more',
+            'seller.stat_followers', 'seller.stat_following', 'seller.stat_rating', 'seller.stat_sales',
+            'seller.stat_response', 'seller.stat_rating_sub', 'seller.stat_rating_empty',
+            'seller.stat_sales_sub', 'seller.stat_people', 'seller.stat_response_sub', 'seller.stat_response_empty',
+            'seller.show_more',
             'seller.buyer_reviews', 'seller.all_reviews', 'seller.no_reviews', 'seller.no_bio',
-            'seller.follow_error', 'seller.follow_self',
+            'seller.follow_error', 'seller.follow_self', 'seller.copy_link', 'seller.link_copied', 'seller.menu',
             'card.favorite', 'card.unfavorite', 'card.add_cart', 'card.in_cart',
             'card.add_cart', 'card.in_cart',
             'home.story_link_copied',
