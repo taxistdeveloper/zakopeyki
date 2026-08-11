@@ -13,6 +13,7 @@ class ProductHelper
         'free' => 'Отдам бесплатно',
         'exchange' => 'Обмен',
         'service' => 'Услуги',
+        'gig' => 'Биржа услуг',
         'course' => 'Курс',
     ];
 
@@ -154,6 +155,7 @@ class ProductHelper
             'free' => 'bg-sky-500 text-white',
             'exchange' => 'bg-indigo-500 text-white',
             'service' => 'bg-emerald-500 text-white',
+            'gig' => 'bg-teal-600 text-white',
             'course' => 'bg-blue-500 text-white',
         ];
 
@@ -237,7 +239,7 @@ class ProductHelper
     }
 
     /** Типы объявлений, которые можно оплатить на платформе. */
-    public const PURCHASABLE_TYPES = ['used', 'new', 'service', 'course'];
+    public const PURCHASABLE_TYPES = ['used', 'new', 'service', 'gig', 'course'];
 
     public static function isPurchasable(array $item): bool
     {

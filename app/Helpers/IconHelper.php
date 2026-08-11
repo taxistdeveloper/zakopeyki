@@ -45,6 +45,7 @@ class IconHelper
     /** @var array<string, string> */
     private const TYPE_MAP = [
         'service' => 'wrench',
+        'gig' => 'briefcase',
         'free' => 'gift',
         'auction' => 'gavel',
         'exchange' => 'exchange',

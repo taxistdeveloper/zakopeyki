@@ -17,6 +17,7 @@ class CatalogController extends Controller
         'free' => ['titleKey' => 'catalog.heading_free', 'type' => 'free', 'nav' => 'free'],
         'exchange' => ['titleKey' => 'catalog.heading_exchange', 'type' => 'exchange', 'nav' => 'exchange'],
         'services' => ['titleKey' => 'catalog.heading_services', 'type' => 'service', 'nav' => 'services'],
+        'gigs' => ['titleKey' => 'catalog.heading_gigs', 'type' => 'gig', 'nav' => 'services_board'],
         'courses' => ['titleKey' => 'catalog.heading_courses', 'type' => 'course', 'nav' => 'courses'],
     ];
 

@@ -78,6 +78,7 @@ $changelog = $changelog ?? null;
             ['url' => '/catalog/used', 'label' => t('home.cat_used'), 'tone' => 'from-orange-50 to-amber-50', 'color' => 'text-orange-500', 'icon' => 'package'],
             ['url' => '/auctions', 'label' => t('home.cat_auctions'), 'tone' => 'from-accent-50 to-orange-50', 'color' => 'text-accent-500', 'icon' => 'gavel'],
             ['url' => '/catalog/services', 'label' => t('home.cat_services'), 'tone' => 'from-slate-50 to-brand-50', 'color' => 'text-slate-600 dark:text-slate-300', 'icon' => 'wrench'],
+            ['url' => '/catalog/gigs', 'label' => t('home.cat_gigs'), 'tone' => 'from-teal-50 to-emerald-50', 'color' => 'text-teal-600 dark:text-teal-300', 'icon' => 'briefcase'],
             ['url' => '/catalog/courses', 'label' => t('home.cat_courses'), 'tone' => 'from-violet-50 to-indigo-50', 'color' => 'text-violet-500', 'icon' => 'graduation'],
             ['url' => '/catalog/exchange', 'label' => t('home.cat_exchange'), 'tone' => 'from-brand-50 to-sky-50', 'color' => 'text-brand-500', 'icon' => 'exchange'],
             ['url' => '/catalog/free', 'label' => t('home.cat_free'), 'tone' => 'from-sky-50 to-blue-50', 'color' => 'text-sky-500', 'icon' => 'gift'],
