@@ -146,6 +146,11 @@ class Follow extends Model
             'INSERT IGNORE INTO user_follows (follower_id, following_id) VALUES (?, ?)'
         );
         $stmt->execute([$followerId, $followingId]);
+
+        if ($stmt->rowCount() > 0) {
+            (new Bonus())->awardFollower($followingId, $followerId);
+        }
+
         return [
             'ok' => true,
             'following' => true,

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Core\Database;
+use App\Models\Bonus;
 use App\Models\Notification;
 use App\Models\Order;
 use App\Models\Wallet;
@@ -510,6 +511,7 @@ class EscrowService
             ]);
 
             (new Wallet())->releaseFromEscrow($sellerId, $amount, $orderId);
+            (new Bonus())->awardSale($sellerId, $orderId);
 
             $db->commit();
         } catch (\Throwable $e) {
@@ -525,6 +527,10 @@ class EscrowService
             : t('escrow.notify_released', ['id' => $orderId, 'amount' => number_format($amount, 0, '', ' ')]);
 
         (new Notification())->createFor($sellerId, $msg);
+        (new Notification())->createFor(
+            $sellerId,
+            t('bonuses.notify_sale', ['amount' => Bonus::format(Bonus::AMOUNT_SALE)])
+        );
         if ($actorId === null || $actorId !== (int) $order['buyer_id']) {
             (new Notification())->createFor(
                 (int) $order['buyer_id'],

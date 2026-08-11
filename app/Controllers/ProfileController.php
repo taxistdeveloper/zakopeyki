@@ -328,6 +328,8 @@ class ProfileController extends Controller
             'price' => $price,
         ]);
 
+        $bonusResult = (new \App\Models\Bonus())->awardListing((int) Auth::id(), (int) $productId);
+
         $sellerName = (string) (Auth::user()['name'] ?? 'Продавец');
         $shortTitle = mb_strlen($title) > 80 ? mb_substr($title, 0, 77) . '…' : $title;
         (new Follow())->notifyFollowers(
@@ -336,6 +338,11 @@ class ProfileController extends Controller
         );
 
         $_SESSION['flash'] = t('flash.lot_published');
+        if (!empty($bonusResult['ok']) && empty($bonusResult['skipped']) && ($bonusResult['amount'] ?? 0) > 0) {
+            $_SESSION['flash'] .= ' ' . t('bonuses.flash_listing', [
+                'amount' => \App\Models\Bonus::format((int) $bonusResult['amount']),
+            ]);
+        }
         $this->redirect('/profile?tab=lots');
     }
 

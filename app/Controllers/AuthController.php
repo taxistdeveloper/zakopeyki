@@ -179,11 +179,26 @@ class AuthController extends Controller
             'phone' => $phone,
         ]);
 
+        $bonusResult = (new \App\Models\Bonus())->awardRegistration((int) $id);
+
         $user = $users->find($id);
         Auth::login($user);
         ActivityLogger::info('auth.register', 'Регистрация: ' . $email, 'user', (int) $id, [
             'email' => $email,
+            'bonus' => $bonusResult['amount'] ?? 0,
         ]);
+
+        if (!empty($bonusResult['ok']) && empty($bonusResult['skipped']) && ($bonusResult['amount'] ?? 0) > 0) {
+            $_SESSION['flash'] = t('bonuses.flash_registration', [
+                'amount' => \App\Models\Bonus::format((int) $bonusResult['amount']),
+            ]);
+            (new \App\Models\Notification())->createFor(
+                (int) $id,
+                t('bonuses.notify_registration', [
+                    'amount' => \App\Models\Bonus::format((int) $bonusResult['amount']),
+                ])
+            );
+        }
 
         $appConfig = $GLOBALS['appConfig'] ?? [];
         if (!empty($appConfig['stub_mode']) && !Auth::hasSiteAccess()) {
@@ -281,6 +296,18 @@ class AuthController extends Controller
                     'role' => 'user',
                 ]);
                 $user = $users->find($id);
+                $bonusResult = (new \App\Models\Bonus())->awardRegistration((int) $id);
+                if (!empty($bonusResult['ok']) && empty($bonusResult['skipped']) && ($bonusResult['amount'] ?? 0) > 0) {
+                    $_SESSION['flash'] = t('bonuses.flash_registration', [
+                        'amount' => \App\Models\Bonus::format((int) $bonusResult['amount']),
+                    ]);
+                    (new \App\Models\Notification())->createFor(
+                        (int) $id,
+                        t('bonuses.notify_registration', [
+                            'amount' => \App\Models\Bonus::format((int) $bonusResult['amount']),
+                        ])
+                    );
+                }
             }
         }
 

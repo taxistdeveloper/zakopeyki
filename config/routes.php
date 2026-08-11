@@ -19,6 +19,7 @@ use App\Controllers\StreamController;
 use App\Controllers\SupportController;
 use App\Controllers\UserController;
 use App\Controllers\WalletController;
+use App\Controllers\BonusController;
 use App\Core\Router;
 
 $router = new Router();
@@ -29,6 +30,9 @@ $router->get('/about/document/{slug}', [HomeController::class, 'aboutDocument'])
 $router->get('/offer', [HomeController::class, 'offer']);
 $router->get('/privacy', [HomeController::class, 'privacy']);
 $router->get('/data-policy', [HomeController::class, 'dataPolicy']);
+$router->get('/bonuses', [BonusController::class, 'index']);
+$router->get('/bonuses/verify/{code}', [BonusController::class, 'verify']);
+$router->get('/catalog/bonuses', [BonusController::class, 'index']);
 $router->get('/catalog/{section}', [CatalogController::class, 'show']);
 $router->get('/auctions', [AuctionController::class, 'index']);
 $router->post('/auctions/{id}/bid', [AuctionController::class, 'bid']);
