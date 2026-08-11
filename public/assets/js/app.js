@@ -269,6 +269,39 @@ document.addEventListener('click', function (e) {
     }
 });
 
+/* ===== Product share menu ===== */
+function closeShareMenus(except) {
+    document.querySelectorAll('[data-share-menu]').forEach(function (menu) {
+        if (except && menu === except) return;
+        const panel = menu.querySelector('[data-share-dropdown]');
+        const btn = menu.querySelector('[data-share-toggle]');
+        if (panel) panel.classList.add('hidden');
+        if (btn) btn.setAttribute('aria-expanded', 'false');
+    });
+}
+
+document.addEventListener('click', function (e) {
+    const toggle = e.target.closest('[data-share-toggle]');
+    if (toggle) {
+        e.preventDefault();
+        e.stopPropagation();
+        const menu = toggle.closest('[data-share-menu]');
+        const panel = menu && menu.querySelector('[data-share-dropdown]');
+        if (!panel) return;
+        const willOpen = panel.classList.contains('hidden');
+        closeShareMenus(willOpen ? menu : null);
+        panel.classList.toggle('hidden', !willOpen);
+        toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+        return;
+    }
+    if (e.target.closest('[data-share-dropdown]')) {
+        return;
+    }
+    if (!e.target.closest('[data-share-menu]')) {
+        closeShareMenus();
+    }
+});
+
 /* ===== Stories ===== */
 // Переносим полноэкранные модалки в body: внутри анимированных/overflow-обёрток
 // position:fixed позиционируется неверно, и просмотрщик уезжает вниз страницы.
@@ -3830,12 +3863,31 @@ function setCartButtonState(btn, inCart) {
     btn.classList.toggle('dark:bg-brand-500/10', on);
     btn.classList.toggle('text-brand-700', on);
     btn.classList.toggle('dark:text-brand-400', on);
+    btn.classList.toggle('border-brand-200/60', on);
     const label = on
         ? (window.__i18n?.['card.in_cart'] || 'В корзине')
         : (window.__i18n?.['card.add_cart'] || 'В корзину');
     btn.setAttribute('aria-label', label);
-    btn.textContent = label;
+    const labelEl = btn.querySelector('.cart-btn-label');
+    if (labelEl) {
+        labelEl.textContent = label;
+    } else if (!btn.querySelector('svg')) {
+        btn.textContent = label;
+    }
 }
+
+document.addEventListener('click', function (e) {
+    const card = e.target.closest('article[data-card-href]');
+    if (card
+        && !e.target.closest('a, button, input, select, textarea, label, [data-lightbox], [data-share-menu], .favorite-btn, .cart-btn')
+    ) {
+        const href = card.getAttribute('data-card-href');
+        if (href) {
+            window.location.href = href;
+            return;
+        }
+    }
+});
 
 document.addEventListener('click', function (e) {
     const btn = e.target.closest('.cart-btn');
@@ -4423,6 +4475,7 @@ document.addEventListener('keydown', function (e) {
         if (!trigger) return;
         // Don't steal clicks from nested controls (favorite button sits over the card image)
         if (e.target.closest('.favorite-btn')) return;
+        if (e.target.closest('[data-share-menu]')) return;
         if (e.target.closest('.cart-btn')) return;
 
         var src = trigger.getAttribute('data-lightbox-src') || '';
@@ -4448,7 +4501,7 @@ document.addEventListener('keydown', function (e) {
     document.addEventListener('keydown', function (e) {
         if (e.key !== 'Enter' && e.key !== ' ') return;
         var trigger = e.target.closest('[data-lightbox]');
-        if (!trigger || e.target.closest('.favorite-btn')) return;
+        if (!trigger || e.target.closest('.favorite-btn') || e.target.closest('[data-share-menu]')) return;
         e.preventDefault();
         trigger.click();
     });
