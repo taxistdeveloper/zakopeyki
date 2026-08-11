@@ -24,6 +24,7 @@ $myInitial = AvatarHelper::initial($me);
         </header>
 
         <form id="story-create-form" method="post" action="<?= ProductHelper::url('/stories') ?>" enctype="multipart/form-data" class="flex flex-col flex-1 min-h-0">
+            <input type="hidden" name="notify_subs" id="story-create-notify-input" value="1">
             <div class="live-setup-scroll">
                 <div class="live-setup-profile">
                     <div class="live-setup-avatar">

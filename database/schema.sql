@@ -69,6 +69,14 @@ CREATE TABLE IF NOT EXISTS favorites (
     INDEX idx_product (product_id)
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS user_follows (
+    follower_id INT UNSIGNED NOT NULL,
+    following_id INT UNSIGNED NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (follower_id, following_id),
+    INDEX idx_following (following_id)
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS stories (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     user_id INT UNSIGNED NOT NULL,

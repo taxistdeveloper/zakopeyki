@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Core\Auth;
 use App\Core\Controller;
+use App\Models\Follow;
 use App\Models\Story;
 
 class StoryController extends Controller
@@ -35,6 +36,17 @@ class StoryController extends Controller
             'bg_color' => '#7c3aed',
             'emoji' => '✨',
         ]);
+
+        $notifySubs = isset($_POST['notify_subs'])
+            ? in_array((string) $_POST['notify_subs'], ['1', 'true', 'on', 'yes'], true)
+            : true;
+        if ($notifySubs) {
+            $name = (string) (Auth::user()['name'] ?? 'Продавец');
+            (new Follow())->notifyFollowers(
+                Auth::id(),
+                t('seller.notify_story', ['name' => $name])
+            );
+        }
 
         $_SESSION['flash'] = 'История опубликована на 24 часа!';
         $this->redirect('/');

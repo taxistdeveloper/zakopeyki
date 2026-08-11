@@ -8,6 +8,7 @@ use App\Helpers\ActivityLogger;
 use App\Helpers\ProductHelper;
 use App\Helpers\Totp;
 use App\Models\Favorite;
+use App\Models\Follow;
 use App\Models\Notification;
 use App\Models\Product;
 use App\Models\Review;
@@ -30,7 +31,7 @@ class ProfileController extends Controller
         }
 
         $tab = $_GET['tab'] ?? 'personal';
-        $allowed = ['personal', 'photo', 'bio', 'reviews', 'notifications', 'password', 'lots', 'favorites'];
+        $allowed = ['personal', 'photo', 'bio', 'reviews', 'notifications', 'password', 'lots', 'favorites', 'subscriptions'];
         if (!in_array($tab, $allowed, true)) {
             $tab = 'personal';
         }
@@ -68,6 +69,16 @@ class ProfileController extends Controller
         $favorites = (new Favorite())->forUser(Auth::id());
         $favoriteIds = array_map(static fn ($p) => (int) $p['id'], $favorites);
 
+        $followingUsers = [];
+        $followerUsers = [];
+        $followingIds = [];
+        if ($tab === 'subscriptions') {
+            $followModel = new Follow();
+            $followingUsers = $followModel->followingUsers(Auth::id());
+            $followerUsers = $followModel->followerUsers(Auth::id());
+            $followingIds = array_map(static fn ($u) => (int) $u['id'], $followingUsers);
+        }
+
         $reviewsModel = new Review();
         $reviews = $tab === 'reviews' ? $reviewsModel->forSubject(Auth::id()) : [];
         $reviewStats = $reviewsModel->statsFor(Auth::id());
@@ -80,6 +91,9 @@ class ProfileController extends Controller
             'products' => (new Product())->byUser(Auth::id()),
             'favorites' => $favorites,
             'favoriteIds' => $favoriteIds,
+            'followingUsers' => $followingUsers,
+            'followerUsers' => $followerUsers,
+            'followingIds' => $followingIds,
             'editProduct' => $editProduct,
             'types' => array_combine(
                 array_keys(ProductHelper::TYPES),
@@ -313,6 +327,13 @@ class ProfileController extends Controller
             'type' => $type,
             'price' => $price,
         ]);
+
+        $sellerName = (string) (Auth::user()['name'] ?? 'Продавец');
+        $shortTitle = mb_strlen($title) > 80 ? mb_substr($title, 0, 77) . '…' : $title;
+        (new Follow())->notifyFollowers(
+            Auth::id(),
+            t('seller.notify_product', ['name' => $sellerName, 'title' => $shortTitle])
+        );
 
         $_SESSION['flash'] = t('flash.lot_published');
         $this->redirect('/profile?tab=lots');

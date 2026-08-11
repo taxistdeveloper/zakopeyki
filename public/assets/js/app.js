@@ -273,7 +273,7 @@ document.addEventListener('click', function (e) {
 // Переносим полноэкранные модалки в body: внутри анимированных/overflow-обёрток
 // position:fixed позиционируется неверно, и просмотрщик уезжает вниз страницы.
 function portalStoryModals() {
-    ['story-viewer', 'stream-viewer', 'story-create-modal', 'story-create-preview', 'whats-new-modal', 'live-start-preview-modal', 'live-setup-modal', 'live-product-picker', 'live-giveaway-editor'].forEach(function (id) {
+    ['story-viewer', 'stream-viewer', 'story-create-modal', 'story-create-preview', 'whats-new-modal', 'live-start-preview-modal', 'live-setup-modal', 'live-product-picker', 'live-giveaway-editor', 'seller-profile-modal'].forEach(function (id) {
         const el = document.getElementById(id);
         if (el && el.parentElement !== document.body) {
             document.body.appendChild(el);
@@ -384,6 +384,8 @@ function toggleStoryCreateNotify() {
     const on = !btn.classList.contains('is-on');
     btn.classList.toggle('is-on', on);
     btn.setAttribute('aria-checked', on ? 'true' : 'false');
+    const input = document.getElementById('story-create-notify-input');
+    if (input) input.value = on ? '1' : '0';
 }
 
 function buildStoryCreateCaption() {
@@ -421,6 +423,8 @@ function loadStoryCreateDraft() {
             const on = data.notify !== false;
             notify.classList.toggle('is-on', on);
             notify.setAttribute('aria-checked', on ? 'true' : 'false');
+            const input = document.getElementById('story-create-notify-input');
+            if (input) input.value = on ? '1' : '0';
         }
     } catch (err) { /* ignore */ }
 }
@@ -434,6 +438,11 @@ function prepareStoryCreateSubmit() {
         return false;
     }
     if (captionEl) captionEl.value = merged;
+    const notifyInput = document.getElementById('story-create-notify-input');
+    const notifyBtn = document.getElementById('story-create-notify-toggle');
+    if (notifyInput && notifyBtn) {
+        notifyInput.value = notifyBtn.classList.contains('is-on') ? '1' : '0';
+    }
     try { localStorage.removeItem(STORY_CREATE_DRAFT_KEY); } catch (err) { /* ignore */ }
     return true;
 }
@@ -2236,6 +2245,7 @@ let liveShopCommentAfter = 0;
 let liveShopElapsedBase = 0;
 let liveShopElapsedTick = null;
 let liveShopIsHost = false;
+let liveShopHostId = 0;
 let liveShopGiveJoined = false;
 let liveShopGiveCount = 0;
 let liveShopGiveGoal = 500;
@@ -2269,6 +2279,7 @@ function startLiveShop(stream) {
 
     liveShopStreamId = stream.id;
     liveShopIsHost = Number(stream.user_id) === Number(window.__currentUserId);
+    liveShopHostId = Number(stream.user_id) || 0;
     liveShopViewerKey = liveRandomPeerId();
     liveShopCommentAfter = 0;
     liveShopElapsedBase = 0;
@@ -2280,7 +2291,19 @@ function startLiveShop(stream) {
     try { toggleAiAssistant(false); } catch (e) { /* ignore */ }
 
     document.getElementById('live-shop-avatar').textContent = stream.author_avatar || '?';
-    document.getElementById('live-shop-name').textContent = stream.author_name || '';
+    const nameEl = document.getElementById('live-shop-name');
+    if (nameEl) {
+        nameEl.textContent = stream.author_name || '';
+        if (liveShopHostId > 0) {
+            nameEl.classList.add('cursor-pointer', 'hover:underline');
+            nameEl.onclick = function () {
+                openSellerProfile(liveShopHostId);
+            };
+        } else {
+            nameEl.classList.remove('cursor-pointer', 'hover:underline');
+            nameEl.onclick = null;
+        }
+    }
     document.getElementById('live-shop-comments').innerHTML = '';
     document.getElementById('live-shop-viewers').textContent = '1';
     document.getElementById('live-shop-likes').textContent = '0';
@@ -2291,6 +2314,7 @@ function startLiveShop(stream) {
     if (followers) {
         followers.textContent = '— ' + (window.__i18n?.['live.followers'] || 'подписчиков');
     }
+    updateLiveShopFollowBtn(false, 0, true);
     closeLiveShopShelf();
     const prodBadge = document.getElementById('live-shop-products-badge');
     if (prodBadge) {
@@ -2336,6 +2360,7 @@ function stopLiveShop() {
     liveShopCommentTimer = null;
     liveShopElapsedTick = null;
     liveShopStreamId = null;
+    liveShopHostId = 0;
     document.getElementById('live-shop-ui')?.classList.add('hidden');
     document.getElementById('live-shop-featured')?.classList.add('hidden');
     document.getElementById('live-shop-shelf-wrap')?.classList.add('hidden');
@@ -2368,8 +2393,27 @@ function pollLiveShop() {
             renderLiveShopFeatured(data.featured, data.featured_id);
             renderLiveShopShelf(data.products || [], data.featured_id);
             applyLiveShopGiveaway(data.giveaway);
+            if (data.host_id) liveShopHostId = Number(data.host_id) || liveShopHostId;
+            updateLiveShopFollowBtn(!!data.is_following, data.followers_count || 0, false);
         })
         .catch(function () {});
+}
+
+function updateLiveShopFollowBtn(isFollowing, followersCount, resetOnly) {
+    const btn = document.getElementById('live-shop-follow');
+    const followers = document.getElementById('live-shop-followers');
+    if (followers && !resetOnly) {
+        const n = Number(followersCount) || 0;
+        followers.textContent = n + ' ' + (window.__i18n?.['live.followers'] || 'подписчиков');
+    }
+    if (!btn) return;
+    if (liveShopIsHost || !liveShopHostId) {
+        btn.classList.add('hidden');
+        return;
+    }
+    btn.classList.remove('hidden');
+    btn.dataset.userId = String(liveShopHostId);
+    setFollowButtonState(btn, !!isFollowing);
 }
 
 function renderLiveShopFeatured(product, featuredId) {
@@ -3096,6 +3140,301 @@ document.addEventListener('click', function (e) {
                 if (!data.favorited && grid) {
                     btn.closest('article')?.remove();
                     if (!grid.querySelector('article')) {
+                        window.location.reload();
+                    }
+                }
+            }
+        })
+        .catch(function () { /* ignore */ })
+        .finally(function () {
+            btn.dataset.busy = '0';
+            btn.classList.remove('opacity-60');
+        });
+});
+
+function setFollowButtonState(btn, on) {
+    if (!btn) return;
+    btn.dataset.following = on ? '1' : '0';
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    const label = on
+        ? (window.__i18n?.['seller.unsubscribe'] || window.__i18n?.['live.unsubscribe'] || 'Отписаться')
+        : (window.__i18n?.['seller.subscribe'] || window.__i18n?.['live.subscribe'] || 'Подписаться');
+    btn.textContent = label;
+    if (btn.classList.contains('follow-btn')) {
+        btn.classList.toggle('bg-brand-500', !on);
+        btn.classList.toggle('hover:bg-brand-600', !on);
+        btn.classList.toggle('text-white', !on);
+        btn.classList.toggle('shadow-sm', !on);
+        btn.classList.toggle('bg-ink-100', on);
+        btn.classList.toggle('dark:bg-white/10', on);
+        btn.classList.toggle('text-ink-800', on);
+        btn.classList.toggle('dark:text-white', on);
+        btn.classList.toggle('hover:bg-ink-200', on);
+        btn.classList.toggle('dark:hover:bg-white/15', on);
+    }
+}
+
+/* ===== Seller profile modal ===== */
+let sellerProfileRequestId = 0;
+
+function closeSellerProfile() {
+    const modal = document.getElementById('seller-profile-modal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    document.body.style.overflow = '';
+    try {
+        const url = new URL(window.location.href);
+        if (url.searchParams.has('seller')) {
+            url.searchParams.delete('seller');
+            window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+        }
+    } catch (e) { /* ignore */ }
+}
+
+function openSellerProfile(userId) {
+    const id = Number(userId) || 0;
+    if (id <= 0) return;
+    const modal = document.getElementById('seller-profile-modal');
+    if (!modal) return;
+
+    const loading = document.getElementById('seller-profile-loading');
+    const errorEl = document.getElementById('seller-profile-error');
+    const body = document.getElementById('seller-profile-body');
+    if (loading) loading.classList.remove('hidden');
+    if (errorEl) {
+        errorEl.classList.add('hidden');
+        errorEl.textContent = '';
+    }
+    if (body) body.classList.add('hidden');
+
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+
+    const req = ++sellerProfileRequestId;
+    const base = window.__usersBase || '/users/';
+    fetch(base + id, {
+        credentials: 'same-origin',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        }
+    })
+        .then(function (r) {
+            if (!r.ok) throw new Error('fail');
+            return r.json();
+        })
+        .then(function (data) {
+            if (req !== sellerProfileRequestId) return;
+            if (!data || !data.ok) throw new Error('fail');
+            renderSellerProfile(data);
+        })
+        .catch(function () {
+            if (req !== sellerProfileRequestId) return;
+            if (loading) loading.classList.add('hidden');
+            if (errorEl) {
+                errorEl.textContent = window.__i18n?.['seller.not_found'] || 'Продавец не найден';
+                errorEl.classList.remove('hidden');
+            }
+        });
+}
+
+function renderSellerProfile(data) {
+    const loading = document.getElementById('seller-profile-loading');
+    const body = document.getElementById('seller-profile-body');
+    if (loading) loading.classList.add('hidden');
+    if (body) body.classList.remove('hidden');
+
+    const avatar = document.getElementById('seller-profile-avatar');
+    if (avatar) {
+        avatar.innerHTML = '';
+        if (data.avatar_url) {
+            const img = document.createElement('img');
+            img.src = data.avatar_url;
+            img.alt = '';
+            img.className = 'w-full h-full object-cover';
+            avatar.appendChild(img);
+            avatar.classList.remove('bg-brand-400', 'dark:bg-brand-600', 'font-black', 'text-white', 'text-2xl');
+            avatar.classList.add('bg-gray-200');
+        } else {
+            avatar.textContent = data.avatar_initial || '?';
+            avatar.classList.add('bg-brand-400', 'dark:bg-brand-600', 'font-black', 'text-white', 'text-2xl');
+            avatar.classList.remove('bg-gray-200');
+        }
+    }
+
+    const nameEl = document.getElementById('seller-profile-name');
+    if (nameEl) nameEl.textContent = data.name || '';
+
+    const loginEl = document.getElementById('seller-profile-login');
+    if (loginEl) {
+        if (data.login) {
+            loginEl.textContent = '@' + data.login;
+            loginEl.classList.remove('hidden');
+        } else {
+            loginEl.classList.add('hidden');
+        }
+    }
+
+    const meta = document.getElementById('seller-profile-meta');
+    if (meta) {
+        const followersLabel = window.__i18n?.['seller.followers'] || window.__i18n?.['live.followers'] || 'подписчиков';
+        let html = '<span id="seller-profile-followers">' + Number(data.followers_count || 0) + ' ' + followersLabel + '</span>';
+        if (Number(data.rating_count) > 0) {
+            html += '<span class="text-gray-300">·</span>'
+                + '<span class="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-semibold">'
+                + '<span class="text-amber-500">★</span> '
+                + Number(data.rating_avg || 0).toFixed(1)
+                + ' <span class="text-gray-400 font-normal">(' + Number(data.rating_count) + ')</span></span>';
+        }
+        meta.innerHTML = html;
+    }
+
+    const bio = document.getElementById('seller-profile-bio');
+    if (bio) {
+        if (data.bio) {
+            bio.textContent = data.bio;
+            bio.classList.remove('hidden');
+        } else {
+            bio.textContent = '';
+            bio.classList.add('hidden');
+        }
+    }
+
+    const actions = document.getElementById('seller-profile-actions');
+    if (actions) {
+        actions.innerHTML = '';
+        if (data.is_own) {
+            const a = document.createElement('a');
+            a.href = data.profile_url || (window.__homeUrl || '/') + 'profile';
+            a.className = 'inline-flex w-full items-center justify-center h-11 px-5 rounded-xl bg-ink-100 dark:bg-white/10 text-ink-800 dark:text-white font-display font-bold text-xs uppercase tracking-wider transition hover:bg-ink-200 dark:hover:bg-white/15';
+            a.textContent = window.__i18n?.['seller.edit_profile'] || 'Мой профиль';
+            actions.appendChild(a);
+        } else {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'follow-btn inline-flex w-full items-center justify-center h-11 px-5 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition';
+            btn.dataset.userId = String(data.id);
+            setFollowButtonState(btn, !!data.is_following);
+            actions.appendChild(btn);
+        }
+    }
+
+    const lots = document.getElementById('seller-profile-lots');
+    if (lots) {
+        lots.innerHTML = '';
+        const products = Array.isArray(data.products) ? data.products : [];
+        if (!products.length) {
+            const empty = document.createElement('div');
+            empty.className = 'rounded-2xl border border-black/[0.06] dark:border-white/10 bg-ink-50/80 dark:bg-white/[0.03] px-4 py-6 text-center text-sm text-gray-500';
+            empty.textContent = window.__i18n?.['seller.no_lots'] || 'Пока нет активных объявлений';
+            lots.appendChild(empty);
+            return;
+        }
+        products.forEach(function (p) {
+            const a = document.createElement('a');
+            a.href = p.url || '#';
+            a.className = 'flex items-center gap-3 rounded-2xl border border-black/[0.06] dark:border-white/10 bg-ink-50/60 dark:bg-white/[0.03] p-2.5 hover:bg-ink-100/80 dark:hover:bg-white/[0.06] transition';
+            const thumb = document.createElement('div');
+            thumb.className = 'w-14 h-14 rounded-xl bg-ink-100 dark:bg-white/10 overflow-hidden shrink-0 flex items-center justify-center';
+            if (p.image) {
+                const img = document.createElement('img');
+                img.src = p.image;
+                img.alt = '';
+                img.className = 'w-full h-full object-cover';
+                thumb.appendChild(img);
+            } else {
+                thumb.textContent = '·';
+                thumb.className += ' text-gray-400 text-lg';
+            }
+            const metaBox = document.createElement('div');
+            metaBox.className = 'min-w-0 flex-1';
+            const title = document.createElement('div');
+            title.className = 'text-sm font-semibold text-ink-800 dark:text-gray-100 line-clamp-2';
+            title.textContent = p.title || '';
+            const price = document.createElement('div');
+            price.className = 'text-sm font-bold text-brand-600 mt-0.5';
+            price.textContent = p.price_label || '';
+            metaBox.appendChild(title);
+            metaBox.appendChild(price);
+            a.appendChild(thumb);
+            a.appendChild(metaBox);
+            a.addEventListener('click', function () { closeSellerProfile(); });
+            lots.appendChild(a);
+        });
+    }
+}
+
+document.addEventListener('click', function (e) {
+    const trigger = e.target.closest('.seller-profile-trigger');
+    if (!trigger) return;
+    e.preventDefault();
+    e.stopPropagation();
+    openSellerProfile(trigger.dataset.sellerId);
+});
+
+document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    const modal = document.getElementById('seller-profile-modal');
+    if (modal && !modal.classList.contains('hidden')) closeSellerProfile();
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+    try {
+        const seller = new URLSearchParams(window.location.search).get('seller');
+        if (seller) openSellerProfile(seller);
+    } catch (err) { /* ignore */ }
+});
+
+document.addEventListener('click', function (e) {
+    const btn = e.target.closest('.follow-btn, #live-shop-follow');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!window.__isLoggedIn) {
+        window.location.href = window.__loginUrl || '/login';
+        return;
+    }
+
+    const userId = btn.dataset.userId;
+    if (!userId || btn.dataset.busy === '1') return;
+
+    const base = window.__usersFollowBase || '/users/';
+    btn.dataset.busy = '1';
+    btn.classList.add('opacity-60');
+
+    fetch(base + userId + '/follow', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin'
+    })
+        .then(function (r) {
+            if (r.status === 401) {
+                window.location.href = window.__loginUrl || '/login';
+                return null;
+            }
+            return r.json();
+        })
+        .then(function (data) {
+            if (!data) return;
+            if (data.ok) {
+                setFollowButtonState(btn, data.following);
+                const followers = document.getElementById('live-shop-followers');
+                if (followers && data.followers_count != null && btn.id === 'live-shop-follow') {
+                    followers.textContent = Number(data.followers_count) + ' ' + (window.__i18n?.['live.followers'] || 'подписчиков');
+                }
+                const modalFollowers = document.getElementById('seller-profile-followers');
+                if (modalFollowers && data.followers_count != null) {
+                    const followersLabel = window.__i18n?.['seller.followers'] || window.__i18n?.['live.followers'] || 'подписчиков';
+                    modalFollowers.textContent = Number(data.followers_count) + ' ' + followersLabel;
+                }
+                document.querySelectorAll('.follow-btn[data-user-id="' + userId + '"], #live-shop-follow').forEach(function (other) {
+                    if (other !== btn) setFollowButtonState(other, data.following);
+                });
+                const subList = btn.closest('[data-subscriptions-list]');
+                if (subList && subList.dataset.subSection === 'following' && !data.following) {
+                    btn.closest('[data-user-row]')?.remove();
+                    if (!subList.querySelector('[data-user-row]')) {
                         window.location.reload();
                     }
                 }

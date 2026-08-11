@@ -17,6 +17,7 @@ use App\Controllers\ProfileController;
 use App\Controllers\StoryController;
 use App\Controllers\StreamController;
 use App\Controllers\SupportController;
+use App\Controllers\UserController;
 use App\Controllers\WalletController;
 use App\Core\Router;
 
@@ -32,6 +33,8 @@ $router->get('/catalog/{section}', [CatalogController::class, 'show']);
 $router->get('/auctions', [AuctionController::class, 'index']);
 $router->post('/auctions/{id}/bid', [AuctionController::class, 'bid']);
 $router->get('/product/{id}', [ProductController::class, 'show']);
+$router->get('/users/{id}', [UserController::class, 'show']);
+$router->post('/users/{id}/follow', [UserController::class, 'followToggle']);
 $router->get('/checkout/success/{id}', [CheckoutController::class, 'success']);
 $router->get('/checkout/cart', [CheckoutController::class, 'cartShow']);
 $router->post('/checkout/cart/pay', [CheckoutController::class, 'cartPay']);

@@ -1981,6 +1981,7 @@ function url(string $path = ''): string
     </div>
 
     <?php \App\Core\View::partial('partials/chat-drawer'); ?>
+    <?php \App\Core\View::partial('partials/seller-profile-modal'); ?>
 
     <div id="image-lightbox" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-ink-900/85 backdrop-blur-sm p-3 sm:p-6" role="dialog" aria-modal="true" aria-label="<?= htmlspecialchars(t('product.zoom')) ?>">
         <button type="button" id="image-lightbox-close" class="absolute top-3 right-3 sm:top-5 sm:right-5 z-20 w-10 h-10 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xl leading-none flex items-center justify-center transition" aria-label="<?= htmlspecialchars(t('product.close_photo')) ?>">✕</button>
@@ -1998,6 +1999,8 @@ function url(string $path = ''): string
         window.__loginUrl = <?= js_encode(url('/login')) ?>;
         window.__homeUrl = <?= js_encode(url('/')) ?>;
         window.__favoritesToggleBase = <?= js_encode(rtrim(url('/favorites'), '/') . '/') ?>;
+        window.__usersBase = <?= js_encode(rtrim(url('/users'), '/') . '/') ?>;
+        window.__usersFollowBase = <?= js_encode(rtrim(url('/users'), '/') . '/') ?>;
         window.__cartToggleBase = <?= js_encode(rtrim(url('/cart'), '/') . '/') ?>;
         window.__cartCount = <?= (int) (\App\Services\Cart::count()) ?>;
         window.__aiChatUrl = <?= js_encode(url('/ai/chat')) ?>;
@@ -2023,11 +2026,13 @@ function url(string $path = ''): string
             'home.live_setup_remove_giveaway', 'home.live_setup_chat_off',
             'live.product_of_day', 'live.buy_now', 'live.products_in_stream',
             'live.login_to_comment', 'live.pin', 'live.no_products',
-            'live.subscribe', 'live.top_support', 'live.top_empty', 'live.left',
+            'live.subscribe', 'live.unsubscribe', 'live.top_support', 'live.top_empty', 'live.left',
             'live.giveaway', 'live.participate', 'live.see_all', 'live.question',
             'live.share', 'live.share_copied', 'live.giveaway_joined', 'live.followers',
             'live.add_cart', 'live.back_to_stream', 'live.stay_in_stream_hint',
             'live.added_cart', 'live.buy_new_tab', 'live.buy_short', 'live.shop', 'live.hide_products',
+            'seller.subscribe', 'seller.unsubscribe', 'seller.edit_profile', 'seller.no_lots',
+            'seller.followers', 'seller.loading', 'seller.close', 'seller.not_found',
             'card.favorite', 'card.unfavorite',
             'card.add_cart', 'card.in_cart',
             'home.story_link_copied',

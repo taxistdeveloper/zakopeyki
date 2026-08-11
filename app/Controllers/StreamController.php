@@ -6,6 +6,7 @@ use App\Core\Auth;
 use App\Core\Controller;
 use App\Helpers\ProductHelper;
 use App\Helpers\UploadHelper;
+use App\Models\Follow;
 use App\Models\Product;
 use App\Models\Stream;
 
@@ -51,6 +52,14 @@ class StreamController extends Controller
             $cover['file'] ?? null,
             $setup
         );
+
+        if (!empty($setup['notify_subs'])) {
+            $hostName = (string) ($user['name'] ?? 'Продавец');
+            (new Follow())->notifyFollowers(
+                Auth::id(),
+                t('seller.notify_live', ['name' => $hostName])
+            );
+        }
 
         $this->json([
             'ok' => true,
@@ -260,6 +269,11 @@ class StreamController extends Controller
             }
         }
 
+        $follow = new Follow();
+        $followersCount = $follow->countFollowers($hostId);
+        $isFollowing = Auth::check() && Auth::id() !== $hostId
+            && $follow->isFollowing((int) Auth::id(), $hostId);
+
         $this->json([
             'ok' => true,
             'live' => true,
@@ -269,7 +283,10 @@ class StreamController extends Controller
             'featured_id' => $featured ? (int) $featured['id'] : 0,
             'featured' => $featured,
             'products' => $products,
+            'host_id' => $hostId,
             'host_name' => (string) ($stream['author_name'] ?? ''),
+            'followers_count' => $followersCount,
+            'is_following' => $isFollowing,
             'chat_enabled' => !isset($setup['chat_enabled']) || (bool) $setup['chat_enabled'],
             'duration' => max(0, (int) ($setup['duration'] ?? 0)),
             'visibility' => (string) ($setup['visibility'] ?? 'all'),

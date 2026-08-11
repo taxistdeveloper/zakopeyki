@@ -112,7 +112,11 @@ unset($_SESSION['flash']);
                 <p class="text-sm text-gray-400 mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1">
                     <?= htmlspecialchars($item['location']) ?>
                     <span class="text-gray-300">·</span>
-                    <span><?= htmlspecialchars($item['seller_name']) ?></span>
+                    <button type="button"
+                            class="seller-profile-trigger font-semibold text-ink-700 dark:text-gray-200 hover:text-brand-600 dark:hover:text-brand-400 transition underline-offset-2 hover:underline"
+                            data-seller-id="<?= (int) $item['user_id'] ?>">
+                        <?= htmlspecialchars($item['seller_name']) ?>
+                    </button>
                     <?php
                     $sr = $sellerRating ?? ['avg' => 0, 'count' => 0];
                     if (($sr['count'] ?? 0) > 0):

@@ -27,6 +27,7 @@ $tabs = [
     'notifications' => ['label' => t('profile.tab_notifications'), 'icon' => 'bell'],
     'password' => ['label' => t('profile.tab_password'), 'icon' => 'lock'],
     'favorites' => ['label' => t('profile.tab_favorites'), 'icon' => 'heart'],
+    'subscriptions' => ['label' => t('profile.tab_subscriptions'), 'icon' => 'users'],
     'lots' => ['label' => t('profile.tab_lots'), 'icon' => 'package'],
 ];
 
@@ -419,6 +420,90 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                                 'favorited' => true,
                             ]);
                         } ?>
+                    </div>
+                <?php endif; ?>
+
+            <?php elseif ($tab === 'subscriptions'): ?>
+                <?php
+                $followingUsers = $followingUsers ?? [];
+                $followerUsers = $followerUsers ?? [];
+                $followingIds = array_map('intval', $followingIds ?? []);
+                $subSection = $_GET['sub'] ?? 'following';
+                if (!in_array($subSection, ['following', 'followers'], true)) {
+                    $subSection = 'following';
+                }
+                ?>
+                <div class="mb-6">
+                    <h2 class="font-display text-xl font-bold"><?= htmlspecialchars(t('profile.tab_subscriptions')) ?></h2>
+                    <p class="text-sm text-gray-400 mt-1"><?= htmlspecialchars(t('profile.subscriptions_hint')) ?></p>
+                </div>
+
+                <div class="flex gap-1.5 p-1 rounded-2xl bg-black/[0.03] dark:bg-white/[0.04] mb-6 max-w-md">
+                    <a href="<?= ProductHelper::url('/profile?tab=subscriptions&sub=following') ?>"
+                       class="flex-1 text-center px-3 py-2.5 text-xs sm:text-[13px] font-semibold rounded-xl transition <?= $subSection === 'following' ? 'bg-white dark:bg-ink-800 text-ink-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-ink-800 dark:hover:text-gray-200' ?>">
+                        <?= htmlspecialchars(t('profile.subscriptions_following')) ?>
+                        <span class="text-gray-400 font-normal">(<?= count($followingUsers) ?>)</span>
+                    </a>
+                    <a href="<?= ProductHelper::url('/profile?tab=subscriptions&sub=followers') ?>"
+                       class="flex-1 text-center px-3 py-2.5 text-xs sm:text-[13px] font-semibold rounded-xl transition <?= $subSection === 'followers' ? 'bg-white dark:bg-ink-800 text-ink-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-ink-800 dark:hover:text-gray-200' ?>">
+                        <?= htmlspecialchars(t('profile.subscriptions_followers')) ?>
+                        <span class="text-gray-400 font-normal">(<?= count($followerUsers) ?>)</span>
+                    </a>
+                </div>
+
+                <?php
+                $list = $subSection === 'followers' ? $followerUsers : $followingUsers;
+                $emptyText = $subSection === 'followers'
+                    ? t('profile.subscriptions_followers_empty')
+                    : t('profile.subscriptions_following_empty');
+                ?>
+                <?php if ($list === []): ?>
+                    <div class="text-center py-20 rounded-2xl border border-dashed border-black/10 dark:border-white/10 text-gray-400 text-sm">
+                        <?= htmlspecialchars($emptyText) ?>
+                    </div>
+                <?php else: ?>
+                    <div class="space-y-2" data-subscriptions-list data-sub-section="<?= htmlspecialchars($subSection) ?>">
+                        <?php foreach ($list as $person):
+                            $personId = (int) ($person['id'] ?? 0);
+                            $personLogin = (string) ($person['login'] ?? '');
+                            if ($personLogin === '' && !empty($person['email'])) {
+                                $personLogin = (string) (strstr((string) $person['email'], '@', true) ?: '');
+                            }
+                            $iFollowThem = in_array($personId, $followingIds, true);
+                            ?>
+                            <div class="flex items-center gap-3 p-3 sm:p-4 rounded-2xl border border-black/[0.06] dark:border-white/10 bg-ink-50/50 dark:bg-white/[0.03]" data-user-row="<?= $personId ?>">
+                                <button type="button" class="seller-profile-trigger shrink-0" data-seller-id="<?= $personId ?>" aria-label="<?= htmlspecialchars($person['name'] ?? '') ?>">
+                                    <?= AvatarHelper::html($person, 'w-12 h-12', 'text-base', 'rounded-2xl') ?>
+                                </button>
+                                <div class="min-w-0 flex-1">
+                                    <button type="button" class="seller-profile-trigger text-left block w-full" data-seller-id="<?= $personId ?>">
+                                        <span class="block text-sm font-semibold text-ink-900 dark:text-white truncate"><?= htmlspecialchars($person['name'] ?? '') ?></span>
+                                        <?php if ($personLogin !== ''): ?>
+                                            <span class="block text-xs text-gray-400 truncate">@<?= htmlspecialchars($personLogin) ?></span>
+                                        <?php endif; ?>
+                                    </button>
+                                </div>
+                                <div class="shrink-0">
+                                    <?php if ($subSection === 'following' || $iFollowThem): ?>
+                                        <button type="button"
+                                                class="follow-btn inline-flex items-center justify-center h-9 px-3.5 rounded-xl font-display font-bold text-[10px] uppercase tracking-wider transition bg-ink-100 dark:bg-white/10 text-ink-800 dark:text-white hover:bg-ink-200 dark:hover:bg-white/15"
+                                                data-user-id="<?= $personId ?>"
+                                                data-following="1"
+                                                aria-pressed="true">
+                                            <?= htmlspecialchars(t('seller.unsubscribe')) ?>
+                                        </button>
+                                    <?php else: ?>
+                                        <button type="button"
+                                                class="follow-btn inline-flex items-center justify-center h-9 px-3.5 rounded-xl font-display font-bold text-[10px] uppercase tracking-wider transition bg-brand-500 hover:bg-brand-600 text-white shadow-sm"
+                                                data-user-id="<?= $personId ?>"
+                                                data-following="0"
+                                                aria-pressed="false">
+                                            <?= htmlspecialchars(t('seller.subscribe')) ?>
+                                        </button>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
 
