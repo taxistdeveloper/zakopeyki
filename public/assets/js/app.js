@@ -1168,6 +1168,13 @@ function submitLiveSetupStart() {
     openLiveStartPreview();
 }
 
+function setLiveBtnLabel(btn, text) {
+    if (!btn) return;
+    const label = btn.querySelector('.live-btn-label');
+    if (label) label.textContent = text;
+    else btn.textContent = text;
+}
+
 function openLiveStartPreview() {
     const modal = document.getElementById('live-start-preview-modal');
     if (!modal) {
@@ -1178,7 +1185,7 @@ function openLiveStartPreview() {
     const btn = document.getElementById('live-preview-confirm-btn');
     if (btn) {
         btn.disabled = false;
-        btn.textContent = window.__i18n?.['home.start_stream'] || '● Начать стрим';
+        setLiveBtnLabel(btn, window.__i18n?.['home.start_stream'] || '● Начать стрим');
     }
     modal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
@@ -1319,7 +1326,7 @@ function confirmStartLiveStream() {
     const btn = document.getElementById('live-preview-confirm-btn');
     if (btn) {
         btn.disabled = true;
-        btn.textContent = window.__i18n?.['home.live_preview_starting'] || 'Запуск…';
+        setLiveBtnLabel(btn, window.__i18n?.['home.live_preview_starting'] || 'Запуск…');
     }
 
     const body = new FormData();
@@ -1340,7 +1347,7 @@ function confirmStartLiveStream() {
                 liveStartConfirmBusy = false;
                 if (btn) {
                     btn.disabled = false;
-                    btn.textContent = window.__i18n?.['home.start_stream'] || '● Начать стрим';
+                    setLiveBtnLabel(btn, window.__i18n?.['home.start_stream'] || '● Начать стрим');
                 }
                 alert(data.message || window.__i18n?.['js.stream_fail'] || 'Не удалось начать эфир');
                 return;
@@ -1375,7 +1382,7 @@ function confirmStartLiveStream() {
             liveStartConfirmBusy = false;
             if (btn) {
                 btn.disabled = false;
-                btn.textContent = window.__i18n?.['home.start_stream'] || '● Начать стрим';
+                setLiveBtnLabel(btn, window.__i18n?.['home.start_stream'] || '● Начать стрим');
             }
             alert(window.__i18n?.['js.stream_error'] || 'Ошибка старта эфира');
         });

@@ -1,6 +1,7 @@
 <?php
 use App\Core\Auth;
 use App\Helpers\AvatarHelper;
+use App\Helpers\IconHelper;
 use App\Helpers\ProductHelper;
 
 $me = Auth::user() ?? [];
@@ -17,7 +18,7 @@ $myInitial = AvatarHelper::initial($me);
             </button>
             <span class="live-setup-logo">za<span>kopeyki</span>.kz</span>
             <button type="button" class="live-setup-preview-btn" onclick="previewStoryCreate()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <?= IconHelper::svg('eye', 'w-4 h-4') ?>
                 <?= htmlspecialchars(t('home.live_setup_preview')) ?>
             </button>
         </header>
@@ -40,7 +41,7 @@ $myInitial = AvatarHelper::initial($me);
                         <p class="live-setup-subs"><?= htmlspecialchars(t('home.story_create_subs')) ?></p>
                     </div>
                     <label class="live-setup-cover-btn" for="story-create-image">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                        <?= IconHelper::svg('camera', 'w-3.5 h-3.5') ?>
                         <?= htmlspecialchars(t('home.story_create_change_media')) ?>
                     </label>
                 </div>
@@ -54,7 +55,7 @@ $myInitial = AvatarHelper::initial($me);
                         <p class="live-setup-lead"><?= htmlspecialchars(t('home.story_create_lead')) ?></p>
                     </div>
                     <button type="button" class="live-setup-draft-btn" onclick="saveStoryCreateDraft()">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                        <?= IconHelper::svg('file', 'w-3.5 h-3.5') ?>
                         <?= htmlspecialchars(t('home.live_setup_draft')) ?>
                     </button>
                 </div>
@@ -69,7 +70,7 @@ $myInitial = AvatarHelper::initial($me);
                     <input type="file" id="story-create-image" name="image" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden" onchange="onStoryCreateImageChange(event)">
                     <label id="story-create-upload-zone" for="story-create-image" class="story-create-upload">
                         <span class="story-create-upload-icon" aria-hidden="true">
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            <?= IconHelper::svg('upload', 'w-7 h-7') ?>
                         </span>
                         <span class="story-create-upload-link"><?= htmlspecialchars(t('home.story_create_upload')) ?></span>
                         <span class="story-create-upload-meta"><?= htmlspecialchars(t('home.story_create_media_meta')) ?></span>
@@ -112,7 +113,7 @@ $myInitial = AvatarHelper::initial($me);
                     </div>
                     <p class="live-setup-card-hint"><?= htmlspecialchars(t('home.story_create_product_hint')) ?></p>
                     <div class="story-create-product-note">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                        <?= IconHelper::svg('bag', 'w-4 h-4 flex-shrink-0') ?>
                         <span><?= htmlspecialchars(t('home.story_create_product_auto')) ?></span>
                     </div>
                 </section>
@@ -125,7 +126,7 @@ $myInitial = AvatarHelper::initial($me);
                     <div class="live-setup-settings-grid">
                         <label class="live-setup-field">
                             <span class="live-setup-field-label">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                                <?= IconHelper::svg('globe', 'w-3.5 h-3.5') ?>
                                 <?= htmlspecialchars(t('home.story_create_who')) ?>
                             </span>
                             <select class="live-setup-select" disabled>
@@ -134,7 +135,7 @@ $myInitial = AvatarHelper::initial($me);
                         </label>
                         <label class="live-setup-field">
                             <span class="live-setup-field-label">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                <?= IconHelper::svg('message', 'w-3.5 h-3.5') ?>
                                 <?= htmlspecialchars(t('home.story_create_comments')) ?>
                             </span>
                             <select class="live-setup-select" disabled>
@@ -143,7 +144,7 @@ $myInitial = AvatarHelper::initial($me);
                         </label>
                         <label class="live-setup-field">
                             <span class="live-setup-field-label">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                <?= IconHelper::svg('eye', 'w-3.5 h-3.5') ?>
                                 <?= htmlspecialchars(t('home.story_create_visibility')) ?>
                             </span>
                             <select class="live-setup-select" disabled>
@@ -152,7 +153,7 @@ $myInitial = AvatarHelper::initial($me);
                         </label>
                     </div>
                     <div class="live-setup-notify">
-                        <div class="live-setup-notify-icon" aria-hidden="true">🔔</div>
+                        <div class="live-setup-notify-icon text-[#7c3aed]" aria-hidden="true"><?= IconHelper::svg('bell', 'w-4 h-4') ?></div>
                         <div class="min-w-0 flex-1">
                             <p class="live-setup-notify-title"><?= htmlspecialchars(t('home.story_create_notify')) ?></p>
                             <p class="live-setup-notify-sub"><?= htmlspecialchars(t('home.story_ttl')) ?></p>
@@ -164,11 +165,14 @@ $myInitial = AvatarHelper::initial($me);
 
             <footer class="live-setup-footer">
                 <button type="submit" class="live-setup-start" onclick="return prepareStoryCreateSubmit()">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <?= IconHelper::svg('upload', 'w-[18px] h-[18px]') ?>
                     <?= htmlspecialchars(t('home.story_create_publish')) ?>
                 </button>
                 <p class="live-setup-warn"><?= htmlspecialchars(t('home.story_create_publish_hint')) ?></p>
-                <p class="live-setup-tip">ⓘ <?= htmlspecialchars(t('home.story_create_rules')) ?></p>
+                <p class="live-setup-tip inline-flex items-center justify-center gap-1.5">
+                    <?= IconHelper::svg('info', 'w-3.5 h-3.5') ?>
+                    <?= htmlspecialchars(t('home.story_create_rules')) ?>
+                </p>
             </footer>
         </form>
     </div>

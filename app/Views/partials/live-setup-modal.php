@@ -1,6 +1,7 @@
 <?php
 use App\Core\Auth;
 use App\Helpers\AvatarHelper;
+use App\Helpers\IconHelper;
 use App\Helpers\ProductHelper;
 
 $me = Auth::user() ?? [];
@@ -17,7 +18,7 @@ $myInitial = AvatarHelper::initial($me);
             </button>
             <span class="live-setup-logo">za<span>kopeyki</span>.kz</span>
             <button type="button" class="live-setup-preview-btn" onclick="openLiveStartPreviewFromSetup()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <?= IconHelper::svg('eye', 'w-4 h-4') ?>
                 <?= htmlspecialchars(t('home.live_setup_preview')) ?>
             </button>
         </header>
@@ -40,7 +41,7 @@ $myInitial = AvatarHelper::initial($me);
                 </div>
                 <label class="live-setup-cover-btn">
                     <input type="file" id="live-setup-cover-input" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="onLiveSetupCoverChange(event)">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    <?= IconHelper::svg('camera', 'w-3.5 h-3.5') ?>
                     <?= htmlspecialchars(t('home.live_setup_cover')) ?>
                 </label>
             </div>
@@ -58,7 +59,7 @@ $myInitial = AvatarHelper::initial($me);
                     <p class="live-setup-lead"><?= htmlspecialchars(t('home.live_setup_lead')) ?></p>
                 </div>
                 <button type="button" class="live-setup-draft-btn" onclick="saveLiveSetupDraft()">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                    <?= IconHelper::svg('file', 'w-3.5 h-3.5') ?>
                     <?= htmlspecialchars(t('home.live_setup_draft')) ?>
                 </button>
             </div>
@@ -70,8 +71,9 @@ $myInitial = AvatarHelper::initial($me);
                     <span class="live-setup-tag is-req"><?= htmlspecialchars(t('home.live_setup_required')) ?></span>
                 </div>
                 <p class="live-setup-card-hint"><?= htmlspecialchars(t('home.live_setup_products_hint')) ?></p>
-                <button type="button" class="live-setup-dashed" onclick="openLiveProductPicker('products')">
-                    + <?= htmlspecialchars(t('home.live_setup_add_product')) ?>
+                <button type="button" class="live-setup-dashed inline-flex items-center justify-center gap-1.5" onclick="openLiveProductPicker('products')">
+                    <?= IconHelper::svg('plus', 'w-4 h-4') ?>
+                    <?= htmlspecialchars(t('home.live_setup_add_product')) ?>
                 </button>
                 <div id="live-setup-products-list" class="live-setup-product-list"></div>
             </section>
@@ -84,8 +86,9 @@ $myInitial = AvatarHelper::initial($me);
                 </div>
                 <p class="live-setup-card-hint"><?= htmlspecialchars(t('home.live_setup_pod_hint')) ?></p>
                 <div id="live-setup-pod-empty">
-                    <button type="button" class="live-setup-dashed" onclick="openLiveProductPicker('pod')">
-                        + <?= htmlspecialchars(t('home.live_setup_add_pod')) ?>
+                    <button type="button" class="live-setup-dashed inline-flex items-center justify-center gap-1.5" onclick="openLiveProductPicker('pod')">
+                        <?= IconHelper::svg('plus', 'w-4 h-4') ?>
+                        <?= htmlspecialchars(t('home.live_setup_add_pod')) ?>
                     </button>
                 </div>
                 <div id="live-setup-pod-card" class="hidden"></div>
@@ -99,8 +102,9 @@ $myInitial = AvatarHelper::initial($me);
                 </div>
                 <p class="live-setup-card-hint"><?= htmlspecialchars(t('home.live_setup_giveaway_hint')) ?></p>
                 <div id="live-setup-give-empty">
-                    <button type="button" class="live-setup-dashed" onclick="openLiveGiveawayEditor()">
-                        🎁 <?= htmlspecialchars(t('home.live_setup_add_giveaway')) ?>
+                    <button type="button" class="live-setup-dashed inline-flex items-center justify-center gap-1.5" onclick="openLiveGiveawayEditor()">
+                        <?= IconHelper::svg('gift', 'w-4 h-4') ?>
+                        <?= htmlspecialchars(t('home.live_setup_add_giveaway')) ?>
                     </button>
                 </div>
                 <div id="live-setup-give-card" class="hidden live-setup-give-card"></div>
@@ -111,7 +115,7 @@ $myInitial = AvatarHelper::initial($me);
                 <div class="live-setup-settings-grid">
                     <label class="live-setup-field">
                         <span class="live-setup-field-label">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            <?= IconHelper::svg('clock', 'w-3.5 h-3.5') ?>
                             <?= htmlspecialchars(t('home.live_setup_duration')) ?>
                         </span>
                         <select id="live-setup-duration" class="live-setup-select" onchange="syncLiveSetupFromForm()">
@@ -124,7 +128,7 @@ $myInitial = AvatarHelper::initial($me);
                     </label>
                     <label class="live-setup-field">
                         <span class="live-setup-field-label">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            <?= IconHelper::svg('users', 'w-3.5 h-3.5') ?>
                             <?= htmlspecialchars(t('home.live_setup_who')) ?>
                         </span>
                         <select id="live-setup-visibility" class="live-setup-select" onchange="syncLiveSetupFromForm()">
@@ -134,7 +138,7 @@ $myInitial = AvatarHelper::initial($me);
                     </label>
                     <label class="live-setup-field">
                         <span class="live-setup-field-label">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                            <?= IconHelper::svg('message', 'w-3.5 h-3.5') ?>
                             <?= htmlspecialchars(t('home.live_setup_chat')) ?>
                         </span>
                         <select id="live-setup-chat" class="live-setup-select" onchange="syncLiveSetupFromForm()">
@@ -144,7 +148,7 @@ $myInitial = AvatarHelper::initial($me);
                     </label>
                 </div>
                 <div class="live-setup-notify">
-                    <div class="live-setup-notify-icon" aria-hidden="true">🔔</div>
+                    <div class="live-setup-notify-icon text-[#7c3aed]" aria-hidden="true"><?= IconHelper::svg('bell', 'w-4 h-4') ?></div>
                     <div class="min-w-0 flex-1">
                         <p class="live-setup-notify-title"><?= htmlspecialchars(t('home.live_setup_notify')) ?></p>
                         <p class="live-setup-notify-sub"><?= htmlspecialchars(t('home.live_setup_notify_sub')) ?></p>
@@ -156,11 +160,14 @@ $myInitial = AvatarHelper::initial($me);
 
         <footer class="live-setup-footer">
             <button type="button" id="live-setup-start-btn" class="live-setup-start" onclick="submitLiveSetupStart()">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3a3 3 0 0 0-3 3v4a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zm-7 8a1 1 0 0 1 2 0 5 5 0 0 0 10 0 1 1 0 1 1 2 0 7 7 0 0 1-6 6.93V21a1 1 0 1 1-2 0v-3.07A7 7 0 0 1 5 11z"/></svg>
-                <?= htmlspecialchars(t('home.start_stream')) ?>
+                <?= IconHelper::svg('mic', 'w-[18px] h-[18px]') ?>
+                <span class="live-btn-label"><?= htmlspecialchars(t('home.start_stream')) ?></span>
             </button>
             <p class="live-setup-warn"><?= htmlspecialchars(t('home.live_setup_lock_hint')) ?></p>
-            <p class="live-setup-tip">ⓘ <?= htmlspecialchars(t('home.live_setup_net_hint')) ?></p>
+            <p class="live-setup-tip inline-flex items-center justify-center gap-1.5">
+                <?= IconHelper::svg('info', 'w-3.5 h-3.5') ?>
+                <?= htmlspecialchars(t('home.live_setup_net_hint')) ?>
+            </p>
         </footer>
     </div>
 </div>

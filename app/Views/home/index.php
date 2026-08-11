@@ -200,15 +200,16 @@ $changelog = $changelog ?? null;
         <div class="relative bg-black aspect-[9/16] max-h-[58vh] overflow-hidden">
             <video id="live-preview-cam" class="absolute inset-0 w-full h-full object-cover" playsinline webkit-playsinline muted autoplay></video>
             <div id="live-preview-placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-white/80 p-6 text-center bg-gradient-to-br from-red-700 via-orange-700 to-gray-900">
-                <span class="text-3xl mb-3 opacity-80" aria-hidden="true">📷</span>
+                <span class="mb-3 opacity-80" aria-hidden="true"><?= IconHelper::svg('camera', 'w-8 h-8') ?></span>
                 <p id="live-preview-status" class="text-xs font-semibold max-w-[220px]"><?= htmlspecialchars(t('home.live_preview_waiting')) ?></p>
             </div>
             <span class="absolute top-3 left-3 z-10 text-[9px] font-black uppercase tracking-wider bg-red-500 text-white px-2 py-1 rounded-md shadow">● Preview</span>
         </div>
         <div class="p-4 sm:p-5 space-y-3">
             <p class="text-[12px] text-gray-500 dark:text-gray-400 leading-snug"><?= htmlspecialchars(t('home.live_preview_hint')) ?></p>
-            <button type="button" id="live-preview-confirm-btn" onclick="confirmStartLiveStream()" class="w-full bg-[#7c3aed] hover:bg-[#6d28d9] disabled:opacity-60 disabled:pointer-events-none text-white font-display font-bold py-3.5 rounded-2xl text-xs uppercase tracking-wider transition shadow-soft">
-                <?= htmlspecialchars(t('home.start_stream')) ?>
+            <button type="button" id="live-preview-confirm-btn" onclick="confirmStartLiveStream()" class="w-full bg-[#7c3aed] hover:bg-[#6d28d9] disabled:opacity-60 disabled:pointer-events-none text-white font-display font-bold py-3.5 rounded-2xl text-xs uppercase tracking-wider transition shadow-soft inline-flex items-center justify-center gap-2">
+                <?= IconHelper::svg('mic', 'w-4 h-4') ?>
+                <span class="live-btn-label"><?= htmlspecialchars(t('home.start_stream')) ?></span>
             </button>
             <button type="button" onclick="closeLiveStartPreview()" class="w-full text-[12px] font-semibold text-gray-400 hover:text-ink-800 dark:hover:text-white py-1 transition"><?= htmlspecialchars(t('home.live_preview_cancel')) ?></button>
         </div>
