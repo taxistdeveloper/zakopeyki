@@ -184,38 +184,8 @@ $changelog = $changelog ?? null;
 </div>
 <?php endif; ?>
 
-<!-- CREATE STORY MODAL -->
 <?php if (Auth::check()): ?>
-<div id="story-create-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-ink-900/55 backdrop-blur-sm p-4">
-    <div class="bg-white dark:bg-ink-800 w-full max-w-md rounded-[28px] overflow-hidden shadow-lift border border-white/60 dark:border-white/10">
-        <div class="p-4 sm:p-5 border-b border-black/[0.06] dark:border-white/10 flex justify-between items-center">
-            <h3 class="font-display font-bold text-sm"><?= htmlspecialchars(t('home.new_story')) ?></h3>
-            <button type="button" onclick="closeStoryCreate()" class="w-8 h-8 rounded-xl text-gray-400 hover:bg-black/5 hover:text-ink-800 transition">✕</button>
-        </div>
-        <form method="post" action="<?= ProductHelper::url('/stories') ?>" enctype="multipart/form-data" class="p-5 sm:p-6 space-y-4">
-            <div>
-                <label class="block text-[13px] font-semibold mb-1.5"><?= htmlspecialchars(t('home.story_text')) ?></label>
-                <textarea name="caption" rows="3" maxlength="280" placeholder="<?= htmlspecialchars(t('home.story_placeholder')) ?>" class="ui-input w-full border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 p-3 rounded-xl text-sm"></textarea>
-            </div>
-            <div>
-                <label class="block text-[13px] font-semibold mb-1.5"><?= htmlspecialchars(t('home.story_photo')) ?></label>
-                <input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif" class="w-full text-xs file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-accent-500 file:text-white file:font-bold file:text-xs">
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-[13px] font-semibold mb-1.5"><?= htmlspecialchars(t('home.story_emoji')) ?></label>
-                    <input type="text" name="emoji" value="✨" maxlength="4" class="ui-input w-full border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 h-11 px-3 rounded-xl text-sm text-center text-xl">
-                </div>
-                <div>
-                    <label class="block text-[13px] font-semibold mb-1.5"><?= htmlspecialchars(t('home.story_color')) ?></label>
-                    <input type="color" name="bg_color" value="#2563EB" class="w-full h-11 rounded-xl border border-black/10 dark:border-white/10 cursor-pointer bg-transparent">
-                </div>
-            </div>
-            <p class="text-[10px] text-gray-400"><?= htmlspecialchars(t('home.story_ttl')) ?></p>
-            <button type="submit" class="w-full bg-accent-500 hover:bg-accent-400 text-white font-display font-bold py-3.5 rounded-2xl text-xs uppercase tracking-wider transition"><?= htmlspecialchars(t('home.publish')) ?></button>
-        </form>
-    </div>
-</div>
+<?php View::partial('partials/story-create-modal'); ?>
 
 <!-- LIVE START PREVIEW — камера → подтверждение → старт -->
 <div id="live-start-preview-modal" class="hidden fixed inset-0 z-[75] flex items-center justify-center bg-ink-900/70 backdrop-blur-sm p-3 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="live-preview-title" onclick="if(event.target===this)closeLiveStartPreview()">

@@ -1439,6 +1439,125 @@ function url(string $path = ''): string
             .live-setup-draft-btn span,
             .live-setup-preview-btn { font-size: 10px; }
         }
+
+        /* ===== Story create (reuse live-setup shell) ===== */
+        .story-create-upload {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            min-height: 140px;
+            border: 1.5px dashed #c4b5fd;
+            background: #faf5ff;
+            border-radius: 16px;
+            padding: 20px 16px;
+            cursor: pointer;
+            text-align: center;
+        }
+        .story-create-upload-icon { color: #7c3aed; }
+        .story-create-upload-link {
+            font-size: 14px;
+            font-weight: 800;
+            color: #7c3aed;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+        .story-create-upload-meta {
+            font-size: 11px;
+            color: #9ca3af;
+            line-height: 1.35;
+        }
+        .story-create-media-preview {
+            position: relative;
+            margin-top: 10px;
+            border-radius: 16px;
+            overflow: hidden;
+            aspect-ratio: 9/14;
+            max-height: 280px;
+            background: #111;
+        }
+        .story-create-media-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .story-create-style-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .story-create-input {
+            width: 100%;
+            height: 44px;
+            border-radius: 12px;
+            border: 1px solid rgba(0,0,0,0.1);
+            background: #fff;
+            font-size: 14px;
+            padding: 0 12px;
+            color: #111827;
+        }
+        .story-create-textarea {
+            height: auto;
+            min-height: 88px;
+            padding: 10px 12px 28px;
+            resize: vertical;
+        }
+        .story-create-color {
+            width: 100%;
+            height: 44px;
+            border-radius: 12px;
+            border: 1px solid rgba(0,0,0,0.1);
+            background: transparent;
+            cursor: pointer;
+            padding: 4px;
+        }
+        .story-create-field-wrap { position: relative; }
+        .story-create-counter {
+            position: absolute;
+            right: 10px;
+            bottom: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #9ca3af;
+            pointer-events: none;
+        }
+        .story-create-field-wrap .story-create-input:not(textarea) + .story-create-counter {
+            bottom: 14px;
+        }
+        .story-create-product-note {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px;
+            border-radius: 14px;
+            background: #faf5ff;
+            border: 1px solid #ede9fe;
+            color: #6d28d9;
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1.4;
+        }
+        .story-create-product-note svg { flex-shrink: 0; margin-top: 1px; }
+        .story-create-preview-card { width: 100%; max-width: 320px; }
+        .story-create-preview-frame {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 9/16;
+            border-radius: 20px;
+            overflow: hidden;
+            background: #111;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+        }
+        .dark .story-create-input,
+        .dark .story-create-color {
+            background: #1f2937;
+            color: #f9fafb;
+            border-color: rgba(255,255,255,0.1);
+        }
+        .dark .story-create-upload { background: rgba(124,58,237,0.12); }
+
         .dark .live-setup-shell,
         .dark .live-setup-panel,
         .dark .live-setup-top,
@@ -1873,6 +1992,7 @@ function url(string $path = ''): string
             'card.favorite', 'card.unfavorite',
             'card.add_cart', 'card.in_cart',
             'home.story_link_copied',
+            'home.story_create_draft_saved', 'home.story_create_need_content',
             'header.city', 'header.city_choose', 'header.city_detect', 'header.city_detecting', 'header.city_denied',
             'chat.title', 'chat.start_hint', 'chat.send_failed', 'chat.start_failed',
             'product.close_photo', 'product.prev_photo', 'product.next_photo', 'product.zoom',

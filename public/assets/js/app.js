@@ -273,7 +273,7 @@ document.addEventListener('click', function (e) {
 // Переносим полноэкранные модалки в body: внутри анимированных/overflow-обёрток
 // position:fixed позиционируется неверно, и просмотрщик уезжает вниз страницы.
 function portalStoryModals() {
-    ['story-viewer', 'stream-viewer', 'story-create-modal', 'whats-new-modal', 'live-start-preview-modal', 'live-setup-modal', 'live-product-picker', 'live-giveaway-editor'].forEach(function (id) {
+    ['story-viewer', 'stream-viewer', 'story-create-modal', 'story-create-preview', 'whats-new-modal', 'live-start-preview-modal', 'live-setup-modal', 'live-product-picker', 'live-giveaway-editor'].forEach(function (id) {
         const el = document.getElementById(id);
         if (el && el.parentElement !== document.body) {
             document.body.appendChild(el);
@@ -325,11 +325,162 @@ let storyTimer = null;
 const STORY_DURATION = 5000;
 
 function openStoryCreate() {
-    document.getElementById('story-create-modal')?.classList.remove('hidden');
+    const modal = document.getElementById('story-create-modal');
+    if (!modal) return;
+    loadStoryCreateDraft();
+    updateStoryCreateCounters();
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
 }
 
 function closeStoryCreate() {
     document.getElementById('story-create-modal')?.classList.add('hidden');
+    closeStoryCreatePreview();
+    document.body.style.overflow = '';
+}
+
+const STORY_CREATE_DRAFT_KEY = 'zakopeyki_story_create_draft';
+let storyCreateImageUrl = '';
+
+function onStoryCreateImageChange(e) {
+    const file = e.target && e.target.files && e.target.files[0];
+    const zone = document.getElementById('story-create-upload-zone');
+    const preview = document.getElementById('story-create-media-preview');
+    const img = document.getElementById('story-create-media-img');
+    if (storyCreateImageUrl) {
+        URL.revokeObjectURL(storyCreateImageUrl);
+        storyCreateImageUrl = '';
+    }
+    if (!file) {
+        if (zone) zone.classList.remove('hidden');
+        if (preview) preview.classList.add('hidden');
+        if (img) img.src = '';
+        return;
+    }
+    storyCreateImageUrl = URL.createObjectURL(file);
+    if (img) img.src = storyCreateImageUrl;
+    if (zone) zone.classList.add('hidden');
+    if (preview) preview.classList.remove('hidden');
+}
+
+function clearStoryCreateImage() {
+    const input = document.getElementById('story-create-image');
+    if (input) input.value = '';
+    onStoryCreateImageChange({ target: { files: [] } });
+}
+
+function updateStoryCreateCounters() {
+    const caption = document.getElementById('story-create-caption');
+    const desc = document.getElementById('story-create-desc');
+    const cCount = document.getElementById('story-create-caption-count');
+    const dCount = document.getElementById('story-create-desc-count');
+    if (caption && cCount) cCount.textContent = (caption.value || '').length + '/280';
+    if (desc && dCount) dCount.textContent = (desc.value || '').length + '/200';
+}
+
+function toggleStoryCreateNotify() {
+    const btn = document.getElementById('story-create-notify-toggle');
+    if (!btn) return;
+    const on = !btn.classList.contains('is-on');
+    btn.classList.toggle('is-on', on);
+    btn.setAttribute('aria-checked', on ? 'true' : 'false');
+}
+
+function buildStoryCreateCaption() {
+    const title = (document.getElementById('story-create-caption')?.value || '').trim();
+    const desc = (document.getElementById('story-create-desc')?.value || '').trim();
+    if (title && desc) return (title + '\n\n' + desc).slice(0, 280);
+    return (title || desc).slice(0, 280);
+}
+
+function saveStoryCreateDraft() {
+    try {
+        const data = {
+            caption: document.getElementById('story-create-caption')?.value || '',
+            desc: document.getElementById('story-create-desc')?.value || '',
+            emoji: document.getElementById('story-create-emoji')?.value || '✨',
+            bg_color: document.getElementById('story-create-bg')?.value || '#7c3aed',
+            notify: document.getElementById('story-create-notify-toggle')?.classList.contains('is-on') !== false,
+        };
+        localStorage.setItem(STORY_CREATE_DRAFT_KEY, JSON.stringify(data));
+        alert(window.__i18n?.['home.story_create_draft_saved'] || window.__i18n?.['home.live_setup_draft_saved'] || 'Черновик сохранён');
+    } catch (err) {
+        alert(window.__i18n?.['home.story_create_draft_saved'] || 'Черновик сохранён');
+    }
+}
+
+function loadStoryCreateDraft() {
+    try {
+        const raw = localStorage.getItem(STORY_CREATE_DRAFT_KEY);
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        const caption = document.getElementById('story-create-caption');
+        const desc = document.getElementById('story-create-desc');
+        const emoji = document.getElementById('story-create-emoji');
+        const bg = document.getElementById('story-create-bg');
+        const notify = document.getElementById('story-create-notify-toggle');
+        if (caption && data.caption != null) caption.value = data.caption;
+        if (desc && data.desc != null) desc.value = data.desc;
+        if (emoji && data.emoji) emoji.value = data.emoji;
+        if (bg && data.bg_color) bg.value = data.bg_color;
+        if (notify) {
+            const on = data.notify !== false;
+            notify.classList.toggle('is-on', on);
+            notify.setAttribute('aria-checked', on ? 'true' : 'false');
+        }
+    } catch (err) { /* ignore */ }
+}
+
+function prepareStoryCreateSubmit() {
+    const captionEl = document.getElementById('story-create-caption');
+    const title = (captionEl?.value || '').trim();
+    const merged = buildStoryCreateCaption();
+    const hasImage = !!(document.getElementById('story-create-image')?.files?.length);
+    if (!title && !hasImage && !merged) {
+        alert(window.__i18n?.['home.story_create_need_content'] || 'Добавьте текст или фото для истории');
+        return false;
+    }
+    if (!merged && !hasImage) {
+        alert(window.__i18n?.['home.story_create_need_content'] || 'Добавьте текст или фото для истории');
+        return false;
+    }
+    if (captionEl) captionEl.value = merged;
+    try { localStorage.removeItem(STORY_CREATE_DRAFT_KEY); } catch (err) { /* ignore */ }
+    return true;
+}
+
+function previewStoryCreate() {
+    const frame = document.getElementById('story-create-preview');
+    if (!frame) return;
+    const text = buildStoryCreateCaption();
+    const emoji = document.getElementById('story-create-emoji')?.value || '✨';
+    const bg = document.getElementById('story-create-bg')?.value || '#7c3aed';
+    const hasImage = !!(document.getElementById('story-create-image')?.files?.length) && storyCreateImageUrl;
+    const bgEl = document.getElementById('story-create-preview-bg');
+    const imgEl = document.getElementById('story-create-preview-img');
+    const emojiEl = document.getElementById('story-create-preview-emoji');
+    const textEl = document.getElementById('story-create-preview-text');
+    if (hasImage) {
+        if (bgEl) bgEl.style.background = '#111';
+        if (imgEl) {
+            imgEl.src = storyCreateImageUrl;
+            imgEl.classList.remove('hidden');
+        }
+        if (emojiEl) emojiEl.textContent = '';
+    } else {
+        if (bgEl) bgEl.style.background = 'linear-gradient(160deg, ' + bg + ', #111827)';
+        if (imgEl) {
+            imgEl.src = '';
+            imgEl.classList.add('hidden');
+        }
+        if (emojiEl) emojiEl.textContent = emoji;
+    }
+    if (textEl) textEl.textContent = text;
+    frame.classList.remove('hidden');
+}
+
+function closeStoryCreatePreview() {
+    document.getElementById('story-create-preview')?.classList.add('hidden');
 }
 
 function openStoryViewer(groupIndex) {
@@ -708,6 +859,8 @@ document.addEventListener('keydown', function (e) {
     const livePicker = document.getElementById('live-product-picker');
     const liveGive = document.getElementById('live-giveaway-editor');
     const liveSetup = document.getElementById('live-setup-modal');
+    const storyCreatePreview = document.getElementById('story-create-preview');
+    const storyCreate = document.getElementById('story-create-modal');
 
     if (livePicker && !livePicker.classList.contains('hidden')) {
         if (e.key === 'Escape') closeLiveProductPicker();
@@ -723,6 +876,14 @@ document.addEventListener('keydown', function (e) {
     }
     if (liveSetup && !liveSetup.classList.contains('hidden')) {
         if (e.key === 'Escape') closeLiveSetup();
+        return;
+    }
+    if (storyCreatePreview && !storyCreatePreview.classList.contains('hidden')) {
+        if (e.key === 'Escape') closeStoryCreatePreview();
+        return;
+    }
+    if (storyCreate && !storyCreate.classList.contains('hidden')) {
+        if (e.key === 'Escape') closeStoryCreate();
         return;
     }
 
