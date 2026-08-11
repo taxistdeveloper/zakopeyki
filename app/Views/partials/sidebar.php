@@ -42,18 +42,22 @@ $navIcon = static fn (string $name): string => IconHelper::svg($name, 'w-[18px] 
             <span class="flex items-center gap-3 flex-1 min-w-0"><?= $navIcon('gavel') ?> <span><?= htmlspecialchars(t('nav.auctions')) ?></span></span>
             <span class="bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wide"><?= htmlspecialchars(t('nav.live')) ?></span>
         </a>
-        <a href="<?= ProductHelper::url('/catalog/free') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('free', $nav) ?>">
-            <?= $navIcon('gift') ?> <span><?= htmlspecialchars(t('nav.free')) ?></span>
-        </a>
-        <a href="<?= ProductHelper::url('/catalog/exchange') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('exchange', $nav) ?>">
-            <?= $navIcon('exchange') ?> <span><?= htmlspecialchars(t('nav.exchange')) ?></span>
-        </a>
+
         <a href="<?= ProductHelper::url('/catalog/services') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('services', $nav) ?>">
             <?= $navIcon('wrench') ?> <span><?= htmlspecialchars(t('nav.services')) ?></span>
         </a>
         <a href="<?= ProductHelper::url('/catalog/courses') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('courses', $nav) ?>">
             <?= $navIcon('graduation') ?> <span><?= htmlspecialchars(t('nav.courses')) ?></span>
         </a>
+        <a href="<?= ProductHelper::url('/catalog/exchange') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('exchange', $nav) ?>">
+            <?= $navIcon('exchange') ?> <span><?= htmlspecialchars(t('nav.exchange')) ?></span>
+        </a>
+        <a href="<?= ProductHelper::url('/catalog/free') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('free', $nav) ?>">
+            <?= $navIcon('gift') ?> <span><?= htmlspecialchars(t('nav.free')) ?></span>
+        </a>
+
+
+
         <?php
             $sidebarCartCount = 0;
             try {
