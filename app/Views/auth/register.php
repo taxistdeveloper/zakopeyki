@@ -51,6 +51,9 @@ $offerSections = [
 
         <form method="post" action="<?= ProductHelper::url('/register') ?>" class="space-y-4" id="register-form">
             <?= csrf_field() ?>
+            <?php if (!empty($referralRef)): ?>
+                <input type="hidden" name="ref" value="<?= htmlspecialchars((string) $referralRef) ?>">
+            <?php endif; ?>
             <div>
                 <label class="block text-[13px] font-semibold mb-1.5"><?= htmlspecialchars(t('auth.name')) ?></label>
                 <input type="text" name="name" value="<?= htmlspecialchars($name ?? '') ?>" required class="w-full h-11 px-4 rounded-xl border border-black/10 bg-white text-sm focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20">

@@ -123,9 +123,11 @@ class AuthController extends Controller
         if (Auth::check()) {
             $this->redirect('/');
         }
+        $this->captureReferralFromRequest();
         $this->view('auth/register', [
             'title' => t('auth.register_title'),
             'error' => $_SESSION['auth_error'] ?? null,
+            'referralRef' => (string) ($_SESSION['referral_ref'] ?? ''),
         ], 'layouts/auth');
         unset($_SESSION['auth_error']);
     }
@@ -137,6 +139,7 @@ class AuthController extends Controller
         $password = $_POST['password'] ?? '';
         $phone = trim($_POST['phone'] ?? '');
         $acceptOffer = !empty($_POST['accept_offer']);
+        $this->captureReferralFromRequest();
 
         if (!$acceptOffer) {
             $this->view('auth/register', [
@@ -145,6 +148,7 @@ class AuthController extends Controller
                 'name' => $name,
                 'email' => $email,
                 'phone' => $phone,
+                'referralRef' => (string) ($_SESSION['referral_ref'] ?? ''),
             ], 'layouts/auth');
             return;
         }
@@ -156,6 +160,7 @@ class AuthController extends Controller
                 'name' => $name,
                 'email' => $email,
                 'phone' => $phone,
+                'referralRef' => (string) ($_SESSION['referral_ref'] ?? ''),
             ], 'layouts/auth');
             return;
         }
@@ -168,6 +173,7 @@ class AuthController extends Controller
                 'name' => $name,
                 'email' => $email,
                 'phone' => $phone,
+                'referralRef' => (string) ($_SESSION['referral_ref'] ?? ''),
             ], 'layouts/auth');
             return;
         }
@@ -180,6 +186,7 @@ class AuthController extends Controller
         ]);
 
         $bonusResult = (new \App\Models\Bonus())->awardRegistration((int) $id);
+        $this->applyReferralBonus((int) $id);
 
         $user = $users->find($id);
         Auth::login($user);
@@ -214,6 +221,8 @@ class AuthController extends Controller
         if (Auth::check()) {
             $this->redirect('/');
         }
+
+        $this->captureReferralFromRequest();
 
         $oauth = new GoogleOAuth();
         if (!$oauth->isConfigured()) {
@@ -297,6 +306,7 @@ class AuthController extends Controller
                 ]);
                 $user = $users->find($id);
                 $bonusResult = (new \App\Models\Bonus())->awardRegistration((int) $id);
+                $this->applyReferralBonus((int) $id);
                 if (!empty($bonusResult['ok']) && empty($bonusResult['skipped']) && ($bonusResult['amount'] ?? 0) > 0) {
                     $_SESSION['flash'] = t('bonuses.flash_registration', [
                         'amount' => \App\Models\Bonus::format((int) $bonusResult['amount']),
@@ -511,5 +521,48 @@ class AuthController extends Controller
     private function clearTwoFactorChallenge(): void
     {
         unset($_SESSION['pending_2fa']);
+    }
+
+    private function captureReferralFromRequest(): void
+    {
+        $ref = trim((string) ($_POST['ref'] ?? $_GET['ref'] ?? ''));
+        if ($ref === '') {
+            return;
+        }
+        if (!preg_match('/^[a-zA-Z0-9_]{1,50}$/', $ref)) {
+            return;
+        }
+        $_SESSION['referral_ref'] = $ref;
+    }
+
+    private function applyReferralBonus(int $newUserId): void
+    {
+        $ref = trim((string) ($_SESSION['referral_ref'] ?? ''));
+        unset($_SESSION['referral_ref']);
+        if ($ref === '' || $newUserId <= 0) {
+            return;
+        }
+
+        $users = new User();
+        $referrer = $users->findByReferralCode($ref);
+        if (!$referrer) {
+            return;
+        }
+
+        $referrerId = (int) $referrer['id'];
+        if ($referrerId === $newUserId) {
+            return;
+        }
+
+        $users->setReferredBy($newUserId, $referrerId);
+        $result = (new \App\Models\Bonus())->awardReferral($referrerId, $newUserId);
+        if (!empty($result['ok']) && empty($result['skipped']) && ($result['amount'] ?? 0) > 0) {
+            (new \App\Models\Notification())->createFor(
+                $referrerId,
+                t('bonuses.notify_referral', [
+                    'amount' => \App\Models\Bonus::format((int) $result['amount']),
+                ])
+            );
+        }
     }
 }

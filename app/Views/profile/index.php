@@ -2,6 +2,7 @@
 use App\Helpers\ProductHelper;
 use App\Helpers\AvatarHelper;
 use App\Helpers\IconHelper;
+use App\Models\Bonus;
 
 $user = $user ?? [];
 $tab = $tab ?? 'personal';
@@ -28,6 +29,7 @@ $tabs = [
     'password' => ['label' => t('profile.tab_password'), 'icon' => 'lock'],
     'favorites' => ['label' => t('profile.tab_favorites'), 'icon' => 'heart'],
     'subscriptions' => ['label' => t('profile.tab_subscriptions'), 'icon' => 'users'],
+    'referral' => ['label' => t('profile.tab_referral'), 'icon' => 'gift'],
     'lots' => ['label' => t('profile.tab_lots'), 'icon' => 'package'],
 ];
 
@@ -503,6 +505,99 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
+
+            <?php elseif ($tab === 'referral'): ?>
+                <?php
+                $referralUrl = $referralUrl ?? '';
+                $referralCode = $referralCode ?? '';
+                $referralCount = (int) ($referralCount ?? 0);
+                $referralUsers = $referralUsers ?? [];
+                $refReward = Bonus::AMOUNT_REFERRAL;
+                ?>
+                <div class="mb-6">
+                    <h2 class="font-display text-xl font-bold"><?= htmlspecialchars(t('profile.tab_referral')) ?></h2>
+                    <p class="text-sm text-gray-400 mt-1"><?= htmlspecialchars(t('profile.referral_hint', [
+                        'amount' => Bonus::format($refReward),
+                    ])) ?></p>
+                </div>
+
+                <div class="rounded-[24px] border border-amber-200/70 dark:border-amber-800/40 bg-amber-50/60 dark:bg-amber-950/20 p-5 sm:p-6 space-y-4 mb-6">
+                    <div>
+                        <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-700/70 dark:text-amber-300/70"><?= htmlspecialchars(t('profile.referral_link')) ?></p>
+                        <div class="mt-2 flex flex-col sm:flex-row gap-2">
+                            <input id="referral-link-input" type="text" readonly value="<?= htmlspecialchars($referralUrl) ?>"
+                                   class="<?= $input ?> font-mono text-xs sm:text-sm">
+                            <button type="button" id="referral-copy-btn"
+                                    class="shrink-0 inline-flex items-center justify-center px-4 py-2.5 rounded-2xl bg-ink-900 hover:bg-ink-800 text-white font-display font-bold text-xs uppercase tracking-wider transition">
+                                <?= htmlspecialchars(t('profile.referral_copy')) ?>
+                            </button>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2"><?= htmlspecialchars(t('profile.referral_code_label')) ?>: <span class="font-semibold text-ink-900 dark:text-white"><?= htmlspecialchars($referralCode) ?></span></p>
+                    </div>
+                    <p class="text-sm text-gray-600 dark:text-gray-300"><?= htmlspecialchars(t('profile.referral_reward', [
+                        'amount' => Bonus::format($refReward),
+                    ])) ?></p>
+                    <p class="text-sm font-semibold text-ink-900 dark:text-white"><?= htmlspecialchars(t('profile.referral_stats', [
+                        'count' => $referralCount,
+                    ])) ?></p>
+                </div>
+
+                <div class="rounded-[24px] border border-black/[0.06] dark:border-white/10 overflow-hidden">
+                    <div class="px-5 py-4 border-b border-black/[0.05] dark:border-white/10">
+                        <h3 class="font-display font-bold"><?= htmlspecialchars(t('profile.referral_list')) ?></h3>
+                    </div>
+                    <?php if (empty($referralUsers)): ?>
+                        <p class="px-5 py-10 text-center text-sm text-gray-400"><?= htmlspecialchars(t('profile.referral_empty')) ?></p>
+                    <?php else: ?>
+                        <ul class="divide-y divide-black/[0.04] dark:divide-white/5">
+                            <?php foreach ($referralUsers as $refUser):
+                                $refId = (int) ($refUser['id'] ?? 0);
+                                $refName = (string) ($refUser['name'] ?? '');
+                            ?>
+                            <li class="px-5 py-3.5 flex items-center gap-3">
+                                <button type="button" class="seller-profile-trigger shrink-0" data-seller-id="<?= $refId ?>" aria-label="<?= htmlspecialchars($refName) ?>">
+                                    <img src="<?= htmlspecialchars(AvatarHelper::url($refUser)) ?>" alt="" class="w-10 h-10 rounded-xl object-cover">
+                                </button>
+                                <div class="min-w-0 flex-1">
+                                    <button type="button" class="seller-profile-trigger text-left block w-full" data-seller-id="<?= $refId ?>">
+                                        <p class="text-sm font-semibold text-ink-900 dark:text-white truncate"><?= htmlspecialchars($refName) ?></p>
+                                        <?php if (!empty($refUser['login'])): ?>
+                                            <p class="text-xs text-gray-400">@<?= htmlspecialchars((string) $refUser['login']) ?></p>
+                                        <?php endif; ?>
+                                    </button>
+                                </div>
+                                <p class="text-[11px] text-gray-400 shrink-0"><?= htmlspecialchars((string) ($refUser['created_at'] ?? '')) ?></p>
+                            </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php endif; ?>
+                </div>
+                <script>
+                (function () {
+                    var btn = document.getElementById('referral-copy-btn');
+                    var input = document.getElementById('referral-link-input');
+                    if (!btn || !input) return;
+                    btn.addEventListener('click', function () {
+                        var text = input.value;
+                        var done = function () {
+                            var prev = btn.textContent;
+                            btn.textContent = <?= json_encode(t('profile.referral_copied')) ?>;
+                            setTimeout(function () { btn.textContent = prev; }, 1600);
+                        };
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                            navigator.clipboard.writeText(text).then(done).catch(function () {
+                                input.select();
+                                try { document.execCommand('copy'); } catch (e) {}
+                                done();
+                            });
+                        } else {
+                            input.select();
+                            try { document.execCommand('copy'); } catch (e) {}
+                            done();
+                        }
+                    });
+                })();
+                </script>
 
             <?php elseif ($tab === 'lots'): ?>
                 <?php $editing = $editProduct ?? null; ?>

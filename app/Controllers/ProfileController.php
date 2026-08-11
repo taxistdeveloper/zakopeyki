@@ -31,7 +31,7 @@ class ProfileController extends Controller
         }
 
         $tab = $_GET['tab'] ?? 'personal';
-        $allowed = ['personal', 'photo', 'bio', 'reviews', 'notifications', 'password', 'lots', 'favorites', 'subscriptions'];
+        $allowed = ['personal', 'photo', 'bio', 'reviews', 'notifications', 'password', 'lots', 'favorites', 'subscriptions', 'referral'];
         if (!in_array($tab, $allowed, true)) {
             $tab = 'personal';
         }
@@ -83,11 +83,18 @@ class ProfileController extends Controller
         $reviews = $tab === 'reviews' ? $reviewsModel->forSubject(Auth::id()) : [];
         $reviewStats = $reviewsModel->statsFor(Auth::id());
 
+        $profileUser = $dbUser ?: Auth::user();
+        $usersModel = new User();
+        $referralUrl = $usersModel->referralUrlFor($profileUser ?: ['id' => Auth::id()]);
+        $referralCode = $usersModel->referralCodeFor($profileUser ?: ['id' => Auth::id()]);
+        $referralCount = $tab === 'referral' ? $usersModel->countReferrals(Auth::id()) : 0;
+        $referralUsers = $tab === 'referral' ? $usersModel->referrals(Auth::id()) : [];
+
         $this->view('profile/index', [
             'title' => t('profile.title'),
             'currentNav' => 'profile',
             'tab' => $tab,
-            'user' => $dbUser ?: Auth::user(),
+            'user' => $profileUser,
             'products' => (new Product())->byUser(Auth::id()),
             'favorites' => $favorites,
             'favoriteIds' => $favoriteIds,
@@ -104,6 +111,10 @@ class ProfileController extends Controller
             'unread' => $unread,
             'reviews' => $reviews,
             'reviewStats' => $reviewStats,
+            'referralUrl' => $referralUrl,
+            'referralCode' => $referralCode,
+            'referralCount' => $referralCount,
+            'referralUsers' => $referralUsers,
             'search' => '',
             'flash' => $_SESSION['flash'] ?? null,
             'error' => $_SESSION['error'] ?? null,

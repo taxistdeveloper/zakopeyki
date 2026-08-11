@@ -13,6 +13,7 @@ class Bonus extends Model
     public const TYPE_SALE = 'sale';
     public const TYPE_FOLLOWER = 'follower';
     public const TYPE_LISTING = 'listing';
+    public const TYPE_REFERRAL = 'referral';
 
     /** First 500 users */
     public const REG_TIER1_LIMIT = 500;
@@ -28,6 +29,7 @@ class Bonus extends Model
     public const AMOUNT_SALE = 100;
     public const AMOUNT_FOLLOWER = 1;
     public const AMOUNT_LISTING = 100;
+    public const AMOUNT_REFERRAL = 500;
 
     /** Partner gym unlock threshold */
     public const GYM_THRESHOLD = 10000;
@@ -283,6 +285,22 @@ class Bonus extends Model
             'product',
             $productId,
             'listing'
+        );
+    }
+
+    /** @return array{ok: bool, balance?: int, amount?: int, error?: string, skipped?: bool} */
+    public function awardReferral(int $referrerId, int $newUserId): array
+    {
+        if ($referrerId <= 0 || $newUserId <= 0 || $referrerId === $newUserId) {
+            return ['ok' => false, 'error' => 'bad_user'];
+        }
+        return $this->award(
+            $referrerId,
+            self::AMOUNT_REFERRAL,
+            self::TYPE_REFERRAL,
+            'user',
+            $newUserId,
+            'referral'
         );
     }
 

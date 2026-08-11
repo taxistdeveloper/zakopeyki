@@ -14,6 +14,7 @@ $typeLabels = [
     Bonus::TYPE_SALE => t('bonuses.tx_sale'),
     Bonus::TYPE_FOLLOWER => t('bonuses.tx_follower'),
     Bonus::TYPE_LISTING => t('bonuses.tx_listing'),
+    Bonus::TYPE_REFERRAL => t('bonuses.tx_referral'),
 ];
 ?>
 <section class="max-w-2xl mx-auto space-y-5 fade-up pb-8">
@@ -152,6 +153,7 @@ $typeLabels = [
             <li class="flex gap-2.5"><span class="text-brand-600 font-bold shrink-0">+<?= Bonus::AMOUNT_SALE ?></span><?= htmlspecialchars(t('bonuses.rule_sale')) ?></li>
             <li class="flex gap-2.5"><span class="text-brand-600 font-bold shrink-0">+<?= Bonus::AMOUNT_FOLLOWER ?></span><?= htmlspecialchars(t('bonuses.rule_follower')) ?></li>
             <li class="flex gap-2.5"><span class="text-brand-600 font-bold shrink-0">+<?= Bonus::AMOUNT_LISTING ?></span><?= htmlspecialchars(t('bonuses.rule_listing')) ?></li>
+            <li class="flex gap-2.5"><span class="text-brand-600 font-bold shrink-0">+<?= Bonus::AMOUNT_REFERRAL ?></span><?= htmlspecialchars(t('bonuses.rule_referral')) ?></li>
             <li class="flex gap-2.5"><span class="text-emerald-600 font-bold shrink-0"><?= Bonus::format(Bonus::GYM_THRESHOLD) ?></span><?= htmlspecialchars(t('bonuses.rule_gym')) ?></li>
         </ul>
     </div>

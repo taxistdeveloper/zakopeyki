@@ -36,6 +36,7 @@ class User extends Model
             'password_reset_expires' => 'DATETIME DEFAULT NULL AFTER password_reset_token',
             'permissions' => "TEXT DEFAULT NULL COMMENT 'JSON permissions for manager' AFTER role",
             'site_access' => "TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Early access while stub_mode' AFTER permissions",
+            'referred_by' => 'INT UNSIGNED DEFAULT NULL AFTER site_access',
         ];
 
         foreach ($needed as $col => $def) {
@@ -81,6 +82,12 @@ class User extends Model
             // index may already exist
         }
 
+        try {
+            $this->db->exec('CREATE INDEX users_referred_by_idx ON users (referred_by)');
+        } catch (\Throwable $e) {
+            // index may already exist
+        }
+
         self::$ensured = true;
     }
 
@@ -106,6 +113,76 @@ class User extends Model
         $stmt->execute([$login]);
         $row = $stmt->fetch();
         return $row ?: null;
+    }
+
+    /** Resolve referrer by login or numeric user id. */
+    public function findByReferralCode(string $code): ?array
+    {
+        $code = trim($code);
+        if ($code === '') {
+            return null;
+        }
+        if (ctype_digit($code)) {
+            $user = $this->find((int) $code);
+            return $user ?: null;
+        }
+        return $this->findByLogin($code);
+    }
+
+    public function referralCodeFor(array $user): string
+    {
+        $login = trim((string) ($user['login'] ?? ''));
+        if ($login !== '') {
+            return $login;
+        }
+        return (string) (int) ($user['id'] ?? 0);
+    }
+
+    public function referralUrlFor(array $user): string
+    {
+        $code = rawurlencode($this->referralCodeFor($user));
+        $path = \App\Helpers\ProductHelper::url('/register?ref=' . $code);
+        $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || (($_SERVER['SERVER_PORT'] ?? null) == 443)
+            || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+        $scheme = $https ? 'https' : 'http';
+        $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
+        return $scheme . '://' . $host . $path;
+    }
+
+    public function setReferredBy(int $userId, int $referrerId): bool
+    {
+        if ($userId <= 0 || $referrerId <= 0 || $userId === $referrerId) {
+            return false;
+        }
+        $stmt = $this->db->prepare(
+            'UPDATE users SET referred_by = ? WHERE id = ? AND (referred_by IS NULL OR referred_by = 0)'
+        );
+        $stmt->execute([$referrerId, $userId]);
+        return $stmt->rowCount() > 0;
+    }
+
+    public function countReferrals(int $userId): int
+    {
+        $stmt = $this->db->prepare('SELECT COUNT(*) AS c FROM users WHERE referred_by = ?');
+        $stmt->execute([$userId]);
+        return (int) ($stmt->fetch()['c'] ?? 0);
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function referrals(int $userId, int $limit = 30): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT id, name, login, avatar, avatar_file, created_at
+             FROM users
+             WHERE referred_by = ?
+             ORDER BY id DESC
+             LIMIT ?'
+        );
+        $stmt->bindValue(1, $userId, \PDO::PARAM_INT);
+        $stmt->bindValue(2, max(1, min(100, $limit)), \PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll() ?: [];
     }
 
     public function create(array $data): int
