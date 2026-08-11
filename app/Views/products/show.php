@@ -97,13 +97,23 @@ unset($_SESSION['flash']);
                     && ($item['category'] ?? '') !== 'Разное';
                 if ($showProductCategory):
                     [$catParent, $catChild] = ProductHelper::parseCategory($item['category']);
+                    $catalogSection = ($item['type'] ?? '') === 'new' ? 'new' : 'used';
+                    $catalogBase = ProductHelper::url('/catalog/' . $catalogSection);
+                    $parentUrl = $catalogBase . '?' . http_build_query(['parent' => $catParent]);
+                    $childUrl = $catalogBase . '?' . http_build_query(['parent' => $catParent, 'sub' => $catChild]);
                 ?>
                     <div class="flex flex-wrap items-center gap-x-2 gap-y-1 mt-3 text-sm">
                         <span class="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400"><?= htmlspecialchars(t('product.category')) ?></span>
                         <span class="inline-flex flex-wrap items-center gap-1.5">
-                            <span class="px-2.5 py-1 rounded-xl bg-ink-50 dark:bg-white/[0.06] border border-black/[0.06] dark:border-white/10 text-ink-800 dark:text-gray-200 font-medium text-xs"><?= htmlspecialchars(ProductHelper::categoryLabel($catParent)) ?></span>
+                            <a href="<?= htmlspecialchars($parentUrl) ?>"
+                               class="px-2.5 py-1 rounded-xl bg-ink-50 dark:bg-white/[0.06] border border-black/[0.06] dark:border-white/10 text-ink-800 dark:text-gray-200 font-medium text-xs hover:border-brand-300 hover:text-brand-700 dark:hover:text-brand-300 transition">
+                                <?= htmlspecialchars(ProductHelper::categoryLabel($catParent)) ?>
+                            </a>
                             <span class="text-gray-300 dark:text-gray-600">/</span>
-                            <span class="px-2.5 py-1 rounded-xl bg-brand-50 dark:bg-brand-500/10 border border-brand-200/60 dark:border-brand-500/20 text-brand-700 dark:text-brand-400 font-semibold text-xs"><?= htmlspecialchars(ProductHelper::categoryLabel($catChild)) ?></span>
+                            <a href="<?= htmlspecialchars($childUrl) ?>"
+                               class="px-2.5 py-1 rounded-xl bg-brand-50 dark:bg-brand-500/10 border border-brand-200/60 dark:border-brand-500/20 text-brand-700 dark:text-brand-400 font-semibold text-xs hover:bg-brand-100 dark:hover:bg-brand-500/20 hover:border-brand-300 transition">
+                                <?= htmlspecialchars(ProductHelper::categoryLabel($catChild)) ?>
+                            </a>
                         </span>
                     </div>
                 <?php endif; ?>
