@@ -63,7 +63,7 @@ $myInitial = AvatarHelper::initial($me);
                 <section class="live-setup-card">
                     <div class="live-setup-card-head">
                         <h3><?= htmlspecialchars(t('home.story_create_media')) ?></h3>
-                        <span class="live-setup-tag"><?= htmlspecialchars(t('home.live_setup_optional')) ?></span>
+                        <span class="live-setup-tag is-req"><?= htmlspecialchars(t('home.live_setup_required')) ?></span>
                     </div>
                     <p class="live-setup-card-hint"><?= htmlspecialchars(t('home.story_create_media_hint')) ?></p>
                     <input type="file" id="story-create-image" name="image" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden" onchange="onStoryCreateImageChange(event)">
@@ -78,31 +78,6 @@ $myInitial = AvatarHelper::initial($me);
                         <img id="story-create-media-img" src="" alt="">
                         <button type="button" class="live-setup-cover-clear" onclick="clearStoryCreateImage()" aria-label="✕">✕</button>
                     </div>
-                </section>
-
-                <!-- Стиль (эмодзи + цвет) -->
-                <section class="live-setup-card">
-                    <div class="live-setup-card-head">
-                        <h3><?= htmlspecialchars(t('home.story_create_style')) ?></h3>
-                        <span class="live-setup-tag"><?= htmlspecialchars(t('home.live_setup_optional')) ?></span>
-                    </div>
-                    <p class="live-setup-card-hint"><?= htmlspecialchars(t('home.story_create_style_hint')) ?></p>
-                    <div class="live-setup-field mb-3">
-                        <span class="live-setup-field-label"><?= htmlspecialchars(t('home.story_emoji')) ?></span>
-                        <input type="hidden" id="story-create-emoji" name="emoji" value="✨">
-                        <div id="story-create-emoji-grid" class="story-create-emoji-grid" role="listbox" aria-label="<?= htmlspecialchars(t('home.story_emoji')) ?>">
-                            <?php
-                            $storyEmojis = ['✨','🔥','❤️','😍','🎉','🛍️','💰','⭐','👏','🙌','😎','🤩','💯','🚀','💎','🎁','📸','🌟','😊','🥳','💪','👍','🧡','💜','🌸','☀️','🌙','⚡','🎯','🏆'];
-                            foreach ($storyEmojis as $i => $em):
-                            ?>
-                            <button type="button" class="story-create-emoji-btn<?= $i === 0 ? ' is-selected' : '' ?>" data-emoji="<?= htmlspecialchars($em) ?>" onclick="selectStoryEmoji(this)" role="option" aria-selected="<?= $i === 0 ? 'true' : 'false' ?>"><?= $em ?></button>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                    <label class="live-setup-field">
-                        <span class="live-setup-field-label"><?= htmlspecialchars(t('home.story_color')) ?></span>
-                        <input type="color" id="story-create-bg" name="bg_color" value="#7c3aed" class="story-create-color">
-                    </label>
                 </section>
 
                 <!-- Заголовок -->
@@ -205,9 +180,8 @@ $myInitial = AvatarHelper::initial($me);
         <div class="story-create-preview-frame" id="story-create-preview-frame">
             <div id="story-create-preview-bg" class="absolute inset-0"></div>
             <img id="story-create-preview-img" src="" alt="" class="hidden absolute inset-0 w-full h-full object-cover">
-            <div class="absolute inset-0 flex flex-col items-center justify-center px-6 text-center z-[1]">
-                <span id="story-create-preview-emoji" class="text-5xl leading-none mb-3"></span>
-                <p id="story-create-preview-text" class="text-white text-sm font-semibold drop-shadow leading-snug"></p>
+            <div class="absolute inset-0 flex flex-col items-end justify-end px-5 pb-6 text-left z-[1] bg-gradient-to-t from-black/55 via-transparent to-transparent">
+                <p id="story-create-preview-text" class="w-full text-white text-sm font-semibold drop-shadow leading-snug"></p>
             </div>
         </div>
         <button type="button" onclick="closeStoryCreatePreview()" class="mt-3 w-full text-[12px] font-semibold text-white/80 hover:text-white py-2"><?= htmlspecialchars(t('home.close_stream')) ?></button>

@@ -193,6 +193,7 @@ return [
         'story_create_publish_hint' => 'Жарияланғаннан кейін сторис 24 сағат барлығына қолжетімді болады',
         'story_create_rules' => 'Контент платформа ережелерін бұзбайтынына көз жеткізіңіз',
         'story_create_need_content' => 'Сториске мәтін немесе фото қосыңыз',
+        'story_create_need_photo' => 'Сториске фото жүктеңіз',
         'story_create_draft_saved' => 'Жоба сақталды',
         'publish' => 'Жариялау',
         'delete_story' => 'Жою',

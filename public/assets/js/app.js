@@ -378,37 +378,6 @@ function updateStoryCreateCounters() {
     if (desc && dCount) dCount.textContent = (desc.value || '').length + '/200';
 }
 
-function selectStoryEmoji(btn) {
-    if (!btn) return;
-    const emoji = btn.getAttribute('data-emoji') || '✨';
-    const input = document.getElementById('story-create-emoji');
-    if (input) input.value = emoji;
-    document.querySelectorAll('#story-create-emoji-grid .story-create-emoji-btn').forEach(function (el) {
-        const on = el === btn;
-        el.classList.toggle('is-selected', on);
-        el.setAttribute('aria-selected', on ? 'true' : 'false');
-    });
-}
-
-function applyStoryEmojiSelection(emoji) {
-    const value = emoji || '✨';
-    const input = document.getElementById('story-create-emoji');
-    if (input) input.value = value;
-    const grid = document.getElementById('story-create-emoji-grid');
-    if (!grid) return;
-    let matched = null;
-    grid.querySelectorAll('.story-create-emoji-btn').forEach(function (el) {
-        const on = el.getAttribute('data-emoji') === value;
-        el.classList.toggle('is-selected', on);
-        el.setAttribute('aria-selected', on ? 'true' : 'false');
-        if (on) matched = el;
-    });
-    if (!matched) {
-        const first = grid.querySelector('.story-create-emoji-btn');
-        if (first) selectStoryEmoji(first);
-    }
-}
-
 function toggleStoryCreateNotify() {
     const btn = document.getElementById('story-create-notify-toggle');
     if (!btn) return;
@@ -429,8 +398,6 @@ function saveStoryCreateDraft() {
         const data = {
             caption: document.getElementById('story-create-caption')?.value || '',
             desc: document.getElementById('story-create-desc')?.value || '',
-            emoji: document.getElementById('story-create-emoji')?.value || '✨',
-            bg_color: document.getElementById('story-create-bg')?.value || '#7c3aed',
             notify: document.getElementById('story-create-notify-toggle')?.classList.contains('is-on') !== false,
         };
         localStorage.setItem(STORY_CREATE_DRAFT_KEY, JSON.stringify(data));
@@ -447,12 +414,9 @@ function loadStoryCreateDraft() {
         const data = JSON.parse(raw);
         const caption = document.getElementById('story-create-caption');
         const desc = document.getElementById('story-create-desc');
-        const bg = document.getElementById('story-create-bg');
         const notify = document.getElementById('story-create-notify-toggle');
         if (caption && data.caption != null) caption.value = data.caption;
         if (desc && data.desc != null) desc.value = data.desc;
-        if (data.emoji) applyStoryEmojiSelection(data.emoji);
-        if (bg && data.bg_color) bg.value = data.bg_color;
         if (notify) {
             const on = data.notify !== false;
             notify.classList.toggle('is-on', on);
@@ -463,15 +427,10 @@ function loadStoryCreateDraft() {
 
 function prepareStoryCreateSubmit() {
     const captionEl = document.getElementById('story-create-caption');
-    const title = (captionEl?.value || '').trim();
     const merged = buildStoryCreateCaption();
     const hasImage = !!(document.getElementById('story-create-image')?.files?.length);
-    if (!title && !hasImage && !merged) {
-        alert(window.__i18n?.['home.story_create_need_content'] || 'Добавьте текст или фото для истории');
-        return false;
-    }
-    if (!merged && !hasImage) {
-        alert(window.__i18n?.['home.story_create_need_content'] || 'Добавьте текст или фото для истории');
+    if (!hasImage) {
+        alert(window.__i18n?.['home.story_create_need_photo'] || 'Загрузите фото для истории');
         return false;
     }
     if (captionEl) captionEl.value = merged;
@@ -482,28 +441,19 @@ function prepareStoryCreateSubmit() {
 function previewStoryCreate() {
     const frame = document.getElementById('story-create-preview');
     if (!frame) return;
-    const text = buildStoryCreateCaption();
-    const emoji = document.getElementById('story-create-emoji')?.value || '✨';
-    const bg = document.getElementById('story-create-bg')?.value || '#7c3aed';
     const hasImage = !!(document.getElementById('story-create-image')?.files?.length) && storyCreateImageUrl;
+    if (!hasImage) {
+        alert(window.__i18n?.['home.story_create_need_photo'] || 'Загрузите фото для истории');
+        return;
+    }
+    const text = buildStoryCreateCaption();
     const bgEl = document.getElementById('story-create-preview-bg');
     const imgEl = document.getElementById('story-create-preview-img');
-    const emojiEl = document.getElementById('story-create-preview-emoji');
     const textEl = document.getElementById('story-create-preview-text');
-    if (hasImage) {
-        if (bgEl) bgEl.style.background = '#111';
-        if (imgEl) {
-            imgEl.src = storyCreateImageUrl;
-            imgEl.classList.remove('hidden');
-        }
-        if (emojiEl) emojiEl.textContent = '';
-    } else {
-        if (bgEl) bgEl.style.background = 'linear-gradient(160deg, ' + bg + ', #111827)';
-        if (imgEl) {
-            imgEl.src = '';
-            imgEl.classList.add('hidden');
-        }
-        if (emojiEl) emojiEl.textContent = emoji;
+    if (bgEl) bgEl.style.background = '#111';
+    if (imgEl) {
+        imgEl.src = storyCreateImageUrl;
+        imgEl.classList.remove('hidden');
     }
     if (textEl) textEl.textContent = text;
     frame.classList.remove('hidden');

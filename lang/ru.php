@@ -193,6 +193,7 @@ return [
         'story_create_publish_hint' => 'После публикации история будет доступна всем пользователям 24 часа',
         'story_create_rules' => 'Убедитесь, что контент не нарушает правила платформы',
         'story_create_need_content' => 'Добавьте текст или фото для истории',
+        'story_create_need_photo' => 'Загрузите фото для истории',
         'story_create_draft_saved' => 'Черновик сохранён',
         'publish' => 'Опубликовать',
         'delete_story' => 'Удалить',

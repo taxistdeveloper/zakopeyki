@@ -16,11 +16,6 @@ class StoryController extends Controller
         Auth::requireLogin();
 
         $caption = trim($_POST['caption'] ?? '');
-        $emoji = trim($_POST['emoji'] ?? '✨') ?: '✨';
-        $bg = $_POST['bg_color'] ?? '#f59e0b';
-        if (!preg_match('/^#[0-9A-Fa-f]{6}$/', $bg)) {
-            $bg = '#f59e0b';
-        }
 
         if (mb_strlen($caption) > 280) {
             $caption = mb_substr($caption, 0, 280);
@@ -28,8 +23,8 @@ class StoryController extends Controller
 
         $image = $this->uploadImage();
 
-        if ($caption === '' && !$image) {
-            $_SESSION['flash'] = 'Добавьте текст или фото для истории';
+        if (!$image) {
+            $_SESSION['flash'] = 'Загрузите фото для истории';
             $this->redirect('/');
         }
 
@@ -37,8 +32,8 @@ class StoryController extends Controller
             'user_id' => Auth::id(),
             'caption' => $caption !== '' ? $caption : null,
             'image' => $image,
-            'bg_color' => $bg,
-            'emoji' => mb_substr($emoji, 0, 8),
+            'bg_color' => '#7c3aed',
+            'emoji' => '✨',
         ]);
 
         $_SESSION['flash'] = 'История опубликована на 24 часа!';
