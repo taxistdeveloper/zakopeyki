@@ -2033,9 +2033,7 @@ function url(string $path = ''): string
             flex: 1;
         }
         .seller-shop-review {
-            display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 0.85rem;
+            display: block;
             padding: 0.95rem 1rem;
             border-radius: 1.1rem;
             border: 1px solid rgba(0,0,0,0.06);
@@ -2046,6 +2044,50 @@ function url(string $path = ''): string
             border-color: rgba(255,255,255,0.08);
         }
         .seller-shop-stars { color: #7c3aed; letter-spacing: 0.05em; font-size: 0.8rem; }
+        .seller-shop-review-product {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            margin-top: 0.15rem;
+            padding: 0.55rem 0.65rem;
+            border-radius: 0.85rem;
+            border: 1px solid rgba(0,0,0,0.06);
+            background: #f8f8fb;
+            text-decoration: none;
+            transition: background .15s, border-color .15s;
+        }
+        .seller-shop-review-product:hover {
+            background: #f1eefc;
+            border-color: rgba(124,58,237,0.25);
+        }
+        .dark .seller-shop-review-product {
+            background: rgba(255,255,255,0.04);
+            border-color: rgba(255,255,255,0.08);
+        }
+        .dark .seller-shop-review-product:hover {
+            background: rgba(124,58,237,0.12);
+            border-color: rgba(124,58,237,0.3);
+        }
+        .seller-shop-review-product-thumb {
+            width: 2.75rem;
+            height: 2.75rem;
+            border-radius: 0.65rem;
+            overflow: hidden;
+            background: #e5e7eb;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .seller-shop-review-product-thumb.is-empty {
+            color: #9ca3af;
+            font-size: 1rem;
+        }
+        .seller-shop-review-product-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
         /* Product photo watermark */
         .photo-wm {
             position: relative;
@@ -2206,6 +2248,7 @@ function url(string $path = ''): string
             'seller.show_more',
             'seller.buyer_reviews', 'seller.all_reviews', 'seller.no_reviews', 'seller.no_bio',
             'seller.follow_error', 'seller.follow_self', 'seller.copy_link', 'seller.link_copied', 'seller.menu',
+            'seller.review_about_product', 'seller.review_product_fallback',
             'card.favorite', 'card.unfavorite', 'card.add_cart', 'card.in_cart',
             'card.add_cart', 'card.in_cart',
             'home.story_link_copied',

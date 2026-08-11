@@ -3605,26 +3605,45 @@ function renderSellerReviewCard(r) {
     main.appendChild(stars);
     if (r.comment) main.appendChild(comment);
 
-    wrap.appendChild(main);
-
-    if (r.product_id && (r.product_image || r.product_price_label)) {
-        const side = document.createElement('a');
-        side.href = r.product_url || '#';
-        side.className = 'w-20 sm:w-24 shrink-0 text-center';
-        side.addEventListener('click', function () { closeSellerProfile(); });
+    if (r.product_id || r.product_title) {
+        const productRow = document.createElement(r.product_url ? 'a' : 'div');
+        if (r.product_url) {
+            productRow.href = r.product_url;
+            productRow.addEventListener('click', function () { closeSellerProfile(); });
+        }
+        productRow.className = 'seller-shop-review-product';
         if (r.product_image) {
             const thumb = document.createElement('div');
-            thumb.className = 'w-full aspect-square rounded-xl overflow-hidden bg-ink-100 dark:bg-white/10 mb-1';
-            thumb.innerHTML = '<img src="' + sellerEsc(r.product_image) + '" alt="" class="w-full h-full object-cover">';
-            side.appendChild(thumb);
+            thumb.className = 'seller-shop-review-product-thumb';
+            thumb.innerHTML = '<img src="' + sellerEsc(r.product_image) + '" alt="">';
+            productRow.appendChild(thumb);
+        } else {
+            const thumb = document.createElement('div');
+            thumb.className = 'seller-shop-review-product-thumb is-empty';
+            thumb.textContent = '·';
+            productRow.appendChild(thumb);
         }
-        const price = document.createElement('div');
-        price.className = 'text-[11px] font-bold text-[#7c3aed]';
-        price.textContent = r.product_price_label || '';
-        side.appendChild(price);
-        wrap.appendChild(side);
+        const info = document.createElement('div');
+        info.className = 'min-w-0 flex-1';
+        const label = document.createElement('div');
+        label.className = 'text-[10px] font-semibold uppercase tracking-wider text-gray-400';
+        label.textContent = window.__i18n?.['seller.review_about_product'] || 'Товар';
+        const title = document.createElement('div');
+        title.className = 'text-xs font-semibold text-ink-800 dark:text-gray-100 line-clamp-2';
+        title.textContent = r.product_title || (window.__i18n?.['seller.review_product_fallback'] || 'Товар из сделки');
+        info.appendChild(label);
+        info.appendChild(title);
+        if (r.product_price_label) {
+            const price = document.createElement('div');
+            price.className = 'text-xs font-bold text-[#7c3aed] mt-0.5';
+            price.textContent = r.product_price_label;
+            info.appendChild(price);
+        }
+        productRow.appendChild(info);
+        main.appendChild(productRow);
     }
 
+    wrap.appendChild(main);
     return wrap;
 }
 

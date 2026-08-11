@@ -354,6 +354,8 @@ return [
         'stat_people' => 'адам',
         'stat_response_sub' => 'орташа',
         'stat_response_empty' => 'дерек жоқ',
+        'review_about_product' => 'Тауар',
+        'review_product_fallback' => 'Мәміледегі тауар',
         'notify_live' => ':name тікелей эфир бастады',
         'notify_story' => ':name жаңа сторис қосты',
         'notify_product' => ':name «:title» тауарын қосты',
