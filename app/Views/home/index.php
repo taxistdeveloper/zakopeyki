@@ -71,7 +71,7 @@ $changelog = $changelog ?? null;
         <?php endif; ?>
     </div>
 
-    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2.5 sm:gap-3">
+    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-2.5">
         <?php
         $cats = [
             ['url' => '/catalog/new', 'label' => t('home.cat_new'), 'tone' => 'from-blue-50 to-indigo-50', 'img' => 'cat-new.png'],
@@ -84,11 +84,11 @@ $changelog = $changelog ?? null;
             ['url' => '/catalog/free', 'label' => t('home.cat_free'), 'tone' => 'from-sky-50 to-blue-50', 'img' => 'cat-free.png'],
         ];
         foreach ($cats as $c): ?>
-            <a href="<?= ProductHelper::url($c['url']) ?>" class="group bg-gradient-to-br <?= $c['tone'] ?> dark:from-white/[0.06] dark:to-white/[0.02] px-3 py-3.5 sm:px-3.5 sm:py-4 rounded-2xl border border-black/[0.05] dark:border-white/10 text-center hover:border-brand-400/50 hover:shadow-soft hover:-translate-y-0.5 transition duration-300 block">
-                <span class="flex items-center justify-center mb-1.5 transition duration-300 group-hover:scale-110">
-                    <img src="<?= ProductHelper::url('public/assets/icons/categories/' . $c['img']) ?>" alt="" class="h-12 w-12 sm:h-14 sm:w-14 object-contain" width="56" height="56" decoding="async" draggable="false">
+            <a href="<?= ProductHelper::url($c['url']) ?>" class="group min-w-0 bg-gradient-to-br <?= $c['tone'] ?> dark:from-white/[0.06] dark:to-white/[0.02] px-1.5 py-3 sm:px-2 sm:py-3.5 rounded-2xl border border-black/[0.05] dark:border-white/10 text-center hover:border-brand-400/50 hover:shadow-soft hover:-translate-y-0.5 transition duration-300 block">
+                <span class="flex items-center justify-center mb-1 transition duration-300 group-hover:scale-110">
+                    <img src="<?= ProductHelper::url('public/assets/icons/categories/' . $c['img']) ?>" alt="" class="h-11 w-11 sm:h-12 sm:w-12 xl:h-14 xl:w-14 object-contain" width="56" height="56" decoding="async" draggable="false">
                 </span>
-                <span class="text-[11px] font-semibold text-ink-800 dark:text-gray-200"><?= $c['label'] ?></span>
+                <span class="block text-[10px] sm:text-[11px] font-semibold leading-tight text-ink-800 dark:text-gray-200"><?= $c['label'] ?></span>
             </a>
         <?php endforeach; ?>
     </div>
