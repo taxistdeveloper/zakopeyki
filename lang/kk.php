@@ -299,6 +299,11 @@ return [
         'exchange_for_short' => 'Айырбас',
         'similar' => 'Ұқсас тауарлар',
         'similar_hint' => 'Сізге ұнауы мүмкін',
+        'posted' => ':date жарияланды',
+        'safe_deal' => 'Қауіпсіз мәміле',
+        'safe_deal_hint' => 'Эскроу арқылы төлем — тауарды алғанша ақша алаңда',
+        'open_seller' => 'Сатушы профилін ашу',
+        'photo_of' => ':current / :total',
     ],
     'seller' => [
         'title' => 'Сатушы',

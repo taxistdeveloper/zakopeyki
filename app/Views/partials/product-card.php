@@ -29,6 +29,7 @@ $showCardCategory = in_array($type, ProductHelper::PRODUCT_TYPES_WITH_CATEGORY, 
     && !empty($item['category'])
     && ($item['category'] ?? '') !== 'Разное';
 
+$compact = !empty($compact);
 $ctaBtn = 'inline-flex items-center justify-center gap-1.5 w-full font-display font-bold text-[10px] sm:text-[11px] py-2.5 px-2.5 rounded-xl transition uppercase tracking-wider';
 $ctaSolo = 'inline-flex items-center justify-center gap-1.5 w-full font-display font-bold text-[10px] sm:text-[11px] py-2.5 px-3 rounded-xl transition uppercase tracking-wider';
 $cartBtnClass = 'border border-black/[0.08] dark:border-white/10 text-ink-800 dark:text-gray-200 hover:border-brand-400/50 hover:text-brand-600'
@@ -102,9 +103,9 @@ $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" s
         </button>
         <?php \App\Core\View::partial('partials/share-buttons', ['item' => $item, 'overlay' => true]); ?>
     </div>
-    <div class="p-4 flex flex-col flex-1 gap-3">
-        <div class="min-h-[4.75rem]">
-            <h3 class="text-xs sm:text-sm font-semibold line-clamp-2 min-h-[2.5rem] text-ink-800 dark:text-gray-200 leading-snug">
+    <div class="p-4 flex flex-col flex-1 <?= $compact ? 'gap-2.5' : 'gap-3' ?>">
+        <div class="<?= $compact ? '' : 'min-h-[4.75rem]' ?>">
+            <h3 class="text-xs sm:text-sm font-semibold line-clamp-2 <?= $compact ? '' : 'min-h-[2.5rem]' ?> text-ink-800 dark:text-gray-200 leading-snug">
                 <a href="<?= $showUrl ?>"><?= htmlspecialchars($item['title']) ?></a>
             </h3>
             <?php if ($showCardCategory):
@@ -131,16 +132,20 @@ $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" s
                 <span class="text-sm font-display font-bold <?= $isFreePrice ? 'text-violet-600 dark:text-violet-300' : 'text-ink-900 dark:text-white' ?>"><?= htmlspecialchars($price) ?></span>
             </div>
             <?php if ($primaryHref || $canCart): ?>
-            <div class="flex flex-col gap-1.5 pt-2 border-t border-black/[0.05] dark:border-white/10">
+            <div class="flex <?= $compact && $showBuyCartPair ? 'flex-row items-stretch' : 'flex-col' ?> gap-1.5 pt-2 border-t border-black/[0.05] dark:border-white/10">
                 <?php if ($showBuyCartPair): ?>
                     <a href="<?= $primaryHref ?>" class="<?= $ctaBtn ?> <?= $primaryClass ?>"><?= htmlspecialchars($primaryLabel) ?></a>
                     <button type="button"
-                            class="cart-btn <?= $ctaBtn ?> <?= $cartBtnClass ?>"
+                            class="cart-btn <?= $compact ? 'inline-flex items-center justify-center w-11 shrink-0 rounded-xl ' . $cartBtnClass : $ctaBtn . ' ' . $cartBtnClass ?>"
                             data-product-id="<?= (int) $item['id'] ?>"
                             data-in-cart="<?= $inCart ? '1' : '0' ?>"
                             aria-label="<?= htmlspecialchars($inCart ? t('card.in_cart') : t('card.add_cart')) ?>">
                         <?= $cartIcon ?>
+                        <?php if (!$compact): ?>
                         <span class="cart-btn-label"><?= htmlspecialchars($inCart ? t('card.in_cart') : t('card.add_cart')) ?></span>
+                        <?php else: ?>
+                        <span class="cart-btn-label sr-only"><?= htmlspecialchars($inCart ? t('card.in_cart') : t('card.add_cart')) ?></span>
+                        <?php endif; ?>
                     </button>
                 <?php else: ?>
                     <?php if ($primaryHref): ?>

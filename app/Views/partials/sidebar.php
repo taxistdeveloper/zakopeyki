@@ -39,7 +39,7 @@ $navIcon = static fn (string $name): string => IconHelper::svg($name, 'w-[18px] 
             <?= $navIcon('package') ?> <span><?= htmlspecialchars(t('nav.used')) ?></span>
         </a>
         <a href="<?= ProductHelper::url('/auctions') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('auctions', $nav) ?>">
-            <span class="flex items-center gap-3 flex-1 min-w-0"><?= $navIcon('gavel') ?> <span><?= htmlspecialchars(t('nav.auctions')) ?></span></span>
+            <span class="flex items-center gap-3 flex-1 min-w-0"><img src="<?= ProductHelper::url('/public/assets/icons/nav-auction.png') ?>" alt="" class="w-5 h-5 flex-shrink-0 object-contain" width="20" height="20"> <span><?= htmlspecialchars(t('nav.auctions')) ?></span></span>
             <span class="bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wide"><?= htmlspecialchars(t('nav.live')) ?></span>
         </a>
 

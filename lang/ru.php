@@ -299,6 +299,11 @@ return [
         'exchange_for_short' => 'На',
         'similar' => 'Похожие товары',
         'similar_hint' => 'Вам может подойти',
+        'posted' => 'Размещено :date',
+        'safe_deal' => 'Безопасная сделка',
+        'safe_deal_hint' => 'Оплата через эскроу — деньги у площадки, пока вы не получите товар',
+        'open_seller' => 'Открыть профиль продавца',
+        'photo_of' => ':current из :total',
     ],
     'seller' => [
         'title' => 'Продавец',

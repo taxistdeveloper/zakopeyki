@@ -4477,6 +4477,7 @@ document.addEventListener('keydown', function (e) {
         if (e.target.closest('.favorite-btn')) return;
         if (e.target.closest('[data-share-menu]')) return;
         if (e.target.closest('.cart-btn')) return;
+        if (e.target.closest('[data-gallery-prev], [data-gallery-next], .product-thumb')) return;
 
         var src = trigger.getAttribute('data-lightbox-src') || '';
         var galleryRaw = trigger.getAttribute('data-lightbox-gallery');

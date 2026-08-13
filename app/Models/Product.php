@@ -105,7 +105,8 @@ class Product extends Model
     public function findWithSeller(int $id): ?array
     {
         $stmt = $this->db->prepare(
-            'SELECT p.*, u.name AS seller_name, u.phone AS seller_phone, u.email AS seller_email
+            'SELECT p.*, u.name AS seller_name, u.phone AS seller_phone, u.email AS seller_email,
+                    u.avatar AS seller_avatar, u.avatar_file AS seller_avatar_file
              FROM products p
              JOIN users u ON u.id = p.user_id
              WHERE p.id = ?'
