@@ -613,30 +613,83 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                     [$currentParent, $currentChild] = ProductHelper::parseCategory($editing['category'] ?? null);
                     $showCategory = in_array($currentType, $productTypesWithCategory, true);
                     ?>
+                    <?php
+                    $typePalette = [
+                        'used' => ['idle' => 'bg-orange-50 text-orange-600 dark:bg-orange-500/15 dark:text-orange-300', 'on' => 'bg-orange-500 text-white', 'ring' => 'border-orange-400 bg-orange-50/80 dark:bg-orange-500/10'],
+                        'new' => ['idle' => 'bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300', 'on' => 'bg-blue-600 text-white', 'ring' => 'border-blue-400 bg-blue-50/80 dark:bg-blue-500/10'],
+                        'auction' => ['idle' => 'bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-300', 'on' => 'bg-red-500 text-white', 'ring' => 'border-red-400 bg-red-50/80 dark:bg-red-500/10'],
+                        'free' => ['idle' => 'bg-sky-50 text-sky-600 dark:bg-sky-500/15 dark:text-sky-300', 'on' => 'bg-sky-500 text-white', 'ring' => 'border-sky-400 bg-sky-50/80 dark:bg-sky-500/10'],
+                        'exchange' => ['idle' => 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300', 'on' => 'bg-indigo-500 text-white', 'ring' => 'border-indigo-400 bg-indigo-50/80 dark:bg-indigo-500/10'],
+                        'service' => ['idle' => 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300', 'on' => 'bg-emerald-500 text-white', 'ring' => 'border-emerald-400 bg-emerald-50/80 dark:bg-emerald-500/10'],
+                        'gig' => ['idle' => 'bg-teal-50 text-teal-600 dark:bg-teal-500/15 dark:text-teal-300', 'on' => 'bg-teal-600 text-white', 'ring' => 'border-teal-400 bg-teal-50/80 dark:bg-teal-500/10'],
+                        'course' => ['idle' => 'bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300', 'on' => 'bg-blue-500 text-white', 'ring' => 'border-blue-400 bg-blue-50/80 dark:bg-blue-500/10'],
+                    ];
+                    $selectTrigger = $input . ' flex items-center justify-between gap-2 text-left pr-3 cursor-pointer';
+                    ?>
                     <div>
-                        <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.type')) ?></label>
-                        <select name="type" id="lot-type" class="<?= $input ?>">
+                        <label class="block text-[13px] font-semibold text-ink-800 dark:text-gray-200 mb-2"><?= htmlspecialchars(t('profile.type')) ?></label>
+                        <select name="type" id="lot-type" class="hidden">
                             <?php foreach ($types as $key => $label): ?>
-                                <option value="<?= $key ?>" <?= ($editing['type'] ?? '') === $key ? 'selected' : '' ?>><?= htmlspecialchars($label) ?></option>
+                                <option value="<?= $key ?>" <?= $currentType === $key ? 'selected' : '' ?>><?= htmlspecialchars($label) ?></option>
                             <?php endforeach; ?>
                         </select>
+                        <div id="lot-type-cards" class="grid grid-cols-2 sm:grid-cols-4 gap-2" role="listbox" aria-label="<?= htmlspecialchars(t('profile.type')) ?>">
+                            <?php foreach ($types as $key => $label):
+                                $active = $currentType === $key;
+                                $palette = $typePalette[$key] ?? ['idle' => 'bg-brand-50 text-brand-600', 'on' => 'bg-brand-500 text-white', 'ring' => 'border-brand-400 bg-brand-50'];
+                            ?>
+                                <button type="button"
+                                        role="option"
+                                        aria-selected="<?= $active ? 'true' : 'false' ?>"
+                                        data-type="<?= htmlspecialchars($key) ?>"
+                                        data-idle="<?= htmlspecialchars($palette['idle']) ?>"
+                                        data-on="<?= htmlspecialchars($palette['on']) ?>"
+                                        data-ring="<?= htmlspecialchars($palette['ring']) ?>"
+                                        class="lot-type-card group relative flex flex-col items-center gap-2 px-2.5 py-3 rounded-2xl border text-center transition
+                                               <?= $active
+                                                   ? $palette['ring'] . ' shadow-soft'
+                                                   : 'border-black/[0.08] dark:border-white/10 bg-white dark:bg-white/[0.04] hover:border-brand-300/70 hover:shadow-sm' ?>">
+                                    <span class="lot-type-icon w-10 h-10 rounded-xl flex items-center justify-center transition <?= $active ? $palette['on'] : $palette['idle'] ?>">
+                                        <?= ProductHelper::icon($key, 'w-[18px] h-[18px]') ?>
+                                    </span>
+                                    <span class="text-[11px] sm:text-xs font-semibold leading-tight text-ink-800 dark:text-gray-200"><?= htmlspecialchars($label) ?></span>
+                                    <span class="lot-type-check absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-brand-500 text-white items-center justify-center <?= $active ? 'flex' : 'hidden' ?>">
+                                        <svg class="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                                    </span>
+                                </button>
+                            <?php endforeach; ?>
+                        </div>
                     </div>
                     <div id="lot-category-wrap" class="grid grid-cols-1 sm:grid-cols-2 gap-4 <?= $showCategory ? '' : 'hidden' ?>">
                         <div>
-                            <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.section')) ?></label>
-                            <select id="lot-category-parent" class="<?= $input ?>" <?= $showCategory ? '' : 'disabled' ?>>
-                                <?php foreach ($categoryTree as $parent => $children): ?>
-                                    <option value="<?= htmlspecialchars($parent) ?>" <?= $currentParent === $parent ? 'selected' : '' ?>><?= htmlspecialchars(ProductHelper::categoryLabel($parent)) ?></option>
-                                <?php endforeach; ?>
-                            </select>
+                            <label class="block text-[13px] font-semibold text-ink-800 dark:text-gray-200 mb-1.5"><?= htmlspecialchars(t('profile.section')) ?></label>
+                            <div class="relative" data-lot-select-wrap>
+                                <select id="lot-category-parent" class="hidden" <?= $showCategory ? '' : 'disabled' ?>>
+                                    <?php foreach ($categoryTree as $parent => $children): ?>
+                                        <option value="<?= htmlspecialchars($parent) ?>" <?= $currentParent === $parent ? 'selected' : '' ?>><?= htmlspecialchars(ProductHelper::categoryLabel($parent)) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <button type="button" data-lot-trigger class="<?= $selectTrigger ?>" aria-haspopup="listbox" aria-expanded="false" <?= $showCategory ? '' : 'disabled' ?>>
+                                    <span data-lot-label class="truncate"><?= htmlspecialchars(ProductHelper::categoryLabel($currentParent)) ?></span>
+                                    <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                                </button>
+                                <div data-lot-menu class="hidden absolute z-30 mt-1.5 w-full max-h-64 overflow-y-auto bg-white dark:bg-ink-800 border border-black/[0.08] dark:border-white/10 rounded-2xl shadow-lift py-1.5" role="listbox"></div>
+                            </div>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.subsection')) ?></label>
-                            <select name="category" id="lot-category" class="<?= $input ?>" <?= $showCategory ? '' : 'disabled' ?>>
-                                <?php foreach ($categoryTree[$currentParent] ?? [] as $child): ?>
-                                    <option value="<?= htmlspecialchars(ProductHelper::formatCategory($currentParent, $child)) ?>" <?= $currentChild === $child ? 'selected' : '' ?>><?= htmlspecialchars(ProductHelper::categoryLabel($child)) ?></option>
-                                <?php endforeach; ?>
-                            </select>
+                            <label class="block text-[13px] font-semibold text-ink-800 dark:text-gray-200 mb-1.5"><?= htmlspecialchars(t('profile.subsection')) ?></label>
+                            <div class="relative" data-lot-select-wrap>
+                                <select name="category" id="lot-category" class="hidden" <?= $showCategory ? '' : 'disabled' ?>>
+                                    <?php foreach ($categoryTree[$currentParent] ?? [] as $child): ?>
+                                        <option value="<?= htmlspecialchars(ProductHelper::formatCategory($currentParent, $child)) ?>" <?= $currentChild === $child ? 'selected' : '' ?>><?= htmlspecialchars(ProductHelper::categoryLabel($child)) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <button type="button" data-lot-trigger class="<?= $selectTrigger ?>" aria-haspopup="listbox" aria-expanded="false" <?= $showCategory ? '' : 'disabled' ?>>
+                                    <span data-lot-label class="truncate"><?= htmlspecialchars(ProductHelper::categoryLabel($currentChild)) ?></span>
+                                    <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                                </button>
+                                <div data-lot-menu class="hidden absolute z-30 mt-1.5 w-full max-h-64 overflow-y-auto bg-white dark:bg-ink-800 border border-black/[0.08] dark:border-white/10 rounded-2xl shadow-lift py-1.5" role="listbox"></div>
+                            </div>
                         </div>
                     </div>
                     <div>
@@ -692,6 +745,122 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         }, [])) ?>;
                         if (!typeSelect || !priceWrap || !priceInput) return;
 
+                        const checkSvg = '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+
+                        function closeLotMenus(except) {
+                            document.querySelectorAll('[data-lot-menu]').forEach(function (menu) {
+                                if (except && menu === except) return;
+                                menu.classList.add('hidden');
+                            });
+                            document.querySelectorAll('[data-lot-trigger]').forEach(function (btn) {
+                                if (except && btn.nextElementSibling === except) return;
+                                btn.setAttribute('aria-expanded', 'false');
+                            });
+                        }
+
+                        function bindLotSelect(select) {
+                            if (!select) return;
+                            const wrap = select.closest('[data-lot-select-wrap]');
+                            if (!wrap) return;
+                            const btn = wrap.querySelector('[data-lot-trigger]');
+                            const menu = wrap.querySelector('[data-lot-menu]');
+                            const labelEl = wrap.querySelector('[data-lot-label]');
+                            if (!btn || !menu || !labelEl) return;
+
+                            function renderMenu() {
+                                const selected = select.options[select.selectedIndex];
+                                labelEl.textContent = selected ? selected.textContent : '';
+                                btn.disabled = select.disabled;
+                                btn.classList.toggle('opacity-50', select.disabled);
+                                btn.classList.toggle('pointer-events-none', select.disabled);
+                                btn.classList.toggle('cursor-pointer', !select.disabled);
+
+                                menu.innerHTML = '';
+                                Array.from(select.options).forEach(function (opt, i) {
+                                    const isSel = opt.selected || i === select.selectedIndex;
+                                    const item = document.createElement('button');
+                                    item.type = 'button';
+                                    item.setAttribute('role', 'option');
+                                    item.setAttribute('aria-selected', isSel ? 'true' : 'false');
+                                    item.className = 'w-full flex items-center gap-2 px-3.5 py-2.5 text-sm text-left transition ' +
+                                        (isSel
+                                            ? 'bg-brand-50 dark:bg-brand-500/15 text-brand-700 dark:text-brand-300 font-semibold'
+                                            : 'text-ink-800 dark:text-gray-200 hover:bg-black/[0.04] dark:hover:bg-white/5');
+                                    const text = document.createElement('span');
+                                    text.className = 'truncate';
+                                    text.textContent = opt.textContent;
+                                    item.appendChild(text);
+                                    if (isSel) {
+                                        const mark = document.createElement('span');
+                                        mark.className = 'ml-auto shrink-0 text-brand-500';
+                                        mark.innerHTML = checkSvg;
+                                        item.appendChild(mark);
+                                    }
+                                    item.addEventListener('click', function () {
+                                        select.value = opt.value;
+                                        select.dispatchEvent(new Event('change'));
+                                        closeLotMenus();
+                                        renderMenu();
+                                    });
+                                    menu.appendChild(item);
+                                });
+                            }
+
+                            btn.addEventListener('click', function (e) {
+                                e.preventDefault();
+                                if (select.disabled) return;
+                                const willOpen = menu.classList.contains('hidden');
+                                closeLotMenus(willOpen ? menu : null);
+                                menu.classList.toggle('hidden', !willOpen);
+                                btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+                            });
+
+                            select.addEventListener('change', renderMenu);
+                            select.refreshLotUI = renderMenu;
+                            renderMenu();
+                        }
+
+                        bindLotSelect(parentSelect);
+                        bindLotSelect(categorySelect);
+
+                        document.addEventListener('click', function (e) {
+                            if (!e.target.closest('[data-lot-select-wrap]')) closeLotMenus();
+                        });
+                        document.addEventListener('keydown', function (e) {
+                            if (e.key === 'Escape') closeLotMenus();
+                        });
+
+                        function syncTypeCards() {
+                            const value = typeSelect.value;
+                            document.querySelectorAll('.lot-type-card').forEach(function (card) {
+                                const active = card.getAttribute('data-type') === value;
+                                const idle = card.getAttribute('data-idle') || '';
+                                const on = card.getAttribute('data-on') || '';
+                                const ring = card.getAttribute('data-ring') || '';
+                                card.setAttribute('aria-selected', active ? 'true' : 'false');
+                                card.className = 'lot-type-card group relative flex flex-col items-center gap-2 px-2.5 py-3 rounded-2xl border text-center transition ' +
+                                    (active
+                                        ? ring + ' shadow-soft'
+                                        : 'border-black/[0.08] dark:border-white/10 bg-white dark:bg-white/[0.04] hover:border-brand-300/70 hover:shadow-sm');
+                                const icon = card.querySelector('.lot-type-icon');
+                                if (icon) icon.className = 'lot-type-icon w-10 h-10 rounded-xl flex items-center justify-center transition ' + (active ? on : idle);
+                                const check = card.querySelector('.lot-type-check');
+                                if (check) {
+                                    check.classList.toggle('hidden', !active);
+                                    check.classList.toggle('flex', active);
+                                }
+                            });
+                        }
+
+                        document.querySelectorAll('.lot-type-card').forEach(function (card) {
+                            card.addEventListener('click', function () {
+                                const value = card.getAttribute('data-type');
+                                if (!value || typeSelect.value === value) return;
+                                typeSelect.value = value;
+                                typeSelect.dispatchEvent(new Event('change'));
+                            });
+                        });
+
                         function syncPriceField() {
                             const type = typeSelect.value;
                             const hide = noPrice.indexOf(type) !== -1;
@@ -728,6 +897,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                             if (!categorySelect.value && categorySelect.options.length) {
                                 categorySelect.selectedIndex = 0;
                             }
+                            if (typeof categorySelect.refreshLotUI === 'function') categorySelect.refreshLotUI();
                         }
 
                         function syncCategoryField() {
@@ -736,6 +906,9 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                             categoryWrap.classList.toggle('hidden', !show);
                             categorySelect.disabled = !show;
                             parentSelect.disabled = !show;
+                            if (typeof parentSelect.refreshLotUI === 'function') parentSelect.refreshLotUI();
+                            if (typeof categorySelect.refreshLotUI === 'function') categorySelect.refreshLotUI();
+                            if (!show) closeLotMenus();
                         }
 
                         if (parentSelect) {
@@ -745,9 +918,11 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         }
 
                         typeSelect.addEventListener('change', function () {
+                            syncTypeCards();
                             syncPriceField();
                             syncCategoryField();
                         });
+                        syncTypeCards();
                         syncPriceField();
                         syncCategoryField();
                     })();
