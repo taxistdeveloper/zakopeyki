@@ -26,6 +26,11 @@ $statusClass = match ($status) {
             <div class="flex items-center gap-2 mt-1.5 flex-wrap">
                 <span class="inline-flex px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wide <?= $statusClass ?>"><?= htmlspecialchars($statusLabel) ?></span>
                 <span class="text-[11px] text-gray-400"><?= htmlspecialchars(t('support.cat_' . ($ticket['category'] ?? 'general'))) ?></span>
+                <?php if (!empty($ticket['product_id'])): ?>
+                    <a href="<?= ProductHelper::url('/product/' . (int) $ticket['product_id']) ?>" class="text-[11px] font-semibold text-accent-600 hover:underline">
+                        <?= htmlspecialchars(t('product.report_open_listing')) ?>
+                    </a>
+                <?php endif; ?>
             </div>
         </div>
     </div>

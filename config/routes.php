@@ -37,6 +37,8 @@ $router->get('/catalog/{section}', [CatalogController::class, 'show']);
 $router->get('/auctions', [AuctionController::class, 'index']);
 $router->post('/auctions/{id}/bid', [AuctionController::class, 'bid']);
 $router->get('/product/{id}', [ProductController::class, 'show']);
+$router->get('/product/{id}/whatsapp', [ProductController::class, 'whatsapp']);
+$router->post('/product/{id}/report', [ProductController::class, 'report']);
 $router->get('/users/{id}', [UserController::class, 'show']);
 $router->post('/users/{id}/follow', [UserController::class, 'followToggle']);
 $router->get('/checkout/success/{id}', [CheckoutController::class, 'success']);

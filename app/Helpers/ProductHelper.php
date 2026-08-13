@@ -342,4 +342,25 @@ class ProductHelper
             'telegram' => 'https://t.me/share/url?url=' . rawurlencode($publicUrl) . '&text=' . rawurlencode($title),
         ];
     }
+
+    /** Международный номер только цифрами для wa.me, либо null. */
+    public static function whatsappDigits(?string $phone): ?string
+    {
+        $digits = preg_replace('/\D+/', '', (string) $phone) ?? '';
+        if ($digits === '') {
+            return null;
+        }
+
+        if (strlen($digits) === 11 && ($digits[0] === '8' || $digits[0] === '7')) {
+            $digits = '7' . substr($digits, 1);
+        } elseif (strlen($digits) === 10) {
+            $digits = '7' . $digits;
+        }
+
+        if (!preg_match('/^\d{10,15}$/', $digits)) {
+            return null;
+        }
+
+        return $digits;
+    }
 }

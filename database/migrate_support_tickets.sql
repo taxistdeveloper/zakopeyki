@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS support_tickets (
     user_id INT UNSIGNED NOT NULL,
     subject VARCHAR(200) NOT NULL,
     category VARCHAR(32) NOT NULL DEFAULT 'general',
+    product_id INT UNSIGNED DEFAULT NULL,
     status ENUM('open', 'answered', 'closed') NOT NULL DEFAULT 'open',
     last_message_at DATETIME DEFAULT NULL,
     last_preview VARCHAR(255) DEFAULT NULL,
@@ -15,7 +16,8 @@ CREATE TABLE IF NOT EXISTS support_tickets (
     UNIQUE KEY uq_ticket_number (ticket_number),
     INDEX idx_user (user_id),
     INDEX idx_status (status),
-    INDEX idx_last (last_message_at)
+    INDEX idx_last (last_message_at),
+    INDEX idx_product (product_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS support_messages (

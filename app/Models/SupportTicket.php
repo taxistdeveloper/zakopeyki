@@ -10,7 +10,9 @@ class SupportTicket extends Model
     private static bool $ensured = false;
 
     public const CATEGORIES = ['general', 'idea', 'payment', 'deal', 'technical', 'other'];
+    public const ALL_CATEGORIES = ['general', 'idea', 'payment', 'deal', 'technical', 'listing', 'other'];
     public const STATUSES = ['open', 'answered', 'closed'];
+    public const REPORT_REASONS = ['spam', 'fraud', 'prohibited', 'misleading', 'wrong_category', 'other'];
 
     public function __construct()
     {
@@ -59,6 +61,16 @@ class SupportTicket extends Model
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
         );
 
+        $productCol = $this->db->query("SHOW COLUMNS FROM support_tickets LIKE 'product_id'")->fetch();
+        if (!$productCol) {
+            $this->db->exec('ALTER TABLE support_tickets ADD COLUMN product_id INT UNSIGNED DEFAULT NULL AFTER category');
+            try {
+                $this->db->exec('ALTER TABLE support_tickets ADD INDEX idx_product (product_id)');
+            } catch (\Throwable $e) {
+                // index may already exist
+            }
+        }
+
         self::$ensured = true;
     }
 
@@ -76,9 +88,25 @@ class SupportTicket extends Model
         return 'ZK-' . date('Ymd') . '-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 4));
     }
 
-    /** @return array{ok: bool, ticket_id?: int, ticket_number?: string, error?: string} */
-    public function createTicket(int $userId, string $subject, string $body, string $category = 'general'): array
+    public function hasOpenListingReport(int $userId, int $productId): bool
     {
+        $stmt = $this->db->prepare(
+            "SELECT id FROM support_tickets
+             WHERE user_id = ? AND product_id = ? AND category = 'listing' AND status IN ('open', 'answered')
+             LIMIT 1"
+        );
+        $stmt->execute([$userId, $productId]);
+        return (bool) $stmt->fetchColumn();
+    }
+
+    /** @return array{ok: bool, ticket_id?: int, ticket_number?: string, error?: string} */
+    public function createTicket(
+        int $userId,
+        string $subject,
+        string $body,
+        string $category = 'general',
+        ?int $productId = null
+    ): array {
         $subject = trim($subject);
         $body = trim($body);
         $category = strtolower(trim($category));
@@ -95,22 +123,23 @@ class SupportTicket extends Model
         if (mb_strlen($body) > 4000) {
             return ['ok' => false, 'error' => t('support.too_long')];
         }
-        if (!in_array($category, self::CATEGORIES, true)) {
+        if (!in_array($category, self::ALL_CATEGORIES, true)) {
             $category = 'general';
         }
 
         $number = $this->generateNumber();
         $preview = mb_substr($body, 0, 120);
+        $productId = $productId !== null && $productId > 0 ? $productId : null;
 
         try {
             $this->db->beginTransaction();
 
             $stmt = $this->db->prepare(
                 'INSERT INTO support_tickets
-                    (ticket_number, user_id, subject, category, status, last_message_at, last_preview)
-                 VALUES (?, ?, ?, ?, \'open\', NOW(), ?)'
+                    (ticket_number, user_id, subject, category, product_id, status, last_message_at, last_preview)
+                 VALUES (?, ?, ?, ?, ?, \'open\', NOW(), ?)'
             );
-            $stmt->execute([$number, $userId, $subject, $category, $preview]);
+            $stmt->execute([$number, $userId, $subject, $category, $productId, $preview]);
             $ticketId = (int) $this->db->lastInsertId();
 
             $this->insertMessage($ticketId, 'user', $userId, $body, true, true);

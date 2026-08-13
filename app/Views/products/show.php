@@ -12,9 +12,10 @@ $imageUrl = $imageUrls[0] ?? null;
 $photoCount = count($imageUrls);
 $hasGallery = $photoCount > 1;
 $flash = $_SESSION['flash'] ?? null;
+$flashError = $_SESSION['error'] ?? null;
 $purchasable = ProductHelper::isPurchasable($item);
 $checkoutUrl = ProductHelper::checkoutUrl($item['id']);
-unset($_SESSION['flash']);
+unset($_SESSION['flash'], $_SESSION['error']);
 
 $type = $item['type'] ?? '';
 $isOwnProduct = Auth::check() && (int) ($item['user_id'] ?? 0) === (int) Auth::id();
@@ -104,10 +105,16 @@ $chatIconSvg = '<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" st
 $chevron = '<svg class="w-3.5 h-3.5 text-gray-300 dark:text-gray-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>';
 $galleryJson = htmlspecialchars(json_encode(array_values($imageUrls), JSON_UNESCAPED_SLASHES));
 $shareBarClass = 'w-full inline-flex items-center justify-center gap-2 h-11 px-3 rounded-xl border border-black/[0.1] dark:border-white/15 bg-white dark:bg-white/5 text-ink-800 dark:text-gray-200 hover:border-accent-400 hover:text-accent-600 font-semibold text-[13px] transition';
+$whatsappHref = ProductHelper::url('/product/' . (int) $item['id'] . '/whatsapp');
+$waIconSvg = '<svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>';
+$waBtnClass = 'w-full inline-flex items-center justify-center gap-2 h-12 px-4 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white font-semibold text-[15px] transition shadow-sm';
 ?>
 <section class="max-w-5xl mx-auto space-y-5 fade-up pb-8">
     <?php if ($flash): ?>
         <div class="bg-emerald-50 dark:bg-emerald-900/25 text-emerald-800 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800/40 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars($flash) ?></div>
+    <?php endif; ?>
+    <?php if ($flashError): ?>
+        <div class="bg-red-50 dark:bg-red-900/25 text-red-700 dark:text-red-300 border border-red-100 dark:border-red-800/40 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars($flashError) ?></div>
     <?php endif; ?>
 
     <nav class="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-gray-400 min-w-0" aria-label="breadcrumb">
@@ -240,6 +247,14 @@ $shareBarClass = 'w-full inline-flex items-center justify-center gap-2 h-11 px-3
         </div>
     </div>
 
+    <a href="<?= htmlspecialchars($whatsappHref) ?>"
+       target="_blank"
+       rel="noopener noreferrer"
+       class="<?= $waBtnClass ?>">
+        <?= $waIconSvg ?>
+        <span><?= htmlspecialchars(t('product.whatsapp_call')) ?></span>
+    </a>
+
     <?php if ($type === 'exchange' && !empty($item['exchange_for'])): ?>
         <div class="text-sm bg-indigo-50/80 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40 rounded-2xl px-4 py-3">
             <span class="text-[10px] font-semibold uppercase tracking-[0.14em] text-indigo-400 block mb-1"><?= htmlspecialchars(t('product.exchange_for')) ?></span>
@@ -317,11 +332,11 @@ $shareBarClass = 'w-full inline-flex items-center justify-center gap-2 h-11 px-3
         <div class="space-y-2.5">
             <?php if ($type === 'free'): ?>
                 <p class="text-sm text-center text-gray-500 bg-violet-50/80 dark:bg-violet-950/20 border border-violet-100 dark:border-violet-900/40 rounded-2xl px-4 py-3">
-                    <?= htmlspecialchars(t('product.free_contact', ['phone' => $item['seller_phone'] ?: t('product.no_phone')])) ?>
+                    <?= htmlspecialchars(t('product.free_contact')) ?>
                 </p>
             <?php else: ?>
                 <p class="text-sm text-center text-gray-500 bg-indigo-50/80 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 rounded-2xl px-4 py-3">
-                    <?= htmlspecialchars(t('product.exchange_contact', ['phone' => $item['seller_phone'] ?: t('product.no_phone')])) ?>
+                    <?= htmlspecialchars(t('product.exchange_contact')) ?>
                 </p>
             <?php endif; ?>
             <div class="grid grid-cols-2 gap-2.5">
@@ -429,6 +444,29 @@ $shareBarClass = 'w-full inline-flex items-center justify-center gap-2 h-11 px-3
         </div>
     </div>
 
+    <?php if (!$isOwnProduct): ?>
+        <div class="pt-1 text-center">
+            <?php if (Auth::check()): ?>
+                <button type="button"
+                        id="product-report-open"
+                        class="inline-flex items-center gap-1.5 text-[12px] font-medium text-gray-400 hover:text-red-500 transition">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"/>
+                    </svg>
+                    <?= htmlspecialchars(t('product.report')) ?>
+                </button>
+            <?php else: ?>
+                <a href="<?= ProductHelper::url('/login') ?>"
+                   class="inline-flex items-center gap-1.5 text-[12px] font-medium text-gray-400 hover:text-red-500 transition">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"/>
+                    </svg>
+                    <?= htmlspecialchars(t('product.report')) ?>
+                </a>
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
+
     <?php if (!empty($similar)): ?>
         <div class="space-y-3 pt-1">
             <div class="flex items-center justify-between gap-3">
@@ -447,6 +485,119 @@ $shareBarClass = 'w-full inline-flex items-center justify-center gap-2 h-11 px-3
         </div>
     <?php endif; ?>
 </section>
+<?php if (Auth::check() && !$isOwnProduct):
+    $reportReasons = \App\Models\SupportTicket::REPORT_REASONS;
+?>
+<div id="product-report-modal"
+     class="hidden fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-ink-900/55 backdrop-blur-sm p-0 sm:p-4"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="product-report-title"
+     aria-hidden="true">
+    <div class="w-full sm:max-w-md bg-white dark:bg-ink-800 rounded-t-[28px] sm:rounded-[28px] overflow-hidden shadow-lift border border-white/60 dark:border-white/10 translate-y-3 sm:translate-y-2 opacity-0 transition duration-200 ease-out max-h-[92vh] overflow-y-auto"
+         data-report-panel
+         onclick="event.stopPropagation()">
+        <div class="sm:hidden flex justify-center pt-3 pb-1" aria-hidden="true">
+            <span class="w-10 h-1 rounded-full bg-black/10 dark:bg-white/15"></span>
+        </div>
+        <div class="px-5 pt-4 sm:pt-6 pb-2">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <h3 id="product-report-title" class="font-display text-xl font-bold text-ink-900 dark:text-white">
+                        <?= htmlspecialchars(t('product.report_title')) ?>
+                    </h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1.5 leading-relaxed">
+                        <?= htmlspecialchars(t('product.report_hint')) ?>
+                    </p>
+                </div>
+                <button type="button" data-report-close class="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-ink-800 dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/10 transition shrink-0" aria-label="<?= htmlspecialchars(t('product.close_photo')) ?>">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+        </div>
+        <form method="post" action="<?= ProductHelper::url('/product/' . (int) $item['id'] . '/report') ?>" class="p-5 pt-3 space-y-4">
+            <?= csrf_field() ?>
+            <fieldset class="space-y-1.5">
+                <legend class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-2"><?= htmlspecialchars(t('product.report_reason')) ?></legend>
+                <?php foreach ($reportReasons as $reason): ?>
+                    <label class="flex items-start gap-3 p-3 rounded-xl border border-black/[0.08] dark:border-white/10 hover:border-accent-400/50 cursor-pointer transition has-[:checked]:border-accent-500 has-[:checked]:bg-accent-50/60 dark:has-[:checked]:bg-accent-500/10">
+                        <input type="radio" name="reason" value="<?= htmlspecialchars($reason) ?>" required class="mt-0.5 accent-accent-500">
+                        <span class="text-[13px] font-medium text-ink-800 dark:text-gray-200"><?= htmlspecialchars(t('product.report_reason_' . $reason)) ?></span>
+                    </label>
+                <?php endforeach; ?>
+            </fieldset>
+            <div>
+                <label for="product-report-comment" class="block text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5"><?= htmlspecialchars(t('product.report_comment')) ?></label>
+                <textarea id="product-report-comment" name="comment" maxlength="2000" rows="3"
+                          placeholder="<?= htmlspecialchars(t('product.report_comment_placeholder')) ?>"
+                          class="ui-input w-full px-4 py-3 rounded-2xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm resize-y min-h-[88px]"></textarea>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <button type="button"
+                        data-report-close
+                        class="h-11 px-3 rounded-xl border border-black/10 dark:border-white/15 bg-white dark:bg-white/5 text-ink-800 dark:text-gray-200 font-semibold text-[13px] hover:bg-black/[0.03] dark:hover:bg-white/10 transition order-2 sm:order-1">
+                    <?= htmlspecialchars(t('product.report_cancel')) ?>
+                </button>
+                <button type="submit"
+                        class="h-11 px-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold text-[13px] transition order-1 sm:order-2">
+                    <?= htmlspecialchars(t('product.report_submit')) ?>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+(function () {
+    var modal = document.getElementById('product-report-modal');
+    var openBtn = document.getElementById('product-report-open');
+    var panel = modal && modal.querySelector('[data-report-panel]');
+    if (!modal || !openBtn || !panel) return;
+
+    var closeBtns = modal.querySelectorAll('[data-report-close]');
+    var lastFocus = null;
+
+    function openModal() {
+        lastFocus = document.activeElement;
+        modal.classList.remove('hidden');
+        modal.setAttribute('aria-hidden', 'false');
+        document.documentElement.style.overflow = 'hidden';
+        requestAnimationFrame(function () {
+            panel.classList.remove('translate-y-3', 'sm:translate-y-2', 'opacity-0');
+            panel.classList.add('translate-y-0', 'opacity-100');
+        });
+        var first = modal.querySelector('input[name="reason"]');
+        if (first) first.focus({ preventScroll: true });
+    }
+
+    function closeModal() {
+        panel.classList.add('translate-y-3', 'sm:translate-y-2', 'opacity-0');
+        panel.classList.remove('translate-y-0', 'opacity-100');
+        window.setTimeout(function () {
+            modal.classList.add('hidden');
+            modal.setAttribute('aria-hidden', 'true');
+            document.documentElement.style.overflow = '';
+            if (lastFocus && typeof lastFocus.focus === 'function') {
+                lastFocus.focus({ preventScroll: true });
+            }
+        }, 180);
+    }
+
+    openBtn.addEventListener('click', openModal);
+    closeBtns.forEach(function (btn) {
+        btn.addEventListener('click', closeModal);
+    });
+    modal.addEventListener('click', function (e) {
+        if (e.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+            e.preventDefault();
+            closeModal();
+        }
+    });
+})();
+</script>
+<?php endif; ?>
 <script>
 (function () {
     document.querySelectorAll('[data-toggle]').forEach(function (btn) {

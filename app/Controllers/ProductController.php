@@ -4,10 +4,13 @@ namespace App\Controllers;
 
 use App\Core\Auth;
 use App\Core\Controller;
+use App\Helpers\ActivityLogger;
+use App\Helpers\ProductHelper;
 use App\Models\Favorite;
 use App\Models\Notification;
 use App\Models\Product;
 use App\Models\Review;
+use App\Models\SupportTicket;
 
 class ProductController extends Controller
 {
@@ -53,5 +56,139 @@ class ProductController extends Controller
             'favoriteIds' => $favoriteIds,
             'search' => '',
         ]);
+    }
+
+    public function whatsapp(string $id): void
+    {
+        $productId = (int) $id;
+        $product = (new Product())->findWithSeller($productId);
+        if (!$product) {
+            http_response_code(404);
+            $this->view('errors/404', ['title' => t('product.not_found')]);
+            return;
+        }
+
+        $digits = ProductHelper::whatsappDigits((string) ($product['seller_phone'] ?? ''));
+        if ($digits === null) {
+            $_SESSION['error'] = t('product.whatsapp_unavailable');
+            $this->redirect('/product/' . $productId);
+            return;
+        }
+
+        header('Location: https://wa.me/' . $digits, true, 302);
+        exit;
+    }
+
+    public function report(string $id): void
+    {
+        Auth::requireLogin();
+
+        $productId = (int) $id;
+        $product = (new Product())->findWithSeller($productId);
+        if (!$product) {
+            http_response_code(404);
+            $this->view('errors/404', ['title' => t('product.not_found')]);
+            return;
+        }
+
+        $uid = (int) Auth::id();
+        $user = Auth::user();
+
+        if ((int) ($product['user_id'] ?? 0) === $uid) {
+            $_SESSION['error'] = t('product.report_own');
+            $this->redirect('/product/' . $productId);
+            return;
+        }
+
+        $reason = strtolower(trim((string) ($_POST['reason'] ?? '')));
+        $comment = trim((string) ($_POST['comment'] ?? ''));
+
+        if (!in_array($reason, SupportTicket::REPORT_REASONS, true)) {
+            $_SESSION['error'] = t('product.report_reason_required');
+            $this->redirect('/product/' . $productId);
+            return;
+        }
+
+        if ($reason === 'other' && $comment === '') {
+            $_SESSION['error'] = t('product.report_comment_required');
+            $this->redirect('/product/' . $productId);
+            return;
+        }
+
+        if (mb_strlen($comment) > 2000) {
+            $_SESSION['error'] = t('product.report_comment_long');
+            $this->redirect('/product/' . $productId);
+            return;
+        }
+
+        $tickets = new SupportTicket();
+        if ($tickets->hasOpenListingReport($uid, $productId)) {
+            $_SESSION['error'] = t('product.report_already');
+            $this->redirect('/product/' . $productId);
+            return;
+        }
+
+        $title = (string) ($product['title'] ?? '');
+        $sellerName = (string) ($product['seller_name'] ?? '');
+        $sellerId = (int) ($product['user_id'] ?? 0);
+        $productUrl = ProductHelper::url('/product/' . $productId);
+        $reasonLabel = t('product.report_reason_' . $reason);
+
+        $subject = t('product.report_subject', ['title' => $title]);
+        if (mb_strlen($subject) > 200) {
+            $subject = mb_substr($subject, 0, 197) . '…';
+        }
+        $bodyParts = [
+            t('product.report_body_reason', ['reason' => $reasonLabel]),
+            t('product.report_body_listing', [
+                'title' => $title,
+                'id' => (string) $productId,
+                'url' => $productUrl,
+            ]),
+            t('product.report_body_seller', [
+                'name' => $sellerName !== '' ? $sellerName : (string) $sellerId,
+                'id' => (string) $sellerId,
+            ]),
+        ];
+        if ($comment !== '') {
+            $bodyParts[] = t('product.report_body_comment', ['comment' => $comment]);
+        }
+        $body = implode("\n\n", $bodyParts);
+
+        $result = $tickets->createTicket($uid, $subject, $body, 'listing', $productId);
+        if (!$result['ok']) {
+            $_SESSION['error'] = $result['error'] ?? t('product.report_failed');
+            $this->redirect('/product/' . $productId);
+            return;
+        }
+
+        $ticketNumber = (string) ($result['ticket_number'] ?? '');
+        $ticketId = (int) ($result['ticket_id'] ?? 0);
+
+        ActivityLogger::info('product.report', 'Жалоба на объявление «' . $title . '»', 'product', $productId, [
+            'reason' => $reason,
+            'ticket_id' => $ticketId,
+            'number' => $ticketNumber,
+        ]);
+
+        $notify = new Notification();
+        $notify->createFor($uid, t('support.notify_created', ['number' => $ticketNumber]));
+
+        foreach ($tickets->adminUsers() as $admin) {
+            if ((int) $admin['id'] === $uid) {
+                continue;
+            }
+            $notify->createFor(
+                (int) $admin['id'],
+                t('support.notify_admin_listing', [
+                    'number' => $ticketNumber,
+                    'name' => (string) ($user['name'] ?? ''),
+                    'title' => $title,
+                ])
+            );
+        }
+
+        $_SESSION['flash'] = t('product.report_sent', ['number' => $ticketNumber]);
+        $this->redirect('/product/' . $productId);
     }
 }
