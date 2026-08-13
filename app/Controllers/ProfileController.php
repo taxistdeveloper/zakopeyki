@@ -320,6 +320,12 @@ class ProfileController extends Controller
             default => null,
         };
 
+        $whatsapp = ProductHelper::normalizeWhatsappInput($_POST['whatsapp'] ?? '');
+        if (!$whatsapp['ok']) {
+            $_SESSION['error'] = t('profile.whatsapp_invalid');
+            $this->redirect('/profile?tab=lots');
+        }
+
         $productId = (new Product())->create([
             'user_id' => Auth::id(),
             'type' => $type,
@@ -330,6 +336,7 @@ class ProfileController extends Controller
             'exchange_for' => $exchangeFor !== '' ? mb_substr($exchangeFor, 0, 255) : null,
             'price_label' => $priceLabel,
             'location' => trim($_POST['location'] ?? 'Караганда'),
+            'whatsapp' => $whatsapp['value'],
             'image' => $resolved['cover'],
             'images' => $resolved['images'],
         ]);
@@ -403,6 +410,12 @@ class ProfileController extends Controller
             default => null,
         };
 
+        $whatsapp = ProductHelper::normalizeWhatsappInput($_POST['whatsapp'] ?? '');
+        if (!$whatsapp['ok']) {
+            $_SESSION['error'] = t('profile.whatsapp_invalid');
+            $this->redirect('/profile?tab=lots&edit=' . (int) $id);
+        }
+
         $products->updateProduct((int) $id, [
             'type' => $type,
             'category' => ProductHelper::normalizeCategory($_POST['category'] ?? ($product['category'] ?? null), $type),
@@ -412,6 +425,7 @@ class ProfileController extends Controller
             'exchange_for' => $exchangeFor !== '' ? mb_substr($exchangeFor, 0, 255) : null,
             'price_label' => $priceLabel,
             'location' => trim($_POST['location'] ?? ($product['location'] ?? 'Караганда')),
+            'whatsapp' => $whatsapp['value'],
             'image' => $resolved['cover'],
             'images' => $resolved['images'],
             'status' => $product['status'] ?? 'active',

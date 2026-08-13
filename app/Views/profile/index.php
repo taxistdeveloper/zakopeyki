@@ -721,6 +721,13 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                             <input type="text" name="location" class="<?= $input ?>" value="<?= htmlspecialchars($editing['location'] ?? 'Караганда') ?>">
                         </div>
                     </div>
+                    <div>
+                        <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.whatsapp')) ?></label>
+                        <input type="tel" name="whatsapp" inputmode="tel" maxlength="20" class="<?= $input ?>"
+                               placeholder="<?= htmlspecialchars(t('profile.whatsapp_ph')) ?>"
+                               value="<?= htmlspecialchars(ProductHelper::formatWhatsappInput($editing['whatsapp'] ?? '')) ?>">
+                        <p class="text-[11px] text-gray-400 mt-1"><?= htmlspecialchars(t('profile.whatsapp_hint')) ?></p>
+                    </div>
                     <script>
                     (function () {
                         const typeSelect = document.getElementById('lot-type');

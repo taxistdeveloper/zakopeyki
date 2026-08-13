@@ -363,4 +363,30 @@ class ProductHelper
 
         return $digits;
     }
+
+    /** @return array{ok: bool, value: ?string} */
+    public static function normalizeWhatsappInput(?string $raw): array
+    {
+        $raw = trim((string) $raw);
+        if ($raw === '') {
+            return ['ok' => true, 'value' => null];
+        }
+
+        $digits = self::whatsappDigits($raw);
+        if ($digits === null) {
+            return ['ok' => false, 'value' => null];
+        }
+
+        return ['ok' => true, 'value' => $digits];
+    }
+
+    public static function formatWhatsappInput(?string $digits): string
+    {
+        $digits = self::whatsappDigits((string) $digits);
+        if ($digits === null) {
+            return '';
+        }
+
+        return '+' . $digits;
+    }
 }

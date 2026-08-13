@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS products (
     current_bid INT UNSIGNED DEFAULT NULL,
     bid_step INT UNSIGNED DEFAULT 1000,
     location VARCHAR(150) NOT NULL DEFAULT 'Караганда',
+    whatsapp VARCHAR(20) DEFAULT NULL,
     image VARCHAR(255) DEFAULT NULL,
     images TEXT DEFAULT NULL,
     status ENUM('active','sold','reserved','archived') NOT NULL DEFAULT 'active',

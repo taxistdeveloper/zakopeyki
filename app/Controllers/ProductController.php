@@ -68,7 +68,7 @@ class ProductController extends Controller
             return;
         }
 
-        $digits = ProductHelper::whatsappDigits((string) ($product['seller_phone'] ?? ''));
+        $digits = ProductHelper::whatsappDigits((string) ($product['whatsapp'] ?? ''));
         if ($digits === null) {
             $_SESSION['error'] = t('product.whatsapp_unavailable');
             $this->redirect('/product/' . $productId);

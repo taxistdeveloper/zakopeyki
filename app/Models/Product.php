@@ -33,6 +33,10 @@ class Product extends Model
             if (!$colsExchange) {
                 $this->db->exec('ALTER TABLE products ADD COLUMN exchange_for VARCHAR(255) DEFAULT NULL AFTER price');
             }
+            $colsWhatsapp = $this->db->query("SHOW COLUMNS FROM products LIKE 'whatsapp'")->fetch();
+            if (!$colsWhatsapp) {
+                $this->db->exec('ALTER TABLE products ADD COLUMN whatsapp VARCHAR(20) DEFAULT NULL AFTER location');
+            }
 
             $statusCol = $this->db->query("SHOW COLUMNS FROM products LIKE 'status'")->fetch();
             $type = strtolower((string) ($statusCol['Type'] ?? ''));
@@ -213,8 +217,8 @@ class Product extends Model
     public function create(array $data): int
     {
         $stmt = $this->db->prepare(
-            'INSERT INTO products (user_id, type, category, title, description, price, exchange_for, price_label, current_bid, bid_step, location, image, images, status)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO products (user_id, type, category, title, description, price, exchange_for, price_label, current_bid, bid_step, location, whatsapp, image, images, status)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
 
         $type = $data['type'];
@@ -250,6 +254,7 @@ class Product extends Model
             $currentBid,
             (int) ($data['bid_step'] ?? 1000),
             $data['location'] ?? 'Караганда',
+            $data['whatsapp'] ?? null,
             $cover,
             $images,
             'active',
@@ -261,7 +266,7 @@ class Product extends Model
     public function updateProduct(int $id, array $data): bool
     {
         $stmt = $this->db->prepare(
-            'UPDATE products SET type=?, category=?, title=?, description=?, price=?, exchange_for=?, price_label=?, location=?, image=?, images=?, status=? WHERE id=?'
+            'UPDATE products SET type=?, category=?, title=?, description=?, price=?, exchange_for=?, price_label=?, location=?, whatsapp=?, image=?, images=?, status=? WHERE id=?'
         );
         $type = $data['type'];
         $price = in_array($type, ['free', 'exchange'], true)
@@ -291,6 +296,7 @@ class Product extends Model
             $exchangeFor,
             $priceLabel,
             $data['location'] ?? 'Караганда',
+            $data['whatsapp'] ?? null,
             $cover,
             $images,
             $data['status'] ?? 'active',
