@@ -1,5 +1,6 @@
 <?php
 use App\Core\Auth;
+use App\Core\View;
 use App\Helpers\IconHelper;
 use App\Helpers\ProductHelper;
 
@@ -12,8 +13,9 @@ $purchasable = ProductHelper::isPurchasable($item);
 $checkoutUrl = ProductHelper::checkoutUrl($item['id']);
 unset($_SESSION['flash']);
 ?>
-<section class="max-w-3xl mx-auto space-y-5 fade-up pb-8">
-    <?php if ($flash): ?>
+<section class="max-w-5xl mx-auto space-y-6 fade-up pb-8">
+    <div class="max-w-3xl mx-auto space-y-5">
+        <?php if ($flash): ?>
         <div class="bg-emerald-50 dark:bg-emerald-900/25 text-emerald-800 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800/40 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars($flash) ?></div>
     <?php endif; ?>
 
@@ -47,7 +49,7 @@ unset($_SESSION['flash']);
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
                     </svg>
                 </button>
-                <?php \App\Core\View::partial('partials/share-buttons', ['item' => $item, 'overlay' => 'lg']); ?>
+                <?php View::partial('partials/share-buttons', ['item' => $item, 'overlay' => 'lg']); ?>
             </div>
         </div>
         <?php if (count($imageUrls) > 1): ?>
@@ -263,7 +265,25 @@ unset($_SESSION['flash']);
                 </div>
             <?php endif; ?>
         </div>
+        </div>
     </div>
+
+    <?php if (!empty($similar)): ?>
+        <div class="space-y-4">
+            <div>
+                <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-brand-600 mb-1"><?= htmlspecialchars(t('product.similar_hint')) ?></p>
+                <h2 class="font-display text-lg sm:text-xl font-bold tracking-tight text-ink-900 dark:text-white"><?= htmlspecialchars(t('product.similar')) ?></h2>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
+                <?php foreach ($similar as $rel) {
+                    View::partial('partials/product-card', [
+                        'item' => $rel,
+                        'favorited' => in_array((int) $rel['id'], $favoriteIds ?? [], true),
+                    ]);
+                } ?>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <a href="javascript:history.back()" class="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-brand-600 font-medium transition"><?= htmlspecialchars(t('product.back')) ?></a>
 </section>

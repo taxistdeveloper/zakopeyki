@@ -115,6 +115,80 @@ class Product extends Model
         return $row ?: null;
     }
 
+    /**
+     * Похожие активные объявления: тот же тип, категория, близкая цена.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function similar(array $product, int $limit = 8): array
+    {
+        $id = (int) ($product['id'] ?? 0);
+        $limit = max(1, min(24, $limit));
+        if ($id < 1) {
+            return [];
+        }
+
+        $type = (string) ($product['type'] ?? '');
+        $category = trim((string) ($product['category'] ?? ''));
+        $price = (int) ($product['price'] ?? 0);
+        $location = trim((string) ($product['location'] ?? ''));
+
+        $parentLike = null;
+        if ($category !== '' && $category !== 'Разное' && str_contains($category, ' / ')) {
+            $parent = trim(explode(' / ', $category, 2)[0]);
+            if ($parent !== '') {
+                $parentLike = $parent . ' / %';
+            }
+        }
+
+        $filters = [];
+        $filterParams = [];
+        if ($type !== '') {
+            $filters[] = 'p.type = ?';
+            $filterParams[] = $type;
+        }
+        if ($category !== '' && $category !== 'Разное') {
+            $filters[] = 'p.category = ?';
+            $filterParams[] = $category;
+            if ($parentLike) {
+                $filters[] = 'p.category LIKE ?';
+                $filterParams[] = $parentLike;
+            }
+        }
+        if ($filters === []) {
+            return [];
+        }
+
+        $sql = 'SELECT p.*, u.name AS seller_name, u.phone AS seller_phone
+                FROM products p
+                JOIN users u ON u.id = p.user_id
+                WHERE p.status = ?
+                  AND p.id != ?
+                  AND (' . implode(' OR ', $filters) . ')
+                ORDER BY (p.type = ?) DESC';
+        $params = array_merge(['active', $id], $filterParams, [$type]);
+
+        if ($category !== '') {
+            $sql .= ', (p.category = ?) DESC';
+            $params[] = $category;
+        }
+        if ($parentLike) {
+            $sql .= ', (p.category LIKE ?) DESC';
+            $params[] = $parentLike;
+        }
+        if ($location !== '') {
+            $sql .= ', (p.location = ?) DESC';
+            $params[] = $location;
+        }
+
+        $sql .= ', ABS(p.price - ?) ASC, p.created_at DESC LIMIT ' . $limit;
+        $params[] = $price;
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+
     /** @param list<int> $ids @return list<array> */
     public function findWithSellersByIds(array $ids): array
     {

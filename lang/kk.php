@@ -297,6 +297,8 @@ return [
         'no_phone' => 'телефон көрсетілмеген',
         'exchange_for' => 'Мынаған айырбастаймын',
         'exchange_for_short' => 'Айырбас',
+        'similar' => 'Ұқсас тауарлар',
+        'similar_hint' => 'Сізге ұнауы мүмкін',
     ],
     'seller' => [
         'title' => 'Сатушы',

@@ -28,14 +28,17 @@ class ProductController extends Controller
         $notifications = [];
         $unread = 0;
         $isFavorite = false;
+        $favoriteIds = [];
         if (Auth::check()) {
             $n = new Notification();
             $notifications = $n->forUser(Auth::id());
             $unread = $n->unreadCount(Auth::id());
-            $isFavorite = (new Favorite())->isFavorite(Auth::id(), (int) $id);
+            $favoriteIds = (new Favorite())->idsForUser(Auth::id());
+            $isFavorite = in_array((int) $id, $favoriteIds, true);
         }
 
         $sellerRating = (new Review())->statsFor((int) $product['user_id']);
+        $similar = (new Product())->similar($product, 8);
 
         $this->view('products/show', [
             'title' => $product['title'],
@@ -46,6 +49,8 @@ class ProductController extends Controller
             'unread' => $unread,
             'isFavorite' => $isFavorite,
             'sellerRating' => $sellerRating,
+            'similar' => $similar,
+            'favoriteIds' => $favoriteIds,
             'search' => '',
         ]);
     }

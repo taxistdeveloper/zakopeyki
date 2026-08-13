@@ -297,6 +297,8 @@ return [
         'no_phone' => 'телефон не указан',
         'exchange_for' => 'Меняю на',
         'exchange_for_short' => 'На',
+        'similar' => 'Похожие товары',
+        'similar_hint' => 'Вам может подойти',
     ],
     'seller' => [
         'title' => 'Продавец',
