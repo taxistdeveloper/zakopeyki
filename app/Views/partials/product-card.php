@@ -30,6 +30,7 @@ $showCardCategory = in_array($type, ProductHelper::PRODUCT_TYPES_WITH_CATEGORY, 
     && ($item['category'] ?? '') !== 'Разное';
 
 $compact = !empty($compact);
+$mini = !empty($mini);
 $ctaBtn = 'inline-flex items-center justify-center gap-1.5 w-full font-display font-bold text-[10px] sm:text-[11px] py-2.5 px-2.5 rounded-xl transition uppercase tracking-wider';
 $ctaSolo = 'inline-flex items-center justify-center gap-1.5 w-full font-display font-bold text-[10px] sm:text-[11px] py-2.5 px-3 rounded-xl transition uppercase tracking-wider';
 $cartBtnClass = 'border border-black/[0.08] dark:border-white/10 text-ink-800 dark:text-gray-200 hover:border-brand-400/50 hover:text-brand-600'
@@ -68,6 +69,49 @@ if ($type === 'course') {
 $showBuyCartPair = $canCart && $primaryHref && in_array($type, ['used', 'new', 'course', 'service', 'gig'], true) && !$isFreePrice;
 $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>';
 ?>
+<?php if ($mini): ?>
+<article class="bg-white dark:bg-white/[0.04] rounded-2xl border border-black/[0.06] dark:border-white/10 overflow-hidden hover:shadow-soft transition duration-300 flex flex-col h-full cursor-pointer group relative"
+         data-card-href="<?= htmlspecialchars($showUrl) ?>">
+    <div class="relative">
+        <?php if ($imageUrl): ?>
+        <a href="<?= $showUrl ?>" class="photo-wm aspect-[4/3] bg-ink-100 dark:bg-white/10 relative block overflow-hidden">
+            <img src="<?= htmlspecialchars($imageUrl) ?>" alt="" class="absolute inset-0 w-full h-full object-cover transition duration-300 group-hover:scale-105 pointer-events-none">
+        </a>
+        <?php else: ?>
+        <a href="<?= $showUrl ?>" class="aspect-[4/3] bg-gradient-to-br from-ink-100 via-brand-50 to-accent-50 dark:from-white/10 dark:via-brand-900/20 dark:to-transparent relative flex items-center justify-center">
+            <?= ProductHelper::icon($item['type'], 'w-10 h-10 text-brand-500/70') ?>
+        </a>
+        <?php endif; ?>
+        <button type="button"
+                class="favorite-btn absolute top-2 right-2 z-20 w-8 h-8 rounded-full bg-white/95 dark:bg-ink-900/80 shadow-sm flex items-center justify-center transition hover:scale-105 <?= $favorited ? 'is-favorited text-red-500' : 'text-gray-400 hover:text-red-500' ?>"
+                data-product-id="<?= (int) $item['id'] ?>"
+                data-favorited="<?= $favorited ? '1' : '0' ?>"
+                aria-label="<?= htmlspecialchars($favorited ? t('card.unfavorite') : t('card.favorite')) ?>">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="<?= $favorited ? 'currentColor' : 'none' ?>" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+            </svg>
+        </button>
+    </div>
+    <div class="p-3 flex flex-col flex-1 gap-2">
+        <h3 class="text-[13px] font-semibold line-clamp-2 min-h-[2.4rem] text-ink-800 dark:text-gray-200 leading-snug">
+            <a href="<?= $showUrl ?>"><?= htmlspecialchars($item['title']) ?></a>
+        </h3>
+        <div class="mt-auto flex items-center justify-between gap-2">
+            <span class="text-sm font-display font-bold <?= $isFreePrice ? 'text-violet-600 dark:text-violet-300' : 'text-ink-900 dark:text-white' ?>"><?= htmlspecialchars($price) ?></span>
+            <?php if ($canCart): ?>
+                <button type="button"
+                        class="cart-btn inline-flex items-center justify-center w-9 h-9 rounded-xl bg-accent-50 dark:bg-accent-500/10 text-accent-600 dark:text-accent-400 hover:bg-accent-500 hover:text-white transition <?= $inCart ? 'is-in-cart bg-accent-500 text-white' : '' ?>"
+                        data-product-id="<?= (int) $item['id'] ?>"
+                        data-in-cart="<?= $inCart ? '1' : '0' ?>"
+                        aria-label="<?= htmlspecialchars($inCart ? t('card.in_cart') : t('card.add_cart')) ?>">
+                    <?= $cartIcon ?>
+                    <span class="cart-btn-label sr-only"><?= htmlspecialchars($inCart ? t('card.in_cart') : t('card.add_cart')) ?></span>
+                </button>
+            <?php endif; ?>
+        </div>
+    </div>
+</article>
+<?php else: ?>
 <article class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 overflow-hidden shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition duration-300 flex flex-col h-full cursor-pointer group backdrop-blur-sm relative"
          data-card-href="<?= htmlspecialchars($showUrl) ?>">
     <?php if ($imageUrl): ?>
@@ -167,3 +211,4 @@ $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" s
         </div>
     </div>
 </article>
+<?php endif; ?>

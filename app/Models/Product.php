@@ -106,7 +106,8 @@ class Product extends Model
     {
         $stmt = $this->db->prepare(
             'SELECT p.*, u.name AS seller_name, u.phone AS seller_phone, u.email AS seller_email,
-                    u.avatar AS seller_avatar, u.avatar_file AS seller_avatar_file
+                    u.avatar AS seller_avatar, u.avatar_file AS seller_avatar_file,
+                    u.created_at AS seller_created_at
              FROM products p
              JOIN users u ON u.id = p.user_id
              WHERE p.id = ?'

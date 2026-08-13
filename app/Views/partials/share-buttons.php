@@ -6,6 +6,7 @@ $compact = !empty($compact);
 $overlaySize = ($overlay ?? false) === 'lg' ? 'lg' : (!empty($overlay) ? 'sm' : null);
 $overlay = $overlaySize !== null;
 $fullWidth = !empty($fullWidth);
+$buttonClass = trim((string) ($buttonClass ?? ''));
 $waLabel = t('card.share_whatsapp');
 $tgLabel = t('card.share_telegram');
 $shareLabel = t('card.share');
@@ -53,17 +54,22 @@ $shareIcon = '<svg class="' . $shareIconSize . '" viewBox="0 0 24 24" fill="none
         </div>
     </div>
 <?php elseif ($compact): ?>
+    <?php
+    $compactBtn = $buttonClass !== ''
+        ? $buttonClass
+        : (($fullWidth ? 'w-full ' : '') . 'inline-flex items-center justify-center gap-1.5 h-8 px-2.5 rounded-xl bg-black/[0.04] dark:bg-white/10 text-gray-500 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-white/15 transition');
+    ?>
     <div class="relative<?= $fullWidth ? ' w-full' : '' ?>" data-share-menu>
         <button type="button"
                 data-share-toggle
-                class="<?= $fullWidth ? 'w-full ' : '' ?>inline-flex items-center justify-center gap-1.5 h-8 px-2.5 rounded-xl bg-black/[0.04] dark:bg-white/10 text-gray-500 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-white/15 transition"
+                class="<?= $compactBtn ?>"
                 title="<?= htmlspecialchars($shareLabel) ?>"
                 aria-label="<?= htmlspecialchars($shareLabel) ?>"
                 aria-expanded="false"
                 aria-haspopup="true">
             <?= $shareIcon ?>
             <?php if ($fullWidth): ?>
-                <span class="text-[11px] font-semibold uppercase tracking-wider"><?= htmlspecialchars($shareLabel) ?></span>
+                <span class="<?= $buttonClass !== '' ? '' : 'text-[11px] font-semibold uppercase tracking-wider' ?>"><?= htmlspecialchars($shareLabel) ?></span>
             <?php endif; ?>
         </button>
         <div data-share-dropdown

@@ -74,23 +74,19 @@ $changelog = $changelog ?? null;
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2.5 sm:gap-3">
         <?php
         $cats = [
-            ['url' => '/catalog/new', 'label' => t('home.cat_new'), 'tone' => 'from-blue-50 to-indigo-50', 'color' => 'text-blue-500', 'icon' => 'bag'],
-            ['url' => '/catalog/used', 'label' => t('home.cat_used'), 'tone' => 'from-orange-50 to-amber-50', 'color' => 'text-orange-500', 'icon' => 'package'],
-            ['url' => '/auctions', 'label' => t('home.cat_auctions'), 'tone' => 'from-accent-50 to-orange-50', 'color' => 'text-accent-500', 'icon' => 'gavel'],
-            ['url' => '/catalog/services', 'label' => t('home.cat_services'), 'tone' => 'from-slate-50 to-brand-50', 'color' => 'text-slate-600 dark:text-slate-300', 'icon' => 'wrench'],
-            ['url' => '/catalog/gigs', 'label' => t('home.cat_gigs'), 'tone' => 'from-teal-50 to-emerald-50', 'color' => 'text-teal-600 dark:text-teal-300', 'icon' => 'briefcase'],
-            ['url' => '/catalog/courses', 'label' => t('home.cat_courses'), 'tone' => 'from-violet-50 to-indigo-50', 'color' => 'text-violet-500', 'icon' => 'graduation'],
-            ['url' => '/catalog/exchange', 'label' => t('home.cat_exchange'), 'tone' => 'from-brand-50 to-sky-50', 'color' => 'text-brand-500', 'icon' => 'exchange'],
-            ['url' => '/catalog/free', 'label' => t('home.cat_free'), 'tone' => 'from-sky-50 to-blue-50', 'color' => 'text-sky-500', 'icon' => 'gift'],
-
-
-
-
+            ['url' => '/catalog/new', 'label' => t('home.cat_new'), 'tone' => 'from-blue-50 to-indigo-50', 'img' => 'cat-new.png'],
+            ['url' => '/catalog/used', 'label' => t('home.cat_used'), 'tone' => 'from-orange-50 to-amber-50', 'img' => 'cat-used.png'],
+            ['url' => '/auctions', 'label' => t('home.cat_auctions'), 'tone' => 'from-accent-50 to-orange-50', 'img' => 'cat-auctions.png'],
+            ['url' => '/catalog/services', 'label' => t('home.cat_services'), 'tone' => 'from-slate-50 to-brand-50', 'img' => 'cat-services.png'],
+            ['url' => '/catalog/gigs', 'label' => t('home.cat_gigs'), 'tone' => 'from-teal-50 to-emerald-50', 'img' => 'cat-gigs.png'],
+            ['url' => '/catalog/courses', 'label' => t('home.cat_courses'), 'tone' => 'from-violet-50 to-indigo-50', 'img' => 'cat-courses.png'],
+            ['url' => '/catalog/exchange', 'label' => t('home.cat_exchange'), 'tone' => 'from-brand-50 to-sky-50', 'img' => 'cat-exchange.png'],
+            ['url' => '/catalog/free', 'label' => t('home.cat_free'), 'tone' => 'from-sky-50 to-blue-50', 'img' => 'cat-free.png'],
         ];
         foreach ($cats as $c): ?>
-            <a href="<?= ProductHelper::url($c['url']) ?>" class="group bg-gradient-to-br <?= $c['tone'] ?> dark:from-white/[0.06] dark:to-white/[0.02] p-3.5 sm:p-4 rounded-2xl border border-black/[0.05] dark:border-white/10 text-center hover:border-brand-400/50 hover:shadow-soft hover:-translate-y-0.5 transition duration-300 block">
-                <span class="flex items-center justify-center mb-1.5 <?= $c['color'] ?> transition duration-300 group-hover:scale-110">
-                    <?= IconHelper::svg($c['icon'], 'h-8 w-8 sm:h-9 sm:w-9') ?>
+            <a href="<?= ProductHelper::url($c['url']) ?>" class="group bg-gradient-to-br <?= $c['tone'] ?> dark:from-white/[0.06] dark:to-white/[0.02] px-3 py-3.5 sm:px-3.5 sm:py-4 rounded-2xl border border-black/[0.05] dark:border-white/10 text-center hover:border-brand-400/50 hover:shadow-soft hover:-translate-y-0.5 transition duration-300 block">
+                <span class="flex items-center justify-center mb-1.5 transition duration-300 group-hover:scale-110">
+                    <img src="<?= ProductHelper::url('public/assets/icons/categories/' . $c['img']) ?>" alt="" class="h-12 w-12 sm:h-14 sm:w-14 object-contain" width="56" height="56" decoding="async" draggable="false">
                 </span>
                 <span class="text-[11px] font-semibold text-ink-800 dark:text-gray-200"><?= $c['label'] ?></span>
             </a>
