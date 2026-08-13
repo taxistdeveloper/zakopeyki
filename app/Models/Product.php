@@ -187,7 +187,8 @@ class Product extends Model
             $params[] = $location;
         }
 
-        $sql .= ', ABS(p.price - ?) ASC, p.created_at DESC LIMIT ' . $limit;
+        // UNSIGNED price: (p.price - ?) underflows when cheaper lots exist
+        $sql .= ', ABS(CAST(p.price AS SIGNED) - CAST(? AS SIGNED)) ASC, p.created_at DESC LIMIT ' . $limit;
         $params[] = $price;
 
         $stmt = $this->db->prepare($sql);
