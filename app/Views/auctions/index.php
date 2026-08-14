@@ -75,40 +75,48 @@ $kindTone = [
                             <div>
                                 <p class="text-[10px] uppercase tracking-wider text-gray-400"><?= htmlspecialchars($kind === 'dutch' ? t('auctions.buyout_price') : t('auctions.current_price')) ?></p>
                                 <p class="font-display font-bold text-lg text-ink-900 dark:text-white" data-auction-price><?= number_format($price, 0, '', ' ') ?> ₸</p>
-                                <?php if ($buyNow > 0 && $kind !== 'dutch'): ?>
-                                    <p class="text-[11px] font-semibold text-accent-600 dark:text-accent-400 mt-0.5"><?= htmlspecialchars(t('auctions.buy_now')) ?>: <?= number_format($buyNow, 0, '', ' ') ?> ₸</p>
-                                <?php endif; ?>
+                                <p class="text-[11px] font-semibold mt-0.5 min-h-[1.125rem] <?= ($buyNow > 0 && $kind !== 'dutch') ? 'text-accent-600 dark:text-accent-400' : 'text-transparent select-none' ?>">
+                                    <?= ($buyNow > 0 && $kind !== 'dutch')
+                                        ? htmlspecialchars(t('auctions.buy_now')) . ': ' . number_format($buyNow, 0, '', ' ') . ' ₸'
+                                        : '—' ?>
+                                </p>
                             </div>
                             <div class="rounded-xl bg-ink-50 dark:bg-white/5 px-3 py-2 text-center">
                                 <p class="text-[10px] uppercase tracking-wider text-gray-400" data-auction-timer-label><?= htmlspecialchars($kind === 'continuous' ? t('auctions.timer_open') : t('auctions.time_left')) ?></p>
                                 <p class="font-mono text-sm font-bold text-ink-800 dark:text-white" data-auction-timer><?= $kind === 'continuous' ? '∞' : '—' ?></p>
                             </div>
+                            <div class="grid grid-cols-1 gap-2">
                             <?php if ($isOwn): ?>
-                                <p class="text-[11px] text-center text-gray-500 px-1"><?= htmlspecialchars(t('auctions.own_no_bid')) ?></p>
-                                <a href="<?= $showUrl ?>" class="inline-flex items-center justify-center w-full font-display font-bold text-[11px] py-2.5 rounded-xl border border-black/10 dark:border-white/15 text-ink-800 dark:text-gray-200 uppercase tracking-wider">
+                                <p class="inline-flex items-center justify-center min-h-[2.5rem] text-[11px] text-center text-gray-500 px-1"><?= htmlspecialchars(t('auctions.own_no_bid')) ?></p>
+                                <a href="<?= $showUrl ?>" class="inline-flex items-center justify-center w-full min-h-[2.5rem] font-display font-bold text-[11px] py-2.5 rounded-xl border border-black/10 dark:border-white/15 text-ink-800 dark:text-gray-200 uppercase tracking-wider">
                                     <?= htmlspecialchars(t('auctions.your_lot')) ?>
                                 </a>
                             <?php else: ?>
-                            <?php if ($kind === 'dutch' || $buyNow > 0): ?>
-                                <?php if (Auth::check()): ?>
-                                    <form method="post" action="<?= ProductHelper::url('/auctions/' . $item['id'] . '/buy-now') ?>">
-                                        <?= csrf_field() ?>
-                                        <button class="inline-flex items-center justify-center w-full font-display font-bold text-[11px] py-2.5 rounded-xl bg-accent-500 hover:bg-accent-400 text-white uppercase tracking-wider">
+                                <?php if ($kind === 'dutch' || $buyNow > 0): ?>
+                                    <?php if (Auth::check()): ?>
+                                        <form method="post" action="<?= ProductHelper::url('/auctions/' . $item['id'] . '/buy-now') ?>">
+                                            <?= csrf_field() ?>
+                                            <button class="inline-flex items-center justify-center w-full min-h-[2.5rem] font-display font-bold text-[11px] py-2.5 rounded-xl bg-accent-500 hover:bg-accent-400 text-white uppercase tracking-wider">
+                                                <?= htmlspecialchars(t('auctions.buy_now')) ?>
+                                            </button>
+                                        </form>
+                                    <?php else: ?>
+                                        <a href="<?= ProductHelper::url('/login') ?>" class="inline-flex items-center justify-center w-full min-h-[2.5rem] font-display font-bold text-[11px] py-2.5 rounded-xl bg-accent-500 hover:bg-accent-400 text-white uppercase tracking-wider">
                                             <?= htmlspecialchars(t('auctions.buy_now')) ?>
-                                        </button>
-                                    </form>
+                                        </a>
+                                    <?php endif; ?>
                                 <?php else: ?>
-                                    <a href="<?= ProductHelper::url('/login') ?>" class="inline-flex items-center justify-center w-full font-display font-bold text-[11px] py-2.5 rounded-xl bg-accent-500 hover:bg-accent-400 text-white uppercase tracking-wider">
-                                        <?= htmlspecialchars(t('auctions.buy_now')) ?>
-                                    </a>
+                                    <span class="block min-h-[2.5rem]" aria-hidden="true"></span>
+                                <?php endif; ?>
+                                <?php if ($kind !== 'dutch'): ?>
+                                <a href="<?= $showUrl ?>" class="inline-flex items-center justify-center w-full min-h-[2.5rem] font-display font-bold text-[11px] py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white uppercase tracking-wider">
+                                    <?= htmlspecialchars(t('card.bid')) ?>
+                                </a>
+                                <?php else: ?>
+                                    <span class="block min-h-[2.5rem]" aria-hidden="true"></span>
                                 <?php endif; ?>
                             <?php endif; ?>
-                            <?php if ($kind !== 'dutch'): ?>
-                            <a href="<?= $showUrl ?>" class="inline-flex items-center justify-center w-full font-display font-bold text-[11px] py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white uppercase tracking-wider">
-                                <?= htmlspecialchars(t('card.bid')) ?>
-                            </a>
-                            <?php endif; ?>
-                            <?php endif; ?>
+                            </div>
                         </div>
                     </div>
                 </article>
