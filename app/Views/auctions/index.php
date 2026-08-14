@@ -39,6 +39,7 @@ $kindTone = [
                 $endAt = $item['auction_end_at'] ?? null;
                 $buyNow = (int) ($item['buy_now_price'] ?? 0);
                 $isOwn = Auth::check() && (int) ($item['user_id'] ?? 0) === (int) Auth::id();
+                $galleryJson = htmlspecialchars(json_encode(array_values($imageUrls ?: array_filter([$imageUrl])), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
             ?>
                 <article class="bg-white dark:bg-white/[0.04] rounded-2xl border border-black/[0.06] dark:border-white/10 overflow-hidden hover:shadow-soft transition duration-300 flex flex-col h-full group cursor-pointer"
                          data-auction-card
@@ -48,14 +49,26 @@ $kindTone = [
                          data-end-at="<?= htmlspecialchars((string) $endAt) ?>"
                          data-last-bid="<?= htmlspecialchars((string) ($item['last_bid_at'] ?? '')) ?>"
                          data-inactivity="<?= (int) ($item['inactivity_timeout_seconds'] ?? 0) ?>">
+                    <?php if ($imageUrl): ?>
+                    <button type="button"
+                            class="photo-wm aspect-[4/3] bg-ink-100 dark:bg-white/10 relative block overflow-hidden w-full cursor-zoom-in"
+                            data-lightbox
+                            data-lightbox-src="<?= htmlspecialchars($imageUrl) ?>"
+                            data-lightbox-gallery="<?= $galleryJson ?>"
+                            data-lightbox-index="0"
+                            aria-label="<?= htmlspecialchars(t('product.zoom')) ?>">
+                        <img src="<?= htmlspecialchars($imageUrl) ?>" alt="" class="absolute inset-0 w-full h-full object-cover transition duration-300 group-hover:scale-105 pointer-events-none">
+                        <span class="absolute top-2 left-2 pointer-events-none text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-lg <?= $kindTone[$kind] ?? 'bg-red-500 text-white' ?>">
+                            <?= htmlspecialchars($item['auction_kind_label'] ?? t('auctions.kind_english')) ?>
+                        </span>
+                    </button>
+                    <?php else: ?>
                     <a href="<?= $showUrl ?>" class="photo-wm aspect-[4/3] bg-ink-100 dark:bg-white/10 relative block overflow-hidden">
-                        <?php if ($imageUrl): ?>
-                            <img src="<?= htmlspecialchars($imageUrl) ?>" alt="" class="absolute inset-0 w-full h-full object-cover transition duration-300 group-hover:scale-105 pointer-events-none">
-                        <?php endif; ?>
                         <span class="absolute top-2 left-2 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-lg <?= $kindTone[$kind] ?? 'bg-red-500 text-white' ?>">
                             <?= htmlspecialchars($item['auction_kind_label'] ?? t('auctions.kind_english')) ?>
                         </span>
                     </a>
+                    <?php endif; ?>
                     <div class="p-3.5 flex flex-col gap-2 flex-1">
                         <a href="<?= $showUrl ?>" class="font-display font-bold text-sm text-ink-900 dark:text-white line-clamp-2 hover:text-accent-500"><?= htmlspecialchars($item['title']) ?></a>
                         <div class="mt-auto space-y-2">
