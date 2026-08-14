@@ -307,13 +307,21 @@ $waBtnClass = 'w-full inline-flex items-center justify-center gap-2 h-12 px-4 ro
                 <p class="text-[10px] uppercase tracking-wider text-gray-400" id="auction-timer-label"><?= htmlspecialchars($kind === 'continuous' ? t('auctions.timer_open') : t('auctions.time_left')) ?></p>
                 <p class="font-mono text-2xl font-bold text-ink-900 dark:text-white" id="auction-timer"><?= $kind === 'continuous' ? '∞' : '—' ?></p>
             </div>
-            <p class="text-xs text-gray-500">
-                <?= htmlspecialchars($kind === 'dutch' ? t('auctions.buyout_price') : t('auctions.current_price')) ?>:
-                <span class="font-semibold text-ink-800 dark:text-white" id="auction-current-price"><?= number_format($calcPrice, 0, '', ' ') ?> ₸</span>
-                <?php if ($kind !== 'dutch'): ?>
-                    · <?= htmlspecialchars(t('product.bid_step_only', ['step' => number_format((int) $item['bid_step'], 0, '', ' ')])) ?>
+            <div class="flex items-baseline justify-between gap-3 text-xs text-gray-500">
+                <p class="min-w-0 flex-1 flex items-baseline justify-between gap-2">
+                    <span><?= htmlspecialchars($kind === 'dutch' ? t('auctions.buyout_price') : t('auctions.current_price')) ?></span>
+                    <span class="font-semibold text-ink-800 dark:text-white" id="auction-current-price"><?= number_format($calcPrice, 0, '', ' ') ?> ₸</span>
+                </p>
+                <?php if (!empty($item['buy_now_price']) && $kind !== 'dutch'): ?>
+                <p class="min-w-0 flex-1 flex items-baseline justify-between gap-2">
+                    <span><?= htmlspecialchars(t('auctions.buyout_price')) ?></span>
+                    <span class="font-semibold text-ink-800 dark:text-white"><?= number_format((int) $item['buy_now_price'], 0, '', ' ') ?> ₸</span>
+                </p>
                 <?php endif; ?>
-            </p>
+            </div>
+            <?php if ($kind !== 'dutch'): ?>
+            <p class="text-xs text-gray-500"><?= htmlspecialchars(t('product.bid_step_only', ['step' => number_format((int) $item['bid_step'], 0, '', ' ')])) ?></p>
+            <?php endif; ?>
             <?php if ($isActive && Auth::check() && !$isSeller): ?>
                 <form method="post" action="<?= ProductHelper::url('/auctions/' . $item['id'] . '/bid') ?>" class="flex gap-2" id="auction-bid-form">
                     <?= csrf_field() ?>

@@ -72,11 +72,16 @@ $kindTone = [
                     <div class="p-3.5 flex flex-col gap-2 flex-1">
                         <a href="<?= $showUrl ?>" class="font-display font-bold text-sm text-ink-900 dark:text-white line-clamp-2 hover:text-accent-500"><?= htmlspecialchars($item['title']) ?></a>
                         <div class="mt-auto space-y-2">
-                            <div>
-                                <p class="text-[10px] uppercase tracking-wider text-gray-400"><?= htmlspecialchars($kind === 'dutch' ? t('auctions.buyout_price') : t('auctions.current_price')) ?></p>
-                                <p class="font-display font-bold text-lg text-ink-900 dark:text-white" data-auction-price><?= number_format($price, 0, '', ' ') ?> ₸</p>
+                            <div class="flex items-baseline justify-between gap-3">
+                                <div class="min-w-0 flex-1 flex items-baseline justify-between gap-2">
+                                    <p class="text-[10px] uppercase tracking-wider text-gray-400 shrink-0"><?= htmlspecialchars($kind === 'dutch' ? t('auctions.buyout_price') : t('auctions.current_price')) ?></p>
+                                    <p class="font-display font-bold text-lg text-ink-900 dark:text-white leading-none" data-auction-price><?= number_format($price, 0, '', ' ') ?> ₸</p>
+                                </div>
                                 <?php if ($buyNow > 0 && $kind !== 'dutch'): ?>
-                                    <p class="text-[11px] font-semibold text-accent-600 dark:text-accent-400 mt-0.5"><?= htmlspecialchars(t('auctions.buy_now')) ?>: <?= number_format($buyNow, 0, '', ' ') ?> ₸</p>
+                                <div class="min-w-0 flex-1 flex items-baseline justify-between gap-2">
+                                    <p class="text-[10px] uppercase tracking-wider text-gray-400 shrink-0"><?= htmlspecialchars(t('auctions.buyout_price')) ?></p>
+                                    <p class="font-display font-bold text-lg text-ink-900 dark:text-white leading-none"><?= number_format($buyNow, 0, '', ' ') ?> ₸</p>
+                                </div>
                                 <?php endif; ?>
                             </div>
                             <div class="rounded-xl bg-ink-50 dark:bg-white/5 px-3 py-2 text-center">
