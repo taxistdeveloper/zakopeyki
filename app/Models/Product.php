@@ -38,6 +38,20 @@ class Product extends Model
                 $this->db->exec('ALTER TABLE products ADD COLUMN whatsapp VARCHAR(20) DEFAULT NULL AFTER location');
             }
 
+            $this->ensureColumn('auction_kind', "ALTER TABLE products ADD COLUMN auction_kind VARCHAR(20) NOT NULL DEFAULT 'english' AFTER bid_step");
+            $this->ensureColumn('auction_reserve', 'ALTER TABLE products ADD COLUMN auction_reserve INT UNSIGNED DEFAULT NULL AFTER auction_kind');
+            $this->ensureColumn('auction_buy_now', 'ALTER TABLE products ADD COLUMN auction_buy_now INT UNSIGNED DEFAULT NULL AFTER auction_reserve');
+            $this->ensureColumn('auction_min_price', 'ALTER TABLE products ADD COLUMN auction_min_price INT UNSIGNED DEFAULT NULL AFTER auction_reserve');
+            $this->ensureColumn('auction_step_interval', 'ALTER TABLE products ADD COLUMN auction_step_interval INT UNSIGNED DEFAULT NULL AFTER auction_min_price');
+            $this->ensureColumn('auction_start_at', 'ALTER TABLE products ADD COLUMN auction_start_at DATETIME DEFAULT NULL AFTER auction_step_interval');
+            $this->ensureColumn('auction_end_at', 'ALTER TABLE products ADD COLUMN auction_end_at DATETIME DEFAULT NULL AFTER auction_start_at');
+            $this->ensureColumn('anti_snipe_seconds', 'ALTER TABLE products ADD COLUMN anti_snipe_seconds INT UNSIGNED NOT NULL DEFAULT 30 AFTER auction_end_at');
+            $this->ensureColumn('auto_extend_seconds', 'ALTER TABLE products ADD COLUMN auto_extend_seconds INT UNSIGNED NOT NULL DEFAULT 120 AFTER anti_snipe_seconds');
+            $this->ensureColumn('inactivity_timeout_seconds', 'ALTER TABLE products ADD COLUMN inactivity_timeout_seconds INT UNSIGNED DEFAULT NULL AFTER auto_extend_seconds');
+            $this->ensureColumn('last_bid_at', 'ALTER TABLE products ADD COLUMN last_bid_at DATETIME DEFAULT NULL AFTER inactivity_timeout_seconds');
+            $this->ensureColumn('winner_user_id', 'ALTER TABLE products ADD COLUMN winner_user_id INT UNSIGNED DEFAULT NULL AFTER last_bid_at');
+            $this->ensureColumn('winning_bid_id', 'ALTER TABLE products ADD COLUMN winning_bid_id INT UNSIGNED DEFAULT NULL AFTER winner_user_id');
+
             $statusCol = $this->db->query("SHOW COLUMNS FROM products LIKE 'status'")->fetch();
             $type = strtolower((string) ($statusCol['Type'] ?? ''));
             if ($type !== '' && !str_contains($type, "'reserved'")) {
@@ -69,6 +83,14 @@ class Product extends Model
             // ignore on fresh/broken installs
         }
         self::$ensured = true;
+    }
+
+    private function ensureColumn(string $name, string $alterSql): void
+    {
+        $col = $this->db->query('SHOW COLUMNS FROM products LIKE ' . $this->db->quote($name))->fetch();
+        if (!$col) {
+            $this->db->exec($alterSql);
+        }
     }
 
     public function allActive(?string $type = null, ?string $search = null, ?string $category = null): array
@@ -218,15 +240,20 @@ class Product extends Model
     public function create(array $data): int
     {
         $stmt = $this->db->prepare(
-            'INSERT INTO products (user_id, type, category, title, description, price, exchange_for, price_label, current_bid, bid_step, location, whatsapp, image, images, status)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO products (
+                user_id, type, category, title, description, price, exchange_for, price_label,
+                current_bid, bid_step, auction_kind, auction_reserve, auction_buy_now, auction_min_price, auction_step_interval,
+                auction_start_at, auction_end_at, anti_snipe_seconds, auto_extend_seconds,
+                inactivity_timeout_seconds, location, whatsapp, image, images, status
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
 
         $type = $data['type'];
         $price = in_array($type, ['free', 'exchange'], true)
             ? 0
             : (int) preg_replace('/\D/', '', (string) ($data['price'] ?? 0));
-        $currentBid = $type === 'auction' ? $price : null;
+        $isAuction = $type === 'auction';
+        $currentBid = $isAuction ? $price : null;
         $exchangeFor = $type === 'exchange'
             ? (trim((string) ($data['exchange_for'] ?? '')) ?: null)
             : null;
@@ -243,6 +270,12 @@ class Product extends Model
             $cover = $list[0] ?? null;
         }
 
+        $kind = $isAuction ? (string) ($data['auction_kind'] ?? 'english') : 'english';
+        if (!in_array($kind, ['english', 'dutch', 'continuous'], true)) {
+            $kind = 'english';
+        }
+        $now = date('Y-m-d H:i:s');
+
         $stmt->execute([
             $data['user_id'],
             $type,
@@ -253,7 +286,17 @@ class Product extends Model
             $exchangeFor,
             $priceLabel,
             $currentBid,
-            (int) ($data['bid_step'] ?? 1000),
+            $isAuction ? max(1, (int) ($data['bid_step'] ?? 1000)) : (int) ($data['bid_step'] ?? 1000),
+            $kind,
+            $isAuction ? ($data['auction_reserve'] ?? null) : null,
+            $isAuction ? ($data['auction_buy_now'] ?? null) : null,
+            $isAuction ? ($data['auction_min_price'] ?? null) : null,
+            $isAuction ? ($data['auction_step_interval'] ?? null) : null,
+            $isAuction ? ($data['auction_start_at'] ?? $now) : null,
+            $isAuction ? ($data['auction_end_at'] ?? null) : null,
+            $isAuction ? (int) ($data['anti_snipe_seconds'] ?? 30) : 30,
+            $isAuction ? (int) ($data['auto_extend_seconds'] ?? 120) : 120,
+            $isAuction ? ($data['inactivity_timeout_seconds'] ?? null) : null,
             $data['location'] ?? 'Караганда',
             $data['whatsapp'] ?? null,
             $cover,
@@ -267,7 +310,10 @@ class Product extends Model
     public function updateProduct(int $id, array $data): bool
     {
         $stmt = $this->db->prepare(
-            'UPDATE products SET type=?, category=?, title=?, description=?, price=?, exchange_for=?, price_label=?, location=?, whatsapp=?, image=?, images=?, status=? WHERE id=?'
+            'UPDATE products SET type=?, category=?, title=?, description=?, price=?, exchange_for=?, price_label=?,
+             bid_step=?, auction_kind=?, auction_reserve=?, auction_buy_now=?, auction_min_price=?, auction_step_interval=?,
+             auction_end_at=?, anti_snipe_seconds=?, auto_extend_seconds=?, inactivity_timeout_seconds=?,
+             location=?, whatsapp=?, image=?, images=?, status=? WHERE id=?'
         );
         $type = $data['type'];
         $price = in_array($type, ['free', 'exchange'], true)
@@ -288,6 +334,12 @@ class Product extends Model
             $cover = $list[0] ?? null;
         }
 
+        $isAuction = $type === 'auction';
+        $kind = $isAuction ? (string) ($data['auction_kind'] ?? 'english') : 'english';
+        if (!in_array($kind, ['english', 'dutch', 'continuous'], true)) {
+            $kind = 'english';
+        }
+
         return $stmt->execute([
             $type,
             $data['category'] ?? 'Разное',
@@ -296,6 +348,16 @@ class Product extends Model
             $price,
             $exchangeFor,
             $priceLabel,
+            $isAuction ? max(1, (int) ($data['bid_step'] ?? 1000)) : (int) ($data['bid_step'] ?? 1000),
+            $kind,
+            $isAuction ? ($data['auction_reserve'] ?? null) : null,
+            $isAuction ? ($data['auction_buy_now'] ?? null) : null,
+            $isAuction ? ($data['auction_min_price'] ?? null) : null,
+            $isAuction ? ($data['auction_step_interval'] ?? null) : null,
+            $isAuction ? ($data['auction_end_at'] ?? null) : null,
+            $isAuction ? (int) ($data['anti_snipe_seconds'] ?? 30) : 30,
+            $isAuction ? (int) ($data['auto_extend_seconds'] ?? 120) : 120,
+            $isAuction ? ($data['inactivity_timeout_seconds'] ?? null) : null,
             $data['location'] ?? 'Караганда',
             $data['whatsapp'] ?? null,
             $cover,
@@ -408,32 +470,71 @@ class Product extends Model
         return $out;
     }
 
+    public function findAndLock(int $id): ?array
+    {
+        $stmt = $this->db->prepare('SELECT * FROM products WHERE id = ? LIMIT 1 FOR UPDATE');
+        $stmt->execute([$id]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
+    public function getHighestBid(int $productId): ?array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT * FROM bids WHERE product_id = ? ORDER BY amount DESC, created_at ASC LIMIT 1'
+        );
+        $stmt->execute([$productId]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
+    public function createBid(int $productId, int $userId, int $amount): int
+    {
+        $stmt = $this->db->prepare('INSERT INTO bids (product_id, user_id, amount) VALUES (?, ?, ?)');
+        $stmt->execute([$productId, $userId, $amount]);
+        return (int) $this->db->lastInsertId();
+    }
+
+    public function saveAuctionState(array $auction): bool
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE products SET
+                current_bid = ?, status = ?, auction_end_at = ?, last_bid_at = ?,
+                winner_user_id = ?, winning_bid_id = ?
+             WHERE id = ?'
+        );
+        return $stmt->execute([
+            $auction['current_bid'] ?? null,
+            $auction['status'] ?? 'active',
+            $auction['auction_end_at'] ?? null,
+            $auction['last_bid_at'] ?? null,
+            $auction['winner_user_id'] ?? null,
+            $auction['winning_bid_id'] ?? null,
+            $auction['id'],
+        ]);
+    }
+
+    /** @return list<array> */
+    public function getExpiredAuctions(): array
+    {
+        $stmt = $this->db->query(
+            "SELECT * FROM products
+             WHERE type = 'auction' AND status = 'active' AND (
+                (auction_end_at IS NOT NULL AND auction_end_at <= NOW())
+                OR (
+                    auction_kind = 'continuous'
+                    AND last_bid_at IS NOT NULL
+                    AND inactivity_timeout_seconds IS NOT NULL
+                    AND DATE_ADD(last_bid_at, INTERVAL inactivity_timeout_seconds SECOND) <= NOW()
+                )
+             )"
+        );
+        return $stmt->fetchAll();
+    }
+
     public function placeBid(int $productId, int $userId, int $amount): array
     {
-        $product = $this->find($productId);
-        if (!$product || $product['type'] !== 'auction') {
-            return ['ok' => false, 'error' => 'Лот не найден или это не аукцион'];
-        }
-
-        $min = (int) ($product['current_bid'] ?: $product['price']) + (int) $product['bid_step'];
-        if ($amount < $min) {
-            return ['ok' => false, 'error' => "Минимальная ставка: {$min} ₸"];
-        }
-
-        $this->db->beginTransaction();
-        try {
-            $bid = $this->db->prepare('INSERT INTO bids (product_id, user_id, amount) VALUES (?, ?, ?)');
-            $bid->execute([$productId, $userId, $amount]);
-
-            $upd = $this->db->prepare('UPDATE products SET current_bid = ?, price = ? WHERE id = ?');
-            $upd->execute([$amount, $amount, $productId]);
-
-            $this->db->commit();
-            return ['ok' => true, 'amount' => $amount];
-        } catch (\Throwable $e) {
-            $this->db->rollBack();
-            return ['ok' => false, 'error' => 'Не удалось сделать ставку'];
-        }
+        return (new \App\Services\AuctionService($this))->placeBid($productId, $userId, $amount);
     }
 
     public function recentBids(int $productId, int $limit = 10): array

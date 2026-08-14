@@ -713,12 +713,86 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div id="lot-price-wrap">
-                            <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.price_kzt')) ?></label>
+                            <label class="block text-xs font-bold mb-1" id="lot-price-label"><?= htmlspecialchars(t('profile.price_kzt')) ?></label>
                             <input type="text" name="price" id="lot-price" required class="<?= $input ?>" value="<?= htmlspecialchars((string) ($editing['price'] ?? '')) ?>">
                         </div>
                         <div id="lot-location-wrap" class="<?= in_array($editing['type'] ?? '', $noPriceTypes, true) ? 'col-span-2' : '' ?>">
                             <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.location')) ?></label>
                             <input type="text" name="location" class="<?= $input ?>" value="<?= htmlspecialchars($editing['location'] ?? 'Караганда') ?>">
+                        </div>
+                    </div>
+                    <?php
+                    $editKind = $editing['auction_kind'] ?? 'english';
+                    $editHours = 24;
+                    if (!empty($editing['auction_start_at']) && !empty($editing['auction_end_at'])) {
+                        $diffH = (int) round((strtotime((string) $editing['auction_end_at']) - strtotime((string) $editing['auction_start_at'])) / 3600);
+                        if (in_array($diffH, [1, 6, 24, 72, 168], true)) {
+                            $editHours = $diffH;
+                        }
+                    }
+                    $editInactivity = (int) round(((int) ($editing['inactivity_timeout_seconds'] ?? 86400)) / 3600);
+                    if (!in_array($editInactivity, [1, 6, 24, 72, 168], true)) {
+                        $editInactivity = 24;
+                    }
+                    $editStepMinutes = max(1, (int) round(((int) ($editing['auction_step_interval'] ?? 60)) / 60));
+                    ?>
+                    <div id="lot-auction-wrap" class="<?= ($editing['type'] ?? '') === 'auction' ? 'space-y-4' : 'hidden space-y-4' ?>">
+                        <div>
+                            <label class="block text-xs font-bold mb-2"><?= htmlspecialchars(t('profile.auction_kind')) ?></label>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                <?php foreach (['english' => t('auctions.kind_english'), 'dutch' => t('auctions.kind_dutch'), 'continuous' => t('auctions.kind_continuous')] as $kindKey => $kindLabel): ?>
+                                    <label class="flex items-start gap-2 rounded-xl border border-black/[0.08] dark:border-white/10 px-3 py-2.5 cursor-pointer bg-white dark:bg-white/[0.04]">
+                                        <input type="radio" name="auction_kind" value="<?= $kindKey ?>" class="mt-0.5 auction-kind-radio"
+                                               <?= $editKind === $kindKey ? 'checked' : '' ?>>
+                                        <span>
+                                            <span class="block text-xs font-semibold text-ink-800 dark:text-gray-100"><?= htmlspecialchars($kindLabel) ?></span>
+                                            <span class="block text-[11px] text-gray-400 mt-0.5"><?= htmlspecialchars(t('profile.auction_kind_hint_' . $kindKey)) ?></span>
+                                        </span>
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.bid_step')) ?></label>
+                                <input type="text" name="bid_step" id="lot-bid-step" class="<?= $input ?>" value="<?= htmlspecialchars((string) ($editing['bid_step'] ?? '1000')) ?>">
+                            </div>
+                            <div id="lot-auction-hours-wrap">
+                                <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.auction_duration')) ?></label>
+                                <select name="auction_hours" class="<?= $input ?>">
+                                    <?php foreach ([1 => '1 ч', 6 => '6 ч', 24 => '24 ч', 72 => '3 дн', 168 => '7 дн'] as $h => $hl): ?>
+                                        <option value="<?= $h ?>" <?= $editHours === $h ? 'selected' : '' ?>><?= htmlspecialchars($hl) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div id="lot-inactivity-wrap" class="hidden">
+                                <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.auction_inactivity')) ?></label>
+                                <select name="inactivity_hours" class="<?= $input ?>">
+                                    <?php foreach ([1 => '1 ч', 6 => '6 ч', 24 => '24 ч', 72 => '3 дн', 168 => '7 дн'] as $h => $hl): ?>
+                                        <option value="<?= $h ?>" <?= $editInactivity === $h ? 'selected' : '' ?>><?= htmlspecialchars($hl) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="lot-dutch-wrap" class="grid grid-cols-2 gap-4 hidden">
+                            <div>
+                                <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.auction_min_price')) ?></label>
+                                <input type="text" name="auction_min_price" class="<?= $input ?>" value="<?= htmlspecialchars((string) ($editing['auction_min_price'] ?? '')) ?>">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.auction_step_minutes')) ?></label>
+                                <input type="number" name="auction_step_minutes" min="1" class="<?= $input ?>" value="<?= htmlspecialchars((string) $editStepMinutes) ?>">
+                            </div>
+                        </div>
+                        <div id="lot-buy-now-wrap">
+                            <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.auction_buy_now')) ?></label>
+                            <input type="text" name="auction_buy_now" class="<?= $input ?>" value="<?= htmlspecialchars((string) ($editing['auction_buy_now'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('profile.auction_buy_now_ph')) ?>">
+                            <p class="text-[11px] text-gray-400 mt-1"><?= htmlspecialchars(t('profile.auction_buy_now_hint')) ?></p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.auction_reserve')) ?></label>
+                            <input type="text" name="auction_reserve" class="<?= $input ?>" value="<?= htmlspecialchars((string) ($editing['auction_reserve'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('profile.auction_reserve_ph')) ?>">
+                            <p class="text-[11px] text-gray-400 mt-1"><?= htmlspecialchars(t('profile.auction_reserve_hint')) ?></p>
                         </div>
                     </div>
                     <div>
@@ -740,6 +814,14 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         const categoryWrap = document.getElementById('lot-category-wrap');
                         const parentSelect = document.getElementById('lot-category-parent');
                         const categorySelect = document.getElementById('lot-category');
+                        const auctionWrap = document.getElementById('lot-auction-wrap');
+                        const priceLabel = document.getElementById('lot-price-label');
+                        const hoursWrap = document.getElementById('lot-auction-hours-wrap');
+                        const inactivityWrap = document.getElementById('lot-inactivity-wrap');
+                        const dutchWrap = document.getElementById('lot-dutch-wrap');
+                        const buyNowWrap = document.getElementById('lot-buy-now-wrap');
+                        const priceLabelDefault = <?= json_encode(t('profile.price_kzt')) ?>;
+                        const priceLabelAuction = <?= json_encode(t('profile.auction_start_price')) ?>;
                         const noPrice = ['free', 'exchange'];
                         const withCategory = <?= js_encode($productTypesWithCategory) ?>;
                         const tree = <?= js_encode($categoryTree) ?>;
@@ -868,6 +950,15 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                             });
                         });
 
+                        function syncAuctionKind() {
+                            const checked = document.querySelector('.auction-kind-radio:checked');
+                            const kind = checked ? checked.value : 'english';
+                            if (hoursWrap) hoursWrap.classList.toggle('hidden', kind === 'continuous');
+                            if (inactivityWrap) inactivityWrap.classList.toggle('hidden', kind !== 'continuous');
+                            if (dutchWrap) dutchWrap.classList.toggle('hidden', kind !== 'dutch');
+                            if (buyNowWrap) buyNowWrap.classList.toggle('hidden', kind === 'dutch');
+                        }
+
                         function syncPriceField() {
                             const type = typeSelect.value;
                             const hide = noPrice.indexOf(type) !== -1;
@@ -875,6 +966,11 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                             priceInput.required = !hide;
                             if (hide) priceInput.value = '';
                             if (locationWrap) locationWrap.classList.toggle('col-span-2', hide);
+                            if (priceLabel) priceLabel.textContent = type === 'auction' ? priceLabelAuction : priceLabelDefault;
+                            if (auctionWrap) {
+                                auctionWrap.classList.toggle('hidden', type !== 'auction');
+                                if (type === 'auction') syncAuctionKind();
+                            }
 
                             const isExchange = type === 'exchange';
                             if (exchangeWrap) exchangeWrap.classList.toggle('hidden', !isExchange);
@@ -928,6 +1024,9 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                             syncTypeCards();
                             syncPriceField();
                             syncCategoryField();
+                        });
+                        document.querySelectorAll('.auction-kind-radio').forEach(function (radio) {
+                            radio.addEventListener('change', syncAuctionKind);
                         });
                         syncTypeCards();
                         syncPriceField();

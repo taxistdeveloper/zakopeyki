@@ -266,21 +266,67 @@ $waBtnClass = 'w-full inline-flex items-center justify-center gap-2 h-12 px-4 ro
         </div>
     <?php endif; ?>
 
-    <?php if ($type === 'auction'): ?>
-        <div class="border border-red-200/80 dark:border-red-900/40 rounded-2xl p-5 space-y-3 bg-gradient-to-br from-red-50/80 to-orange-50/40 dark:from-red-950/30 dark:to-transparent">
-            <h3 class="font-display font-bold text-red-600 dark:text-red-400"><?= htmlspecialchars(t('product.place_bid')) ?></h3>
-            <p class="text-xs text-gray-500"><?= htmlspecialchars(t('product.bid_step', ['step' => number_format((int) $item['bid_step'], 0, '', ' ')])) ?><span class="font-semibold text-ink-800 dark:text-white"><?= number_format((int)($item['current_bid'] ?: $item['price']), 0, '', ' ') ?> ₸</span></p>
-            <?php if (Auth::check()): ?>
-                <form method="post" action="<?= ProductHelper::url('/auctions/' . $item['id'] . '/bid') ?>" class="flex gap-2">
+    <?php if ($type === 'auction'):
+        $kind = $item['auction_kind'] ?? 'english';
+        $calcPrice = (int) ($item['calculated_current_price'] ?? ($item['current_bid'] ?: $item['price']));
+        $minNext = $calcPrice + (int) ($item['bid_step'] ?? 0);
+        $isActive = ($item['status'] ?? '') === 'active';
+        $isSeller = $isOwnProduct;
+    ?>
+        <div class="border border-red-200/80 dark:border-red-900/40 rounded-2xl p-5 space-y-3 bg-gradient-to-br from-red-50/80 to-orange-50/40 dark:from-red-950/30 dark:to-transparent"
+             id="auction-panel"
+             data-auction-id="<?= (int) $item['id'] ?>"
+             data-kind="<?= htmlspecialchars($kind) ?>"
+             data-end-at="<?= htmlspecialchars((string) ($item['auction_end_at'] ?? '')) ?>"
+             data-anti-snipe="<?= (int) ($item['anti_snipe_seconds'] ?? 30) ?>"
+             data-live-url="<?= htmlspecialchars(ProductHelper::url('/auctions/' . $item['id'] . '/live')) ?>">
+            <div class="flex items-start justify-between gap-3">
+                <h3 class="font-display font-bold text-red-600 dark:text-red-400"><?= htmlspecialchars($kind === 'dutch' ? t('auctions.buy_now') : t('product.place_bid')) ?></h3>
+                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-lg bg-white/80 dark:bg-black/20 text-red-600"><?= htmlspecialchars(t('auctions.kind_' . $kind)) ?></span>
+            </div>
+            <div class="rounded-xl bg-white/70 dark:bg-black/20 px-4 py-3 text-center" id="auction-timer-box">
+                <p class="text-[10px] uppercase tracking-wider text-gray-400" id="auction-timer-label"><?= htmlspecialchars($kind === 'continuous' ? t('auctions.timer_open') : t('auctions.time_left')) ?></p>
+                <p class="font-mono text-2xl font-bold text-ink-900 dark:text-white" id="auction-timer">—</p>
+            </div>
+            <p class="text-xs text-gray-500">
+                <?= htmlspecialchars($kind === 'dutch' ? t('auctions.buyout_price') : t('auctions.current_price')) ?>:
+                <span class="font-semibold text-ink-800 dark:text-white" id="auction-current-price"><?= number_format($calcPrice, 0, '', ' ') ?> ₸</span>
+                <?php if ($kind !== 'dutch'): ?>
+                    · <?= htmlspecialchars(t('product.bid_step_only', ['step' => number_format((int) $item['bid_step'], 0, '', ' ')])) ?>
+                <?php endif; ?>
+            </p>
+            <?php if ($isActive && Auth::check() && !$isSeller): ?>
+                <form method="post" action="<?= ProductHelper::url('/auctions/' . $item['id'] . '/bid') ?>" class="flex gap-2" id="auction-bid-form">
                     <?= csrf_field() ?>
-                    <input type="text" name="amount" required placeholder="<?= htmlspecialchars(t('product.bid_amount')) ?>" class="ui-input flex-1 border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 h-11 px-3.5 rounded-xl text-sm">
-                    <button class="bg-red-600 hover:bg-red-700 text-white font-display font-bold px-5 rounded-xl text-xs uppercase tracking-wider transition"><?= htmlspecialchars(t('product.bid_btn')) ?></button>
+                    <?php if ($kind !== 'dutch'): ?>
+                        <input type="text" name="amount" id="auction-amount" required value="<?= $minNext ?>" placeholder="<?= htmlspecialchars(t('product.bid_amount')) ?>" class="ui-input flex-1 border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 h-11 px-3.5 rounded-xl text-sm">
+                    <?php else: ?>
+                        <input type="hidden" name="amount" value="<?= $calcPrice ?>">
+                    <?php endif; ?>
+                    <button class="bg-red-600 hover:bg-red-700 text-white font-display font-bold px-5 rounded-xl text-xs uppercase tracking-wider transition" id="auction-submit">
+                        <?= htmlspecialchars($kind === 'dutch' ? t('auctions.buy_now') : t('product.bid_btn')) ?>
+                    </button>
                 </form>
-            <?php else: ?>
+                <?php if (!empty($item['buy_now_price']) && $kind !== 'dutch'): ?>
+                    <form method="post" action="<?= ProductHelper::url('/auctions/' . $item['id'] . '/buy-now') ?>">
+                        <?= csrf_field() ?>
+                        <button class="w-full bg-accent-500 hover:bg-accent-400 text-white font-display font-bold h-11 rounded-xl text-xs uppercase tracking-wider transition">
+                            <?= htmlspecialchars(t('auctions.buy_now')) ?> · <?= number_format((int) $item['buy_now_price'], 0, '', ' ') ?> ₸
+                        </button>
+                    </form>
+                <?php endif; ?>
+            <?php elseif ($isActive && $isSeller && $kind === 'continuous'): ?>
+                <form method="post" action="<?= ProductHelper::url('/auctions/' . $item['id'] . '/accept') ?>">
+                    <?= csrf_field() ?>
+                    <button class="w-full bg-ink-900 hover:bg-ink-800 text-white font-display font-bold h-11 rounded-xl text-xs uppercase tracking-wider"><?= htmlspecialchars(t('auctions.accept_highest')) ?></button>
+                </form>
+            <?php elseif ($isActive && !Auth::check()): ?>
                 <a href="<?= ProductHelper::url('/login') ?>" class="inline-block text-sm font-semibold text-red-600 hover:underline"><?= htmlspecialchars(t('product.login_to_bid')) ?></a>
+            <?php elseif (!$isActive): ?>
+                <p class="text-sm font-semibold text-gray-500"><?= htmlspecialchars(t('auctions.closed')) ?></p>
             <?php endif; ?>
             <?php if (!empty($bids)): ?>
-                <div class="pt-2 space-y-1">
+                <div class="pt-2 space-y-1" id="auction-history">
                     <h4 class="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400 mb-2"><?= htmlspecialchars(t('product.bid_history')) ?></h4>
                     <?php foreach ($bids as $b): ?>
                         <div class="flex justify-between text-sm py-2 border-b border-red-100/80 dark:border-red-900/30 last:border-0">
@@ -291,6 +337,54 @@ $waBtnClass = 'w-full inline-flex items-center justify-center gap-2 h-12 px-4 ro
                 </div>
             <?php endif; ?>
         </div>
+        <script>
+        (function () {
+            var panel = document.getElementById('auction-panel');
+            if (!panel) return;
+            var timerEl = document.getElementById('auction-timer');
+            var labelEl = document.getElementById('auction-timer-label');
+            var box = document.getElementById('auction-timer-box');
+            var priceEl = document.getElementById('auction-current-price');
+            var kind = panel.getAttribute('data-kind');
+            var anti = parseInt(panel.getAttribute('data-anti-snipe') || '30', 10);
+            function pad(n) { return String(n).padStart(2, '0'); }
+            function fmt(ms) {
+                if (ms <= 0) return '00:00:00';
+                var s = Math.floor(ms / 1000);
+                return pad(Math.floor(s / 3600)) + ':' + pad(Math.floor((s % 3600) / 60)) + ':' + pad(s % 60);
+            }
+            function setEnd(endAt) {
+                panel.setAttribute('data-end-at', endAt || '');
+            }
+            function tick() {
+                var end = panel.getAttribute('data-end-at');
+                if (kind === 'continuous' && !end) {
+                    timerEl.textContent = '∞';
+                    return;
+                }
+                if (!end) { timerEl.textContent = '—'; return; }
+                var left = new Date(end.replace(' ', 'T')).getTime() - Date.now();
+                timerEl.textContent = fmt(left);
+                if (left > 0 && left <= anti * 1000) {
+                    box.classList.add('ring-2', 'ring-red-500');
+                    labelEl.textContent = <?= json_encode(t('auctions.sniping')) ?>;
+                }
+            }
+            tick();
+            setInterval(tick, 1000);
+            var liveUrl = panel.getAttribute('data-live-url');
+            setInterval(function () {
+                fetch(liveUrl, { headers: { 'Accept': 'application/json' } })
+                    .then(function (r) { return r.json(); })
+                    .then(function (res) {
+                        if (!res.ok || !res.data) return;
+                        var d = res.data;
+                        if (priceEl) priceEl.textContent = Number(d.current_price).toLocaleString('ru-RU') + ' ₸';
+                        if (d.end_at) setEnd(d.end_at);
+                    }).catch(function () {});
+            }, 4000);
+        })();
+        </script>
     <?php endif; ?>
 
     <?php if ($purchasable): ?>

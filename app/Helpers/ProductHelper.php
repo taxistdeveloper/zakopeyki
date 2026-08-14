@@ -265,7 +265,7 @@ class ProductHelper
     public static function formatPrice(array $item): string
     {
         if ($item['type'] === 'auction') {
-            $price = (int) ($item['current_bid'] ?: $item['price']);
+            $price = (int) ($item['calculated_current_price'] ?? ($item['current_bid'] ?: $item['price']));
             return Lang::getf('price.bid', [
                 'amount' => number_format($price, 0, '', ' '),
             ]);

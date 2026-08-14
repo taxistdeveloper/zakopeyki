@@ -14,6 +14,8 @@ class Wallet extends Model
     public const TYPE_ESCROW_HOLD = 'escrow_hold';
     public const TYPE_ESCROW_RELEASE = 'escrow_release';
     public const TYPE_ESCROW_REFUND = 'escrow_refund';
+    public const TYPE_AUCTION_HOLD = 'auction_hold';
+    public const TYPE_AUCTION_REFUND = 'auction_refund';
 
     public function __construct()
     {
@@ -180,6 +182,29 @@ class Wallet extends Model
     public function refundFromEscrow(int $buyerId, int $amount, int $orderId): void
     {
         $this->applyCredit($buyerId, $amount, self::TYPE_ESCROW_REFUND, $orderId, null);
+    }
+
+    /** Заморозить средства под ставку. @return array{ok: bool, error?: string} */
+    public function holdForAuction(int $userId, int $amount, int $productId): array
+    {
+        if ($amount <= 0) {
+            return ['ok' => true];
+        }
+        $after = $this->applyDebit($userId, $amount, self::TYPE_AUCTION_HOLD, null, 'auction:' . $productId);
+        if ($after === null) {
+            return ['ok' => false, 'error' => t('wallet.insufficient')];
+        }
+        return ['ok' => true];
+    }
+
+    /** Вернуть заморозку предыдущему лидеру. @return array{ok: bool, error?: string} */
+    public function refundAuctionHold(int $userId, int $amount, int $productId): array
+    {
+        if ($amount <= 0) {
+            return ['ok' => true];
+        }
+        $this->applyCredit($userId, $amount, self::TYPE_AUCTION_REFUND, null, 'auction:' . $productId);
+        return ['ok' => true];
     }
 
     /**

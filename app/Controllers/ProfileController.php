@@ -320,13 +320,19 @@ class ProfileController extends Controller
             default => null,
         };
 
+        $auction = $this->auctionFieldsFromPost($type, (int) preg_replace('/\D/', '', (string) $price));
+        if (!empty($auction['error'])) {
+            $_SESSION['error'] = $auction['error'];
+            $this->redirect('/profile?tab=lots');
+        }
+
         $whatsapp = ProductHelper::normalizeWhatsappInput($_POST['whatsapp'] ?? '');
         if (!$whatsapp['ok']) {
             $_SESSION['error'] = t('profile.whatsapp_invalid');
             $this->redirect('/profile?tab=lots');
         }
 
-        $productId = (new Product())->create([
+        $productId = (new Product())->create(array_merge([
             'user_id' => Auth::id(),
             'type' => $type,
             'category' => ProductHelper::normalizeCategory($_POST['category'] ?? null, $type),
@@ -339,7 +345,7 @@ class ProfileController extends Controller
             'whatsapp' => $whatsapp['value'],
             'image' => $resolved['cover'],
             'images' => $resolved['images'],
-        ]);
+        ], $auction['fields']));
 
         ActivityLogger::info('product.create', 'Добавлено объявление «' . $title . '»', 'product', $productId, [
             'type' => $type,
@@ -410,13 +416,19 @@ class ProfileController extends Controller
             default => null,
         };
 
+        $auction = $this->auctionFieldsFromPost($type, (int) preg_replace('/\D/', '', (string) $price), $product);
+        if (!empty($auction['error'])) {
+            $_SESSION['error'] = $auction['error'];
+            $this->redirect('/profile?tab=lots&edit=' . (int) $id);
+        }
+
         $whatsapp = ProductHelper::normalizeWhatsappInput($_POST['whatsapp'] ?? '');
         if (!$whatsapp['ok']) {
             $_SESSION['error'] = t('profile.whatsapp_invalid');
             $this->redirect('/profile?tab=lots&edit=' . (int) $id);
         }
 
-        $products->updateProduct((int) $id, [
+        $products->updateProduct((int) $id, array_merge([
             'type' => $type,
             'category' => ProductHelper::normalizeCategory($_POST['category'] ?? ($product['category'] ?? null), $type),
             'title' => $title,
@@ -429,7 +441,7 @@ class ProfileController extends Controller
             'image' => $resolved['cover'],
             'images' => $resolved['images'],
             'status' => $product['status'] ?? 'active',
-        ]);
+        ], $auction['fields']));
 
         ActivityLogger::info('product.update', 'Обновлено объявление «' . $title . '»', 'product', (int) $id, [
             'type' => $type,
@@ -670,5 +682,86 @@ class ProfileController extends Controller
         Auth::logout();
         $_SESSION['flash'] = t('flash.account_deleted');
         $this->redirect('/');
+    }
+
+    /**
+     * @return array{error?: string, fields: array<string, mixed>}
+     */
+    private function auctionFieldsFromPost(string $type, int $startPrice, ?array $existing = null): array
+    {
+        if ($type !== 'auction') {
+            return ['fields' => []];
+        }
+
+        $kind = (string) ($_POST['auction_kind'] ?? ($existing['auction_kind'] ?? 'english'));
+        if (!in_array($kind, ['english', 'dutch', 'continuous'], true)) {
+            $kind = 'english';
+        }
+
+        $bidStep = (int) preg_replace('/\D/', '', (string) ($_POST['bid_step'] ?? ($existing['bid_step'] ?? 1000)));
+        if ($bidStep < 1) {
+            $bidStep = 1000;
+        }
+
+        $hours = (int) ($_POST['auction_hours'] ?? 24);
+        if (!in_array($hours, [1, 6, 24, 72, 168], true)) {
+            $hours = 24;
+        }
+
+        $reserveRaw = preg_replace('/\D/', '', (string) ($_POST['auction_reserve'] ?? ''));
+        $reserve = $reserveRaw !== '' ? (int) $reserveRaw : null;
+
+        $buyNowRaw = preg_replace('/\D/', '', (string) ($_POST['auction_buy_now'] ?? ''));
+        $buyNow = $buyNowRaw !== '' ? (int) $buyNowRaw : null;
+        if ($kind !== 'dutch' && $buyNow !== null && $buyNow <= $startPrice) {
+            return ['error' => t('profile.auction_buy_now_invalid'), 'fields' => []];
+        }
+
+        $fields = [
+            'auction_kind' => $kind,
+            'bid_step' => $bidStep,
+            'anti_snipe_seconds' => 30,
+            'auto_extend_seconds' => 120,
+            'auction_start_at' => $existing['auction_start_at'] ?? date('Y-m-d H:i:s'),
+            'auction_reserve' => $reserve,
+            'auction_buy_now' => $kind === 'dutch' ? null : $buyNow,
+            'auction_min_price' => null,
+            'auction_step_interval' => null,
+            'auction_end_at' => null,
+            'inactivity_timeout_seconds' => null,
+        ];
+
+        if ($kind === 'continuous') {
+            $inactivityHours = (int) ($_POST['inactivity_hours'] ?? 24);
+            if (!in_array($inactivityHours, [1, 6, 24, 72, 168], true)) {
+                $inactivityHours = 24;
+            }
+            $fields['inactivity_timeout_seconds'] = $inactivityHours * 3600;
+            $fields['auction_end_at'] = null;
+        } else {
+            $startTs = !empty($existing['auction_start_at'])
+                ? strtotime((string) $existing['auction_start_at'])
+                : time();
+            $fields['auction_end_at'] = date('Y-m-d H:i:s', $startTs + ($hours * 3600));
+        }
+
+        if ($kind === 'dutch') {
+            $minPrice = (int) preg_replace('/\D/', '', (string) ($_POST['auction_min_price'] ?? '0'));
+            if ($minPrice < 1 || $minPrice >= $startPrice) {
+                return ['error' => t('profile.auction_min_invalid'), 'fields' => []];
+            }
+            $intervalMin = (int) ($_POST['auction_step_minutes'] ?? 1);
+            if ($intervalMin < 1) {
+                $intervalMin = 1;
+            }
+            $fields['auction_min_price'] = $minPrice;
+            $fields['auction_step_interval'] = $intervalMin * 60;
+        }
+
+        if ($startPrice < 1) {
+            return ['error' => t('profile.auction_start_required'), 'fields' => []];
+        }
+
+        return ['fields' => $fields];
     }
 }

@@ -25,7 +25,11 @@ class ProductController extends Controller
 
         $bids = [];
         if ($product['type'] === 'auction') {
-            $bids = (new Product())->recentBids((int) $id);
+            $auction = (new \App\Services\AuctionService())->details((int) $id);
+            if ($auction) {
+                $product = array_merge($product, $auction);
+                $bids = $auction['bids'] ?? [];
+            }
         }
 
         $notifications = [];
