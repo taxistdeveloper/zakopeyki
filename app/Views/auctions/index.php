@@ -81,7 +81,11 @@ $kindTone = [
                                         <?= \App\Helpers\IconHelper::svg('eye', 'w-3.5 h-3.5') ?>
                                         <?= (int) ($item['view_count'] ?? 0) ?>
                                     </span>
-                                    <span><?= htmlspecialchars(t('product.bids_n', ['n' => (string) (int) ($item['bid_count'] ?? 0)])) ?></span>
+                                    <span class="inline-flex items-center gap-1">
+                                        <?= htmlspecialchars(t('product.bids_label')) ?>
+                                        <?= \App\Helpers\IconHelper::svg('gavel', 'w-3.5 h-3.5') ?>
+                                        <?= (int) ($item['bid_count'] ?? 0) ?>
+                                    </span>
                                 </p>
                                 <?php if ($buyNow > 0 && $kind !== 'dutch'): ?>
                                     <p class="text-[11px] font-semibold text-accent-600 dark:text-accent-400 mt-0.5"><?= htmlspecialchars(t('auctions.buy_now')) ?>: <?= number_format($buyNow, 0, '', ' ') ?> ₸</p>
