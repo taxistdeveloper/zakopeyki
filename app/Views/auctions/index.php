@@ -40,8 +40,9 @@ $kindTone = [
                 $buyNow = (int) ($item['buy_now_price'] ?? 0);
                 $isOwn = Auth::check() && (int) ($item['user_id'] ?? 0) === (int) Auth::id();
             ?>
-                <article class="bg-white dark:bg-white/[0.04] rounded-2xl border border-black/[0.06] dark:border-white/10 overflow-hidden hover:shadow-soft transition duration-300 flex flex-col h-full group"
+                <article class="bg-white dark:bg-white/[0.04] rounded-2xl border border-black/[0.06] dark:border-white/10 overflow-hidden hover:shadow-soft transition duration-300 flex flex-col h-full group cursor-pointer"
                          data-auction-card
+                         data-card-href="<?= htmlspecialchars($showUrl) ?>"
                          data-auction-id="<?= (int) $item['id'] ?>"
                          data-kind="<?= htmlspecialchars($kind) ?>"
                          data-end-at="<?= htmlspecialchars((string) $endAt) ?>"
