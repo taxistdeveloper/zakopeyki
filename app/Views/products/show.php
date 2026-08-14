@@ -305,7 +305,7 @@ $waBtnClass = 'w-full inline-flex items-center justify-center gap-2 h-12 px-4 ro
             </div>
             <div class="rounded-xl bg-white/70 dark:bg-black/20 px-4 py-3 text-center" id="auction-timer-box">
                 <p class="text-[10px] uppercase tracking-wider text-gray-400" id="auction-timer-label"><?= htmlspecialchars($kind === 'continuous' ? t('auctions.timer_open') : t('auctions.time_left')) ?></p>
-                <p class="font-mono text-2xl font-bold text-ink-900 dark:text-white" id="auction-timer">—</p>
+                <p class="font-mono text-2xl font-bold text-ink-900 dark:text-white" id="auction-timer"><?= $kind === 'continuous' ? '∞' : '—' ?></p>
             </div>
             <p class="text-xs text-gray-500">
                 <?= htmlspecialchars($kind === 'dutch' ? t('auctions.buyout_price') : t('auctions.current_price')) ?>:
@@ -380,7 +380,7 @@ $waBtnClass = 'w-full inline-flex items-center justify-center gap-2 h-12 px-4 ro
             }
             function tick() {
                 var end = panel.getAttribute('data-end-at');
-                if (kind === 'continuous' && !end) {
+                if (kind === 'continuous') {
                     timerEl.textContent = '∞';
                     return;
                 }

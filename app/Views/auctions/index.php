@@ -81,7 +81,7 @@ $kindTone = [
                             </div>
                             <div class="rounded-xl bg-ink-50 dark:bg-white/5 px-3 py-2 text-center">
                                 <p class="text-[10px] uppercase tracking-wider text-gray-400" data-auction-timer-label><?= htmlspecialchars($kind === 'continuous' ? t('auctions.timer_open') : t('auctions.time_left')) ?></p>
-                                <p class="font-mono text-sm font-bold text-ink-800 dark:text-white" data-auction-timer>—</p>
+                                <p class="font-mono text-sm font-bold text-ink-800 dark:text-white" data-auction-timer><?= $kind === 'continuous' ? '∞' : '—' ?></p>
                             </div>
                             <?php if ($isOwn): ?>
                                 <p class="text-[11px] text-center text-gray-500 px-1"><?= htmlspecialchars(t('auctions.own_no_bid')) ?></p>
@@ -130,15 +130,7 @@ $kindTone = [
                 var label = card.querySelector('[data-auction-timer-label]');
                 if (!timer) return;
                 if (kind === 'continuous') {
-                    var last = card.getAttribute('data-last-bid');
-                    var timeout = parseInt(card.getAttribute('data-inactivity') || '0', 10);
-                    if (!last || !timeout) {
-                        timer.textContent = '∞';
-                        return;
-                    }
-                    var closeAt = new Date(last.replace(' ', 'T')).getTime() + timeout * 1000;
-                    var left = closeAt - Date.now();
-                    timer.textContent = left > 0 ? fmt(left) : '00:00:00';
+                    timer.textContent = '∞';
                     return;
                 }
                 var end = card.getAttribute('data-end-at');
