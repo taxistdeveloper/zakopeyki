@@ -562,6 +562,35 @@ class Product extends Model
         return $stmt->fetchAll();
     }
 
+    public function countBids(int $productId): int
+    {
+        $stmt = $this->db->prepare('SELECT COUNT(*) FROM bids WHERE product_id = ?');
+        $stmt->execute([$productId]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    /**
+     * @param list<int> $productIds
+     * @return array<int, int>
+     */
+    public function countBidsForProducts(array $productIds): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $productIds))));
+        if ($ids === []) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $this->db->prepare(
+            "SELECT product_id, COUNT(*) AS cnt FROM bids WHERE product_id IN ({$placeholders}) GROUP BY product_id"
+        );
+        $stmt->execute($ids);
+        $out = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $out[(int) $row['product_id']] = (int) $row['cnt'];
+        }
+        return $out;
+    }
+
     public function viewCount(int $productId): int
     {
         $stmt = $this->db->prepare('SELECT view_count FROM products WHERE id = ?');

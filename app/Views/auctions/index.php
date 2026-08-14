@@ -75,9 +75,12 @@ $kindTone = [
                             <div>
                                 <p class="text-[10px] uppercase tracking-wider text-gray-400"><?= htmlspecialchars($kind === 'dutch' ? t('auctions.buyout_price') : t('auctions.current_price')) ?></p>
                                 <p class="font-display font-bold text-lg text-ink-900 dark:text-white" data-auction-price><?= number_format($price, 0, '', ' ') ?> ₸</p>
-                                <p class="mt-0.5 inline-flex items-center gap-1 text-[11px] text-gray-400">
-                                    <?= \App\Helpers\IconHelper::svg('eye', 'w-3.5 h-3.5') ?>
-                                    <?= htmlspecialchars(t('product.views_n', ['n' => number_format((int) ($item['view_count'] ?? 0), 0, '', ' ')])) ?>
+                                <p class="mt-0.5 inline-flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-gray-400">
+                                    <span><?= htmlspecialchars(t('product.bids_n', ['n' => (string) (int) ($item['bid_count'] ?? 0)])) ?></span>
+                                    <span class="inline-flex items-center gap-1">
+                                        <?= \App\Helpers\IconHelper::svg('eye', 'w-3.5 h-3.5') ?>
+                                        <?= htmlspecialchars(t('product.views_n', ['n' => number_format((int) ($item['view_count'] ?? 0), 0, '', ' ')])) ?>
+                                    </span>
                                 </p>
                                 <?php if ($buyNow > 0 && $kind !== 'dutch'): ?>
                                     <p class="text-[11px] font-semibold text-accent-600 dark:text-accent-400 mt-0.5"><?= htmlspecialchars(t('auctions.buy_now')) ?>: <?= number_format($buyNow, 0, '', ' ') ?> ₸</p>

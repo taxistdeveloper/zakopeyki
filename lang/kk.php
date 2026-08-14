@@ -354,6 +354,7 @@ return [
         'condition' => 'Күйі',
         'city' => 'Қала',
         'reviews_n' => ':n пікір',
+        'bids_n' => ':n ставка',
         'views_n' => ':n қаралым',
         'views_hint' => 'Осы лотты қанша бірегей келуші ашты',
         'more_photos' => '+:n',

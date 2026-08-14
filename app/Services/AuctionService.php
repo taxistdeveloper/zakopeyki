@@ -65,7 +65,12 @@ class AuctionService
     public function listActive(): array
     {
         $items = $this->products->allActive('auction');
-        return array_map(fn (array $row) => $this->enrich($row), $items);
+        $counts = $this->products->countBidsForProducts(array_map(static fn ($row) => (int) $row['id'], $items));
+        return array_map(function (array $row) use ($counts) {
+            $data = $this->enrich($row);
+            $data['bid_count'] = $counts[(int) $row['id']] ?? 0;
+            return $data;
+        }, $items);
     }
 
     public function details(int $productId): ?array
@@ -76,6 +81,7 @@ class AuctionService
         }
         $data = $this->enrich($auction);
         $data['bids'] = $this->products->recentBids($productId, 20);
+        $data['bid_count'] = $this->products->countBids($productId);
         return $data;
     }
 
