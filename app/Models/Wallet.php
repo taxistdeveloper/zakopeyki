@@ -16,6 +16,7 @@ class Wallet extends Model
     public const TYPE_ESCROW_REFUND = 'escrow_refund';
     public const TYPE_AUCTION_HOLD = 'auction_hold';
     public const TYPE_AUCTION_REFUND = 'auction_refund';
+    public const TYPE_LISTING_FEE = 'listing_fee';
 
     public function __construct()
     {
@@ -182,6 +183,46 @@ class Wallet extends Model
     public function refundFromEscrow(int $buyerId, int $amount, int $orderId): void
     {
         $this->applyCredit($buyerId, $amount, self::TYPE_ESCROW_REFUND, $orderId, null);
+    }
+
+    /**
+     * Списать плату за публикацию объявления.
+     * @return array{ok: bool, balance?: int, error?: string}
+     */
+    public function chargeListingFee(int $userId, int $amount, ?int $productId = null): array
+    {
+        if ($amount <= 0) {
+            return ['ok' => true, 'balance' => $this->balance($userId)];
+        }
+
+        $ownTx = !$this->db->inTransaction();
+        try {
+            if ($ownTx) {
+                $this->db->beginTransaction();
+            }
+            $newBalance = $this->applyDebit(
+                $userId,
+                $amount,
+                self::TYPE_LISTING_FEE,
+                null,
+                $productId ? ('listing:' . $productId) : 'listing'
+            );
+            if ($newBalance === null) {
+                if ($ownTx) {
+                    $this->db->rollBack();
+                }
+                return ['ok' => false, 'error' => t('wallet.insufficient')];
+            }
+            if ($ownTx) {
+                $this->db->commit();
+            }
+            return ['ok' => true, 'balance' => $newBalance];
+        } catch (\Throwable $e) {
+            if ($ownTx && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            return ['ok' => false, 'error' => t('wallet.op_failed')];
+        }
     }
 
     /** Заморозить средства под ставку. @return array{ok: bool, error?: string} */

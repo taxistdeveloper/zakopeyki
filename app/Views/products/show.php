@@ -448,15 +448,19 @@ $waBtnClass = 'w-full inline-flex items-center justify-center gap-2 h-12 px-4 ro
                 </div>
             <?php endif; ?>
         </div>
-    <?php elseif ($type === 'free' || $type === 'exchange'): ?>
+    <?php elseif ($type === 'free' || $type === 'exchange' || $type === 'service'): ?>
         <div class="space-y-2.5">
             <?php if ($type === 'free'): ?>
                 <p class="text-sm text-center text-gray-500 bg-violet-50/80 dark:bg-violet-950/20 border border-violet-100 dark:border-violet-900/40 rounded-2xl px-4 py-3">
                     <?= htmlspecialchars(t('product.free_contact')) ?>
                 </p>
-            <?php else: ?>
+            <?php elseif ($type === 'exchange'): ?>
                 <p class="text-sm text-center text-gray-500 bg-indigo-50/80 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 rounded-2xl px-4 py-3">
                     <?= htmlspecialchars(t('product.exchange_contact')) ?>
+                </p>
+            <?php else: ?>
+                <p class="text-sm text-center text-gray-500 bg-emerald-50/80 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/40 rounded-2xl px-4 py-3">
+                    <?= htmlspecialchars(t('product.service_contact')) ?>
                 </p>
             <?php endif; ?>
             <div class="grid grid-cols-2 gap-2.5">

@@ -13,6 +13,7 @@ use App\Models\Notification;
 use App\Models\Product;
 use App\Models\Review;
 use App\Models\User;
+use App\Models\Wallet;
 
 class ProfileController extends Controller
 {
@@ -102,6 +103,9 @@ class ProfileController extends Controller
             'followerUsers' => $followerUsers,
             'followingIds' => $followingIds,
             'editProduct' => $editProduct,
+            'prefLotType' => isset(ProductHelper::TYPES[(string) ($_GET['type'] ?? '')])
+                ? (string) $_GET['type']
+                : '',
             'types' => array_combine(
                 array_keys(ProductHelper::TYPES),
                 array_map(static fn (string $type) => ProductHelper::label($type), array_keys(ProductHelper::TYPES))
@@ -313,10 +317,11 @@ class ProfileController extends Controller
             $this->redirect('/profile?tab=lots');
         }
 
-        $price = in_array($type, ['free', 'exchange'], true) ? 0 : ($_POST['price'] ?? 0);
+        $price = in_array($type, ['free', 'exchange', 'service'], true) ? 0 : ($_POST['price'] ?? 0);
         $priceLabel = match ($type) {
             'free' => 'Бесплатно',
             'exchange' => 'Обмен',
+            'service' => t('price.negotiable'),
             default => null,
         };
 
@@ -330,6 +335,18 @@ class ProfileController extends Controller
         if (!$whatsapp['ok']) {
             $_SESSION['error'] = t('profile.whatsapp_invalid');
             $this->redirect('/profile?tab=lots');
+        }
+
+        $serviceFee = 0;
+        if ($type === 'service' && !Auth::isStaff()) {
+            $serviceFee = ProductHelper::SERVICE_LISTING_FEE;
+            $wallet = new Wallet();
+            if ($wallet->balance(Auth::id()) < $serviceFee) {
+                $_SESSION['error'] = t('flash.service_fee_need', [
+                    'amount' => Wallet::formatMoney($serviceFee),
+                ]);
+                $this->redirect('/profile?tab=lots&type=service');
+            }
         }
 
         $productId = (new Product())->create(array_merge([
@@ -347,9 +364,23 @@ class ProfileController extends Controller
             'images' => $resolved['images'],
         ], $auction['fields']));
 
+        if ($serviceFee > 0) {
+            $pay = (new Wallet())->chargeListingFee(Auth::id(), $serviceFee, (int) $productId);
+            if (!$pay['ok']) {
+                $products = new Product();
+                $products->deleteProductFiles($resolved['images'] ?? []);
+                $products->delete((int) $productId);
+                $_SESSION['error'] = $pay['error'] ?? t('flash.service_fee_need', [
+                    'amount' => Wallet::formatMoney($serviceFee),
+                ]);
+                $this->redirect('/profile?tab=lots&type=service');
+            }
+        }
+
         ActivityLogger::info('product.create', 'Добавлено объявление «' . $title . '»', 'product', $productId, [
             'type' => $type,
             'price' => $price,
+            'listing_fee' => $serviceFee,
         ]);
 
         $bonusResult = (new \App\Models\Bonus())->awardListing((int) Auth::id(), (int) $productId);
@@ -361,7 +392,9 @@ class ProfileController extends Controller
             t('seller.notify_product', ['name' => $sellerName, 'title' => $shortTitle])
         );
 
-        $_SESSION['flash'] = t('flash.lot_published');
+        $_SESSION['flash'] = $serviceFee > 0
+            ? t('flash.service_published', ['amount' => Wallet::formatMoney($serviceFee)])
+            : t('flash.lot_published');
         if (!empty($bonusResult['ok']) && empty($bonusResult['skipped']) && ($bonusResult['amount'] ?? 0) > 0) {
             $_SESSION['flash'] .= ' ' . t('bonuses.flash_listing', [
                 'amount' => \App\Models\Bonus::format((int) $bonusResult['amount']),
@@ -408,11 +441,12 @@ class ProfileController extends Controller
             $this->redirect('/profile?tab=lots&edit=' . (int) $id);
         }
 
-        $noPrice = in_array($type, ['free', 'exchange'], true);
+        $noPrice = in_array($type, ['free', 'exchange', 'service'], true);
         $price = $noPrice ? 0 : ($_POST['price'] ?? $product['price']);
         $priceLabel = match ($type) {
             'free' => 'Бесплатно',
             'exchange' => 'Обмен',
+            'service' => t('price.negotiable'),
             default => null,
         };
 

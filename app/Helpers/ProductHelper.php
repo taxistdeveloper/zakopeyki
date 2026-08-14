@@ -66,6 +66,9 @@ class ProductHelper
 
     public const PRODUCT_TYPES_WITH_CATEGORY = ['used', 'new'];
 
+    /** Плата за публикацию объявления в разделе «Услуги» (KZT). */
+    public const SERVICE_LISTING_FEE = 100;
+
     public static function label(string $type): string
     {
         $key = 'types.' . $type;
@@ -239,7 +242,7 @@ class ProductHelper
     }
 
     /** Типы объявлений, которые можно оплатить на платформе. */
-    public const PURCHASABLE_TYPES = ['used', 'new', 'service', 'gig', 'course'];
+    public const PURCHASABLE_TYPES = ['used', 'new', 'gig', 'course'];
 
     public static function isPurchasable(array $item): bool
     {
@@ -277,6 +280,10 @@ class ProductHelper
 
         if ($item['type'] === 'exchange') {
             return Lang::get('price.exchange');
+        }
+
+        if ($item['type'] === 'service') {
+            return Lang::get('price.negotiable');
         }
 
         if ((int) $item['price'] === 0) {

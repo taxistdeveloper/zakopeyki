@@ -605,11 +605,15 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                     <h2 class="font-display text-xl font-bold"><?= htmlspecialchars($editing ? t('profile.edit_lot') : t('profile.create_lot')) ?></h2>
                 </div>
                 <form method="post" action="<?= $editing ? ProductHelper::url('/profile/lots/' . $editing['id'] . '/update') : ProductHelper::url('/profile/store') ?>" enctype="multipart/form-data" class="space-y-4 mb-8 p-5 rounded-2xl border border-black/[0.06] dark:border-white/10 bg-brand-50/30 dark:bg-white/[0.03]">
-                    <?php $noPriceTypes = ['free', 'exchange']; ?>
+                    <?php $noPriceTypes = ['free', 'exchange', 'service']; ?>
                     <?php
                     $productTypesWithCategory = ProductHelper::PRODUCT_TYPES_WITH_CATEGORY;
                     $categoryTree = $productCategoryTree ?? ProductHelper::PRODUCT_CATEGORY_TREE;
-                    $currentType = $editing['type'] ?? 'used';
+                    $currentType = $editing['type'] ?? '';
+                    if ($currentType === '') {
+                        $pref = $prefLotType ?? '';
+                        $currentType = isset(ProductHelper::TYPES[$pref]) ? $pref : 'used';
+                    }
                     [$currentParent, $currentChild] = ProductHelper::parseCategory($editing['category'] ?? null);
                     $showCategory = in_array($currentType, $productTypesWithCategory, true);
                     ?>
@@ -711,12 +715,15 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                     <div id="lot-free-note" class="<?= ($editing['type'] ?? '') === 'free' ? '' : 'hidden' ?> text-xs font-semibold text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/20 border border-violet-100 dark:border-violet-800/40 rounded-xl px-3 py-2">
                         <?= htmlspecialchars(t('profile.free_price_note')) ?>
                     </div>
+                    <div id="lot-service-note" class="<?= $currentType === 'service' && !$editing ? '' : 'hidden' ?> text-xs font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/40 rounded-xl px-3 py-2">
+                        <?= htmlspecialchars(t('profile.service_board_note', ['amount' => \App\Models\Wallet::formatMoney(ProductHelper::SERVICE_LISTING_FEE)])) ?>
+                    </div>
                     <div class="grid grid-cols-2 gap-4">
-                        <div id="lot-price-wrap">
+                        <div id="lot-price-wrap" class="<?= in_array($currentType, $noPriceTypes, true) ? 'hidden' : '' ?>">
                             <label class="block text-xs font-bold mb-1" id="lot-price-label"><?= htmlspecialchars(t('profile.price_kzt')) ?></label>
-                            <input type="text" name="price" id="lot-price" required class="<?= $input ?>" value="<?= htmlspecialchars((string) ($editing['price'] ?? '')) ?>">
+                            <input type="text" name="price" id="lot-price" <?= in_array($currentType, $noPriceTypes, true) ? '' : 'required' ?> class="<?= $input ?>" value="<?= htmlspecialchars((string) ($editing['price'] ?? '')) ?>">
                         </div>
-                        <div id="lot-location-wrap" class="<?= in_array($editing['type'] ?? '', $noPriceTypes, true) ? 'col-span-2' : '' ?>">
+                        <div id="lot-location-wrap" class="<?= in_array($currentType, $noPriceTypes, true) ? 'col-span-2' : '' ?>">
                             <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.location')) ?></label>
                             <input type="text" name="location" class="<?= $input ?>" value="<?= htmlspecialchars($editing['location'] ?? 'Караганда') ?>">
                         </div>
@@ -811,6 +818,11 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         const exchangeWrap = document.getElementById('lot-exchange-wrap');
                         const exchangeInput = document.getElementById('lot-exchange-for');
                         const freeNote = document.getElementById('lot-free-note');
+                        const serviceNote = document.getElementById('lot-service-note');
+                        const submitBtn = document.getElementById('lot-submit-btn');
+                        const isEditingLot = <?= $editing ? 'true' : 'false' ?>;
+                        const publishLabel = <?= json_encode(t('profile.publish')) ?>;
+                        const publishServiceLabel = <?= json_encode(t('profile.publish_service', ['amount' => \App\Models\Wallet::formatMoney(ProductHelper::SERVICE_LISTING_FEE)])) ?>;
                         const categoryWrap = document.getElementById('lot-category-wrap');
                         const parentSelect = document.getElementById('lot-category-parent');
                         const categorySelect = document.getElementById('lot-category');
@@ -822,7 +834,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         const buyNowWrap = document.getElementById('lot-buy-now-wrap');
                         const priceLabelDefault = <?= json_encode(t('profile.price_kzt')) ?>;
                         const priceLabelAuction = <?= json_encode(t('profile.auction_start_price')) ?>;
-                        const noPrice = ['free', 'exchange'];
+                        const noPrice = ['free', 'exchange', 'service'];
                         const withCategory = <?= js_encode($productTypesWithCategory) ?>;
                         const tree = <?= js_encode($categoryTree) ?>;
                         const labels = <?= js_encode(array_combine(array_keys($categoryTree), array_map(
@@ -979,6 +991,10 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                                 if (!isExchange) exchangeInput.value = '';
                             }
                             if (freeNote) freeNote.classList.toggle('hidden', type !== 'free');
+                            if (serviceNote) serviceNote.classList.toggle('hidden', type !== 'service' || isEditingLot);
+                            if (submitBtn && !isEditingLot) {
+                                submitBtn.textContent = type === 'service' ? publishServiceLabel : publishLabel;
+                            }
                         }
 
                         function fillSubcategories(keepValue) {
@@ -1064,7 +1080,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         </div>
                     </div>
                     <div class="flex flex-col sm:flex-row gap-2">
-                        <button type="submit" class="flex-1 bg-accent-500 hover:bg-accent-400 text-white font-display font-bold py-3.5 rounded-2xl text-xs uppercase tracking-wider transition shadow-soft">
+                        <button type="submit" id="lot-submit-btn" class="flex-1 bg-accent-500 hover:bg-accent-400 text-white font-display font-bold py-3.5 rounded-2xl text-xs uppercase tracking-wider transition shadow-soft">
                             <?= htmlspecialchars($editing ? t('profile.update') : t('profile.publish')) ?>
                         </button>
                         <?php if ($editing): ?>
