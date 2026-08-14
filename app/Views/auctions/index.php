@@ -38,6 +38,7 @@ $kindTone = [
                 $price = (int) ($item['calculated_current_price'] ?? ($item['current_bid'] ?: $item['price']));
                 $endAt = $item['auction_end_at'] ?? null;
                 $buyNow = (int) ($item['buy_now_price'] ?? 0);
+                $isOwn = Auth::check() && (int) ($item['user_id'] ?? 0) === (int) Auth::id();
             ?>
                 <article class="bg-white dark:bg-white/[0.04] rounded-2xl border border-black/[0.06] dark:border-white/10 overflow-hidden hover:shadow-soft transition duration-300 flex flex-col h-full group"
                          data-auction-card
@@ -68,6 +69,12 @@ $kindTone = [
                                 <p class="text-[10px] uppercase tracking-wider text-gray-400" data-auction-timer-label><?= htmlspecialchars($kind === 'continuous' ? t('auctions.timer_open') : t('auctions.time_left')) ?></p>
                                 <p class="font-mono text-sm font-bold text-ink-800 dark:text-white" data-auction-timer>—</p>
                             </div>
+                            <?php if ($isOwn): ?>
+                                <p class="text-[11px] text-center text-gray-500 px-1"><?= htmlspecialchars(t('auctions.own_no_bid')) ?></p>
+                                <a href="<?= $showUrl ?>" class="inline-flex items-center justify-center w-full font-display font-bold text-[11px] py-2.5 rounded-xl border border-black/10 dark:border-white/15 text-ink-800 dark:text-gray-200 uppercase tracking-wider">
+                                    <?= htmlspecialchars(t('auctions.your_lot')) ?>
+                                </a>
+                            <?php else: ?>
                             <?php if ($kind === 'dutch' || $buyNow > 0): ?>
                                 <?php if (Auth::check()): ?>
                                     <form method="post" action="<?= ProductHelper::url('/auctions/' . $item['id'] . '/buy-now') ?>">
@@ -86,6 +93,7 @@ $kindTone = [
                             <a href="<?= $showUrl ?>" class="inline-flex items-center justify-center w-full font-display font-bold text-[11px] py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white uppercase tracking-wider">
                                 <?= htmlspecialchars(t('card.bid')) ?>
                             </a>
+                            <?php endif; ?>
                             <?php endif; ?>
                         </div>
                     </div>

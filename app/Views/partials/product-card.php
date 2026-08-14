@@ -58,8 +58,10 @@ if ($type === 'course') {
     $primaryClass = 'bg-emerald-600 hover:bg-emerald-700 text-white';
 } elseif ($type === 'auction') {
     $primaryHref = $showUrl;
-    $primaryLabel = t('card.bid');
-    $primaryClass = 'bg-red-600 hover:bg-red-700 text-white';
+    $primaryLabel = $isOwn ? t('auctions.your_lot') : t('card.bid');
+    $primaryClass = $isOwn
+        ? 'border border-black/10 dark:border-white/15 text-ink-800 dark:text-gray-200 bg-transparent'
+        : 'bg-red-600 hover:bg-red-700 text-white';
 } elseif ($type === 'exchange') {
     $primaryHref = $showUrl;
     $primaryLabel = t('card.exchange');

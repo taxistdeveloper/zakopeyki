@@ -315,11 +315,14 @@ $waBtnClass = 'w-full inline-flex items-center justify-center gap-2 h-12 px-4 ro
                         </button>
                     </form>
                 <?php endif; ?>
-            <?php elseif ($isActive && $isSeller && $kind === 'continuous'): ?>
+            <?php elseif ($isActive && $isSeller): ?>
+                <p class="text-sm text-gray-600 dark:text-gray-300 bg-white/70 dark:bg-black/20 rounded-xl px-3 py-2.5"><?= htmlspecialchars(t('auctions.own_no_bid')) ?></p>
+                <?php if ($kind === 'continuous'): ?>
                 <form method="post" action="<?= ProductHelper::url('/auctions/' . $item['id'] . '/accept') ?>">
                     <?= csrf_field() ?>
                     <button class="w-full bg-ink-900 hover:bg-ink-800 text-white font-display font-bold h-11 rounded-xl text-xs uppercase tracking-wider"><?= htmlspecialchars(t('auctions.accept_highest')) ?></button>
                 </form>
+                <?php endif; ?>
             <?php elseif ($isActive && !Auth::check()): ?>
                 <a href="<?= ProductHelper::url('/login') ?>" class="inline-block text-sm font-semibold text-red-600 hover:underline"><?= htmlspecialchars(t('product.login_to_bid')) ?></a>
             <?php elseif (!$isActive): ?>
