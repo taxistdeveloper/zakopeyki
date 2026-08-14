@@ -246,6 +246,11 @@ $waBtnClass = 'w-full inline-flex items-center justify-center gap-2 h-12 px-4 ro
             $hasRating = !$isAuctionLot && ($sr['count'] ?? 0) > 0;
             ?>
                 <p class="mt-1 inline-flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-ink-700 dark:text-gray-300">
+                    <span class="inline-flex items-center gap-1 text-gray-500" title="<?= htmlspecialchars(t('product.views_hint')) ?>">
+                        <span><?= htmlspecialchars(t('product.views_label')) ?></span>
+                        <?= IconHelper::svg('eye', 'w-3.5 h-3.5') ?>
+                        <span><?= (int) $viewCount ?></span>
+                    </span>
                     <?php if ($isAuctionLot): ?>
                     <span class="inline-flex items-center gap-1 font-semibold">
                         <?= htmlspecialchars(t('product.bids_n', ['n' => (string) $bidCount])) ?>
@@ -257,10 +262,6 @@ $waBtnClass = 'w-full inline-flex items-center justify-center gap-2 h-12 px-4 ro
                         <span class="text-gray-400">(<?= htmlspecialchars(t('product.reviews_n', ['n' => (int) $sr['count']])) ?>)</span>
                     </span>
                     <?php endif; ?>
-                    <span class="inline-flex items-center gap-1 text-gray-500" title="<?= htmlspecialchars(t('product.views_hint')) ?>">
-                        <?= IconHelper::svg('eye', 'w-3.5 h-3.5') ?>
-                        <span><?= htmlspecialchars(t('product.views_n', ['n' => number_format($viewCount, 0, '', ' ')])) ?></span>
-                    </span>
                 </p>
         </div>
     </div>
