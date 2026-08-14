@@ -47,6 +47,8 @@ class ProductController extends Controller
         $sellerRating = (new Review())->statsFor((int) $product['user_id']);
         $similar = (new Product())->similar($product, 8);
 
+        $product['view_count'] = (new Product())->recordView((int) $id, (int) $product['user_id']);
+
         $this->view('products/show', [
             'title' => $product['title'],
             'currentNav' => '',

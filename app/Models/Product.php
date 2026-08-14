@@ -51,6 +51,17 @@ class Product extends Model
             $this->ensureColumn('last_bid_at', 'ALTER TABLE products ADD COLUMN last_bid_at DATETIME DEFAULT NULL AFTER inactivity_timeout_seconds');
             $this->ensureColumn('winner_user_id', 'ALTER TABLE products ADD COLUMN winner_user_id INT UNSIGNED DEFAULT NULL AFTER last_bid_at');
             $this->ensureColumn('winning_bid_id', 'ALTER TABLE products ADD COLUMN winning_bid_id INT UNSIGNED DEFAULT NULL AFTER winner_user_id');
+            $this->ensureColumn('view_count', 'ALTER TABLE products ADD COLUMN view_count INT UNSIGNED NOT NULL DEFAULT 0 AFTER winning_bid_id');
+
+            $this->db->exec(
+                "CREATE TABLE IF NOT EXISTS product_views (
+                    product_id INT UNSIGNED NOT NULL,
+                    visitor_key CHAR(32) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (product_id, visitor_key),
+                    INDEX idx_views_product (product_id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+            );
 
             $statusCol = $this->db->query("SHOW COLUMNS FROM products LIKE 'status'")->fetch();
             $type = strtolower((string) ($statusCol['Type'] ?? ''));
@@ -549,5 +560,41 @@ class Product extends Model
         $stmt->bindValue(2, $limit, \PDO::PARAM_INT);
         $stmt->execute();
         return $stmt->fetchAll();
+    }
+
+    public function viewCount(int $productId): int
+    {
+        $stmt = $this->db->prepare('SELECT view_count FROM products WHERE id = ?');
+        $stmt->execute([$productId]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    /**
+     * Уникальный просмотр лота (один посетитель = один счёт). Владелец лота не учитывается.
+     */
+    public function recordView(int $productId, int $ownerId): int
+    {
+        if (\App\Core\Auth::check() && (int) \App\Core\Auth::id() === $ownerId) {
+            return $this->viewCount($productId);
+        }
+
+        try {
+            $key = \App\Models\SiteVisit::currentVisitorKey();
+            if ($key === '') {
+                return $this->viewCount($productId);
+            }
+            $ins = $this->db->prepare(
+                'INSERT IGNORE INTO product_views (product_id, visitor_key) VALUES (?, ?)'
+            );
+            $ins->execute([$productId, $key]);
+            if ($ins->rowCount() > 0) {
+                $upd = $this->db->prepare('UPDATE products SET view_count = view_count + 1 WHERE id = ?');
+                $upd->execute([$productId]);
+            }
+        } catch (\Throwable $e) {
+            // analytics must not break the page
+        }
+
+        return $this->viewCount($productId);
     }
 }

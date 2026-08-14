@@ -239,11 +239,23 @@ $waBtnClass = 'w-full inline-flex items-center justify-center gap-2 h-12 px-4 ro
             <?php if ($purchasable): ?>
                 <p class="mt-1 text-[13px] font-semibold text-emerald-600 dark:text-emerald-400"><?= htmlspecialchars(t('product.in_stock')) ?></p>
             <?php endif; ?>
-            <?php if (($sr['count'] ?? 0) > 0): ?>
-                <p class="mt-1 inline-flex items-center gap-1 text-[13px] text-ink-700 dark:text-gray-300">
-                    <span class="text-amber-500"><?= IconHelper::star('w-3.5 h-3.5', true) ?></span>
-                    <span class="font-semibold"><?= htmlspecialchars(number_format((float) $sr['avg'], 1)) ?></span>
-                    <span class="text-gray-400">(<?= htmlspecialchars(t('product.reviews_n', ['n' => (int) $sr['count']])) ?>)</span>
+            <?php
+            $viewCount = (int) ($item['view_count'] ?? 0);
+            $hasRating = ($sr['count'] ?? 0) > 0;
+            ?>
+            <?php if ($hasRating || $viewCount >= 0): ?>
+                <p class="mt-1 inline-flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-ink-700 dark:text-gray-300">
+                    <?php if ($hasRating): ?>
+                    <span class="inline-flex items-center gap-1">
+                        <span class="text-amber-500"><?= IconHelper::star('w-3.5 h-3.5', true) ?></span>
+                        <span class="font-semibold"><?= htmlspecialchars(number_format((float) $sr['avg'], 1)) ?></span>
+                        <span class="text-gray-400">(<?= htmlspecialchars(t('product.reviews_n', ['n' => (int) $sr['count']])) ?>)</span>
+                    </span>
+                    <?php endif; ?>
+                    <span class="inline-flex items-center gap-1 text-gray-500" title="<?= htmlspecialchars(t('product.views_hint')) ?>">
+                        <?= IconHelper::svg('eye', 'w-3.5 h-3.5') ?>
+                        <span><?= htmlspecialchars(t('product.views_n', ['n' => number_format($viewCount, 0, '', ' ')])) ?></span>
+                    </span>
                 </p>
             <?php endif; ?>
         </div>

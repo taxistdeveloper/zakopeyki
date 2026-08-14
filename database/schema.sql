@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS products (
     last_bid_at DATETIME DEFAULT NULL,
     winner_user_id INT UNSIGNED DEFAULT NULL,
     winning_bid_id INT UNSIGNED DEFAULT NULL,
+    view_count INT UNSIGNED NOT NULL DEFAULT 0,
     location VARCHAR(150) NOT NULL DEFAULT 'Караганда',
     whatsapp VARCHAR(20) DEFAULT NULL,
     image VARCHAR(255) DEFAULT NULL,

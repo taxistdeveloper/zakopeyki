@@ -354,6 +354,8 @@ return [
         'condition' => 'Күйі',
         'city' => 'Қала',
         'reviews_n' => ':n пікір',
+        'views_n' => ':n қаралым',
+        'views_hint' => 'Осы лотты қанша бірегей келуші ашты',
         'more_photos' => '+:n',
         'listed' => 'Күні',
         'no_description' => 'Сипаттама көрсетілмеген',

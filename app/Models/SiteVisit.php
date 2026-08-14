@@ -93,6 +93,15 @@ class SiteVisit extends Model
         }
     }
 
+    public static function currentVisitorKey(): string
+    {
+        try {
+            return (new self())->resolveVisitorKey();
+        } catch (Throwable) {
+            return '';
+        }
+    }
+
     private function resolveVisitorKey(): string
     {
         $cookie = 'zk_vid';
