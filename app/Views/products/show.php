@@ -252,7 +252,7 @@ $waBtnClass = 'w-full inline-flex items-center justify-center gap-2 h-12 px-4 ro
                         <span><?= (int) $viewCount ?></span>
                     </span>
                     <?php if ($isAuctionLot): ?>
-                    <span class="inline-flex items-center gap-1 font-semibold">
+                    <span class="inline-flex items-center gap-1 text-gray-500">
                         <?= htmlspecialchars(t('product.bids_label')) ?>
                         <?= IconHelper::svg('gavel', 'w-3.5 h-3.5') ?>
                         <?= (int) $bidCount ?>
