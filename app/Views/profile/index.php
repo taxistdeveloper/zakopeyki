@@ -718,13 +718,24 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                     <div id="lot-service-note" class="<?= $currentType === 'service' && !$editing ? '' : 'hidden' ?> text-xs font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/40 rounded-xl px-3 py-2">
                         <?= htmlspecialchars(t('profile.service_board_note', ['amount' => \App\Models\Wallet::formatMoney(ProductHelper::SERVICE_LISTING_FEE)])) ?>
                     </div>
+                    <div id="lot-gig-note" class="<?= $currentType === 'gig' && !$editing ? '' : 'hidden' ?> text-xs font-semibold text-teal-800 dark:text-teal-200 bg-teal-50 dark:bg-teal-900/20 border border-teal-100 dark:border-teal-800/40 rounded-xl px-3 py-2">
+                        <?= htmlspecialchars(t('gigs.profile_note')) ?>
+                    </div>
+                    <div id="lot-gig-category-wrap" class="<?= $currentType === 'gig' ? '' : 'hidden' ?>">
+                        <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('gigs.field_category')) ?></label>
+                        <select name="gig_category_id" id="lot-gig-category" class="<?= $input ?>" <?= $currentType === 'gig' ? 'required' : 'disabled' ?>>
+                            <?php foreach (($microCategories ?? []) as $cat): ?>
+                                <option value="<?= (int) $cat['id'] ?>"><?= htmlspecialchars($cat['name']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div id="lot-price-wrap" class="<?= in_array($currentType, $noPriceTypes, true) ? 'hidden' : '' ?>">
                             <label class="block text-xs font-bold mb-1" id="lot-price-label"><?= htmlspecialchars(t('profile.price_kzt')) ?></label>
                             <input type="text" name="price" id="lot-price" <?= in_array($currentType, $noPriceTypes, true) ? '' : 'required' ?> class="<?= $input ?>" value="<?= htmlspecialchars((string) ($editing['price'] ?? '')) ?>">
                         </div>
                         <div id="lot-location-wrap" class="<?= in_array($currentType, $noPriceTypes, true) ? 'col-span-2' : '' ?>">
-                            <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.location')) ?></label>
+                            <label class="block text-xs font-bold mb-1" id="lot-location-label"><?= htmlspecialchars($currentType === 'gig' ? t('gigs.field_address') : t('profile.location')) ?></label>
                             <input type="text" name="location" class="<?= $input ?>" value="<?= htmlspecialchars($editing['location'] ?? 'Караганда') ?>">
                         </div>
                     </div>
@@ -802,7 +813,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                             <p class="text-[11px] text-gray-400 mt-1"><?= htmlspecialchars(t('profile.auction_reserve_hint')) ?></p>
                         </div>
                     </div>
-                    <div>
+                    <div id="lot-whatsapp-wrap">
                         <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.whatsapp')) ?></label>
                         <input type="tel" name="whatsapp" inputmode="tel" maxlength="20" class="<?= $input ?>"
                                placeholder="<?= htmlspecialchars(t('profile.whatsapp_ph')) ?>"
@@ -819,10 +830,21 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         const exchangeInput = document.getElementById('lot-exchange-for');
                         const freeNote = document.getElementById('lot-free-note');
                         const serviceNote = document.getElementById('lot-service-note');
+                        const gigNote = document.getElementById('lot-gig-note');
+                        const gigCategoryWrap = document.getElementById('lot-gig-category-wrap');
+                        const gigCategory = document.getElementById('lot-gig-category');
+                        const photosSection = document.getElementById('lot-photos-section');
+                        const whatsappWrap = document.getElementById('lot-whatsapp-wrap');
+                        const locationLabel = document.getElementById('lot-location-label');
+                        const locationInput = locationWrap ? locationWrap.querySelector('input[name="location"]') : null;
                         const submitBtn = document.getElementById('lot-submit-btn');
                         const isEditingLot = <?= $editing ? 'true' : 'false' ?>;
                         const publishLabel = <?= json_encode(t('profile.publish')) ?>;
                         const publishServiceLabel = <?= json_encode(t('profile.publish_service', ['amount' => \App\Models\Wallet::formatMoney(ProductHelper::SERVICE_LISTING_FEE)])) ?>;
+                        const publishGigLabel = <?= json_encode(t('gigs.create_btn')) ?>;
+                        const locationLabelDefault = <?= json_encode(t('profile.location')) ?>;
+                        const locationLabelGig = <?= json_encode(t('gigs.field_address')) ?>;
+                        const priceLabelGig = <?= json_encode(t('gigs.field_price')) ?>;
                         const categoryWrap = document.getElementById('lot-category-wrap');
                         const parentSelect = document.getElementById('lot-category-parent');
                         const categorySelect = document.getElementById('lot-category');
@@ -978,7 +1000,11 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                             priceInput.required = !hide;
                             if (hide) priceInput.value = '';
                             if (locationWrap) locationWrap.classList.toggle('col-span-2', hide);
-                            if (priceLabel) priceLabel.textContent = type === 'auction' ? priceLabelAuction : priceLabelDefault;
+                            if (priceLabel) {
+                                if (type === 'auction') priceLabel.textContent = priceLabelAuction;
+                                else if (type === 'gig') priceLabel.textContent = priceLabelGig;
+                                else priceLabel.textContent = priceLabelDefault;
+                            }
                             if (auctionWrap) {
                                 auctionWrap.classList.toggle('hidden', type !== 'auction');
                                 if (type === 'auction') syncAuctionKind();
@@ -992,8 +1018,21 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                             }
                             if (freeNote) freeNote.classList.toggle('hidden', type !== 'free');
                             if (serviceNote) serviceNote.classList.toggle('hidden', type !== 'service' || isEditingLot);
+                            const isGig = type === 'gig';
+                            if (gigNote) gigNote.classList.toggle('hidden', !isGig || isEditingLot);
+                            if (gigCategoryWrap) gigCategoryWrap.classList.toggle('hidden', !isGig);
+                            if (gigCategory) {
+                                gigCategory.disabled = !isGig;
+                                gigCategory.required = isGig;
+                            }
+                            if (photosSection) photosSection.classList.toggle('hidden', isGig);
+                            if (whatsappWrap) whatsappWrap.classList.toggle('hidden', isGig);
+                            if (locationLabel) locationLabel.textContent = isGig ? locationLabelGig : locationLabelDefault;
+                            if (locationInput) locationInput.required = isGig;
                             if (submitBtn && !isEditingLot) {
-                                submitBtn.textContent = type === 'service' ? publishServiceLabel : publishLabel;
+                                if (type === 'service') submitBtn.textContent = publishServiceLabel;
+                                else if (isGig) submitBtn.textContent = publishGigLabel;
+                                else submitBtn.textContent = publishLabel;
                             }
                         }
 
@@ -1049,7 +1088,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         syncCategoryField();
                     })();
                     </script>
-                    <div>
+                    <div id="lot-photos-section" class="<?= $currentType === 'gig' ? 'hidden' : '' ?>">
                         <label class="block text-xs font-bold mb-1">
                             <?= htmlspecialchars(t('profile.photos')) ?> <span class="text-red-500">*</span>
                             <span class="font-medium text-gray-400 normal-case">· до 3 шт.</span>
@@ -1081,7 +1120,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                     </div>
                     <div class="flex flex-col sm:flex-row gap-2">
                         <button type="submit" id="lot-submit-btn" class="flex-1 bg-accent-500 hover:bg-accent-400 text-white font-display font-bold py-3.5 rounded-2xl text-xs uppercase tracking-wider transition shadow-soft">
-                            <?= htmlspecialchars($editing ? t('profile.update') : t('profile.publish')) ?>
+                            <?= htmlspecialchars($editing ? t('profile.update') : ($currentType === 'gig' ? t('gigs.create_btn') : t('profile.publish'))) ?>
                         </button>
                         <?php if ($editing): ?>
                             <a href="<?= ProductHelper::url('/profile?tab=lots') ?>" class="sm:w-auto text-center px-5 py-3.5 rounded-2xl border border-black/[0.08] dark:border-white/10 text-xs font-bold uppercase tracking-wider hover:bg-white/60 dark:hover:bg-white/5 transition">

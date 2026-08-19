@@ -38,6 +38,8 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
             'microCategories' => $microCategories ?? [],
             'walletBalance' => $walletBalance ?? 0,
             'walletHeld' => $walletHeld ?? 0,
+            'flash' => $flash ?? null,
+            'error' => $error ?? null,
         ]); ?>
     <?php elseif ($hasCategoryFilters): ?>
         <form method="get" action="<?= ProductHelper::url('/catalog/' . rawurlencode($section)) ?>"

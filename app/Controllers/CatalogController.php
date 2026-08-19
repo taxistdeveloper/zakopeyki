@@ -101,6 +101,9 @@ class CatalogController extends Controller
             'microCategories' => $microCategories,
             'walletBalance' => $walletBalance,
             'walletHeld' => $walletHeld,
+            'flash' => $_SESSION['flash'] ?? null,
+            'error' => $_SESSION['error'] ?? null,
         ]);
+        unset($_SESSION['flash'], $_SESSION['error']);
     }
 }

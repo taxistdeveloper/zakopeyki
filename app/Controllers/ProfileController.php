@@ -14,6 +14,7 @@ use App\Models\Product;
 use App\Models\Review;
 use App\Models\User;
 use App\Models\Wallet;
+use App\Services\MicroTaskService;
 
 class ProfileController extends Controller
 {
@@ -111,6 +112,7 @@ class ProfileController extends Controller
                 array_map(static fn (string $type) => ProductHelper::label($type), array_keys(ProductHelper::TYPES))
             ),
             'productCategoryTree' => ProductHelper::PRODUCT_CATEGORY_TREE,
+            'microCategories' => MicroTaskService::make()->categories(),
             'notifications' => $notifications,
             'unread' => $unread,
             'reviews' => $reviews,
@@ -302,6 +304,11 @@ class ProfileController extends Controller
             $this->redirect('/profile?tab=lots');
         }
 
+        if ($type === 'gig') {
+            $this->storeGig($title, $description);
+            return;
+        }
+
         $exchangeFor = trim($_POST['exchange_for'] ?? '');
         if ($type === 'exchange' && $exchangeFor === '') {
             $_SESSION['error'] = t('flash.exchange_for_required');
@@ -403,6 +410,32 @@ class ProfileController extends Controller
         $this->redirect('/profile?tab=lots');
     }
 
+    private function storeGig(string $title, string $description): void
+    {
+        $result = MicroTaskService::make()->createTask(Auth::id(), [
+            'title' => $title,
+            'description' => $description,
+            'category_id' => (int) ($_POST['gig_category_id'] ?? 0),
+            'address' => trim((string) ($_POST['location'] ?? '')),
+            'initial_price' => (float) preg_replace('/[^\d.]/', '', (string) ($_POST['price'] ?? '0')),
+        ]);
+
+        if (!$result['success']) {
+            $_SESSION['error'] = implode(' ', $result['errors'] ?? [t('gigs.err_create')]);
+            $this->redirect('/profile?tab=lots&type=gig');
+        }
+
+        ActivityLogger::info('micro_task.create', 'Поручение биржи «' . $title . '»', 'micro_task', (int) $result['task_id'], [
+            'pin' => $result['pin'] ?? null,
+        ]);
+
+        $_SESSION['flash'] = t('gigs.created_profile', [
+            'pin' => (string) ($result['pin'] ?? ''),
+            'id' => (string) ($result['task_id'] ?? ''),
+        ]);
+        $this->redirect('/catalog/gigs');
+    }
+
     public function updateLot(string $id): void
     {
         Auth::requireLogin();
@@ -415,8 +448,12 @@ class ProfileController extends Controller
         }
 
         $type = $_POST['type'] ?? $product['type'];
-        if (!isset(ProductHelper::TYPES[$type])) {
-            $type = $product['type'];
+        if (!isset(ProductHelper::TYPES[$type]) || $type === 'gig') {
+            $type = $product['type'] === 'gig' ? 'used' : $product['type'];
+        }
+        if ($type === 'gig') {
+            $_SESSION['error'] = t('gigs.err_edit_as_product');
+            $this->redirect('/profile?tab=lots');
         }
 
         $title = trim($_POST['title'] ?? '');

@@ -6,12 +6,20 @@ use App\Models\Wallet;
 $microCategories = $microCategories ?? [];
 $walletBalance = (int) ($walletBalance ?? 0);
 $walletHeld = (int) ($walletHeld ?? 0);
+$flash = $flash ?? null;
+$error = $error ?? null;
 $loggedIn = Auth::check();
 $loginUrl = ProductHelper::url('/login');
 $apiBase = ProductHelper::url('/api/v1/micro-tasks');
 $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm';
 ?>
 <div id="gigs-board" class="space-y-5" data-api="<?= htmlspecialchars($apiBase) ?>" data-login="<?= htmlspecialchars($loginUrl) ?>" data-auth="<?= $loggedIn ? '1' : '0' ?>">
+    <?php if (!empty($flash)): ?>
+        <div class="bg-emerald-50 dark:bg-emerald-900/25 text-emerald-800 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800/40 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars((string) $flash) ?></div>
+    <?php endif; ?>
+    <?php if (!empty($error)): ?>
+        <div class="bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border border-red-100 dark:border-red-900/40 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars((string) $error) ?></div>
+    <?php endif; ?>
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white/90 dark:bg-white/[0.04] p-4 shadow-soft">
         <div class="flex flex-wrap items-center gap-2">
             <span class="text-xs text-gray-500"><?= htmlspecialchars(t('gigs.wallet')) ?>:</span>
@@ -29,7 +37,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
             </select>
             <button type="button" id="gigs-refresh" class="bg-ink-100 dark:bg-white/10 hover:bg-ink-200 text-ink-800 dark:text-white font-display font-bold text-xs uppercase tracking-wider px-4 py-2.5 rounded-xl transition"><?= htmlspecialchars(t('gigs.refresh')) ?></button>
             <?php if ($loggedIn): ?>
-                <button type="button" id="gigs-open-create" class="bg-emerald-600 hover:bg-emerald-500 text-white font-display font-bold text-xs uppercase tracking-wider px-4 py-2.5 rounded-xl transition"><?= htmlspecialchars(t('gigs.publish')) ?></button>
+                <a href="<?= ProductHelper::url('/profile?tab=lots&type=gig') ?>" class="inline-flex items-center bg-emerald-600 hover:bg-emerald-500 text-white font-display font-bold text-xs uppercase tracking-wider px-4 py-2.5 rounded-xl transition"><?= htmlspecialchars(t('gigs.publish')) ?></a>
             <?php else: ?>
                 <a href="<?= htmlspecialchars($loginUrl) ?>" class="inline-flex items-center bg-emerald-600 hover:bg-emerald-500 text-white font-display font-bold text-xs uppercase tracking-wider px-4 py-2.5 rounded-xl transition"><?= htmlspecialchars(t('gigs.publish')) ?></a>
             <?php endif; ?>
