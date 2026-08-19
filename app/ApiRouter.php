@@ -52,6 +52,10 @@ class ApiRouter
             $this->completionController->complete((int) $matches[1]);
         }
 
+        if ($method === 'POST' && preg_match('#^/api/v1/micro-tasks/(\d+)/cancel$#', $path, $matches)) {
+            $this->taskController->cancel((int) $matches[1]);
+        }
+
         http_response_code(404);
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode(['success' => false, 'error' => 'Эндпоинт не найден']);

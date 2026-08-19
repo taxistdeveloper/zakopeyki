@@ -423,6 +423,80 @@ class MicroTaskService
     }
 
     /**
+     * Отмена поручения заказчиком: возврат бюджета и залогов откликов.
+     *
+     * @return array{success: bool, error?: string, message?: string}
+     */
+    public function cancelTask(int $customerId, int $taskId): array
+    {
+        try {
+            $this->pdo->beginTransaction();
+
+            $stmt = $this->pdo->prepare('SELECT * FROM `micro_tasks` WHERE `id` = :id FOR UPDATE');
+            $stmt->execute(['id' => $taskId]);
+            $task = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$task) {
+                $this->pdo->rollBack();
+                return ['success' => false, 'error' => t('gigs.err_not_found')];
+            }
+
+            if ((int) $task['customer_id'] !== $customerId) {
+                $this->pdo->rollBack();
+                return ['success' => false, 'error' => t('gigs.err_cancel_forbidden')];
+            }
+
+            if (!in_array($task['status'], ['open', 'locked', 'in_progress'], true)) {
+                $this->pdo->rollBack();
+                return ['success' => false, 'error' => t('gigs.err_cancel_status')];
+            }
+
+            $heldAmount = (int) ($task['initial_price'] ?? 0);
+
+            $stmtHeld = $this->pdo->prepare("
+                SELECT `executor_id` FROM `micro_task_offers`
+                WHERE `task_id` = :task_id AND `response_fee_status` = 'held'
+            ");
+            $stmtHeld->execute(['task_id' => $taskId]);
+            $heldExecutors = $stmtHeld->fetchAll(PDO::FETCH_COLUMN);
+
+            foreach ($heldExecutors as $executorId) {
+                $this->walletService->refundResponseFee((int) $executorId, $taskId);
+            }
+
+            $this->pdo->prepare("
+                UPDATE `micro_task_offers`
+                SET `status` = IF(`status` = 'pending', 'rejected', `status`)
+                WHERE `task_id` = :task_id
+            ")->execute(['task_id' => $taskId]);
+
+            if ($heldAmount > 0) {
+                $this->walletService->refundCustomerBudget($customerId, $taskId, $heldAmount);
+            }
+
+            $this->acquiringService->releaseCustomerFunds($taskId);
+
+            $this->pdo->prepare("
+                UPDATE `micro_tasks`
+                SET `status` = 'cancelled'
+                WHERE `id` = :id
+            ")->execute(['id' => $taskId]);
+
+            $this->pdo->commit();
+
+            return [
+                'success' => true,
+                'message' => t('gigs.cancel_ok'),
+            ];
+        } catch (Exception $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            return ['success' => false, 'error' => t('gigs.err_cancel')];
+        }
+    }
+
+    /**
      * @return list<array<string, mixed>>
      */
     public function listOpen(?int $categoryId = null): array

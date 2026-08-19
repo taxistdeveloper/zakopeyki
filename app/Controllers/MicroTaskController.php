@@ -95,9 +95,28 @@ class MicroTaskController extends BaseApiController
                 'address' => $row['address'],
                 'expires_at' => $row['expires_at'],
                 'offers' => $offers,
+                'can_cancel' => $role === 'customer' && in_array((string) $row['status'], ['open', 'locked', 'in_progress'], true),
             ];
         }
 
         $this->jsonResponse(true, ['tasks' => $items]);
+    }
+
+    public function cancel(int $id): void
+    {
+        $userId = $this->getAuthenticatedUserId();
+        if ($userId <= 0) {
+            $this->jsonResponse(false, null, t('gigs.err_auth'), 401);
+        }
+
+        $result = $this->taskService->cancelTask($userId, $id);
+
+        if (!$result['success']) {
+            $this->jsonResponse(false, null, (string) ($result['error'] ?? t('gigs.err_cancel')), 400);
+        }
+
+        $this->jsonResponse(true, [
+            'message' => $result['message'] ?? t('gigs.cancel_ok'),
+        ]);
     }
 }

@@ -185,12 +185,15 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                     const completeBtn = (t.role === 'executor' && (t.status === 'locked' || t.status === 'in_progress'))
                         ? '<button type="button" class="text-xs font-bold text-emerald-600" data-pin-task="' + t.id + '"><?= htmlspecialchars(t('gigs.enter_pin'), ENT_QUOTES) ?></button>'
                         : '';
+                    const cancelBtn = t.can_cancel
+                        ? '<button type="button" class="text-xs font-bold text-red-600" data-cancel-task="' + t.id + '"><?= htmlspecialchars(t('gigs.cancel_btn'), ENT_QUOTES) ?></button>'
+                        : '';
                     const offers = (t.offers || []).map(function (o) {
                         return '<button type="button" class="text-xs bg-brand-600 text-white px-2 py-1 rounded-lg" data-select-offer="' + o.id + '"><?= htmlspecialchars(t('gigs.accept_offer'), ENT_QUOTES) ?> ' + money(o.proposed_price) + '</button>';
                     }).join(' ');
                     return '<div class="rounded-xl border border-black/10 dark:border-white/10 p-3 text-sm flex flex-wrap items-center justify-between gap-2">' +
                         '<span><strong>' + escapeHtml(t.title) + '</strong> · ' + escapeHtml(t.status) + pin + '</span>' +
-                        '<span class="flex gap-2">' + offers + completeBtn + '</span></div>';
+                        '<span class="flex flex-wrap gap-2">' + offers + completeBtn + cancelBtn + '</span></div>';
                 }).join('');
             mineEl.querySelectorAll('[data-pin-task]').forEach(function (btn) {
                 btn.addEventListener('click', function () { openPin(Number(btn.dataset.pinTask)); });
@@ -198,6 +201,20 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
             mineEl.querySelectorAll('[data-select-offer]').forEach(function (btn) {
                 btn.addEventListener('click', async function () {
                     const res = await fetch(api + '/offers/' + btn.dataset.selectOffer + '/select', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        body: '{}'
+                    });
+                    const json = await res.json();
+                    alert(json.success ? json.data.message : json.error);
+                    loadTasks();
+                    loadMine();
+                });
+            });
+            mineEl.querySelectorAll('[data-cancel-task]').forEach(function (btn) {
+                btn.addEventListener('click', async function () {
+                    if (!confirm('<?= htmlspecialchars(t('gigs.cancel_confirm'), ENT_QUOTES) ?>')) return;
+                    const res = await fetch(api + '/' + btn.dataset.cancelTask + '/cancel', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                         body: '{}'
