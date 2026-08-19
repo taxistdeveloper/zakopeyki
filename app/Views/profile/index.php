@@ -1241,11 +1241,15 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
 
                     const form = root.closest('form');
                     form?.addEventListener('submit', function (e) {
+                        const typeSelect = document.getElementById('lot-type');
+                        if (typeSelect && typeSelect.value === 'gig') {
+                            return;
+                        }
                         syncFileInput();
                         syncHidden();
                         if (!items.length) {
                             e.preventDefault();
-                            alert('Добавьте хотя бы одно фото');
+                            alert(<?= json_encode(t('flash.need_photo')) ?>);
                         }
                     });
 
