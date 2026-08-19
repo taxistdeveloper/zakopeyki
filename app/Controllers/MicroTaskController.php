@@ -96,6 +96,7 @@ class MicroTaskController extends BaseApiController
                 'expires_at' => $row['expires_at'],
                 'offers' => $offers,
                 'can_cancel' => $role === 'customer' && in_array((string) $row['status'], ['open', 'locked', 'in_progress'], true),
+                'can_delete' => $role === 'customer',
             ];
         }
 
@@ -117,6 +118,24 @@ class MicroTaskController extends BaseApiController
 
         $this->jsonResponse(true, [
             'message' => $result['message'] ?? t('gigs.cancel_ok'),
+        ]);
+    }
+
+    public function delete(int $id): void
+    {
+        $userId = $this->getAuthenticatedUserId();
+        if ($userId <= 0) {
+            $this->jsonResponse(false, null, t('gigs.err_auth'), 401);
+        }
+
+        $result = $this->taskService->deleteTask($userId, $id);
+
+        if (!$result['success']) {
+            $this->jsonResponse(false, null, (string) ($result['error'] ?? t('gigs.err_delete')), 400);
+        }
+
+        $this->jsonResponse(true, [
+            'message' => $result['message'] ?? t('gigs.delete_ok'),
         ]);
     }
 }

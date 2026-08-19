@@ -188,12 +188,15 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                     const cancelBtn = t.can_cancel
                         ? '<button type="button" class="text-xs font-bold text-red-600" data-cancel-task="' + t.id + '"><?= htmlspecialchars(t('gigs.cancel_btn'), ENT_QUOTES) ?></button>'
                         : '';
+                    const deleteBtn = t.can_delete
+                        ? '<button type="button" class="text-xs font-bold text-gray-500 hover:text-red-600" data-delete-task="' + t.id + '"><?= htmlspecialchars(t('gigs.delete_btn'), ENT_QUOTES) ?></button>'
+                        : '';
                     const offers = (t.offers || []).map(function (o) {
                         return '<button type="button" class="text-xs bg-brand-600 text-white px-2 py-1 rounded-lg" data-select-offer="' + o.id + '"><?= htmlspecialchars(t('gigs.accept_offer'), ENT_QUOTES) ?> ' + money(o.proposed_price) + '</button>';
                     }).join(' ');
                     return '<div class="rounded-xl border border-black/10 dark:border-white/10 p-3 text-sm flex flex-wrap items-center justify-between gap-2">' +
                         '<span><strong>' + escapeHtml(t.title) + '</strong> · ' + escapeHtml(t.status) + pin + '</span>' +
-                        '<span class="flex flex-wrap gap-2">' + offers + completeBtn + cancelBtn + '</span></div>';
+                        '<span class="flex flex-wrap gap-2">' + offers + completeBtn + cancelBtn + deleteBtn + '</span></div>';
                 }).join('');
             mineEl.querySelectorAll('[data-pin-task]').forEach(function (btn) {
                 btn.addEventListener('click', function () { openPin(Number(btn.dataset.pinTask)); });
@@ -215,6 +218,20 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                 btn.addEventListener('click', async function () {
                     if (!confirm('<?= htmlspecialchars(t('gigs.cancel_confirm'), ENT_QUOTES) ?>')) return;
                     const res = await fetch(api + '/' + btn.dataset.cancelTask + '/cancel', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        body: '{}'
+                    });
+                    const json = await res.json();
+                    alert(json.success ? json.data.message : json.error);
+                    loadTasks();
+                    loadMine();
+                });
+            });
+            mineEl.querySelectorAll('[data-delete-task]').forEach(function (btn) {
+                btn.addEventListener('click', async function () {
+                    if (!confirm('<?= htmlspecialchars(t('gigs.delete_confirm'), ENT_QUOTES) ?>')) return;
+                    const res = await fetch(api + '/' + btn.dataset.deleteTask + '/delete', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                         body: '{}'

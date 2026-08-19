@@ -497,6 +497,61 @@ class MicroTaskService
     }
 
     /**
+     * Удаление поручения из «Мои поручения». Активное сначала отменяется с возвратом денег.
+     *
+     * @return array{success: bool, error?: string, message?: string}
+     */
+    public function deleteTask(int $customerId, int $taskId): array
+    {
+        $stmt = $this->pdo->prepare('SELECT `id`, `customer_id`, `status` FROM `micro_tasks` WHERE `id` = :id LIMIT 1');
+        $stmt->execute(['id' => $taskId]);
+        $task = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$task) {
+            return ['success' => false, 'error' => t('gigs.err_not_found')];
+        }
+
+        if ((int) $task['customer_id'] !== $customerId) {
+            return ['success' => false, 'error' => t('gigs.err_delete_forbidden')];
+        }
+
+        if (in_array((string) $task['status'], ['open', 'locked', 'in_progress'], true)) {
+            $cancelled = $this->cancelTask($customerId, $taskId);
+            if (!$cancelled['success']) {
+                return $cancelled;
+            }
+        }
+
+        try {
+            $this->pdo->beginTransaction();
+
+            $lock = $this->pdo->prepare('SELECT `id`, `customer_id` FROM `micro_tasks` WHERE `id` = :id FOR UPDATE');
+            $lock->execute(['id' => $taskId]);
+            $row = $lock->fetch(PDO::FETCH_ASSOC);
+            if (!$row || (int) $row['customer_id'] !== $customerId) {
+                $this->pdo->rollBack();
+                return ['success' => false, 'error' => t('gigs.err_not_found')];
+            }
+
+            $this->pdo->prepare('DELETE FROM `micro_task_offers` WHERE `task_id` = :task_id')->execute(['task_id' => $taskId]);
+            $this->pdo->prepare('DELETE FROM `micro_tasks` WHERE `id` = :id AND `customer_id` = :customer_id')
+                ->execute(['id' => $taskId, 'customer_id' => $customerId]);
+
+            $this->pdo->commit();
+
+            return [
+                'success' => true,
+                'message' => t('gigs.delete_ok'),
+            ];
+        } catch (Exception $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            return ['success' => false, 'error' => t('gigs.err_delete')];
+        }
+    }
+
+    /**
      * @return list<array<string, mixed>>
      */
     public function listOpen(?int $categoryId = null): array
