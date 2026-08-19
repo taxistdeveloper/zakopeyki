@@ -41,6 +41,12 @@ class UnskilledTaskValidator
             $errors[] = t('gigs.err_category_missing');
         } elseif ((int) $category['is_unskilled_only'] !== 1) {
             $errors[] = t('gigs.err_category_skilled');
+        } else {
+            $childStmt = $this->pdo->prepare('SELECT COUNT(*) FROM `micro_categories` WHERE `parent_id` = :id');
+            $childStmt->execute(['id' => $categoryId]);
+            if ((int) $childStmt->fetchColumn() > 0) {
+                $errors[] = t('gigs.err_category_not_leaf');
+            }
         }
 
         $categoryName = (string) ($category['name'] ?? '');

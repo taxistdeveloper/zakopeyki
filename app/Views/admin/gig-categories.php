@@ -2,6 +2,13 @@
 use App\Helpers\ProductHelper;
 
 $categories = $categories ?? [];
+$parentChoices = $parentChoices ?? [];
+$page = max(1, (int) ($page ?? 1));
+$pages = max(1, (int) ($pages ?? 1));
+$pageUrl = static function (int $p) {
+    $base = ProductHelper::url('/admin/gig-categories');
+    return $p > 1 ? $base . '?page=' . $p : $base;
+};
 $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm';
 ?>
 <section class="space-y-5 fade-up pb-8">
@@ -25,7 +32,21 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
             <?= csrf_field() ?>
             <div>
                 <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('admin.gig_cat_name')) ?></label>
-                <input type="text" name="name" required minlength="2" maxlength="100" class="<?= $input ?>" placeholder="<?= htmlspecialchars(t('admin.gig_cat_name')) ?>">
+                <input type="text" name="name" required minlength="2" maxlength="180" class="<?= $input ?>" placeholder="<?= htmlspecialchars(t('admin.gig_cat_name')) ?>">
+            </div>
+            <div>
+                <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('admin.gig_cat_parent')) ?></label>
+                <select name="parent_id" class="<?= $input ?>">
+                    <option value=""><?= htmlspecialchars(t('admin.gig_cat_parent_root')) ?></option>
+                    <?php foreach ($parentChoices as $opt):
+                        $prefix = str_repeat('— ', (int) ($opt['depth'] ?? 0));
+                    ?>
+                        <option value="<?= (int) $opt['id'] ?>">
+                            <?= htmlspecialchars($prefix . $opt['name']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <p class="text-[11px] text-gray-400 mt-1"><?= htmlspecialchars(t('admin.gig_cat_parent_hint')) ?></p>
             </div>
             <label class="flex items-start gap-3 rounded-2xl border border-black/[0.08] dark:border-white/10 p-3.5 cursor-pointer">
                 <input type="checkbox" name="is_unskilled_only" value="1" checked class="mt-0.5 rounded border-gray-300">
@@ -45,20 +66,60 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
             <?= htmlspecialchars(t('admin.gig_cat_empty')) ?>
         </div>
     <?php else: ?>
+        <?php if ($pages > 1): ?>
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <p class="text-xs text-gray-500"><?= htmlspecialchars(t('admin.gig_cat_page', ['current' => (string) $page, 'total' => (string) $pages])) ?></p>
+                <div class="flex flex-wrap items-center gap-2">
+                    <?php if ($page > 1): ?>
+                        <a href="<?= htmlspecialchars($pageUrl($page - 1)) ?>" class="h-9 px-3 inline-flex items-center rounded-xl text-xs font-semibold bg-white/80 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 hover:border-brand-400/50"><?= htmlspecialchars(t('admin.logs_prev')) ?></a>
+                    <?php endif; ?>
+                    <?php for ($p = 1; $p <= $pages; $p++): ?>
+                        <a href="<?= htmlspecialchars($pageUrl($p)) ?>"
+                           class="h-9 min-w-9 px-2.5 inline-flex items-center justify-center rounded-xl text-xs font-semibold border <?= $p === $page ? 'bg-teal-600 text-white border-teal-600' : 'bg-white/80 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/10 hover:border-brand-400/50' ?>"><?= $p ?></a>
+                    <?php endfor; ?>
+                    <?php if ($page < $pages): ?>
+                        <a href="<?= htmlspecialchars($pageUrl($page + 1)) ?>" class="h-9 px-3 inline-flex items-center rounded-xl text-xs font-semibold bg-white/80 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 hover:border-brand-400/50"><?= htmlspecialchars(t('admin.logs_next')) ?></a>
+                    <?php endif; ?>
+                </div>
+            </div>
+        <?php endif; ?>
         <div class="space-y-3">
             <?php foreach ($categories as $cat):
                 $cid = (int) $cat['id'];
-                $inUse = (int) $cat['task_count'] > 0;
+                $inUse = (int) $cat['task_count'] > 0 || (int) ($cat['child_count'] ?? 0) > 0;
+                $depth = (int) ($cat['depth'] ?? 0);
+                $levelKey = $depth === 0 ? 'admin.gig_cat_level_category' : ($depth === 1 ? 'admin.gig_cat_level_sub' : 'admin.gig_cat_level_service');
             ?>
-                <div class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 shadow-soft p-4 sm:p-5">
+                <div class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 shadow-soft p-4 sm:p-5" style="margin-left: <?= min($depth, 3) * 18 ?>px">
                     <form method="post" action="<?= ProductHelper::url('/admin/gig-categories/' . $cid . '/update') ?>" class="space-y-3">
                         <?= csrf_field() ?>
                         <div class="flex flex-wrap items-center justify-between gap-2">
-                            <span class="text-[11px] font-bold text-gray-400">#<?= $cid ?></span>
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-teal-600"><?= htmlspecialchars(t($levelKey)) ?> · #<?= $cid ?></span>
                             <span class="text-[11px] font-semibold text-gray-500"><?= htmlspecialchars(t('admin.gig_cat_tasks')) ?>: <?= (int) $cat['task_count'] ?></span>
                         </div>
-                        <input type="text" name="name" required minlength="2" maxlength="100" class="<?= $input ?>"
+                        <input type="text" name="name" required minlength="2" maxlength="180" class="<?= $input ?>"
                                value="<?= htmlspecialchars((string) $cat['name']) ?>">
+                        <?php if ($depth < 2): ?>
+                        <div>
+                            <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('admin.gig_cat_parent')) ?></label>
+                            <select name="parent_id" class="<?= $input ?>">
+                                <option value=""><?= htmlspecialchars(t('admin.gig_cat_parent_root')) ?></option>
+                                <?php foreach ($parentChoices as $opt):
+                                    $oid = (int) $opt['id'];
+                                    if ($oid === $cid) {
+                                        continue;
+                                    }
+                                    $prefix = str_repeat('— ', (int) ($opt['depth'] ?? 0));
+                                ?>
+                                    <option value="<?= $oid ?>" <?= (int) ($cat['parent_id'] ?? 0) === $oid ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($prefix . $opt['name']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <?php else: ?>
+                            <input type="hidden" name="parent_id" value="<?= (int) ($cat['parent_id'] ?? 0) ?>">
+                        <?php endif; ?>
                         <label class="flex items-center gap-2 text-sm font-semibold cursor-pointer">
                             <input type="checkbox" name="is_unskilled_only" value="1" <?= (int) $cat['is_unskilled_only'] === 1 ? 'checked' : '' ?> class="rounded border-gray-300">
                             <?= htmlspecialchars(t('admin.gig_cat_unskilled')) ?>
@@ -87,6 +148,17 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                 </div>
             <?php endforeach; ?>
         </div>
+        <?php if ($pages > 1): ?>
+            <div class="flex flex-wrap items-center justify-center gap-2 pt-1">
+                <?php if ($page > 1): ?>
+                    <a href="<?= htmlspecialchars($pageUrl($page - 1)) ?>" class="h-9 px-3 inline-flex items-center rounded-xl text-xs font-semibold bg-white/80 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 hover:border-brand-400/50"><?= htmlspecialchars(t('admin.logs_prev')) ?></a>
+                <?php endif; ?>
+                <span class="text-xs text-gray-500"><?= htmlspecialchars(t('admin.gig_cat_page', ['current' => (string) $page, 'total' => (string) $pages])) ?></span>
+                <?php if ($page < $pages): ?>
+                    <a href="<?= htmlspecialchars($pageUrl($page + 1)) ?>" class="h-9 px-3 inline-flex items-center rounded-xl text-xs font-semibold bg-white/80 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 hover:border-brand-400/50"><?= htmlspecialchars(t('admin.logs_next')) ?></a>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
     <?php endif; ?>
 </section>
 

@@ -156,10 +156,30 @@ class AdminController extends Controller
         Auth::requireAdmin();
         $model = new MicroTask();
         $n = new Notification();
+        $all = $model->listCategoriesWithCounts();
+        $parentChoices = [];
+        foreach ($all as $row) {
+            if ((int) ($row['depth'] ?? 0) < 2) {
+                $parentChoices[] = $row;
+            }
+        }
+
+        $perPage = 20;
+        $total = count($all);
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $pages = max(1, (int) ceil(max($total, 1) / $perPage));
+        if ($page > $pages) {
+            $page = $pages;
+        }
+        $categories = array_slice($all, ($page - 1) * $perPage, $perPage);
+
         $this->view('admin/gig-categories', [
             'title' => t('admin.gig_categories'),
             'currentNav' => 'admin',
-            'categories' => $model->listCategoriesWithCounts(),
+            'categories' => $categories,
+            'parentChoices' => $parentChoices,
+            'page' => $page,
+            'pages' => $pages,
             'notifications' => $n->forUser(Auth::id()),
             'unread' => $n->unreadCount(Auth::id()),
             'search' => '',
@@ -174,6 +194,7 @@ class AdminController extends Controller
         Auth::requireAdmin();
         $name = trim((string) ($_POST['name'] ?? ''));
         $unskilled = isset($_POST['is_unskilled_only']);
+        $parentId = (int) ($_POST['parent_id'] ?? 0);
         $error = $this->validateGigCategoryName($name);
         if ($error !== null) {
             $_SESSION['error'] = $error;
@@ -182,13 +203,29 @@ class AdminController extends Controller
         }
 
         $model = new MicroTask();
-        if ($model->categoryNameExists($name)) {
+        $parent = null;
+        if ($parentId > 0) {
+            $parent = $model->findCategory($parentId);
+            if (!$parent) {
+                $_SESSION['error'] = t('admin.gig_cat_not_found');
+                $this->redirect('/admin/gig-categories');
+                return;
+            }
+            if ($model->categoryDepth($parentId) >= 2) {
+                $_SESSION['error'] = t('admin.gig_cat_max_depth');
+                $this->redirect('/admin/gig-categories');
+                return;
+            }
+        }
+
+        $resolvedParent = $parentId > 0 ? $parentId : null;
+        if ($model->categoryNameExists($name, null, $resolvedParent)) {
             $_SESSION['error'] = t('admin.gig_cat_exists');
             $this->redirect('/admin/gig-categories');
             return;
         }
 
-        $id = $model->createCategory($name, $unskilled);
+        $id = $model->createCategory($name, $unskilled, $resolvedParent);
         ActivityLogger::info('admin.gig_category_create', 'Добавлена категория биржи: ' . $name, 'micro_category', $id);
         $_SESSION['flash'] = t('admin.gig_cat_created');
         $this->redirect('/admin/gig-categories');
@@ -208,6 +245,7 @@ class AdminController extends Controller
 
         $name = trim((string) ($_POST['name'] ?? ''));
         $unskilled = isset($_POST['is_unskilled_only']);
+        $parentId = (int) ($_POST['parent_id'] ?? 0);
         $error = $this->validateGigCategoryName($name);
         if ($error !== null) {
             $_SESSION['error'] = $error;
@@ -215,13 +253,40 @@ class AdminController extends Controller
             return;
         }
 
-        if ($model->categoryNameExists($name, $catId)) {
+        if ($parentId === $catId) {
+            $_SESSION['error'] = t('admin.gig_cat_parent_self');
+            $this->redirect('/admin/gig-categories');
+            return;
+        }
+
+        $resolvedParent = null;
+        if ($parentId > 0) {
+            $parent = $model->findCategory($parentId);
+            if (!$parent) {
+                $_SESSION['error'] = t('admin.gig_cat_not_found');
+                $this->redirect('/admin/gig-categories');
+                return;
+            }
+            if (in_array($parentId, $model->descendantIds($catId), true)) {
+                $_SESSION['error'] = t('admin.gig_cat_parent_self');
+                $this->redirect('/admin/gig-categories');
+                return;
+            }
+            if ($model->categoryDepth($parentId) >= 2) {
+                $_SESSION['error'] = t('admin.gig_cat_max_depth');
+                $this->redirect('/admin/gig-categories');
+                return;
+            }
+            $resolvedParent = $parentId;
+        }
+
+        if ($model->categoryNameExists($name, $catId, $resolvedParent)) {
             $_SESSION['error'] = t('admin.gig_cat_exists');
             $this->redirect('/admin/gig-categories');
             return;
         }
 
-        $model->updateCategory($catId, $name, $unskilled);
+        $model->updateCategory($catId, $name, $unskilled, $resolvedParent);
         ActivityLogger::info('admin.gig_category_update', 'Обновлена категория биржи: ' . $name, 'micro_category', $catId);
         $_SESSION['flash'] = t('admin.gig_cat_updated');
         $this->redirect('/admin/gig-categories');
@@ -239,7 +304,7 @@ class AdminController extends Controller
             return;
         }
 
-        if ($model->categoryTaskCount($catId) > 0) {
+        if ($model->categoryTaskCount($catId) > 0 || $model->categoryHasChildren($catId)) {
             $_SESSION['error'] = t('admin.gig_cat_in_use');
             $this->redirect('/admin/gig-categories');
             return;
@@ -262,7 +327,7 @@ class AdminController extends Controller
     private function validateGigCategoryName(string $name): ?string
     {
         $len = mb_strlen($name, 'UTF-8');
-        if ($len < 2 || $len > 100) {
+        if ($len < 2 || $len > 180) {
             return t('admin.gig_cat_name_len');
         }
 

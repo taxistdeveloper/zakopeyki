@@ -589,8 +589,14 @@ class MicroTaskService
 
         $params = [];
         if ($categoryId && $categoryId > 0) {
-            $sql .= ' AND t.`category_id` = :category_id';
-            $params['category_id'] = $categoryId;
+            $ids = (new MicroTask())->descendantIds($categoryId);
+            $placeholders = [];
+            foreach ($ids as $i => $id) {
+                $key = 'cat_' . $i;
+                $placeholders[] = ':' . $key;
+                $params[$key] = $id;
+            }
+            $sql .= ' AND t.`category_id` IN (' . implode(',', $placeholders) . ')';
         }
 
         $sql .= ' ORDER BY t.`id` DESC LIMIT 50';
@@ -639,11 +645,23 @@ class MicroTaskService
     public function categories(): array
     {
         (new MicroTask())->ensureSchema();
-        $rows = $this->pdo->query('SELECT `id`, `name` FROM `micro_categories` WHERE `is_unskilled_only` = 1 ORDER BY `id`')->fetchAll(PDO::FETCH_ASSOC);
+        $rows = $this->pdo->query(
+            'SELECT `id`, `name` FROM `micro_categories`
+             WHERE `is_unskilled_only` = 1 AND `parent_id` IS NULL
+             ORDER BY `id`'
+        )->fetchAll(PDO::FETCH_ASSOC);
         return array_map(static fn (array $row) => [
             'id' => (int) $row['id'],
             'name' => (string) $row['name'],
         ], $rows);
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function categoryTree(): array
+    {
+        return (new MicroTask())->categoryTree();
     }
 
     /**

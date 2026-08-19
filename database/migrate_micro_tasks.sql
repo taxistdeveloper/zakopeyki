@@ -3,9 +3,13 @@ USE zakapeiku;
 
 CREATE TABLE IF NOT EXISTS `micro_categories` (
     `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `name` VARCHAR(100) NOT NULL,
+    `parent_id` INT UNSIGNED NULL DEFAULT NULL,
+    `code` VARCHAR(40) NULL DEFAULT NULL,
+    `name` VARCHAR(180) NOT NULL,
     `is_unskilled_only` TINYINT(1) NOT NULL DEFAULT 1,
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY `uniq_micro_cat_code` (`code`),
+    INDEX `idx_micro_cat_parent` (`parent_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `micro_tasks` (
@@ -45,10 +49,4 @@ CREATE TABLE IF NOT EXISTS `micro_task_offers` (
     INDEX `idx_executor_status` (`executor_id`, `status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT IGNORE INTO `micro_categories` (`id`, `name`, `is_unskilled_only`) VALUES
-(1, 'Разгрузка и погрузка', 1),
-(2, 'Вынос мусора и мебели', 1),
-(3, 'Раздача листовок и расклейка', 1),
-(4, 'Курьерские поручения', 1),
-(5, 'Уборка и клининг', 1),
-(6, 'Помощь в саду и на участке', 1);
+-- Каталог услуг (категория → подкатегория → услуга) сидируется из config/micro_gig_catalog.php

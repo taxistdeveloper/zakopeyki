@@ -701,19 +701,42 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         <input type="text" name="title" id="lot-title" <?= $currentType === 'gig' ? '' : 'required' ?> class="<?= $input ?>" value="<?= htmlspecialchars($editing['title'] ?? '') ?>">
                     </div>
                     <div id="lot-gig-category-wrap" class="<?= $currentType === 'gig' ? '' : 'hidden' ?>">
-                        <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('gigs.field_category')) ?></label>
-                        <div class="relative" data-lot-select-wrap>
-                            <select name="gig_category_id" id="lot-gig-category" class="hidden" <?= $currentType === 'gig' ? 'required' : 'disabled' ?>>
-                                <?php foreach (($microCategories ?? []) as $cat): ?>
-                                    <option value="<?= (int) $cat['id'] ?>"><?= htmlspecialchars($cat['name']) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                            <button type="button" data-lot-trigger class="<?= $selectTrigger ?>" aria-haspopup="listbox" aria-expanded="false" <?= $currentType === 'gig' ? '' : 'disabled' ?>>
-                                <span data-lot-label class="truncate"><?= htmlspecialchars(($microCategories[0]['name'] ?? t('gigs.field_category'))) ?></span>
-                                <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-                            </button>
-                            <div data-lot-menu class="hidden absolute z-30 mt-1.5 w-full max-h-64 overflow-y-auto bg-white dark:bg-ink-800 border border-black/[0.08] dark:border-white/10 rounded-2xl shadow-lift py-1.5" role="listbox"></div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('gigs.field_category')) ?></label>
+                                <div class="relative" data-lot-select-wrap>
+                                    <select id="lot-gig-parent" class="hidden" <?= $currentType === 'gig' ? 'required' : 'disabled' ?>></select>
+                                    <button type="button" data-lot-trigger class="<?= $selectTrigger ?>" aria-haspopup="listbox" aria-expanded="false" <?= $currentType === 'gig' ? '' : 'disabled' ?>>
+                                        <span data-lot-label class="truncate"><?= htmlspecialchars(t('gigs.field_category')) ?></span>
+                                        <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                                    </button>
+                                    <div data-lot-menu class="hidden absolute z-30 mt-1.5 w-full max-h-64 overflow-y-auto bg-white dark:bg-ink-800 border border-black/[0.08] dark:border-white/10 rounded-2xl shadow-lift py-1.5" role="listbox"></div>
+                                </div>
+                            </div>
+                            <div id="lot-gig-sub-wrap">
+                                <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('gigs.field_subcategory')) ?></label>
+                                <div class="relative" data-lot-select-wrap>
+                                    <select id="lot-gig-sub" class="hidden" <?= $currentType === 'gig' ? 'required' : 'disabled' ?>></select>
+                                    <button type="button" data-lot-trigger class="<?= $selectTrigger ?>" aria-haspopup="listbox" aria-expanded="false" <?= $currentType === 'gig' ? '' : 'disabled' ?>>
+                                        <span data-lot-label class="truncate"><?= htmlspecialchars(t('gigs.field_subcategory')) ?></span>
+                                        <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                                    </button>
+                                    <div data-lot-menu class="hidden absolute z-30 mt-1.5 w-full max-h-64 overflow-y-auto bg-white dark:bg-ink-800 border border-black/[0.08] dark:border-white/10 rounded-2xl shadow-lift py-1.5" role="listbox"></div>
+                                </div>
+                            </div>
+                            <div id="lot-gig-leaf-wrap">
+                                <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('gigs.field_service')) ?></label>
+                                <div class="relative" data-lot-select-wrap>
+                                    <select id="lot-gig-leaf" class="hidden" <?= $currentType === 'gig' ? 'required' : 'disabled' ?>></select>
+                                    <button type="button" data-lot-trigger class="<?= $selectTrigger ?>" aria-haspopup="listbox" aria-expanded="false" <?= $currentType === 'gig' ? '' : 'disabled' ?>>
+                                        <span data-lot-label class="truncate"><?= htmlspecialchars(t('gigs.field_service')) ?></span>
+                                        <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                                    </button>
+                                    <div data-lot-menu class="hidden absolute z-30 mt-1.5 w-full max-h-64 overflow-y-auto bg-white dark:bg-ink-800 border border-black/[0.08] dark:border-white/10 rounded-2xl shadow-lift py-1.5" role="listbox"></div>
+                                </div>
+                            </div>
                         </div>
+                        <input type="hidden" name="gig_category_id" id="lot-gig-category" value="" <?= $currentType === 'gig' ? 'required' : 'disabled' ?>>
                     </div>
                     <div id="lot-desc-wrap">
                         <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.description')) ?></label>
@@ -852,8 +875,17 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         const freeNote = document.getElementById('lot-free-note');
                         const serviceNote = document.getElementById('lot-service-note');
                         const gigNote = document.getElementById('lot-gig-note');
+                        const gigParent = document.getElementById('lot-gig-parent');
+                        const gigSub = document.getElementById('lot-gig-sub');
+                        const gigLeaf = document.getElementById('lot-gig-leaf');
+                        const gigSubWrap = document.getElementById('lot-gig-sub-wrap');
+                        const gigLeafWrap = document.getElementById('lot-gig-leaf-wrap');
                         const gigCategoryWrap = document.getElementById('lot-gig-category-wrap');
                         const gigCategory = document.getElementById('lot-gig-category');
+                        const gigTree = <?= js_encode($microGigTree ?? []) ?>;
+                        const gigPickCategory = <?= json_encode(t('gigs.pick_category')) ?>;
+                        const gigPickSub = <?= json_encode(t('gigs.pick_subcategory')) ?>;
+                        const gigPickService = <?= json_encode(t('gigs.pick_service')) ?>;
                         const photosSection = document.getElementById('lot-photos-section');
                         const whatsappWrap = document.getElementById('lot-whatsapp-wrap');
                         const locationLabel = document.getElementById('lot-location-label');
@@ -968,9 +1000,89 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
 
                         bindLotSelect(parentSelect);
                         bindLotSelect(categorySelect);
-                        bindLotSelect(gigCategory);
+                        bindLotSelect(gigParent);
+                        bindLotSelect(gigSub);
+                        bindLotSelect(gigLeaf);
                         bindLotSelect(document.getElementById('lot-auction-hours'));
                         bindLotSelect(document.getElementById('lot-inactivity-hours'));
+
+                        function fillGigSelect(select, items, placeholder) {
+                            if (!select) return;
+                            select.innerHTML = '';
+                            const ph = document.createElement('option');
+                            ph.value = '';
+                            ph.textContent = placeholder;
+                            select.appendChild(ph);
+                            (items || []).forEach(function (item) {
+                                const opt = document.createElement('option');
+                                opt.value = String(item.id);
+                                opt.textContent = item.name;
+                                select.appendChild(opt);
+                            });
+                            select.value = '';
+                            if (typeof select.refreshLotUI === 'function') select.refreshLotUI();
+                        }
+
+                        function gigNodeById(list, id) {
+                            const sid = String(id);
+                            for (let i = 0; i < (list || []).length; i++) {
+                                if (String(list[i].id) === sid) return list[i];
+                            }
+                            return null;
+                        }
+
+                        function syncGigLeaf() {
+                            if (!gigCategory) return;
+                            gigCategory.value = gigLeaf && gigLeaf.value ? gigLeaf.value : '';
+                        }
+
+                        function onGigParentChange() {
+                            const node = gigNodeById(gigTree, gigParent ? gigParent.value : '');
+                            const children = node && node.children ? node.children : [];
+                            const nested = children.some(function (ch) { return ch.children && ch.children.length; });
+                            const isLeafCategory = !!(node && children.length === 0);
+                            const gigOn = !!(gigParent && !gigParent.disabled);
+
+                            if (gigSubWrap) gigSubWrap.classList.toggle('hidden', !nested);
+                            if (gigLeafWrap) gigLeafWrap.classList.toggle('hidden', isLeafCategory || !node);
+                            if (gigSub) {
+                                gigSub.required = gigOn && nested;
+                                gigSub.disabled = !gigOn || !nested;
+                            }
+                            if (gigLeaf) {
+                                gigLeaf.required = gigOn && !isLeafCategory;
+                                gigLeaf.disabled = !gigOn || isLeafCategory;
+                            }
+                            if (nested) {
+                                fillGigSelect(gigSub, children, gigPickSub);
+                                fillGigSelect(gigLeaf, [], gigPickService);
+                            } else {
+                                fillGigSelect(gigSub, [], gigPickSub);
+                                fillGigSelect(gigLeaf, children, gigPickService);
+                            }
+                            if (isLeafCategory && gigCategory && node) {
+                                gigCategory.value = String(node.id);
+                            } else {
+                                syncGigLeaf();
+                            }
+                            if (gigSub && typeof gigSub.refreshLotUI === 'function') gigSub.refreshLotUI();
+                            if (gigLeaf && typeof gigLeaf.refreshLotUI === 'function') gigLeaf.refreshLotUI();
+                        }
+
+                        function onGigSubChange() {
+                            const parent = gigNodeById(gigTree, gigParent ? gigParent.value : '');
+                            const sub = gigNodeById(parent && parent.children ? parent.children : [], gigSub ? gigSub.value : '');
+                            fillGigSelect(gigLeaf, sub && sub.children ? sub.children : [], gigPickService);
+                            syncGigLeaf();
+                        }
+
+                        if (gigParent) {
+                            fillGigSelect(gigParent, gigTree, gigPickCategory);
+                            gigParent.addEventListener('change', onGigParentChange);
+                        }
+                        if (gigSub) gigSub.addEventListener('change', onGigSubChange);
+                        if (gigLeaf) gigLeaf.addEventListener('change', syncGigLeaf);
+                        onGigParentChange();
 
                         document.addEventListener('click', function (e) {
                             if (!e.target.closest('[data-lot-select-wrap]')) closeLotMenus();
@@ -1047,11 +1159,22 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                             const isGig = type === 'gig';
                             if (gigNote) gigNote.classList.toggle('hidden', !isGig || isEditingLot);
                             if (gigCategoryWrap) gigCategoryWrap.classList.toggle('hidden', !isGig);
-                            if (gigCategory) {
-                                gigCategory.disabled = !isGig;
-                                gigCategory.required = isGig;
-                                if (typeof gigCategory.refreshLotUI === 'function') gigCategory.refreshLotUI();
+                            [gigParent, gigSub, gigLeaf, gigCategory].forEach(function (el) {
+                                if (!el) return;
+                                el.disabled = !isGig;
+                            });
+                            if (gigParent) {
+                                gigParent.required = isGig;
+                                if (typeof gigParent.refreshLotUI === 'function') gigParent.refreshLotUI();
                             }
+                            if (isGig) onGigParentChange();
+                            else {
+                                if (gigSub) gigSub.required = false;
+                                if (gigLeaf) gigLeaf.required = false;
+                                if (gigCategory) gigCategory.required = false;
+                            }
+                            if (gigSub && typeof gigSub.refreshLotUI === 'function') gigSub.refreshLotUI();
+                            if (gigLeaf && typeof gigLeaf.refreshLotUI === 'function') gigLeaf.refreshLotUI();
                             if (titleWrap) titleWrap.classList.toggle('hidden', isGig);
                             if (titleInput) titleInput.required = !isGig;
                             if (photosSection) photosSection.classList.remove('hidden');

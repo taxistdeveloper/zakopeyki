@@ -91,6 +91,7 @@ class ProfileController extends Controller
         $referralCode = $usersModel->referralCodeFor($profileUser ?: ['id' => Auth::id()]);
         $referralCount = $tab === 'referral' ? $usersModel->countReferrals(Auth::id()) : 0;
         $referralUsers = $tab === 'referral' ? $usersModel->referrals(Auth::id()) : [];
+        $microSvc = MicroTaskService::make();
 
         $this->view('profile/index', [
             'title' => t('profile.title'),
@@ -112,7 +113,8 @@ class ProfileController extends Controller
                 array_map(static fn (string $type) => ProductHelper::label($type), array_keys(ProductHelper::TYPES))
             ),
             'productCategoryTree' => ProductHelper::PRODUCT_CATEGORY_TREE,
-            'microCategories' => MicroTaskService::make()->categories(),
+            'microCategories' => $microSvc->categories(),
+            'microGigTree' => $microSvc->categoryTree(),
             'notifications' => $notifications,
             'unread' => $unread,
             'reviews' => $reviews,
