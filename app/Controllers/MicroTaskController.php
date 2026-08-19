@@ -33,12 +33,11 @@ class MicroTaskController extends BaseApiController
             $input = $_POST;
         }
 
-        if (empty($input['title']) || empty($input['description']) || empty($input['category_id']) || empty($input['initial_price'])) {
+        if (empty($input['description']) || empty($input['category_id']) || empty($input['initial_price'])) {
             $this->jsonResponse(false, null, t('gigs.err_required'), 400);
         }
 
         $result = $this->taskService->createTask($userId, [
-            'title' => (string) $input['title'],
             'description' => (string) $input['description'],
             'category_id' => (int) $input['category_id'],
             'address' => (string) ($input['address'] ?? ''),
@@ -86,7 +85,7 @@ class MicroTaskController extends BaseApiController
             }
             $items[] = [
                 'id' => (int) $row['id'],
-                'title' => $row['title'],
+                'title' => (string) ($row['category_name'] ?: $row['title']),
                 'status' => $row['status'],
                 'role' => $role,
                 'initial_price' => (int) $row['initial_price'],

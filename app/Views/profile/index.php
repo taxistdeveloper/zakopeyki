@@ -696,11 +696,26 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                             </div>
                         </div>
                     </div>
-                    <div>
+                    <div id="lot-title-wrap" class="<?= $currentType === 'gig' ? 'hidden' : '' ?>">
                         <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.title_field')) ?></label>
-                        <input type="text" name="title" required class="<?= $input ?>" value="<?= htmlspecialchars($editing['title'] ?? '') ?>">
+                        <input type="text" name="title" id="lot-title" <?= $currentType === 'gig' ? '' : 'required' ?> class="<?= $input ?>" value="<?= htmlspecialchars($editing['title'] ?? '') ?>">
                     </div>
-                    <div>
+                    <div id="lot-gig-category-wrap" class="<?= $currentType === 'gig' ? '' : 'hidden' ?>">
+                        <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('gigs.field_category')) ?></label>
+                        <div class="relative" data-lot-select-wrap>
+                            <select name="gig_category_id" id="lot-gig-category" class="hidden" <?= $currentType === 'gig' ? 'required' : 'disabled' ?>>
+                                <?php foreach (($microCategories ?? []) as $cat): ?>
+                                    <option value="<?= (int) $cat['id'] ?>"><?= htmlspecialchars($cat['name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <button type="button" data-lot-trigger class="<?= $selectTrigger ?>" aria-haspopup="listbox" aria-expanded="false" <?= $currentType === 'gig' ? '' : 'disabled' ?>>
+                                <span data-lot-label class="truncate"><?= htmlspecialchars(($microCategories[0]['name'] ?? t('gigs.field_category'))) ?></span>
+                                <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div data-lot-menu class="hidden absolute z-30 mt-1.5 w-full max-h-64 overflow-y-auto bg-white dark:bg-ink-800 border border-black/[0.08] dark:border-white/10 rounded-2xl shadow-lift py-1.5" role="listbox"></div>
+                        </div>
+                    </div>
+                    <div id="lot-desc-wrap">
                         <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.description')) ?></label>
                         <textarea name="description" rows="2" required class="ui-input w-full p-3 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm"><?= htmlspecialchars($editing['description'] ?? '') ?></textarea>
                     </div>
@@ -720,14 +735,6 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                     </div>
                     <div id="lot-gig-note" class="<?= $currentType === 'gig' && !$editing ? '' : 'hidden' ?> text-xs font-semibold text-teal-800 dark:text-teal-200 bg-teal-50 dark:bg-teal-900/20 border border-teal-100 dark:border-teal-800/40 rounded-xl px-3 py-2">
                         <?= htmlspecialchars(t('gigs.profile_note')) ?>
-                    </div>
-                    <div id="lot-gig-category-wrap" class="<?= $currentType === 'gig' ? '' : 'hidden' ?>">
-                        <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('gigs.field_category')) ?></label>
-                        <select name="gig_category_id" id="lot-gig-category" class="<?= $input ?>" <?= $currentType === 'gig' ? 'required' : 'disabled' ?>>
-                            <?php foreach (($microCategories ?? []) as $cat): ?>
-                                <option value="<?= (int) $cat['id'] ?>"><?= htmlspecialchars($cat['name']) ?></option>
-                            <?php endforeach; ?>
-                        </select>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div id="lot-price-wrap" class="<?= in_array($currentType, $noPriceTypes, true) ? 'hidden' : '' ?>">
@@ -777,19 +784,33 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                             </div>
                             <div id="lot-auction-hours-wrap">
                                 <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.auction_duration')) ?></label>
-                                <select name="auction_hours" class="<?= $input ?>">
-                                    <?php foreach ([1 => '1 ч', 6 => '6 ч', 24 => '24 ч', 72 => '3 дн', 168 => '7 дн'] as $h => $hl): ?>
-                                        <option value="<?= $h ?>" <?= $editHours === $h ? 'selected' : '' ?>><?= htmlspecialchars($hl) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
+                                <div class="relative" data-lot-select-wrap>
+                                    <select name="auction_hours" id="lot-auction-hours" class="hidden">
+                                        <?php foreach ([1 => '1 ч', 6 => '6 ч', 24 => '24 ч', 72 => '3 дн', 168 => '7 дн'] as $h => $hl): ?>
+                                            <option value="<?= $h ?>" <?= $editHours === $h ? 'selected' : '' ?>><?= htmlspecialchars($hl) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <button type="button" data-lot-trigger class="<?= $selectTrigger ?>" aria-haspopup="listbox" aria-expanded="false">
+                                        <span data-lot-label class="truncate"><?= htmlspecialchars([1 => '1 ч', 6 => '6 ч', 24 => '24 ч', 72 => '3 дн', 168 => '7 дн'][$editHours] ?? '24 ч') ?></span>
+                                        <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                                    </button>
+                                    <div data-lot-menu class="hidden absolute z-30 mt-1.5 w-full max-h-64 overflow-y-auto bg-white dark:bg-ink-800 border border-black/[0.08] dark:border-white/10 rounded-2xl shadow-lift py-1.5" role="listbox"></div>
+                                </div>
                             </div>
                             <div id="lot-inactivity-wrap" class="hidden">
                                 <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.auction_inactivity')) ?></label>
-                                <select name="inactivity_hours" class="<?= $input ?>">
-                                    <?php foreach ([1 => '1 ч', 6 => '6 ч', 24 => '24 ч', 72 => '3 дн', 168 => '7 дн'] as $h => $hl): ?>
-                                        <option value="<?= $h ?>" <?= $editInactivity === $h ? 'selected' : '' ?>><?= htmlspecialchars($hl) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
+                                <div class="relative" data-lot-select-wrap>
+                                    <select name="inactivity_hours" id="lot-inactivity-hours" class="hidden">
+                                        <?php foreach ([1 => '1 ч', 6 => '6 ч', 24 => '24 ч', 72 => '3 дн', 168 => '7 дн'] as $h => $hl): ?>
+                                            <option value="<?= $h ?>" <?= $editInactivity === $h ? 'selected' : '' ?>><?= htmlspecialchars($hl) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <button type="button" data-lot-trigger class="<?= $selectTrigger ?>" aria-haspopup="listbox" aria-expanded="false">
+                                        <span data-lot-label class="truncate"><?= htmlspecialchars([1 => '1 ч', 6 => '6 ч', 24 => '24 ч', 72 => '3 дн', 168 => '7 дн'][$editInactivity] ?? '24 ч') ?></span>
+                                        <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                                    </button>
+                                    <div data-lot-menu class="hidden absolute z-30 mt-1.5 w-full max-h-64 overflow-y-auto bg-white dark:bg-ink-800 border border-black/[0.08] dark:border-white/10 rounded-2xl shadow-lift py-1.5" role="listbox"></div>
+                                </div>
                             </div>
                         </div>
                         <div id="lot-dutch-wrap" class="grid grid-cols-2 gap-4 hidden">
@@ -837,6 +858,8 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         const whatsappWrap = document.getElementById('lot-whatsapp-wrap');
                         const locationLabel = document.getElementById('lot-location-label');
                         const locationInput = locationWrap ? locationWrap.querySelector('input[name="location"]') : null;
+                        const titleWrap = document.getElementById('lot-title-wrap');
+                        const titleInput = document.getElementById('lot-title');
                         const submitBtn = document.getElementById('lot-submit-btn');
                         const isEditingLot = <?= $editing ? 'true' : 'false' ?>;
                         const publishLabel = <?= json_encode(t('profile.publish')) ?>;
@@ -945,6 +968,9 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
 
                         bindLotSelect(parentSelect);
                         bindLotSelect(categorySelect);
+                        bindLotSelect(gigCategory);
+                        bindLotSelect(document.getElementById('lot-auction-hours'));
+                        bindLotSelect(document.getElementById('lot-inactivity-hours'));
 
                         document.addEventListener('click', function (e) {
                             if (!e.target.closest('[data-lot-select-wrap]')) closeLotMenus();
@@ -1024,8 +1050,15 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                             if (gigCategory) {
                                 gigCategory.disabled = !isGig;
                                 gigCategory.required = isGig;
+                                if (typeof gigCategory.refreshLotUI === 'function') gigCategory.refreshLotUI();
                             }
-                            if (photosSection) photosSection.classList.toggle('hidden', isGig);
+                            if (titleWrap) titleWrap.classList.toggle('hidden', isGig);
+                            if (titleInput) titleInput.required = !isGig;
+                            if (photosSection) photosSection.classList.remove('hidden');
+                            const photosReq = document.getElementById('lot-photos-required');
+                            const photosOpt = document.getElementById('lot-photos-optional');
+                            if (photosReq) photosReq.classList.toggle('hidden', isGig);
+                            if (photosOpt) photosOpt.classList.toggle('hidden', !isGig);
                             if (whatsappWrap) whatsappWrap.classList.toggle('hidden', isGig);
                             if (locationLabel) locationLabel.textContent = isGig ? locationLabelGig : locationLabelDefault;
                             if (locationInput) locationInput.required = isGig;
@@ -1088,9 +1121,11 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         syncCategoryField();
                     })();
                     </script>
-                    <div id="lot-photos-section" class="<?= $currentType === 'gig' ? 'hidden' : '' ?>">
+                    <div id="lot-photos-section">
                         <label class="block text-xs font-bold mb-1">
-                            <?= htmlspecialchars(t('profile.photos')) ?> <span class="text-red-500">*</span>
+                            <?= htmlspecialchars(t('profile.photos')) ?>
+                            <span id="lot-photos-required" class="text-red-500 <?= $currentType === 'gig' ? 'hidden' : '' ?>">*</span>
+                            <span id="lot-photos-optional" class="font-medium text-gray-400 normal-case <?= $currentType === 'gig' ? '' : 'hidden' ?>">· <?= htmlspecialchars(t('gigs.photos_optional')) ?></span>
                             <span class="font-medium text-gray-400 normal-case">· до 3 шт.</span>
                         </label>
                         <p class="text-[11px] text-gray-400 mb-2">Кликните по фото, чтобы сделать его обложкой</p>
@@ -1241,12 +1276,12 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
 
                     const form = root.closest('form');
                     form?.addEventListener('submit', function (e) {
+                        syncFileInput();
+                        syncHidden();
                         const typeSelect = document.getElementById('lot-type');
                         if (typeSelect && typeSelect.value === 'gig') {
                             return;
                         }
-                        syncFileInput();
-                        syncHidden();
                         if (!items.length) {
                             e.preventDefault();
                             alert(<?= json_encode(t('flash.need_photo')) ?>);

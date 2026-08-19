@@ -33,7 +33,7 @@ class UnskilledTaskValidator
     {
         $errors = [];
 
-        $stmt = $this->pdo->prepare('SELECT `id`, `is_unskilled_only` FROM `micro_categories` WHERE `id` = :id LIMIT 1');
+        $stmt = $this->pdo->prepare('SELECT `id`, `name`, `is_unskilled_only` FROM `micro_categories` WHERE `id` = :id LIMIT 1');
         $stmt->execute(['id' => $categoryId]);
         $category = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -43,7 +43,8 @@ class UnskilledTaskValidator
             $errors[] = t('gigs.err_category_skilled');
         }
 
-        $fullText = mb_strtolower($title . ' ' . $description, 'UTF-8');
+        $categoryName = (string) ($category['name'] ?? '');
+        $fullText = mb_strtolower($categoryName . ' ' . $description, 'UTF-8');
 
         foreach ($this->stopWords as $word) {
             if (mb_strpos($fullText, $word, 0, 'UTF-8') !== false) {
@@ -52,12 +53,7 @@ class UnskilledTaskValidator
             }
         }
 
-        $cleanTitle = trim($title);
         $cleanDescription = trim($description);
-
-        if (mb_strlen($cleanTitle, 'UTF-8') < 5 || mb_strlen($cleanTitle, 'UTF-8') > 255) {
-            $errors[] = t('gigs.err_title_len');
-        }
 
         if (mb_strlen($cleanDescription, 'UTF-8') < 10) {
             $errors[] = t('gigs.err_desc_len');
@@ -67,5 +63,16 @@ class UnskilledTaskValidator
             'is_valid' => $errors === [],
             'errors' => $errors,
         ];
+    }
+
+    public function findStopWord(string $text): ?string
+    {
+        $fullText = mb_strtolower($text, 'UTF-8');
+        foreach ($this->stopWords as $word) {
+            if (mb_strpos($fullText, $word, 0, 'UTF-8') !== false) {
+                return $word;
+            }
+        }
+        return null;
     }
 }

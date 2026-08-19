@@ -48,27 +48,41 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                     <label class="block text-xs font-bold mb-1.5 text-ink-800 dark:text-gray-200"><?= htmlspecialchars(t('catalog.section')) ?></label>
-                    <select name="parent" id="catalog-parent" class="<?= $input ?>">
-                        <option value=""><?= htmlspecialchars(t('catalog.all_sections')) ?></option>
-                        <?php foreach ($categoryTree as $parent => $children): ?>
-                            <option value="<?= htmlspecialchars($parent) ?>" <?= $selectedParent === $parent ? 'selected' : '' ?>>
-                                <?= htmlspecialchars(ProductHelper::categoryLabel($parent)) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
+                    <div class="relative" data-lot-select-wrap>
+                        <select name="parent" id="catalog-parent" class="hidden">
+                            <option value=""><?= htmlspecialchars(t('catalog.all_sections')) ?></option>
+                            <?php foreach ($categoryTree as $parent => $children): ?>
+                                <option value="<?= htmlspecialchars($parent) ?>" <?= $selectedParent === $parent ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars(ProductHelper::categoryLabel($parent)) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <button type="button" data-lot-trigger class="<?= $input ?> flex items-center justify-between gap-2 text-left pr-3 cursor-pointer" aria-haspopup="listbox" aria-expanded="false">
+                            <span data-lot-label class="truncate"><?= htmlspecialchars($selectedParent !== '' ? ProductHelper::categoryLabel($selectedParent) : t('catalog.all_sections')) ?></span>
+                            <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                        </button>
+                        <div data-lot-menu class="hidden absolute z-30 mt-1.5 w-full max-h-64 overflow-y-auto bg-white dark:bg-ink-800 border border-black/[0.08] dark:border-white/10 rounded-2xl shadow-lift py-1.5" role="listbox"></div>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-xs font-bold mb-1.5 text-ink-800 dark:text-gray-200"><?= htmlspecialchars(t('catalog.subsection')) ?></label>
-                    <select name="sub" id="catalog-sub" class="<?= $input ?>" <?= $selectedParent === '' ? 'disabled' : '' ?>>
-                        <option value=""><?= htmlspecialchars(t('catalog.all_subsections')) ?></option>
-                        <?php if ($selectedParent !== '' && isset($categoryTree[$selectedParent])): ?>
-                            <?php foreach ($categoryTree[$selectedParent] as $child): ?>
-                                <option value="<?= htmlspecialchars($child) ?>" <?= $selectedChild === $child ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars(ProductHelper::categoryLabel($child)) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </select>
+                    <div class="relative" data-lot-select-wrap>
+                        <select name="sub" id="catalog-sub" class="hidden" <?= $selectedParent === '' ? 'disabled' : '' ?>>
+                            <option value=""><?= htmlspecialchars(t('catalog.all_subsections')) ?></option>
+                            <?php if ($selectedParent !== '' && isset($categoryTree[$selectedParent])): ?>
+                                <?php foreach ($categoryTree[$selectedParent] as $child): ?>
+                                    <option value="<?= htmlspecialchars($child) ?>" <?= $selectedChild === $child ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars(ProductHelper::categoryLabel($child)) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </select>
+                        <button type="button" data-lot-trigger class="<?= $input ?> flex items-center justify-between gap-2 text-left pr-3 cursor-pointer" aria-haspopup="listbox" aria-expanded="false" <?= $selectedParent === '' ? 'disabled' : '' ?>>
+                            <span data-lot-label class="truncate"><?= htmlspecialchars($selectedChild !== '' ? ProductHelper::categoryLabel($selectedChild) : t('catalog.all_subsections')) ?></span>
+                            <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                        </button>
+                        <div data-lot-menu class="hidden absolute z-30 mt-1.5 w-full max-h-64 overflow-y-auto bg-white dark:bg-ink-800 border border-black/[0.08] dark:border-white/10 rounded-2xl shadow-lift py-1.5" role="listbox"></div>
+                    </div>
                 </div>
             </div>
             <div class="flex flex-wrap items-center gap-2 mt-3">
@@ -97,6 +111,76 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
             const subSelect = document.getElementById('catalog-sub');
             const form = document.getElementById('catalog-category-filters');
             if (!parentSelect || !subSelect || !tree) return;
+            const checkSvg = '<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+
+            function closeLotMenus(except) {
+                document.querySelectorAll('#catalog-category-filters [data-lot-menu]').forEach(function (menu) {
+                    if (except && menu === except) return;
+                    menu.classList.add('hidden');
+                    const wrap = menu.closest('[data-lot-select-wrap]');
+                    const btn = wrap && wrap.querySelector('[data-lot-trigger]');
+                    if (btn) btn.setAttribute('aria-expanded', 'false');
+                });
+            }
+            function bindLotSelect(select) {
+                if (!select) return;
+                const wrap = select.closest('[data-lot-select-wrap]');
+                if (!wrap) return;
+                const btn = wrap.querySelector('[data-lot-trigger]');
+                const menu = wrap.querySelector('[data-lot-menu]');
+                const labelEl = wrap.querySelector('[data-lot-label]');
+                if (!btn || !menu || !labelEl) return;
+                function renderMenu() {
+                    const selected = select.options[select.selectedIndex];
+                    labelEl.textContent = selected ? selected.textContent : '';
+                    btn.disabled = select.disabled;
+                    btn.classList.toggle('opacity-50', select.disabled);
+                    btn.classList.toggle('pointer-events-none', select.disabled);
+                    menu.innerHTML = '';
+                    Array.from(select.options).forEach(function (opt) {
+                        const isSel = opt.selected || opt === selected;
+                        const item = document.createElement('button');
+                        item.type = 'button';
+                        item.className = 'w-full flex items-center gap-2 px-3.5 py-2.5 text-sm text-left transition ' +
+                            (isSel
+                                ? 'bg-brand-50 dark:bg-brand-500/15 text-brand-700 dark:text-brand-300 font-semibold'
+                                : 'text-ink-800 dark:text-gray-200 hover:bg-black/[0.04] dark:hover:bg-white/5');
+                        const text = document.createElement('span');
+                        text.className = 'truncate';
+                        text.textContent = opt.textContent;
+                        item.appendChild(text);
+                        if (isSel) {
+                            const mark = document.createElement('span');
+                            mark.className = 'ml-auto shrink-0 text-brand-500';
+                            mark.innerHTML = checkSvg;
+                            item.appendChild(mark);
+                        }
+                        item.addEventListener('click', function () {
+                            select.value = opt.value;
+                            select.dispatchEvent(new Event('change'));
+                            closeLotMenus();
+                            renderMenu();
+                        });
+                        menu.appendChild(item);
+                    });
+                }
+                btn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    if (select.disabled) return;
+                    const willOpen = menu.classList.contains('hidden');
+                    closeLotMenus(willOpen ? menu : null);
+                    menu.classList.toggle('hidden', !willOpen);
+                    btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+                });
+                select.addEventListener('change', renderMenu);
+                select.refreshLotUI = renderMenu;
+                renderMenu();
+            }
+            bindLotSelect(parentSelect);
+            bindLotSelect(subSelect);
+            document.addEventListener('click', function (e) {
+                if (!e.target.closest('#catalog-category-filters [data-lot-select-wrap]')) closeLotMenus();
+            });
 
             function fillSubs(keep) {
                 const parent = parentSelect.value;
@@ -105,6 +189,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                 if (!parent || !tree[parent]) {
                     subSelect.disabled = true;
                     subSelect.value = '';
+                    if (typeof subSelect.refreshLotUI === 'function') subSelect.refreshLotUI();
                     return;
                 }
                 subSelect.disabled = false;
@@ -115,6 +200,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                     if (child === prev) opt.selected = true;
                     subSelect.appendChild(opt);
                 });
+                if (typeof subSelect.refreshLotUI === 'function') subSelect.refreshLotUI();
             }
 
             parentSelect.addEventListener('change', function () {

@@ -299,14 +299,19 @@ class ProfileController extends Controller
 
         $title = trim($_POST['title'] ?? '');
         $description = trim($_POST['description'] ?? '');
+
+        if ($type === 'gig') {
+            if ($description === '') {
+                $_SESSION['error'] = t('flash.title_desc_required');
+                $this->redirect('/profile?tab=lots&type=gig');
+            }
+            $this->storeGig($description);
+            return;
+        }
+
         if ($title === '' || $description === '') {
             $_SESSION['error'] = t('flash.title_desc_required');
             $this->redirect('/profile?tab=lots');
-        }
-
-        if ($type === 'gig') {
-            $this->storeGig($title, $description);
-            return;
         }
 
         $exchangeFor = trim($_POST['exchange_for'] ?? '');
@@ -410,14 +415,21 @@ class ProfileController extends Controller
         $this->redirect('/profile?tab=lots');
     }
 
-    private function storeGig(string $title, string $description): void
+    private function storeGig(string $description): void
     {
+        $photos = $this->resolveProductImages(null, false);
+        if (!empty($photos['error'])) {
+            $_SESSION['error'] = $photos['error'];
+            $this->redirect('/profile?tab=lots&type=gig');
+        }
+
         $result = MicroTaskService::make()->createTask(Auth::id(), [
-            'title' => $title,
             'description' => $description,
             'category_id' => (int) ($_POST['gig_category_id'] ?? 0),
             'address' => trim((string) ($_POST['location'] ?? '')),
             'initial_price' => (float) preg_replace('/[^\d.]/', '', (string) ($_POST['price'] ?? '0')),
+            'image' => (string) ($photos['cover'] ?? ''),
+            'images' => $photos['images'] ?? [],
         ]);
 
         if (!$result['success']) {
@@ -425,9 +437,7 @@ class ProfileController extends Controller
             $this->redirect('/profile?tab=lots&type=gig');
         }
 
-        ActivityLogger::info('micro_task.create', 'Поручение биржи «' . $title . '»', 'micro_task', (int) $result['task_id'], [
-            'pin' => $result['pin'] ?? null,
-        ]);
+        ActivityLogger::info('micro_task.create', 'Поручение биржи', 'micro_task', (int) $result['task_id']);
 
         $_SESSION['flash'] = t('gigs.created_profile', [
             'pin' => (string) ($result['pin'] ?? ''),
@@ -548,7 +558,7 @@ class ProfileController extends Controller
     /**
      * @return array{images?: list<string>, cover?: string, error?: string}
      */
-    private function resolveProductImages(?array $existingProduct = null): array
+    private function resolveProductImages(?array $existingProduct = null, bool $required = true): array
     {
         $products = new Product();
         $oldFiles = $existingProduct ? ProductHelper::decodeImages($existingProduct) : [];
@@ -578,6 +588,9 @@ class ProfileController extends Controller
 
         $images = array_values(array_slice(array_merge($kept, $uploaded['files'] ?? []), 0, 3));
         if (!$images) {
+            if (!$required) {
+                return ['images' => [], 'cover' => ''];
+            }
             return ['error' => t('flash.need_photo')];
         }
 

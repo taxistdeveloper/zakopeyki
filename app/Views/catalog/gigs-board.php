@@ -29,12 +29,19 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
             <?php endif; ?>
         </div>
         <div class="flex flex-wrap gap-2">
-            <select id="gigs-category" class="<?= $input ?> sm:w-64 h-10">
-                <option value="0"><?= htmlspecialchars(t('gigs.all_categories')) ?></option>
-                <?php foreach ($microCategories as $cat): ?>
-                    <option value="<?= (int) $cat['id'] ?>"><?= htmlspecialchars($cat['name']) ?></option>
-                <?php endforeach; ?>
-            </select>
+            <div class="relative sm:w-64" data-gigs-select-wrap>
+                <select id="gigs-category" class="hidden">
+                    <option value="0"><?= htmlspecialchars(t('gigs.all_categories')) ?></option>
+                    <?php foreach ($microCategories as $cat): ?>
+                        <option value="<?= (int) $cat['id'] ?>"><?= htmlspecialchars($cat['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <button type="button" data-gigs-select-trigger class="<?= $input ?> sm:w-64 h-10 flex items-center justify-between gap-2 text-left pr-3 cursor-pointer" aria-haspopup="listbox" aria-expanded="false">
+                    <span data-gigs-select-label class="truncate"><?= htmlspecialchars(t('gigs.all_categories')) ?></span>
+                    <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                <div data-gigs-select-menu class="hidden absolute right-0 left-0 z-30 mt-1.5 max-h-64 overflow-y-auto bg-white dark:bg-ink-800 border border-black/[0.08] dark:border-white/10 rounded-2xl shadow-lift py-1.5" role="listbox"></div>
+            </div>
             <button type="button" id="gigs-refresh" class="bg-ink-100 dark:bg-white/10 hover:bg-ink-200 text-ink-800 dark:text-white font-display font-bold text-xs uppercase tracking-wider px-4 py-2.5 rounded-xl transition"><?= htmlspecialchars(t('gigs.refresh')) ?></button>
             <?php if ($loggedIn): ?>
                 <a href="<?= ProductHelper::url('/profile?tab=lots&type=gig') ?>" class="inline-flex items-center bg-emerald-600 hover:bg-emerald-500 text-white font-display font-bold text-xs uppercase tracking-wider px-4 py-2.5 rounded-xl transition"><?= htmlspecialchars(t('gigs.publish')) ?></a>
@@ -48,88 +55,77 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
     <div id="gigs-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
 </div>
 
-<div id="gigs-offer-modal" class="hidden fixed inset-0 z-[80] bg-ink-900/60 flex items-center justify-center p-4">
-    <div class="bg-white dark:bg-ink-900 rounded-2xl w-full max-w-lg p-5 relative border border-black/10 dark:border-white/10 shadow-lift">
-        <button type="button" class="gigs-modal-close absolute top-3 right-3 text-2xl text-gray-400" aria-label="close">&times;</button>
-        <h3 id="gigs-modal-title" class="font-display font-bold text-lg pr-8"></h3>
-        <p id="gigs-modal-desc" class="text-sm text-gray-500 mt-2"></p>
-        <p class="mt-3 text-sm"><?= htmlspecialchars(t('gigs.budget')) ?>: <strong id="gigs-modal-price"></strong></p>
-        <div class="grid grid-cols-2 gap-2 mt-4">
-            <label class="rounded-xl border-2 border-black/10 dark:border-white/10 p-3 cursor-pointer has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50 dark:has-[:checked]:bg-brand-500/10">
+<div id="gigs-offer-modal" class="hidden fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-ink-900/55 backdrop-blur-sm p-0 sm:p-4" role="dialog" aria-modal="true">
+    <div class="gigs-modal-panel w-full sm:max-w-lg bg-white dark:bg-ink-800 rounded-t-[28px] sm:rounded-[28px] overflow-hidden shadow-lift border border-white/60 dark:border-white/10 p-5 relative max-h-[92vh] overflow-y-auto">
+        <div class="sm:hidden flex justify-center pb-2" aria-hidden="true"><span class="w-10 h-1 rounded-full bg-black/10 dark:bg-white/15"></span></div>
+        <button type="button" class="gigs-modal-close absolute top-4 right-4 w-9 h-9 rounded-xl bg-black/[0.04] dark:bg-white/10 text-gray-500 hover:text-ink-800" aria-label="<?= htmlspecialchars(t('gigs.modal_close')) ?>">✕</button>
+        <h3 id="gigs-modal-title" class="font-display font-bold text-xl pr-10 text-ink-900 dark:text-white"></h3>
+        <p id="gigs-modal-desc" class="text-sm text-gray-500 dark:text-gray-400 mt-2 leading-relaxed"></p>
+        <p class="mt-4 text-sm text-gray-500"><?= htmlspecialchars(t('gigs.budget')) ?>: <strong id="gigs-modal-price" class="text-ink-900 dark:text-white"></strong></p>
+        <div class="grid grid-cols-2 gap-2.5 mt-4">
+            <label class="rounded-2xl border border-black/[0.08] dark:border-white/10 p-3 cursor-pointer transition has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50 dark:has-[:checked]:bg-brand-500/10 has-[:checked]:shadow-soft">
                 <input type="radio" name="gigs_bargain" value="accept" class="sr-only" checked>
-                <span class="block text-xs font-bold"><?= htmlspecialchars(t('gigs.opt_accept')) ?></span>
-                <span class="text-sm font-semibold" id="gigs-price-accept"></span>
+                <span class="block text-xs font-bold text-ink-800 dark:text-gray-100"><?= htmlspecialchars(t('gigs.opt_accept')) ?></span>
+                <span class="text-sm font-display font-bold text-brand-600" id="gigs-price-accept"></span>
             </label>
-            <label class="rounded-xl border-2 border-violet-200 p-3 cursor-pointer has-[:checked]:border-violet-600 has-[:checked]:bg-violet-50 dark:has-[:checked]:bg-violet-500/10">
+            <label class="rounded-2xl border border-violet-200/80 dark:border-violet-500/30 p-3 cursor-pointer transition has-[:checked]:border-violet-600 has-[:checked]:bg-violet-50 dark:has-[:checked]:bg-violet-500/10 has-[:checked]:shadow-soft">
                 <input type="radio" name="gigs_bargain" value="discount_20" class="sr-only">
-                <span class="inline-block text-[10px] uppercase font-bold bg-violet-600 text-white px-1.5 py-0.5 rounded mb-1"><?= htmlspecialchars(t('gigs.instant_badge')) ?></span>
-                <span class="block text-xs font-bold"><?= htmlspecialchars(t('gigs.opt_discount')) ?></span>
-                <span class="text-sm font-semibold" id="gigs-price-discount"></span>
+                <span class="inline-block text-[10px] uppercase font-bold bg-violet-600 text-white px-1.5 py-0.5 rounded-md mb-1"><?= htmlspecialchars(t('gigs.instant_badge')) ?></span>
+                <span class="block text-xs font-bold text-ink-800 dark:text-gray-100"><?= htmlspecialchars(t('gigs.opt_discount')) ?></span>
+                <span class="text-sm font-display font-bold text-violet-700 dark:text-violet-300" id="gigs-price-discount"></span>
             </label>
-            <label class="rounded-xl border-2 border-black/10 dark:border-white/10 p-3 cursor-pointer has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50">
+            <label class="rounded-2xl border border-black/[0.08] dark:border-white/10 p-3 cursor-pointer transition has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50 dark:has-[:checked]:bg-brand-500/10">
                 <input type="radio" name="gigs_bargain" value="raise_20" class="sr-only">
                 <span class="block text-xs font-bold"><?= htmlspecialchars(t('gigs.opt_raise')) ?></span>
-                <span class="text-sm font-semibold" id="gigs-price-raise"></span>
+                <span class="text-sm font-display font-bold" id="gigs-price-raise"></span>
             </label>
-            <label class="rounded-xl border-2 border-black/10 dark:border-white/10 p-3 cursor-pointer has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50">
+            <label class="rounded-2xl border border-black/[0.08] dark:border-white/10 p-3 cursor-pointer transition has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50 dark:has-[:checked]:bg-brand-500/10">
                 <input type="radio" name="gigs_bargain" value="custom" class="sr-only">
                 <span class="block text-xs font-bold"><?= htmlspecialchars(t('gigs.opt_custom')) ?></span>
                 <input type="number" id="gigs-custom-price" class="<?= $input ?> h-9 mt-1" min="100" step="50" disabled>
             </label>
         </div>
-        <div class="mt-4 rounded-xl bg-ink-50 dark:bg-white/5 p-3 text-sm space-y-1">
-            <div class="flex justify-between"><span><?= htmlspecialchars(t('gigs.fee_hold')) ?></span><span>50 ₸</span></div>
-            <div class="flex justify-between"><span><?= htmlspecialchars(t('gigs.fee_platform')) ?></span><span id="gigs-calc-fee">0 ₸</span></div>
-            <div class="flex justify-between font-bold"><span><?= htmlspecialchars(t('gigs.net_payout')) ?></span><span id="gigs-calc-net">0 ₸</span></div>
+        <div class="mt-4 rounded-2xl bg-ink-50 dark:bg-white/5 p-3.5 text-sm space-y-1.5">
+            <div class="flex justify-between text-gray-500"><span><?= htmlspecialchars(t('gigs.fee_hold')) ?></span><span>50 ₸</span></div>
+            <div class="flex justify-between text-gray-500"><span><?= htmlspecialchars(t('gigs.fee_platform')) ?></span><span id="gigs-calc-fee">0 ₸</span></div>
+            <div class="flex justify-between font-bold text-ink-900 dark:text-white pt-1.5 border-t border-black/[0.06] dark:border-white/10"><span><?= htmlspecialchars(t('gigs.net_payout')) ?></span><span id="gigs-calc-net">0 ₸</span></div>
         </div>
-        <button type="button" id="gigs-submit-offer" class="mt-4 w-full bg-brand-600 hover:bg-brand-500 text-white font-display font-bold text-xs uppercase tracking-wider py-3 rounded-xl"><?= htmlspecialchars(t('gigs.send_offer')) ?></button>
+        <button type="button" id="gigs-submit-offer" class="mt-4 w-full bg-brand-600 hover:bg-brand-500 text-white font-display font-bold text-xs uppercase tracking-wider py-3.5 rounded-2xl shadow-soft"><?= htmlspecialchars(t('gigs.send_offer')) ?></button>
     </div>
 </div>
 
-<div id="gigs-pin-modal" class="hidden fixed inset-0 z-[80] bg-ink-900/60 flex items-center justify-center p-4">
-    <div class="bg-white dark:bg-ink-900 rounded-2xl w-full max-w-sm p-5 relative border border-black/10 dark:border-white/10">
-        <button type="button" class="gigs-modal-close absolute top-3 right-3 text-2xl text-gray-400">&times;</button>
-        <h3 class="font-display font-bold text-lg"><?= htmlspecialchars(t('gigs.complete_title')) ?></h3>
-        <p class="text-sm text-gray-500 mt-2"><?= htmlspecialchars(t('gigs.complete_hint')) ?></p>
+<div id="gigs-pin-modal" class="hidden fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-ink-900/55 backdrop-blur-sm p-0 sm:p-4" role="dialog" aria-modal="true">
+    <div class="gigs-modal-panel w-full sm:max-w-sm bg-white dark:bg-ink-800 rounded-t-[28px] sm:rounded-[28px] overflow-hidden shadow-lift border border-white/60 dark:border-white/10 p-5 relative">
+        <div class="sm:hidden flex justify-center pb-2" aria-hidden="true"><span class="w-10 h-1 rounded-full bg-black/10 dark:bg-white/15"></span></div>
+        <button type="button" class="gigs-modal-close absolute top-4 right-4 w-9 h-9 rounded-xl bg-black/[0.04] dark:bg-white/10 text-gray-500">✕</button>
+        <div class="mx-auto w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-500/15 flex items-center justify-center text-emerald-600 mb-3">
+            <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <h3 class="font-display font-bold text-xl text-center"><?= htmlspecialchars(t('gigs.complete_title')) ?></h3>
+        <p class="text-sm text-gray-500 mt-2 text-center"><?= htmlspecialchars(t('gigs.complete_hint')) ?></p>
         <input type="text" id="gigs-pin-input" maxlength="4" inputmode="numeric" class="<?= $input ?> mt-4 text-center text-2xl tracking-[0.4em]" placeholder="0000">
-        <button type="button" id="gigs-submit-pin" class="mt-4 w-full bg-emerald-600 hover:bg-emerald-500 text-white font-display font-bold text-xs uppercase tracking-wider py-3 rounded-xl"><?= htmlspecialchars(t('gigs.complete_btn')) ?></button>
+        <button type="button" id="gigs-submit-pin" class="mt-4 w-full bg-emerald-600 hover:bg-emerald-500 text-white font-display font-bold text-xs uppercase tracking-wider py-3.5 rounded-2xl"><?= htmlspecialchars(t('gigs.complete_btn')) ?></button>
     </div>
 </div>
 
-<div id="gigs-create-modal" class="hidden fixed inset-0 z-[80] bg-ink-900/60 flex items-center justify-center p-4">
-    <div class="bg-white dark:bg-ink-900 rounded-2xl w-full max-w-lg p-5 relative border border-black/10 dark:border-white/10 max-h-[90vh] overflow-y-auto">
-        <button type="button" class="gigs-modal-close absolute top-3 right-3 text-2xl text-gray-400">&times;</button>
-        <h3 class="font-display font-bold text-lg"><?= htmlspecialchars(t('gigs.publish')) ?></h3>
-        <form id="gigs-create-form" class="mt-4 space-y-3">
-            <div>
-                <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('gigs.field_category')) ?></label>
-                <select name="category_id" required class="<?= $input ?>">
-                    <?php foreach ($microCategories as $cat): ?>
-                        <option value="<?= (int) $cat['id'] ?>"><?= htmlspecialchars($cat['name']) ?></option>
-                    <?php endforeach; ?>
-                </select>
+<div id="gigs-confirm-modal" class="hidden fixed inset-0 z-[90] flex items-end sm:items-center justify-center bg-ink-900/55 backdrop-blur-sm p-0 sm:p-4" role="dialog" aria-modal="true">
+    <div class="gigs-modal-panel w-full sm:max-w-md bg-white dark:bg-ink-800 rounded-t-[28px] sm:rounded-[28px] overflow-hidden shadow-lift border border-white/60 dark:border-white/10">
+        <div class="sm:hidden flex justify-center pt-3" aria-hidden="true"><span class="w-10 h-1 rounded-full bg-black/10 dark:bg-white/15"></span></div>
+        <div class="px-5 pt-5 pb-2 text-center space-y-3">
+            <div class="mx-auto w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-500/15 flex items-center justify-center text-amber-600">
+                <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/></svg>
             </div>
-            <div>
-                <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('gigs.field_title')) ?></label>
-                <input name="title" required minlength="5" maxlength="255" class="<?= $input ?>">
-            </div>
-            <div>
-                <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('gigs.field_desc')) ?></label>
-                <textarea name="description" required minlength="10" rows="4" class="<?= $input ?> h-auto py-2"></textarea>
-            </div>
-            <div>
-                <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('gigs.field_address')) ?></label>
-                <input name="address" required class="<?= $input ?>">
-            </div>
-            <div>
-                <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('gigs.field_price')) ?></label>
-                <input name="initial_price" type="number" min="100" step="50" required class="<?= $input ?>">
-            </div>
-            <p class="text-xs text-gray-500"><?= htmlspecialchars(t('gigs.create_hint')) ?></p>
-            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-display font-bold text-xs uppercase tracking-wider py-3 rounded-xl"><?= htmlspecialchars(t('gigs.create_btn')) ?></button>
-        </form>
+            <h3 id="gigs-confirm-title" class="font-display text-xl font-bold text-ink-900 dark:text-white"></h3>
+            <p id="gigs-confirm-body" class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed"></p>
+        </div>
+        <div class="p-5 pt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <button type="button" id="gigs-confirm-no" class="order-2 sm:order-1 py-3 rounded-2xl border border-black/10 dark:border-white/15 text-xs font-bold uppercase tracking-wider"><?= htmlspecialchars(t('gigs.modal_back')) ?></button>
+            <button type="button" id="gigs-confirm-yes" class="order-1 sm:order-2 py-3 rounded-2xl bg-ink-900 hover:bg-ink-800 text-white text-xs font-bold uppercase tracking-wider"><?= htmlspecialchars(t('gigs.confirm_yes')) ?></button>
+        </div>
     </div>
 </div>
+
+<div id="gigs-toast" class="hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-[95] max-w-[92vw] sm:max-w-md px-4 py-3 rounded-2xl shadow-lift text-sm font-semibold text-white"></div>
 
 <script>
 (function () {
@@ -143,24 +139,115 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
     const categorySelect = document.getElementById('gigs-category');
     const offerModal = document.getElementById('gigs-offer-modal');
     const pinModal = document.getElementById('gigs-pin-modal');
-    const createModal = document.getElementById('gigs-create-modal');
+    const confirmModal = document.getElementById('gigs-confirm-modal');
+    const toastEl = document.getElementById('gigs-toast');
     const customInput = document.getElementById('gigs-custom-price');
     let tasks = [];
     let selected = null;
     let bargain = 'accept';
     let pinTaskId = null;
+    let confirmResolver = null;
+    let toastTimer = null;
 
     function money(n) {
         return new Intl.NumberFormat('ru-RU').format(Math.round(Number(n) || 0)) + ' ₸';
     }
+    function escapeHtml(s) {
+        return String(s ?? '').replace(/[&<>"']/g, function (ch) {
+            return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+        });
+    }
     function closeModals() {
         offerModal.classList.add('hidden');
         pinModal.classList.add('hidden');
-        createModal.classList.add('hidden');
     }
+    function showToast(message, isError) {
+        if (!toastEl || !message) return;
+        toastEl.textContent = message;
+        toastEl.className = 'fixed bottom-5 left-1/2 -translate-x-1/2 z-[95] max-w-[92vw] sm:max-w-md px-4 py-3 rounded-2xl shadow-lift text-sm font-semibold text-white ' +
+            (isError ? 'bg-red-600' : 'bg-ink-900');
+        toastEl.classList.remove('hidden');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { toastEl.classList.add('hidden'); }, 4200);
+    }
+    function askConfirm(title, body) {
+        return new Promise(function (resolve) {
+            document.getElementById('gigs-confirm-title').textContent = title;
+            document.getElementById('gigs-confirm-body').textContent = body;
+            confirmResolver = resolve;
+            confirmModal.classList.remove('hidden');
+        });
+    }
+    document.getElementById('gigs-confirm-yes').addEventListener('click', function () {
+        confirmModal.classList.add('hidden');
+        if (confirmResolver) confirmResolver(true);
+        confirmResolver = null;
+    });
+    document.getElementById('gigs-confirm-no').addEventListener('click', function () {
+        confirmModal.classList.add('hidden');
+        if (confirmResolver) confirmResolver(false);
+        confirmResolver = null;
+    });
+    confirmModal.addEventListener('click', function (e) {
+        if (e.target === confirmModal) {
+            confirmModal.classList.add('hidden');
+            if (confirmResolver) confirmResolver(false);
+            confirmResolver = null;
+        }
+    });
     document.querySelectorAll('.gigs-modal-close').forEach(function (btn) {
         btn.addEventListener('click', closeModals);
     });
+    [offerModal, pinModal].forEach(function (modal) {
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) closeModals();
+        });
+    });
+
+    (function bindGigsSelect() {
+        const wrap = document.querySelector('[data-gigs-select-wrap]');
+        if (!wrap || !categorySelect) return;
+        const btn = wrap.querySelector('[data-gigs-select-trigger]');
+        const menu = wrap.querySelector('[data-gigs-select-menu]');
+        const labelEl = wrap.querySelector('[data-gigs-select-label]');
+        if (!btn || !menu || !labelEl) return;
+        function renderMenu() {
+            const opt = categorySelect.options[categorySelect.selectedIndex];
+            labelEl.textContent = opt ? opt.textContent : '';
+            menu.innerHTML = '';
+            Array.from(categorySelect.options).forEach(function (option) {
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'w-full flex items-center gap-2 px-3.5 py-2.5 text-sm text-left transition ' +
+                    (option.selected
+                        ? 'bg-brand-50 dark:bg-brand-500/15 text-brand-700 dark:text-brand-300 font-semibold'
+                        : 'text-ink-800 dark:text-gray-200 hover:bg-black/[0.04] dark:hover:bg-white/5');
+                item.textContent = option.textContent;
+                item.addEventListener('click', function () {
+                    categorySelect.value = option.value;
+                    categorySelect.dispatchEvent(new Event('change'));
+                    menu.classList.add('hidden');
+                    btn.setAttribute('aria-expanded', 'false');
+                    renderMenu();
+                });
+                menu.appendChild(item);
+            });
+        }
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            const open = menu.classList.contains('hidden');
+            menu.classList.toggle('hidden', !open);
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+        document.addEventListener('click', function (e) {
+            if (!wrap.contains(e.target)) {
+                menu.classList.add('hidden');
+                btn.setAttribute('aria-expanded', 'false');
+            }
+        });
+        categorySelect.addEventListener('change', renderMenu);
+        renderMenu();
+    })();
 
     async function loadTasks() {
         const cat = categorySelect.value;
@@ -217,35 +304,37 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         body: '{}'
                     });
                     const json = await res.json();
-                    alert(json.success ? json.data.message : json.error);
+                    showToast(json.success ? json.data.message : json.error, !json.success);
                     loadTasks();
                     loadMine();
                 });
             });
             mineEl.querySelectorAll('[data-cancel-task]').forEach(function (btn) {
                 btn.addEventListener('click', async function () {
-                    if (!confirm('<?= htmlspecialchars(t('gigs.cancel_confirm'), ENT_QUOTES) ?>')) return;
+                    const ok = await askConfirm('<?= htmlspecialchars(t('gigs.cancel_btn'), ENT_QUOTES) ?>', '<?= htmlspecialchars(t('gigs.cancel_confirm'), ENT_QUOTES) ?>');
+                    if (!ok) return;
                     const res = await fetch(api + '/' + btn.dataset.cancelTask + '/cancel', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                         body: '{}'
                     });
                     const json = await res.json();
-                    alert(json.success ? json.data.message : json.error);
+                    showToast(json.success ? json.data.message : json.error, !json.success);
                     loadTasks();
                     loadMine();
                 });
             });
             mineEl.querySelectorAll('[data-delete-task]').forEach(function (btn) {
                 btn.addEventListener('click', async function () {
-                    if (!confirm('<?= htmlspecialchars(t('gigs.delete_confirm'), ENT_QUOTES) ?>')) return;
+                    const ok = await askConfirm('<?= htmlspecialchars(t('gigs.delete_btn'), ENT_QUOTES) ?>', '<?= htmlspecialchars(t('gigs.delete_confirm'), ENT_QUOTES) ?>');
+                    if (!ok) return;
                     const res = await fetch(api + '/' + btn.dataset.deleteTask + '/delete', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                         body: '{}'
                     });
                     const json = await res.json();
-                    alert(json.success ? json.data.message : json.error);
+                    showToast(json.success ? json.data.message : json.error, !json.success);
                     loadTasks();
                     loadMine();
                 });
@@ -260,10 +349,19 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
         }
         grid.innerHTML = tasks.map(function (task) {
             const d = task.pricing.bargain_options.discount_20.price;
+            const imgs = Array.isArray(task.images) ? task.images : [];
+            const photo = imgs.length
+                ? '<div class="aspect-[4/3] rounded-xl overflow-hidden bg-ink-100 dark:bg-white/10">' +
+                    imgs.map(function (src, i) {
+                        return '<img src="' + escapeHtml(src) + '" alt="" class="' + (i === 0 ? 'w-full h-full object-cover' : 'hidden') + '">';
+                    }).join('') +
+                  '</div>'
+                : '';
             return '<article class="bg-white dark:bg-white/[0.04] rounded-2xl border border-black/[0.06] dark:border-white/10 p-4 flex flex-col gap-3 shadow-soft">' +
+                photo +
                 '<div class="flex justify-between gap-2"><span class="text-[10px] font-bold uppercase tracking-wider bg-ink-100 dark:bg-white/10 px-2 py-1 rounded-lg">' + escapeHtml(task.category.name) + '</span>' +
                 '<span class="font-display font-bold text-emerald-600">' + money(task.pricing.initial_price) + '</span></div>' +
-                '<h3 class="font-display font-bold text-ink-900 dark:text-white">' + escapeHtml(task.title) + '</h3>' +
+                '<h3 class="font-display font-bold text-ink-900 dark:text-white">' + escapeHtml(task.category.name) + '</h3>' +
                 '<p class="text-xs text-gray-500">' + escapeHtml(task.address || '') + '</p>' +
                 '<div class="text-xs font-semibold text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-500/10 rounded-lg p-2 text-center"><?= htmlspecialchars(t('gigs.instant_banner'), ENT_QUOTES) ?> ' + money(d) + '</div>' +
                 '<button type="button" class="mt-auto bg-brand-600 hover:bg-brand-500 text-white font-display font-bold text-xs uppercase tracking-wider py-2.5 rounded-xl" data-offer="' + task.id + '"><?= htmlspecialchars(t('gigs.respond'), ENT_QUOTES) ?></button>' +
@@ -326,14 +424,14 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                 })
             });
             const json = await res.json();
-            alert(json.success ? (json.data.message || 'OK') : (json.error || 'Error'));
+            showToast(json.success ? (json.data.message || 'OK') : (json.error || 'Error'), !json.success);
             if (json.success) {
                 closeModals();
                 loadTasks();
                 loadMine();
             }
         } catch (e) {
-            alert('<?= htmlspecialchars(t('gigs.err_network'), ENT_QUOTES) ?>');
+            showToast('<?= htmlspecialchars(t('gigs.err_network'), ENT_QUOTES) ?>', true);
         }
         btn.disabled = false;
     });
@@ -345,7 +443,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
     }
     document.getElementById('gigs-submit-pin').addEventListener('click', async function () {
         const pin = document.getElementById('gigs-pin-input').value.trim();
-        if (!/^\d{4}$/.test(pin)) { alert('<?= htmlspecialchars(t('gigs.err_pin_format'), ENT_QUOTES) ?>'); return; }
+        if (!/^\d{4}$/.test(pin)) { showToast('<?= htmlspecialchars(t('gigs.err_pin_format'), ENT_QUOTES) ?>', true); return; }
         const btn = this;
         btn.disabled = true;
         try {
@@ -356,49 +454,21 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
             });
             const json = await res.json();
             if (json.success) {
-                alert(json.data.message + ' ' + money(json.data.payout_amount));
+                showToast(json.data.message + ' ' + money(json.data.payout_amount), false);
                 closeModals();
                 loadTasks();
                 loadMine();
             } else {
-                alert(json.error);
+                showToast(json.error, true);
             }
         } catch (e) {
-            alert('<?= htmlspecialchars(t('gigs.err_network'), ENT_QUOTES) ?>');
+            showToast('<?= htmlspecialchars(t('gigs.err_network'), ENT_QUOTES) ?>', true);
         }
         btn.disabled = false;
     });
 
     document.getElementById('gigs-refresh').addEventListener('click', function () { loadTasks(); loadMine(); });
     categorySelect.addEventListener('change', loadTasks);
-    const openCreate = document.getElementById('gigs-open-create');
-    if (openCreate) openCreate.addEventListener('click', function () { createModal.classList.remove('hidden'); });
-    document.getElementById('gigs-create-form').addEventListener('submit', async function (e) {
-        e.preventDefault();
-        const form = e.target;
-        const payload = Object.fromEntries(new FormData(form).entries());
-        payload.category_id = Number(payload.category_id);
-        payload.initial_price = Number(payload.initial_price);
-        try {
-            const res = await fetch(api + '/create', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const json = await res.json();
-            if (json.success) {
-                alert(json.data.message + ' PIN: ' + json.data.completion_pin);
-                form.reset();
-                closeModals();
-                loadTasks();
-                loadMine();
-            } else {
-                alert(json.error);
-            }
-        } catch (err) {
-            alert('<?= htmlspecialchars(t('gigs.err_network'), ENT_QUOTES) ?>');
-        }
-    });
 
     loadTasks();
     loadMine();

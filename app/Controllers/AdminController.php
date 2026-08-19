@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Core\Auth;
 use App\Core\Controller;
+use App\Core\Database;
 use App\Helpers\ActivityLogger;
 use App\Helpers\Mail;
 use App\Helpers\ProductHelper;
@@ -15,7 +16,9 @@ use App\Models\Product;
 use App\Models\Setting;
 use App\Models\SiteVisit;
 use App\Models\SupportTicket;
+use App\Models\MicroTask;
 use App\Models\User;
+use App\Services\UnskilledTaskValidator;
 use App\Services\AI\SelfLearningService;
 use App\Services\EscrowService;
 
@@ -146,6 +149,129 @@ class AdminController extends Controller
         }
 
         $this->redirect('/admin');
+    }
+
+    public function gigCategories(): void
+    {
+        Auth::requireAdmin();
+        $model = new MicroTask();
+        $n = new Notification();
+        $this->view('admin/gig-categories', [
+            'title' => t('admin.gig_categories'),
+            'currentNav' => 'admin',
+            'categories' => $model->listCategoriesWithCounts(),
+            'notifications' => $n->forUser(Auth::id()),
+            'unread' => $n->unreadCount(Auth::id()),
+            'search' => '',
+            'flash' => $_SESSION['flash'] ?? null,
+            'error' => $_SESSION['error'] ?? null,
+        ]);
+        unset($_SESSION['flash'], $_SESSION['error']);
+    }
+
+    public function gigCategoryCreate(): void
+    {
+        Auth::requireAdmin();
+        $name = trim((string) ($_POST['name'] ?? ''));
+        $unskilled = isset($_POST['is_unskilled_only']);
+        $error = $this->validateGigCategoryName($name);
+        if ($error !== null) {
+            $_SESSION['error'] = $error;
+            $this->redirect('/admin/gig-categories');
+            return;
+        }
+
+        $model = new MicroTask();
+        if ($model->categoryNameExists($name)) {
+            $_SESSION['error'] = t('admin.gig_cat_exists');
+            $this->redirect('/admin/gig-categories');
+            return;
+        }
+
+        $id = $model->createCategory($name, $unskilled);
+        ActivityLogger::info('admin.gig_category_create', 'Добавлена категория биржи: ' . $name, 'micro_category', $id);
+        $_SESSION['flash'] = t('admin.gig_cat_created');
+        $this->redirect('/admin/gig-categories');
+    }
+
+    public function gigCategoryUpdate(string $id): void
+    {
+        Auth::requireAdmin();
+        $catId = (int) $id;
+        $model = new MicroTask();
+        $category = $model->findCategory($catId);
+        if (!$category) {
+            $_SESSION['error'] = t('admin.gig_cat_not_found');
+            $this->redirect('/admin/gig-categories');
+            return;
+        }
+
+        $name = trim((string) ($_POST['name'] ?? ''));
+        $unskilled = isset($_POST['is_unskilled_only']);
+        $error = $this->validateGigCategoryName($name);
+        if ($error !== null) {
+            $_SESSION['error'] = $error;
+            $this->redirect('/admin/gig-categories');
+            return;
+        }
+
+        if ($model->categoryNameExists($name, $catId)) {
+            $_SESSION['error'] = t('admin.gig_cat_exists');
+            $this->redirect('/admin/gig-categories');
+            return;
+        }
+
+        $model->updateCategory($catId, $name, $unskilled);
+        ActivityLogger::info('admin.gig_category_update', 'Обновлена категория биржи: ' . $name, 'micro_category', $catId);
+        $_SESSION['flash'] = t('admin.gig_cat_updated');
+        $this->redirect('/admin/gig-categories');
+    }
+
+    public function gigCategoryDelete(string $id): void
+    {
+        Auth::requireAdmin();
+        $catId = (int) $id;
+        $model = new MicroTask();
+        $category = $model->findCategory($catId);
+        if (!$category) {
+            $_SESSION['error'] = t('admin.gig_cat_not_found');
+            $this->redirect('/admin/gig-categories');
+            return;
+        }
+
+        if ($model->categoryTaskCount($catId) > 0) {
+            $_SESSION['error'] = t('admin.gig_cat_in_use');
+            $this->redirect('/admin/gig-categories');
+            return;
+        }
+
+        if ($model->deleteCategory($catId)) {
+            ActivityLogger::info(
+                'admin.gig_category_delete',
+                'Удалена категория биржи: ' . ($category['name'] ?? ''),
+                'micro_category',
+                $catId
+            );
+            $_SESSION['flash'] = t('admin.gig_cat_deleted');
+        } else {
+            $_SESSION['error'] = t('admin.gig_cat_delete_failed');
+        }
+        $this->redirect('/admin/gig-categories');
+    }
+
+    private function validateGigCategoryName(string $name): ?string
+    {
+        $len = mb_strlen($name, 'UTF-8');
+        if ($len < 2 || $len > 100) {
+            return t('admin.gig_cat_name_len');
+        }
+
+        $word = (new UnskilledTaskValidator(Database::connect()))->findStopWord($name);
+        if ($word !== null) {
+            return t('gigs.err_stopword', ['word' => $word]);
+        }
+
+        return null;
     }
 
     public function logs(): void

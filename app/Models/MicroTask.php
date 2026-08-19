@@ -41,6 +41,8 @@ class MicroTask extends Model
                 `platform_fee_percent` DECIMAL(5,2) NOT NULL DEFAULT 10.00,
                 `completion_pin` VARCHAR(4) NOT NULL,
                 `acquiring_rrn` VARCHAR(64) NULL DEFAULT NULL,
+                `image` VARCHAR(255) NULL DEFAULT NULL,
+                `images` TEXT NULL DEFAULT NULL,
                 `status` ENUM('open', 'locked', 'in_progress', 'completed', 'cancelled', 'expired') NOT NULL DEFAULT 'open',
                 `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 `expires_at` DATETIME NOT NULL,
@@ -79,6 +81,106 @@ class MicroTask extends Model
             );
         }
 
+        $this->ensureColumn('micro_tasks', 'image', 'VARCHAR(255) NULL DEFAULT NULL');
+        $this->ensureColumn('micro_tasks', 'images', 'TEXT NULL DEFAULT NULL');
+
         self::$ensured = true;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function listCategoriesWithCounts(): array
+    {
+        $this->ensureSchema();
+        $rows = $this->db->query(
+            'SELECT c.`id`, c.`name`, c.`is_unskilled_only`, c.`created_at`,
+                    (SELECT COUNT(*) FROM `micro_tasks` t WHERE t.`category_id` = c.`id`) AS `task_count`
+             FROM `micro_categories` c
+             ORDER BY c.`id`'
+        )->fetchAll();
+
+        return array_map(static function (array $row): array {
+            $row['id'] = (int) $row['id'];
+            $row['is_unskilled_only'] = (int) $row['is_unskilled_only'];
+            $row['task_count'] = (int) $row['task_count'];
+            return $row;
+        }, $rows);
+    }
+
+    public function findCategory(int $id): ?array
+    {
+        $this->ensureSchema();
+        $stmt = $this->db->prepare('SELECT * FROM `micro_categories` WHERE `id` = :id LIMIT 1');
+        $stmt->execute(['id' => $id]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
+    public function categoryNameExists(string $name, ?int $exceptId = null): bool
+    {
+        $this->ensureSchema();
+        $sql = 'SELECT `id` FROM `micro_categories` WHERE LOWER(`name`) = LOWER(:name)';
+        $params = ['name' => $name];
+        if ($exceptId !== null) {
+            $sql .= ' AND `id` <> :id';
+            $params['id'] = $exceptId;
+        }
+        $sql .= ' LIMIT 1';
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return (bool) $stmt->fetchColumn();
+    }
+
+    public function createCategory(string $name, bool $unskilledOnly = true): int
+    {
+        $this->ensureSchema();
+        $stmt = $this->db->prepare(
+            'INSERT INTO `micro_categories` (`name`, `is_unskilled_only`) VALUES (:name, :flag)'
+        );
+        $stmt->execute([
+            'name' => $name,
+            'flag' => $unskilledOnly ? 1 : 0,
+        ]);
+        return (int) $this->db->lastInsertId();
+    }
+
+    public function updateCategory(int $id, string $name, bool $unskilledOnly): bool
+    {
+        $this->ensureSchema();
+        $stmt = $this->db->prepare(
+            'UPDATE `micro_categories` SET `name` = :name, `is_unskilled_only` = :flag WHERE `id` = :id'
+        );
+        return $stmt->execute([
+            'id' => $id,
+            'name' => $name,
+            'flag' => $unskilledOnly ? 1 : 0,
+        ]);
+    }
+
+    public function categoryTaskCount(int $id): int
+    {
+        $this->ensureSchema();
+        $stmt = $this->db->prepare('SELECT COUNT(*) FROM `micro_tasks` WHERE `category_id` = :id');
+        $stmt->execute(['id' => $id]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    public function deleteCategory(int $id): bool
+    {
+        $this->ensureSchema();
+        if ($this->categoryTaskCount($id) > 0) {
+            return false;
+        }
+        $stmt = $this->db->prepare('DELETE FROM `micro_categories` WHERE `id` = :id');
+        return $stmt->execute(['id' => $id]);
+    }
+
+    private function ensureColumn(string $table, string $column, string $definition): void
+    {
+        try {
+            $this->db->exec("ALTER TABLE `{$table}` ADD COLUMN `{$column}` {$definition}");
+        } catch (PDOException) {
+        }
     }
 }

@@ -172,6 +172,13 @@ $stubMode = !empty($stubMode);
             </div>
             <span class="text-xs font-bold text-brand-600"><?= (int) ($userCount ?? 0) ?> →</span>
         </a>
+        <a href="<?= ProductHelper::url('/admin/gig-categories') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 border-t border-brand-100 dark:border-brand-900/30 hover:bg-teal-50/40 dark:hover:bg-white/[0.03] transition">
+            <div class="min-w-0">
+                <h3 class="font-display font-bold text-teal-800 dark:text-teal-300"><?= htmlspecialchars(t('admin.gig_categories')) ?></h3>
+                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.gig_categories_hint')) ?></p>
+            </div>
+            <span class="text-xs font-bold text-teal-600"><?= htmlspecialchars(t('admin.gig_categories_open')) ?> →</span>
+        </a>
         <a href="<?= ProductHelper::url('/admin/logs') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 border-t border-brand-100 dark:border-brand-900/30 hover:bg-red-50/40 dark:hover:bg-white/[0.03] transition">
             <div class="min-w-0">
                 <h3 class="font-display font-bold text-red-800 dark:text-red-300"><?= htmlspecialchars(t('admin.logs')) ?></h3>

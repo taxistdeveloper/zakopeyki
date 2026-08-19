@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Core\Database;
+use App\Helpers\ProductHelper;
 use App\Models\MicroTask;
+use App\Models\Product;
 use Exception;
 use PDO;
 use PDOException;
@@ -75,7 +77,7 @@ class MicroTaskService
     public function createTask(int $customerId, array $data): array
     {
         $validation = $this->validator->validate(
-            (string) ($data['title'] ?? ''),
+            '',
             (string) ($data['description'] ?? ''),
             (int) ($data['category_id'] ?? 0)
         );
@@ -106,24 +108,40 @@ class MicroTaskService
         $pin = (string) random_int(1000, 9999);
         $expiresAt = date('Y-m-d H:i:s', strtotime('+12 hours'));
         $priceInt = (int) round($initialPrice);
+        $categoryId = (int) $data['category_id'];
+        $title = $this->categoryName($categoryId);
+        if ($title === '') {
+            return [
+                'success' => false,
+                'errors' => [t('gigs.err_category_missing')],
+            ];
+        }
 
         try {
             $this->pdo->beginTransaction();
 
             $stmt = $this->pdo->prepare("
                 INSERT INTO `micro_tasks`
-                (`customer_id`, `category_id`, `title`, `description`, `address`, `initial_price`, `completion_pin`, `status`, `expires_at`)
-                VALUES (:customer_id, :category_id, :title, :description, :address, :initial_price, :pin, 'open', :expires_at)
+                (`customer_id`, `category_id`, `title`, `description`, `address`, `initial_price`, `completion_pin`, `status`, `expires_at`, `image`, `images`)
+                VALUES (:customer_id, :category_id, :title, :description, :address, :initial_price, :pin, 'open', :expires_at, :image, :images)
             ");
+            $images = $data['images'] ?? [];
+            if (!is_array($images)) {
+                $images = [];
+            }
+            $images = array_values(array_slice(array_filter(array_map('strval', $images)), 0, 3));
+            $cover = trim((string) ($data['image'] ?? ($images[0] ?? '')));
             $stmt->execute([
                 'customer_id' => $customerId,
-                'category_id' => (int) $data['category_id'],
-                'title' => trim((string) $data['title']),
+                'category_id' => $categoryId,
+                'title' => $title,
                 'description' => trim((string) $data['description']),
                 'address' => $address,
                 'initial_price' => $priceInt,
                 'pin' => $pin,
                 'expires_at' => $expiresAt,
+                'image' => $cover !== '' ? $cover : null,
+                'images' => $images !== [] ? json_encode($images, JSON_UNESCAPED_UNICODE) : null,
             ]);
 
             $taskId = (int) $this->pdo->lastInsertId();
@@ -525,13 +543,15 @@ class MicroTaskService
         try {
             $this->pdo->beginTransaction();
 
-            $lock = $this->pdo->prepare('SELECT `id`, `customer_id` FROM `micro_tasks` WHERE `id` = :id FOR UPDATE');
+            $lock = $this->pdo->prepare('SELECT `id`, `customer_id`, `image`, `images` FROM `micro_tasks` WHERE `id` = :id FOR UPDATE');
             $lock->execute(['id' => $taskId]);
             $row = $lock->fetch(PDO::FETCH_ASSOC);
             if (!$row || (int) $row['customer_id'] !== $customerId) {
                 $this->pdo->rollBack();
                 return ['success' => false, 'error' => t('gigs.err_not_found')];
             }
+
+            (new Product())->deleteProductFiles(ProductHelper::decodeImages($row));
 
             $this->pdo->prepare('DELETE FROM `micro_task_offers` WHERE `task_id` = :task_id')->execute(['task_id' => $taskId]);
             $this->pdo->prepare('DELETE FROM `micro_tasks` WHERE `id` = :id AND `customer_id` = :customer_id')
@@ -561,7 +581,7 @@ class MicroTaskService
         $sql = "
             SELECT t.`id`, t.`customer_id`, t.`category_id`, c.`name` as `category_name`,
                    t.`title`, t.`description`, t.`address`, t.`initial_price`, t.`status`,
-                   t.`created_at`, t.`expires_at`
+                   t.`created_at`, t.`expires_at`, t.`image`, t.`images`
             FROM `micro_tasks` t
             JOIN `micro_categories` c ON c.`id` = t.`category_id`
             WHERE t.`status` = 'open' AND t.`expires_at` > NOW()
@@ -645,9 +665,10 @@ class MicroTaskService
                     'id' => (int) $task['category_id'],
                     'name' => $task['category_name'],
                 ],
-                'title' => $task['title'],
+                'title' => $task['category_name'] ?: $task['title'],
                 'description' => $task['description'],
                 'address' => $task['address'],
+                'images' => ProductHelper::imageUrls($task),
                 'pricing' => [
                     'initial_price' => $initialPrice,
                     'net_payout_standard' => round($initialPrice * 0.90, 2),
@@ -675,6 +696,15 @@ class MicroTaskService
         }
 
         return $formatted;
+    }
+
+    private function categoryName(int $categoryId): string
+    {
+        $stmt = $this->pdo->prepare('SELECT `name` FROM `micro_categories` WHERE `id` = :id LIMIT 1');
+        $stmt->execute(['id' => $categoryId]);
+        $name = $stmt->fetchColumn();
+
+        return is_string($name) ? trim($name) : '';
     }
 
     private function expireOverdue(): void
