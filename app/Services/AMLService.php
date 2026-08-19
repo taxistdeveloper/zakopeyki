@@ -119,6 +119,17 @@ class AMLService
 
         $users->saveAmlClear($userId, $iin);
 
+        $prev = (string) ($user['aml_status'] ?? '');
+        if ($prev !== self::STATUS_CLEAR) {
+            ActivityLogger::info(
+                'aml.verified',
+                'AML: ИИН прошёл сверку с перечнем АФМ РК',
+                'user',
+                $userId,
+                ['iin_tail' => substr($iin, -4), 'context' => $context]
+            );
+        }
+
         return ['ok' => true, 'iin' => $iin];
     }
 
@@ -203,6 +214,31 @@ class AMLService
         }
 
         return $controlDigit < 10 && $controlDigit === (int) $iin[11];
+    }
+
+    public static function maskIin(?string $iin): string
+    {
+        $clean = preg_replace('/\D/', '', (string) $iin) ?? '';
+        if (strlen($clean) !== 12) {
+            return '—';
+        }
+
+        return substr($clean, 0, 4) . '****' . substr($clean, -4);
+    }
+
+    /**
+     * @return array{list_count: int, list_updated: ?string}
+     */
+    public function listStats(): array
+    {
+        $this->ensureSchema();
+        $count = (int) $this->db->query('SELECT COUNT(*) FROM `aml_blacklisted_persons`')->fetchColumn();
+        $updated = $this->db->query('SELECT MAX(`updated_at`) FROM `aml_blacklisted_persons`')->fetchColumn();
+
+        return [
+            'list_count' => $count,
+            'list_updated' => $updated ? (string) $updated : null,
+        ];
     }
 
     private function blockUser(int $userId, string $iin, string $context): void

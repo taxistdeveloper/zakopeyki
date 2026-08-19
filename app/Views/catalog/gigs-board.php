@@ -43,8 +43,13 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                 <div data-gigs-select-menu class="hidden absolute right-0 left-0 z-30 mt-1.5 max-h-64 overflow-y-auto bg-white dark:bg-ink-800 border border-black/[0.08] dark:border-white/10 rounded-2xl shadow-lift py-1.5" role="listbox"></div>
             </div>
             <button type="button" id="gigs-refresh" class="bg-ink-100 dark:bg-white/10 hover:bg-ink-200 text-ink-800 dark:text-white font-display font-bold text-xs uppercase tracking-wider px-4 py-2.5 rounded-xl transition"><?= htmlspecialchars(t('gigs.refresh')) ?></button>
-            <?php if ($loggedIn): ?>
-                <a href="<?= ProductHelper::url('/profile/verify-listing?type=gig') ?>" onclick="if (typeof openListingVerify === 'function') { event.preventDefault(); openListingVerify('gig'); }" class="inline-flex items-center bg-emerald-600 hover:bg-emerald-500 text-white font-display font-bold text-xs uppercase tracking-wider px-4 py-2.5 rounded-xl transition"><?= htmlspecialchars(t('gigs.publish')) ?></a>
+            <?php if ($loggedIn):
+                $listingOk = \App\Services\AMLService::userListingStatus(\App\Core\Auth::user()) === 'ok';
+                $gigHref = $listingOk
+                    ? \App\Helpers\ProductHelper::url('/profile?tab=lots&type=gig')
+                    : \App\Helpers\ProductHelper::url('/profile/verify-listing?type=gig');
+            ?>
+                <a href="<?= $gigHref ?>" <?php if (!$listingOk): ?>onclick="if (typeof openListingVerify === 'function') { event.preventDefault(); openListingVerify('gig'); }"<?php endif; ?> class="inline-flex items-center bg-emerald-600 hover:bg-emerald-500 text-white font-display font-bold text-xs uppercase tracking-wider px-4 py-2.5 rounded-xl transition"><?= htmlspecialchars(t('gigs.publish')) ?></a>
             <?php else: ?>
                 <a href="<?= htmlspecialchars($loginUrl) ?>" class="inline-flex items-center bg-emerald-600 hover:bg-emerald-500 text-white font-display font-bold text-xs uppercase tracking-wider px-4 py-2.5 rounded-xl transition"><?= htmlspecialchars(t('gigs.publish')) ?></a>
             <?php endif; ?>

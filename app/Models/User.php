@@ -373,9 +373,9 @@ class User extends Model
     }
 
     /** @return list<array<string, mixed>> */
-    public function listForAdmin(?string $role = null, ?string $q = null, ?bool $siteAccess = null): array
+    public function listForAdmin(?string $role = null, ?string $q = null, ?bool $siteAccess = null, ?string $amlStatus = null): array
     {
-        $sql = 'SELECT id, name, first_name, last_name, login, email, phone, iin, aml_status, role, permissions, site_access,
+        $sql = 'SELECT id, name, first_name, last_name, login, email, phone, iin, aml_status, aml_checked_at, role, permissions, site_access,
                        avatar, avatar_file, created_at, two_factor_enabled, google_id
                 FROM users WHERE 1=1';
         $params = [];
@@ -391,21 +391,61 @@ class User extends Model
             $sql .= ' AND (site_access = 0 OR site_access IS NULL) AND role != \'admin\'';
         }
 
+        if ($amlStatus === 'AML_BLOCKED' || $amlStatus === 'clear') {
+            $sql .= ' AND aml_status = ?';
+            $params[] = $amlStatus;
+        } elseif ($amlStatus === 'pending') {
+            $sql .= ' AND (aml_status IS NULL OR aml_status = \'\')';
+        }
+
         $q = $q !== null ? trim($q) : '';
         if ($q !== '') {
             $sql .= ' AND (
                 name LIKE ? OR email LIKE ? OR login LIKE ?
                 OR first_name LIKE ? OR last_name LIKE ? OR phone LIKE ?
-                OR CAST(id AS CHAR) = ?
+                OR CAST(id AS CHAR) = ? OR iin LIKE ?
             )';
             $like = '%' . $q . '%';
-            $params = array_merge($params, [$like, $like, $like, $like, $like, $like, $q]);
+            $params = array_merge($params, [$like, $like, $like, $like, $like, $like, $q, $like]);
         }
 
-        $sql .= ' ORDER BY created_at DESC, id DESC';
+        $order = $amlStatus !== null
+            ? ' ORDER BY aml_checked_at DESC, id DESC'
+            : ' ORDER BY created_at DESC, id DESC';
+        $sql .= $order;
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll();
+    }
+
+    /**
+     * @return array{blocked: int, clear: int, with_iin: int}
+     */
+    public function amlStats(): array
+    {
+        try {
+            $blocked = (int) $this->db->query(
+                "SELECT COUNT(*) FROM users WHERE aml_status = 'AML_BLOCKED'"
+            )->fetchColumn();
+            $clear = (int) $this->db->query(
+                "SELECT COUNT(*) FROM users WHERE aml_status = 'clear'"
+            )->fetchColumn();
+            $withIin = (int) $this->db->query(
+                "SELECT COUNT(*) FROM users WHERE iin IS NOT NULL AND iin != ''"
+            )->fetchColumn();
+
+            return ['blocked' => $blocked, 'clear' => $clear, 'with_iin' => $withIin];
+        } catch (\Throwable) {
+            return ['blocked' => 0, 'clear' => 0, 'with_iin' => 0];
+        }
+    }
+
+    public function clearAmlBlock(int $userId): bool
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE users SET aml_status = NULL, aml_checked_at = NOW() WHERE id = ?"
+        );
+        return $stmt->execute([$userId]);
     }
 
     public function setSiteAccess(int $userId, bool $allowed): bool

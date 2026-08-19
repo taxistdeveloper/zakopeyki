@@ -130,6 +130,10 @@ $filters = [
                 <?= htmlspecialchars($accessLabel) ?>
             </a>
         <?php endforeach; ?>
+        <a href="<?= ProductHelper::url('/admin/aml') ?>"
+           class="inline-flex h-8 px-3 items-center rounded-xl text-[11px] font-semibold bg-white/80 dark:bg-white/[0.04] border border-red-200/70 dark:border-red-900/40 text-red-700 dark:text-red-300 hover:border-red-400/50">
+            AML
+        </a>
     </div>
 
     <div class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 shadow-soft p-4 sm:p-5">

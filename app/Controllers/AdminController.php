@@ -18,6 +18,7 @@ use App\Models\SiteVisit;
 use App\Models\SupportTicket;
 use App\Models\MicroTask;
 use App\Models\User;
+use App\Services\AMLService;
 use App\Services\UnskilledTaskValidator;
 use App\Services\AI\SelfLearningService;
 use App\Services\EscrowService;
@@ -69,6 +70,7 @@ class AdminController extends Controller
         $unread = $n->unreadCount(Auth::id());
 
         $recentErrors = 0;
+        $amlBlockedCount = 0;
         $stubMode = !empty($GLOBALS['appConfig']['stub_mode']);
         if ($isAdmin) {
             try {
@@ -78,6 +80,7 @@ class AdminController extends Controller
                 $recentErrors = $log->recentErrorCount(24);
                 $userStats['logins_today'] = $log->countUniqueLoginsSince('CURDATE()');
                 $userStats['logins_week'] = $log->countUniqueLoginsSince('(CURDATE() - INTERVAL 7 DAY)');
+                $amlBlockedCount = $userModel->amlStats()['blocked'];
             } catch (\Throwable) {
                 $userCount = $userModel->countAll();
                 $userStats['total'] = $userCount;
@@ -105,6 +108,7 @@ class AdminController extends Controller
             'ticketUnread' => $canTickets ? $support->unreadCountForAdmin() : 0,
             'aiEscalated' => $canAi ? $aiSupport->countEscalated() : 0,
             'recentErrors' => $recentErrors,
+            'amlBlockedCount' => $amlBlockedCount,
             'stubMode' => $stubMode,
             'canProducts' => $canProducts,
             'canTickets' => $canTickets,
@@ -691,6 +695,77 @@ class AdminController extends Controller
         unset($_SESSION['flash'], $_SESSION['error']);
     }
 
+    public function aml(): void
+    {
+        Auth::requireAdmin();
+        AMLService::make()->ensureSchema();
+
+        $status = strtolower(trim((string) ($_GET['status'] ?? 'blocked')));
+        $amlFilter = match ($status) {
+            'clear' => 'clear',
+            'pending' => 'pending',
+            'all' => null,
+            default => 'AML_BLOCKED',
+        };
+        if ($status !== 'clear' && $status !== 'pending' && $status !== 'all') {
+            $status = 'blocked';
+        }
+
+        $q = trim((string) ($_GET['q'] ?? ''));
+        $userModel = new User();
+        $aml = AMLService::make();
+        $logModel = new ActivityLog();
+        $n = new Notification();
+
+        $this->view('admin/aml', [
+            'title' => t('admin.aml'),
+            'currentNav' => 'admin',
+            'users' => $userModel->listForAdmin(null, $q !== '' ? $q : null, null, $amlFilter),
+            'filterStatus' => $status,
+            'searchQuery' => $q,
+            'amlUserStats' => $userModel->amlStats(),
+            'amlListStats' => $aml->listStats(),
+            'amlEvents' => $logModel->search(['action' => 'aml'], 1, 30)['items'],
+            'notifications' => $n->forUser(Auth::id()),
+            'unread' => $n->unreadCount(Auth::id()),
+            'search' => '',
+            'flash' => $_SESSION['flash'] ?? null,
+            'error' => $_SESSION['error'] ?? null,
+        ]);
+        unset($_SESSION['flash'], $_SESSION['error']);
+    }
+
+    public function userClearAml(string $id): void
+    {
+        Auth::requireAdmin();
+        $userId = (int) $id;
+        $userModel = new User();
+        $user = $userModel->find($userId);
+        if (!$user) {
+            $_SESSION['error'] = t('admin.user_not_found');
+            $this->redirect('/admin/aml');
+        }
+
+        if (($user['aml_status'] ?? '') !== AMLService::STATUS_BLOCKED) {
+            $_SESSION['error'] = t('admin.aml_not_blocked');
+            $this->redirect('/admin/users/' . $userId);
+        }
+
+        if ($userModel->clearAmlBlock($userId)) {
+            ActivityLogger::warning(
+                'aml.unblocked',
+                'Админ снял AML_BLOCKED',
+                'user',
+                $userId,
+                ['admin_id' => Auth::id()]
+            );
+            $_SESSION['flash'] = t('admin.aml_unblocked');
+        } else {
+            $_SESSION['error'] = t('admin.aml_unblock_failed');
+        }
+        $this->redirect('/admin/users/' . $userId);
+    }
+
     public function userShow(string $id): void
     {
         Auth::requireAdmin();
@@ -707,11 +782,20 @@ class AdminController extends Controller
         $n = new Notification();
         $uid = Auth::id();
         $userPerms = Auth::normalizePermissions($user['permissions'] ?? null, (string) ($user['role'] ?? 'user'));
+        $amlEvents = [];
+        try {
+            $amlEvents = (new ActivityLog())->search([
+                'action' => 'aml',
+                'user_id' => $userId,
+            ], 1, 20)['items'];
+        } catch (\Throwable) {
+        }
 
         $this->view('admin/user-show', [
             'title' => t('admin.user') . ' #' . $userId,
             'currentNav' => 'admin',
             'user' => $user,
+            'amlEvents' => $amlEvents,
             'userPermissions' => $userPerms,
             'permissionKeys' => Auth::PERMISSIONS,
             'adminCount' => $userModel->countAdmins(),

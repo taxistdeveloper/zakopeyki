@@ -78,6 +78,67 @@ $roleClass = match ($role) {
     </div>
     <?php endif; ?>
 
+    <div class="rounded-[22px] border shadow-soft p-4 sm:p-5 space-y-3 <?= ($user['aml_status'] ?? '') === 'AML_BLOCKED'
+        ? 'bg-red-50/90 dark:bg-red-950/30 border-red-200/80 dark:border-red-800/40'
+        : 'bg-white/90 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/10' ?>">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div class="min-w-0">
+                <h2 class="font-display font-bold text-ink-900 dark:text-white text-sm"><?= htmlspecialchars(t('admin.aml')) ?></h2>
+                <p class="text-xs text-gray-500 mt-1"><?= htmlspecialchars(t('admin.aml_user_hint')) ?></p>
+            </div>
+            <a href="<?= ProductHelper::url('/admin/logs?action=aml&user_id=' . $userId) ?>" class="text-[11px] font-bold text-brand-600 hover:underline shrink-0">
+                <?= htmlspecialchars(t('admin.aml_open_logs')) ?> →
+            </a>
+        </div>
+        <dl class="grid sm:grid-cols-2 gap-3 text-sm">
+            <div>
+                <dt class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.aml_status')) ?></dt>
+                <dd class="mt-0.5">
+                    <?php $st = (string) ($user['aml_status'] ?? ''); ?>
+                    <?php if ($st === 'AML_BLOCKED'): ?>
+                        <span class="inline-flex px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">AML_BLOCKED</span>
+                    <?php elseif ($st === 'clear'): ?>
+                        <span class="inline-flex px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"><?= htmlspecialchars(t('admin.aml_badge_clear')) ?></span>
+                    <?php else: ?>
+                        <span class="text-ink-800 dark:text-gray-200"><?= htmlspecialchars(t('admin.aml_badge_pending')) ?></span>
+                    <?php endif; ?>
+                </dd>
+            </div>
+            <div>
+                <dt class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.aml_iin')) ?></dt>
+                <dd class="mt-0.5 text-ink-800 dark:text-gray-200 font-mono tracking-wide"><?= htmlspecialchars(\App\Services\AMLService::maskIin($user['iin'] ?? null)) ?></dd>
+            </div>
+            <div>
+                <dt class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.aml_checked_at')) ?></dt>
+                <dd class="mt-0.5 text-ink-800 dark:text-gray-200"><?= htmlspecialchars((string) ($user['aml_checked_at'] ?? '—')) ?></dd>
+            </div>
+        </dl>
+        <?php if (($user['aml_status'] ?? '') === 'AML_BLOCKED'): ?>
+            <form method="post" action="<?= ProductHelper::url('/admin/users/' . $userId . '/aml-clear') ?>"
+                  onsubmit="return confirm(<?= json_encode(t('admin.aml_unblock_confirm')) ?>)">
+                <?= csrf_field() ?>
+                <button type="submit" class="h-9 px-4 rounded-xl border border-red-200 text-xs font-bold text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 transition">
+                    <?= htmlspecialchars(t('admin.aml_unblock')) ?>
+                </button>
+            </form>
+        <?php endif; ?>
+        <?php
+        $amlEvents = $amlEvents ?? [];
+        if (!empty($amlEvents)):
+        ?>
+            <div class="border-t border-black/[0.05] dark:border-white/10 pt-3 space-y-2">
+                <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.aml_events')) ?></p>
+                <?php foreach ($amlEvents as $ev): ?>
+                    <p class="text-[11px] text-gray-500">
+                        <?= htmlspecialchars(substr((string) ($ev['created_at'] ?? ''), 0, 16)) ?>
+                        · <?= htmlspecialchars(\App\Helpers\ActivityLogger::actionLabel((string) ($ev['action'] ?? ''))) ?>
+                        · <?= htmlspecialchars((string) ($ev['message'] ?? '')) ?>
+                    </p>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </div>
+
     <div class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 shadow-soft p-4 sm:p-5 space-y-3">
         <h2 class="font-display font-bold text-ink-900 dark:text-white text-sm"><?= htmlspecialchars(t('admin.user_info')) ?></h2>
         <dl class="grid sm:grid-cols-2 gap-3 text-sm">

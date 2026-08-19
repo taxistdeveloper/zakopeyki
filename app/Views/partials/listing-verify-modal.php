@@ -2,6 +2,7 @@
 use App\Core\Auth;
 use App\Core\View;
 use App\Helpers\ProductHelper;
+use App\Services\AMLService;
 
 if (!Auth::check()) {
     return;
@@ -11,7 +12,10 @@ if (str_contains($requestPath, 'verify-listing')) {
     return;
 }
 
-$autoOpen = !empty($_SESSION['open_listing_verify']) || !empty($_GET['verify_listing']);
+$listingStatus = AMLService::userListingStatus(Auth::user());
+$lotsUrl = ProductHelper::url('/profile?tab=lots');
+$verifyUrl = ProductHelper::url('/profile/verify-listing');
+$autoOpen = $listingStatus !== 'ok' && (!empty($_SESSION['open_listing_verify']) || !empty($_GET['verify_listing']));
 $verifyType = (string) ($_SESSION['listing_verify_type'] ?? ($_GET['type'] ?? ''));
 $verifyError = $_SESSION['verify_listing_error'] ?? null;
 if (!empty($_SESSION['open_listing_verify'])) {
@@ -21,7 +25,11 @@ if (isset($_SESSION['verify_listing_error'])) {
     unset($_SESSION['verify_listing_error']);
 }
 ?>
-<div id="listing-verify-modal" class="<?= $autoOpen ? '' : 'hidden ' ?>fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-ink-900/55 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="listing-verify-heading">
+<div id="listing-verify-modal"
+     data-verified="<?= $listingStatus === 'ok' ? '1' : '0' ?>"
+     data-lots="<?= htmlspecialchars($lotsUrl) ?>"
+     data-verify="<?= htmlspecialchars($verifyUrl) ?>"
+     class="<?= $autoOpen ? '' : 'hidden ' ?>fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-ink-900/55 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="listing-verify-heading">
     <button type="button" class="absolute inset-0 cursor-default" onclick="closeListingVerify()" aria-label="<?= htmlspecialchars(t('verify.close')) ?>"></button>
     <div class="relative w-full sm:max-w-md bg-white dark:bg-ink-800 rounded-t-[28px] sm:rounded-[28px] shadow-lift border border-black/[0.06] dark:border-white/10 p-5 sm:p-6 max-h-[92vh] overflow-y-auto">
         <button type="button" onclick="closeListingVerify()" class="absolute top-3.5 right-3.5 w-9 h-9 rounded-xl text-gray-400 hover:text-ink-900 dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/5 transition" aria-label="<?= htmlspecialchars(t('verify.close')) ?>">✕</button>
@@ -35,8 +43,13 @@ if (isset($_SESSION['verify_listing_error'])) {
 <script>
 function openListingVerify(type) {
     const modal = document.getElementById('listing-verify-modal');
-    if (!modal) {
-        window.location.href = <?= json_encode(ProductHelper::url('/profile/verify-listing')) ?>;
+    const lotsBase = modal?.dataset.lots || <?= json_encode(ProductHelper::url('/profile?tab=lots')) ?>;
+    if (!modal || modal.dataset.verified === '1') {
+        let url = lotsBase;
+        if (type) {
+            url += (url.indexOf('?') === -1 ? '?' : '&') + 'type=' + encodeURIComponent(type);
+        }
+        window.location.href = url;
         return;
     }
     if (type) {

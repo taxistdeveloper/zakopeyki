@@ -34,6 +34,7 @@ $tabs = [
 ];
 
 $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm';
+$kycStatus = \App\Services\AMLService::userListingStatus($user);
 ?>
 <section class="max-w-5xl mx-auto space-y-5 pb-8">
     <div class="flex items-end justify-between gap-4">
@@ -45,7 +46,15 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
             <div class="hidden sm:flex items-center gap-3">
                 <?= AvatarHelper::html($user, 'w-11 h-11', 'text-sm', 'rounded-2xl') ?>
                 <div class="text-right">
-                    <div class="text-sm font-semibold"><?= htmlspecialchars($user['name'] ?? '') ?></div>
+                    <div class="text-sm font-semibold flex items-center justify-end gap-1.5">
+                        <?= htmlspecialchars($user['name'] ?? '') ?>
+                        <?php if ($kycStatus === 'ok'): ?>
+                            <span class="inline-flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400" title="<?= htmlspecialchars(t('profile.kyc_verified')) ?>">
+                                <?= IconHelper::svg('shield', 'w-3.5 h-3.5') ?>
+                                <?= htmlspecialchars(t('profile.kyc_badge')) ?>
+                            </span>
+                        <?php endif; ?>
+                    </div>
                     <div class="text-[11px] text-gray-400">@<?= htmlspecialchars($login ?: 'user') ?></div>
                 </div>
             </div>
@@ -112,6 +121,42 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         </div>
                         <span class="text-xs text-gray-400 font-medium"><?= htmlspecialchars(t('profile.email_verified')) ?></span>
                     </div>
+
+                    <?php if ($kycStatus === 'ok'): ?>
+                        <div class="rounded-2xl border border-emerald-200/80 dark:border-emerald-800/40 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-emerald-50/70 dark:bg-emerald-950/20">
+                            <div>
+                                <div class="text-[10px] font-bold text-emerald-700/70 dark:text-emerald-400/80 uppercase tracking-wider mb-1"><?= htmlspecialchars(t('profile.kyc_label')) ?></div>
+                                <div class="flex items-center gap-2 text-sm font-semibold text-emerald-900 dark:text-emerald-200">
+                                    <?= IconHelper::svg('shield', 'w-4 h-4') ?>
+                                    <?= htmlspecialchars(t('profile.kyc_verified')) ?>
+                                    <span class="font-mono text-xs font-medium text-emerald-800/70 dark:text-emerald-300/80 tracking-wide">
+                                        <?= htmlspecialchars(\App\Services\AMLService::maskIin($user['iin'] ?? null)) ?>
+                                    </span>
+                                </div>
+                            </div>
+                            <span class="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                                <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500 text-white text-[10px]">✓</span>
+                                <?= htmlspecialchars(t('profile.kyc_badge')) ?>
+                            </span>
+                        </div>
+                    <?php elseif ($kycStatus === 'blocked'): ?>
+                        <div class="rounded-2xl border border-red-200/80 dark:border-red-800/40 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-red-50/70 dark:bg-red-950/20">
+                            <div>
+                                <div class="text-[10px] font-bold text-red-600 uppercase tracking-wider mb-1"><?= htmlspecialchars(t('profile.kyc_label')) ?></div>
+                                <p class="text-sm font-semibold text-red-800 dark:text-red-200"><?= htmlspecialchars(t('flash.aml_blocked')) ?></p>
+                            </div>
+                        </div>
+                    <?php else: ?>
+                        <div class="rounded-2xl border border-black/[0.08] dark:border-white/10 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-ink-50/60 dark:bg-white/[0.03]">
+                            <div>
+                                <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1"><?= htmlspecialchars(t('profile.kyc_label')) ?></div>
+                                <p class="text-sm font-semibold text-ink-900 dark:text-white"><?= htmlspecialchars(t('profile.kyc_pending')) ?></p>
+                            </div>
+                            <a href="<?= ProductHelper::url('/profile/verify-listing') ?>" class="text-xs font-bold text-brand-600 hover:underline shrink-0">
+                                <?= htmlspecialchars(t('profile.kyc_go')) ?> →
+                            </a>
+                        </div>
+                    <?php endif; ?>
 
                     <div>
                         <label class="block text-[13px] font-semibold text-ink-800 dark:text-gray-200 mb-1.5"><?= htmlspecialchars(t('profile.phone')) ?></label>

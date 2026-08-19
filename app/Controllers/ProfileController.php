@@ -169,6 +169,10 @@ class ProfileController extends Controller
             $type = '';
         }
 
+        if (AMLService::userListingStatus($user ?: Auth::user()) === 'ok') {
+            $this->redirect('/profile?tab=lots' . ($type !== '' ? '&type=' . rawurlencode($type) : ''));
+        }
+
         $this->view('profile/verify-listing', [
             'title' => t('verify.title'),
             'currentNav' => 'profile',

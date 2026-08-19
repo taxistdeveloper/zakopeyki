@@ -150,6 +150,7 @@ $router->post('/streams/{id}/delete', [StreamController::class, 'delete']);
 
 $router->get('/admin', [AdminController::class, 'index']);
 $router->get('/admin/logs', [AdminController::class, 'logs']);
+$router->get('/admin/aml', [AdminController::class, 'aml']);
 $router->get('/admin/tickets', [AdminController::class, 'tickets']);
 $router->get('/admin/tickets/{id}', [AdminController::class, 'ticketShow']);
 $router->post('/admin/tickets/{id}/reply', [AdminController::class, 'ticketReply']);
@@ -170,6 +171,7 @@ $router->post('/admin/users', [AdminController::class, 'userCreate']);
 $router->post('/admin/users/{id}/role', [AdminController::class, 'userUpdateRole']);
 $router->post('/admin/users/{id}/permissions', [AdminController::class, 'userUpdatePermissions']);
 $router->post('/admin/users/{id}/site-access', [AdminController::class, 'userToggleSiteAccess']);
+$router->post('/admin/users/{id}/aml-clear', [AdminController::class, 'userClearAml']);
 $router->post('/admin/users/{id}/delete', [AdminController::class, 'userDelete']);
 $router->post('/admin/delete/{id}', [AdminController::class, 'delete']);
 $router->post('/admin/toggle/{id}', [AdminController::class, 'toggleStatus']);
