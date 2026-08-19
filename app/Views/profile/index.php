@@ -600,11 +600,14 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                 </script>
 
             <?php elseif ($tab === 'lots'): ?>
-                <?php $editing = $editProduct ?? null; ?>
+                <?php
+                $editing = $editProduct ?? null;
+                $editingGig = !empty($editingGig);
+                ?>
                 <div class="mb-6">
-                    <h2 class="font-display text-xl font-bold"><?= htmlspecialchars($editing ? t('profile.edit_lot') : t('profile.create_lot')) ?></h2>
+                    <h2 class="font-display text-xl font-bold"><?= htmlspecialchars($editingGig ? t('gigs.edit_lot') : ($editing ? t('profile.edit_lot') : t('profile.create_lot'))) ?></h2>
                 </div>
-                <form method="post" action="<?= $editing ? ProductHelper::url('/profile/lots/' . $editing['id'] . '/update') : ProductHelper::url('/profile/store') ?>" enctype="multipart/form-data" class="space-y-4 mb-8 p-5 rounded-2xl border border-black/[0.06] dark:border-white/10 bg-brand-50/30 dark:bg-white/[0.03]">
+                <form method="post" action="<?= $editingGig ? ProductHelper::url('/profile/gigs/' . (int) $editing['id'] . '/update') : ($editing ? ProductHelper::url('/profile/lots/' . $editing['id'] . '/update') : ProductHelper::url('/profile/store')) ?>" enctype="multipart/form-data" class="space-y-4 mb-8 p-5 rounded-2xl border border-black/[0.06] dark:border-white/10 bg-brand-50/30 dark:bg-white/[0.03]">
                     <?php $noPriceTypes = ['free', 'exchange', 'service']; ?>
                     <?php
                     $productTypesWithCategory = ProductHelper::PRODUCT_TYPES_WITH_CATEGORY;
@@ -637,7 +640,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                                 <option value="<?= $key ?>" <?= $currentType === $key ? 'selected' : '' ?>><?= htmlspecialchars($label) ?></option>
                             <?php endforeach; ?>
                         </select>
-                        <div id="lot-type-cards" class="grid grid-cols-2 sm:grid-cols-4 gap-2" role="listbox" aria-label="<?= htmlspecialchars(t('profile.type')) ?>">
+                        <div id="lot-type-cards" class="grid grid-cols-2 sm:grid-cols-4 gap-2<?= $editingGig ? ' pointer-events-none' : '' ?>" role="listbox" aria-label="<?= htmlspecialchars(t('profile.type')) ?>">
                             <?php foreach ($types as $key => $label):
                                 $active = $currentType === $key;
                                 $palette = $typePalette[$key] ?? ['idle' => 'bg-brand-50 text-brand-600', 'on' => 'bg-brand-500 text-white', 'ring' => 'border-brand-400 bg-brand-50'];
@@ -736,7 +739,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                                 </div>
                             </div>
                         </div>
-                        <input type="hidden" name="gig_category_id" id="lot-gig-category" value="" <?= $currentType === 'gig' ? 'required' : 'disabled' ?>>
+                        <input type="hidden" name="gig_category_id" id="lot-gig-category" value="<?= (int) ($editGigCategoryId ?? 0) ?>" <?= $currentType === 'gig' ? 'required' : 'disabled' ?>>
                     </div>
                     <div id="lot-desc-wrap">
                         <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.description')) ?></label>
@@ -758,6 +761,9 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                     </div>
                     <div id="lot-gig-note" class="<?= $currentType === 'gig' && !$editing ? '' : 'hidden' ?> text-xs font-semibold text-teal-800 dark:text-teal-200 bg-teal-50 dark:bg-teal-900/20 border border-teal-100 dark:border-teal-800/40 rounded-xl px-3 py-2">
                         <?= htmlspecialchars(t('gigs.profile_note')) ?>
+                    </div>
+                    <div id="lot-gig-edit-note" class="<?= $editingGig ? '' : 'hidden' ?> text-xs font-semibold text-teal-800 dark:text-teal-200 bg-teal-50 dark:bg-teal-900/20 border border-teal-100 dark:border-teal-800/40 rounded-xl px-3 py-2">
+                        <?= htmlspecialchars(t('gigs.edit_note')) ?>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div id="lot-price-wrap" class="<?= in_array($currentType, $noPriceTypes, true) ? 'hidden' : '' ?>">
@@ -875,6 +881,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         const freeNote = document.getElementById('lot-free-note');
                         const serviceNote = document.getElementById('lot-service-note');
                         const gigNote = document.getElementById('lot-gig-note');
+                        const gigEditNote = document.getElementById('lot-gig-edit-note');
                         const gigParent = document.getElementById('lot-gig-parent');
                         const gigSub = document.getElementById('lot-gig-sub');
                         const gigLeaf = document.getElementById('lot-gig-leaf');
@@ -894,6 +901,8 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         const titleInput = document.getElementById('lot-title');
                         const submitBtn = document.getElementById('lot-submit-btn');
                         const isEditingLot = <?= $editing ? 'true' : 'false' ?>;
+                        const isEditingGig = <?= $editingGig ? 'true' : 'false' ?>;
+                        const gigEditPath = <?= js_encode($editGigCategoryPath ?? []) ?>;
                         const publishLabel = <?= json_encode(t('profile.publish')) ?>;
                         const publishServiceLabel = <?= json_encode(t('profile.publish_service', ['amount' => \App\Models\Wallet::formatMoney(ProductHelper::SERVICE_LISTING_FEE)])) ?>;
                         const publishGigLabel = <?= json_encode(t('gigs.create_btn')) ?>;
@@ -1082,7 +1091,29 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         }
                         if (gigSub) gigSub.addEventListener('change', onGigSubChange);
                         if (gigLeaf) gigLeaf.addEventListener('change', syncGigLeaf);
-                        onGigParentChange();
+
+                        function restoreGigPath() {
+                            if (!isEditingGig || !gigEditPath.length || !gigParent) return;
+                            gigParent.value = String(gigEditPath[0] || '');
+                            onGigParentChange();
+                            if (gigEditPath.length >= 2 && gigSub && !gigSub.disabled) {
+                                gigSub.value = String(gigEditPath[1]);
+                                onGigSubChange();
+                                if (gigEditPath[2] && gigLeaf && !gigLeaf.disabled) {
+                                    gigLeaf.value = String(gigEditPath[2]);
+                                }
+                            } else if (gigEditPath.length >= 2 && gigLeaf && !gigLeaf.disabled) {
+                                gigLeaf.value = String(gigEditPath[1]);
+                            }
+                            syncGigLeaf();
+                            if (typeof gigParent.refreshLotUI === 'function') gigParent.refreshLotUI();
+                            if (gigSub && typeof gigSub.refreshLotUI === 'function') gigSub.refreshLotUI();
+                            if (gigLeaf && typeof gigLeaf.refreshLotUI === 'function') gigLeaf.refreshLotUI();
+                        }
+
+                        if (!isEditingGig) {
+                            onGigParentChange();
+                        }
 
                         document.addEventListener('click', function (e) {
                             if (!e.target.closest('[data-lot-select-wrap]')) closeLotMenus();
@@ -1115,6 +1146,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
 
                         document.querySelectorAll('.lot-type-card').forEach(function (card) {
                             card.addEventListener('click', function () {
+                                if (isEditingGig) return;
                                 const value = card.getAttribute('data-type');
                                 if (!value || typeSelect.value === value) return;
                                 typeSelect.value = value;
@@ -1158,6 +1190,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                             if (serviceNote) serviceNote.classList.toggle('hidden', type !== 'service' || isEditingLot);
                             const isGig = type === 'gig';
                             if (gigNote) gigNote.classList.toggle('hidden', !isGig || isEditingLot);
+                            if (gigEditNote) gigEditNote.classList.toggle('hidden', !isGig || !isEditingGig);
                             if (gigCategoryWrap) gigCategoryWrap.classList.toggle('hidden', !isGig);
                             [gigParent, gigSub, gigLeaf, gigCategory].forEach(function (el) {
                                 if (!el) return;
@@ -1242,6 +1275,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         syncTypeCards();
                         syncPriceField();
                         syncCategoryField();
+                        restoreGigPath();
                     })();
                     </script>
                     <div id="lot-photos-section">
@@ -1414,6 +1448,41 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                     render();
                 })();
                 </script>
+
+                <?php $microTasks = $microTasks ?? []; ?>
+                <?php if (!empty($microTasks)): ?>
+                    <h3 class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3"><?= htmlspecialchars(t('gigs.my_gigs')) ?> (<?= count($microTasks) ?>)</h3>
+                    <div class="space-y-2 mb-8">
+                        <?php foreach ($microTasks as $gig):
+                            $gigOpen = (string) ($gig['status'] ?? '') === 'open';
+                            $gigThumb = ProductHelper::imageUrl($gig);
+                        ?>
+                            <div class="flex flex-col sm:flex-row sm:items-center gap-3 bg-white dark:bg-white/5 border border-black/[0.06] dark:border-white/10 rounded-2xl px-4 py-3.5 <?= $editingGig && (int) ($editing['id'] ?? 0) === (int) $gig['id'] ? 'border-brand-400/60 shadow-soft' : '' ?>">
+                                <div class="flex items-center gap-3 flex-1 min-w-0">
+                                    <div class="w-12 h-12 rounded-xl overflow-hidden bg-teal-50 dark:bg-white/5 flex-shrink-0 flex items-center justify-center">
+                                        <?php if ($gigThumb): ?>
+                                            <img src="<?= htmlspecialchars($gigThumb) ?>" alt="" class="w-full h-full object-cover">
+                                        <?php else: ?>
+                                            <?= ProductHelper::icon('gig', 'w-6 h-6 text-teal-600/80') ?>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <div class="text-sm font-semibold truncate"><?= htmlspecialchars((string) ($gig['category_name'] ?: $gig['title'])) ?></div>
+                                        <div class="text-[10px] text-gray-400 mt-0.5"><?= htmlspecialchars(ProductHelper::label('gig')) ?> · <?= htmlspecialchars((string) $gig['status']) ?></div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center justify-between sm:justify-end gap-3 flex-shrink-0">
+                                    <span class="text-sm font-display font-bold text-emerald-600 whitespace-nowrap"><?= htmlspecialchars(\App\Models\Wallet::formatMoney((int) $gig['initial_price'])) ?></span>
+                                    <?php if ($gigOpen): ?>
+                                        <a href="<?= ProductHelper::url('/profile?tab=lots&edit_gig=' . (int) $gig['id']) ?>" class="px-2.5 py-1.5 rounded-xl text-[11px] font-bold border border-black/[0.08] dark:border-white/10 hover:border-brand-400/50 hover:bg-brand-50/60 dark:hover:bg-white/5 transition">
+                                            <?= htmlspecialchars(t('gigs.edit_btn')) ?>
+                                        </a>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
 
                 <h3 class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Опубликованные (<?= count($products) ?>)</h3>
                 <?php if (empty($products)): ?>

@@ -234,6 +234,6 @@ class MicroTaskServiceTest extends TestCase
         $result = $this->service->submitOffer($executorId, $taskId, 'discount_20');
 
         $this->assertFalse($result['success']);
-        $this->assertEquals('Ошибка применения Instant Match.', $result['error']);
+        $this->assertEquals(t('gigs.err_instant'), $result['error']);
     }
 }

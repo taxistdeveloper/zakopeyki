@@ -117,6 +117,7 @@ $router->get('/profile', [ProfileController::class, 'index']);
 $router->post('/profile/store', [ProfileController::class, 'store']);
 $router->post('/profile/lots/{id}/update', [ProfileController::class, 'updateLot']);
 $router->post('/profile/lots/{id}/delete', [ProfileController::class, 'deleteLot']);
+$router->post('/profile/gigs/{id}/update', [ProfileController::class, 'updateGig']);
 $router->post('/profile/avatar', [ProfileController::class, 'avatar']);
 $router->post('/profile/personal', [ProfileController::class, 'updatePersonal']);
 $router->post('/profile/bio', [ProfileController::class, 'updateBio']);

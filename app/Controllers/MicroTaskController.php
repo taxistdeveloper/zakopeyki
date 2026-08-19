@@ -94,6 +94,7 @@ class MicroTaskController extends BaseApiController
                 'address' => $row['address'],
                 'expires_at' => $row['expires_at'],
                 'offers' => $offers,
+                'can_edit' => $role === 'customer' && (string) $row['status'] === 'open',
                 'can_cancel' => $role === 'customer' && in_array((string) $row['status'], ['open', 'locked', 'in_progress'], true),
                 'can_delete' => $role === 'customer',
             ];

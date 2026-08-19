@@ -13,7 +13,7 @@ $loginUrl = ProductHelper::url('/login');
 $apiBase = ProductHelper::url('/api/v1/micro-tasks');
 $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm';
 ?>
-<div id="gigs-board" class="space-y-5" data-api="<?= htmlspecialchars($apiBase) ?>" data-login="<?= htmlspecialchars($loginUrl) ?>" data-auth="<?= $loggedIn ? '1' : '0' ?>">
+<div id="gigs-board" class="space-y-5" data-api="<?= htmlspecialchars($apiBase) ?>" data-login="<?= htmlspecialchars($loginUrl) ?>" data-auth="<?= $loggedIn ? '1' : '0' ?>" data-edit="<?= htmlspecialchars(ProductHelper::url('/profile?tab=lots&edit_gig=')) ?>">
     <?php if (!empty($flash)): ?>
         <div class="bg-emerald-50 dark:bg-emerald-900/25 text-emerald-800 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800/40 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars((string) $flash) ?></div>
     <?php endif; ?>
@@ -69,7 +69,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
             <p id="gigs-detail-desc" class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-wrap"></p>
             <p id="gigs-detail-address" class="text-sm text-gray-500 dark:text-gray-400"></p>
             <p id="gigs-detail-expires" class="text-xs text-gray-400"></p>
-            <div id="gigs-detail-instant" class="text-xs font-semibold text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-500/10 rounded-lg p-2.5 text-center"></div>
+            <div id="gigs-detail-instant" class="text-xs font-semibold text-violet-800 dark:text-violet-300 bg-violet-50 dark:bg-violet-500/10 rounded-xl p-2.5 leading-snug"></div>
             <button type="button" id="gigs-detail-respond" class="w-full bg-brand-600 hover:bg-brand-500 text-white font-display font-bold text-xs uppercase tracking-wider py-3.5 rounded-2xl shadow-soft"><?= htmlspecialchars(t('gigs.respond')) ?></button>
         </div>
     </div>
@@ -88,11 +88,16 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                 <span class="block text-xs font-bold text-ink-800 dark:text-gray-100"><?= htmlspecialchars(t('gigs.opt_accept')) ?></span>
                 <span class="text-sm font-display font-bold text-brand-600" id="gigs-price-accept"></span>
             </label>
-            <label class="rounded-2xl border border-violet-200/80 dark:border-violet-500/30 p-3 cursor-pointer transition has-[:checked]:border-violet-600 has-[:checked]:bg-violet-50 dark:has-[:checked]:bg-violet-500/10 has-[:checked]:shadow-soft">
+            <label class="col-span-2 rounded-2xl border border-violet-200/80 dark:border-violet-500/30 p-3 cursor-pointer transition has-[:checked]:border-violet-600 has-[:checked]:bg-violet-50 dark:has-[:checked]:bg-violet-500/10 has-[:checked]:shadow-soft">
                 <input type="radio" name="gigs_bargain" value="discount_20" class="sr-only">
-                <span class="inline-block text-[10px] uppercase font-bold bg-violet-600 text-white px-1.5 py-0.5 rounded-md mb-1"><?= htmlspecialchars(t('gigs.instant_badge')) ?></span>
-                <span class="block text-xs font-bold text-ink-800 dark:text-gray-100"><?= htmlspecialchars(t('gigs.opt_discount')) ?></span>
-                <span class="text-sm font-display font-bold text-violet-700 dark:text-violet-300" id="gigs-price-discount"></span>
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <span class="inline-block text-[10px] uppercase font-bold bg-violet-600 text-white px-1.5 py-0.5 rounded-md mb-1"><?= htmlspecialchars(t('gigs.instant_badge')) ?></span>
+                        <span class="block text-xs font-bold text-ink-800 dark:text-gray-100"><?= htmlspecialchars(t('gigs.opt_discount')) ?></span>
+                        <span class="block text-[11px] text-gray-500 dark:text-gray-400 mt-1 leading-snug"><?= htmlspecialchars(t('gigs.instant_hint')) ?></span>
+                    </div>
+                    <span class="text-sm font-display font-bold text-violet-700 dark:text-violet-300 shrink-0" id="gigs-price-discount"></span>
+                </div>
             </label>
             <label class="rounded-2xl border border-black/[0.08] dark:border-white/10 p-3 cursor-pointer transition has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50 dark:has-[:checked]:bg-brand-500/10">
                 <input type="radio" name="gigs_bargain" value="raise_20" class="sr-only">
@@ -153,6 +158,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
     if (!board) return;
     const api = board.dataset.api;
     const loginUrl = board.dataset.login;
+    const editBase = board.dataset.edit || '';
     const isAuth = board.dataset.auth === '1';
     const grid = document.getElementById('gigs-grid');
     const mineEl = document.getElementById('gigs-mine');
@@ -308,12 +314,15 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                     const deleteBtn = t.can_delete
                         ? '<button type="button" class="text-xs font-bold text-gray-500 hover:text-red-600" data-delete-task="' + t.id + '"><?= htmlspecialchars(t('gigs.delete_btn'), ENT_QUOTES) ?></button>'
                         : '';
+                    const editBtn = (t.can_edit && editBase)
+                        ? '<a href="' + editBase + t.id + '" class="text-xs font-bold text-brand-600"><?= htmlspecialchars(t('gigs.edit_btn'), ENT_QUOTES) ?></a>'
+                        : '';
                     const offers = (t.offers || []).map(function (o) {
                         return '<button type="button" class="text-xs bg-brand-600 text-white px-2 py-1 rounded-lg" data-select-offer="' + o.id + '"><?= htmlspecialchars(t('gigs.accept_offer'), ENT_QUOTES) ?> ' + money(o.proposed_price) + '</button>';
                     }).join(' ');
                     return '<div class="rounded-xl border border-black/10 dark:border-white/10 p-3 text-sm flex flex-wrap items-center justify-between gap-2">' +
                         '<span><strong>' + escapeHtml(t.title) + '</strong> · ' + escapeHtml(t.status) + pin + '</span>' +
-                        '<span class="flex flex-wrap gap-2">' + offers + completeBtn + cancelBtn + deleteBtn + '</span></div>';
+                        '<span class="flex flex-wrap gap-2">' + offers + completeBtn + editBtn + cancelBtn + deleteBtn + '</span></div>';
                 }).join('');
             mineEl.querySelectorAll('[data-pin-task]').forEach(function (btn) {
                 btn.addEventListener('click', function () { openPin(Number(btn.dataset.pinTask)); });
@@ -400,19 +409,13 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                 (address
                     ? '<p class="text-xs text-gray-500 flex items-start gap-1.5"><svg class="w-3.5 h-3.5 mt-0.5 shrink-0 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><span class="line-clamp-1">' + escapeHtml(address) + '</span></p>'
                     : '') +
-                '<div class="mt-auto space-y-2.5 pt-1">' +
-                '<div class="text-[11px] font-semibold text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-500/10 rounded-xl px-2.5 py-2 text-center"><?= htmlspecialchars(t('gigs.instant_banner'), ENT_QUOTES) ?> ' + money(d) + '</div>' +
-                '<button type="button" class="w-full bg-brand-600 hover:bg-brand-500 text-white font-display font-bold text-[11px] uppercase tracking-wider py-2.5 rounded-xl" data-offer="' + task.id + '"><?= htmlspecialchars(t('gigs.respond'), ENT_QUOTES) ?></button>' +
+                '<div class="mt-auto pt-1 text-[11px] font-semibold text-violet-800 dark:text-violet-300 bg-violet-50 dark:bg-violet-500/10 rounded-xl px-2.5 py-2 leading-snug">' +
+                    '<span class="block"><?= htmlspecialchars(t('gigs.instant_banner'), ENT_QUOTES) ?>: ' + money(d) + '</span>' +
+                    '<span class="block font-medium text-violet-600/90 dark:text-violet-300/80 mt-0.5"><?= htmlspecialchars(t('gigs.instant_hint'), ENT_QUOTES) ?></span>' +
                 '</div></div></article>';
         }).join('');
         grid.querySelectorAll('[data-detail]').forEach(function (card) {
             card.addEventListener('click', function () { openDetail(Number(card.dataset.detail)); });
-        });
-        grid.querySelectorAll('[data-offer]').forEach(function (btn) {
-            btn.addEventListener('click', function (e) {
-                e.stopPropagation();
-                openOffer(Number(btn.dataset.offer));
-            });
         });
     }
 
@@ -433,8 +436,9 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
         document.getElementById('gigs-detail-desc').textContent = task.description || '';
         document.getElementById('gigs-detail-address').textContent = task.address || '';
         document.getElementById('gigs-detail-expires').textContent = formatExpires(task.expires_at);
-        document.getElementById('gigs-detail-instant').textContent =
-            '<?= htmlspecialchars(t('gigs.instant_banner'), ENT_QUOTES) ?> ' + money(task.pricing.bargain_options.discount_20.price);
+        document.getElementById('gigs-detail-instant').innerHTML =
+            '<span class="block"><?= htmlspecialchars(t('gigs.instant_banner'), ENT_QUOTES) ?>: ' + money(task.pricing.bargain_options.discount_20.price) + '</span>' +
+            '<span class="block font-medium text-violet-600/90 dark:text-violet-300/80 mt-0.5"><?= htmlspecialchars(t('gigs.instant_hint'), ENT_QUOTES) ?></span>';
         const photosEl = document.getElementById('gigs-detail-photos');
         const imgs = Array.isArray(task.images) ? task.images : [];
         if (!imgs.length) {

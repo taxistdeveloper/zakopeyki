@@ -177,6 +177,148 @@ class MicroTaskService
         }
     }
 
+    public function findOwned(int $taskId, int $customerId): ?array
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT * FROM `micro_tasks` WHERE `id` = :id AND `customer_id` = :cid LIMIT 1'
+        );
+        $stmt->execute(['id' => $taskId, 'cid' => $customerId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $row ?: null;
+    }
+
+    /**
+     * @return list<int>
+     */
+    public function categoryPath(int $categoryId): array
+    {
+        $model = new MicroTask();
+        $path = [];
+        $current = $model->findCategory($categoryId);
+        $guard = 0;
+        while ($current && $guard++ < 8) {
+            array_unshift($path, (int) $current['id']);
+            if ($current['parent_id'] === null || $current['parent_id'] === '') {
+                break;
+            }
+            $current = $model->findCategory((int) $current['parent_id']);
+        }
+
+        return $path;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @return array{success: bool, errors?: list<string>}
+     */
+    public function updateTask(int $customerId, int $taskId, array $data): array
+    {
+        $validation = $this->validator->validate(
+            '',
+            (string) ($data['description'] ?? ''),
+            (int) ($data['category_id'] ?? 0)
+        );
+        if (!$validation['is_valid']) {
+            return ['success' => false, 'errors' => $validation['errors']];
+        }
+
+        $initialPrice = (float) ($data['initial_price'] ?? 0.00);
+        if ($initialPrice <= 0) {
+            return ['success' => false, 'errors' => [t('gigs.err_price')]];
+        }
+
+        $address = trim((string) ($data['address'] ?? ''));
+        if ($address === '') {
+            return ['success' => false, 'errors' => [t('gigs.err_address')]];
+        }
+
+        $categoryId = (int) $data['category_id'];
+        $title = $this->categoryName($categoryId);
+        if ($title === '') {
+            return ['success' => false, 'errors' => [t('gigs.err_category_missing')]];
+        }
+
+        $priceInt = (int) round($initialPrice);
+
+        try {
+            $this->pdo->beginTransaction();
+
+            $stmt = $this->pdo->prepare('SELECT * FROM `micro_tasks` WHERE `id` = :id FOR UPDATE');
+            $stmt->execute(['id' => $taskId]);
+            $task = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$task) {
+                $this->pdo->rollBack();
+                return ['success' => false, 'errors' => [t('gigs.err_not_found')]];
+            }
+            if ((int) $task['customer_id'] !== $customerId) {
+                $this->pdo->rollBack();
+                return ['success' => false, 'errors' => [t('gigs.err_edit_forbidden')]];
+            }
+            if ((string) $task['status'] !== 'open') {
+                $this->pdo->rollBack();
+                return ['success' => false, 'errors' => [t('gigs.err_edit_status')]];
+            }
+
+            $oldPrice = (int) $task['initial_price'];
+            $diff = $priceInt - $oldPrice;
+            if ($diff > 0) {
+                $rrn = (string) ($task['acquiring_rrn'] ?? '');
+                if (!$this->walletService->holdCustomerBudget($customerId, $taskId, $diff, $rrn !== '' ? $rrn : null)) {
+                    $this->pdo->rollBack();
+                    return ['success' => false, 'errors' => [t('gigs.err_customer_funds', ['amount' => $diff])]];
+                }
+                $this->acquiringService->adjustHoldAmount($taskId, $priceInt);
+            } elseif ($diff < 0) {
+                if (!$this->walletService->refundCustomerBudget($customerId, $taskId, abs($diff))) {
+                    $this->pdo->rollBack();
+                    return ['success' => false, 'errors' => [t('gigs.err_edit')]];
+                }
+                $this->acquiringService->adjustHoldAmount($taskId, $priceInt);
+            }
+
+            $images = $data['images'] ?? [];
+            if (!is_array($images)) {
+                $images = [];
+            }
+            $images = array_values(array_slice(array_filter(array_map('strval', $images)), 0, 3));
+            $cover = trim((string) ($data['image'] ?? ($images[0] ?? '')));
+
+            $upd = $this->pdo->prepare("
+                UPDATE `micro_tasks`
+                SET `category_id` = :category_id,
+                    `title` = :title,
+                    `description` = :description,
+                    `address` = :address,
+                    `initial_price` = :initial_price,
+                    `image` = :image,
+                    `images` = :images
+                WHERE `id` = :id AND `customer_id` = :customer_id AND `status` = 'open'
+            ");
+            $upd->execute([
+                'category_id' => $categoryId,
+                'title' => $title,
+                'description' => trim((string) $data['description']),
+                'address' => $address,
+                'initial_price' => $priceInt,
+                'image' => $cover !== '' ? $cover : null,
+                'images' => $images !== [] ? json_encode($images, JSON_UNESCAPED_UNICODE) : null,
+                'id' => $taskId,
+                'customer_id' => $customerId,
+            ]);
+
+            $this->pdo->commit();
+
+            return ['success' => true];
+        } catch (Exception $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            return ['success' => false, 'errors' => [t('gigs.err_edit')]];
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -280,7 +422,7 @@ class MicroTaskService
                     return [
                         'success' => true,
                         'instant_matched' => true,
-                        'message' => 'Заказ успешно забронирован за вами по скидке -20%! Приступайте к выполнению.',
+                        'message' => t('gigs.instant_ok'),
                         'final_price' => $proposedPrice,
                     ];
                 } catch (Exception $e) {
@@ -288,7 +430,7 @@ class MicroTaskService
                         $this->pdo->rollBack();
                     }
                     $this->walletService->refundResponseFee($executorId, $taskId);
-                    return ['success' => false, 'error' => 'Ошибка применения Instant Match.'];
+                    return ['success' => false, 'error' => t('gigs.err_instant')];
                 }
             }
         }

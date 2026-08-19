@@ -57,7 +57,23 @@ class ProfileController extends Controller
         unset($_SESSION['two_factor_recovery_codes']);
 
         $editProduct = null;
-        if ($tab === 'lots' && !empty($_GET['edit'])) {
+        $editingGig = false;
+        $editGigCategoryId = 0;
+        $editGigCategoryPath = [];
+        $microSvc = MicroTaskService::make();
+        if ($tab === 'lots' && !empty($_GET['edit_gig'])) {
+            $gigRow = $microSvc->findOwned((int) $_GET['edit_gig'], Auth::id());
+            if ($gigRow && (string) $gigRow['status'] === 'open') {
+                $editProduct = $this->gigAsLotForm($gigRow);
+                $editingGig = true;
+                $editGigCategoryId = (int) $gigRow['category_id'];
+                $editGigCategoryPath = $microSvc->categoryPath($editGigCategoryId);
+            } elseif ($gigRow) {
+                $_SESSION['error'] = t('gigs.err_edit_status');
+            } else {
+                $_SESSION['error'] = t('gigs.err_not_found');
+            }
+        } elseif ($tab === 'lots' && !empty($_GET['edit'])) {
             $candidate = (new Product())->find((int) $_GET['edit']);
             if ($candidate && (int) $candidate['user_id'] === Auth::id()) {
                 $editProduct = $candidate;
@@ -91,7 +107,6 @@ class ProfileController extends Controller
         $referralCode = $usersModel->referralCodeFor($profileUser ?: ['id' => Auth::id()]);
         $referralCount = $tab === 'referral' ? $usersModel->countReferrals(Auth::id()) : 0;
         $referralUsers = $tab === 'referral' ? $usersModel->referrals(Auth::id()) : [];
-        $microSvc = MicroTaskService::make();
 
         $this->view('profile/index', [
             'title' => t('profile.title'),
@@ -105,6 +120,13 @@ class ProfileController extends Controller
             'followerUsers' => $followerUsers,
             'followingIds' => $followingIds,
             'editProduct' => $editProduct,
+            'editingGig' => $editingGig,
+            'editGigCategoryId' => $editGigCategoryId,
+            'editGigCategoryPath' => $editGigCategoryPath,
+            'microTasks' => $tab === 'lots' ? array_values(array_filter(
+                $microSvc->listForUser(Auth::id()),
+                static fn (array $row): bool => (int) $row['customer_id'] === (int) Auth::id()
+            )) : [],
             'prefLotType' => isset(ProductHelper::TYPES[(string) ($_GET['type'] ?? '')])
                 ? (string) $_GET['type']
                 : '',
@@ -446,6 +468,69 @@ class ProfileController extends Controller
             'id' => (string) ($result['task_id'] ?? ''),
         ]);
         $this->redirect('/catalog/gigs');
+    }
+
+    public function updateGig(string $id): void
+    {
+        Auth::requireLogin();
+
+        $taskId = (int) $id;
+        $editUrl = '/profile?tab=lots&edit_gig=' . $taskId;
+
+        $description = trim($_POST['description'] ?? '');
+        if ($description === '') {
+            $_SESSION['error'] = t('flash.title_desc_required');
+            $this->redirect($editUrl);
+        }
+
+        $owned = MicroTaskService::make()->findOwned($taskId, Auth::id());
+        if (!$owned) {
+            $_SESSION['error'] = t('gigs.err_not_found');
+            $this->redirect('/profile?tab=lots&type=gig');
+        }
+
+        $photos = $this->resolveProductImages($owned, false);
+        if (!empty($photos['error'])) {
+            $_SESSION['error'] = $photos['error'];
+            $this->redirect($editUrl);
+        }
+
+        $result = MicroTaskService::make()->updateTask(Auth::id(), $taskId, [
+            'description' => $description,
+            'category_id' => (int) ($_POST['gig_category_id'] ?? 0),
+            'address' => trim((string) ($_POST['location'] ?? '')),
+            'initial_price' => (float) preg_replace('/[^\d.]/', '', (string) ($_POST['price'] ?? '0')),
+            'image' => (string) ($photos['cover'] ?? ''),
+            'images' => $photos['images'] ?? [],
+        ]);
+
+        if (!$result['success']) {
+            $_SESSION['error'] = implode(' ', $result['errors'] ?? [t('gigs.err_edit')]);
+            $this->redirect($editUrl);
+        }
+
+        ActivityLogger::info('micro_task.update', 'Поручение биржи обновлено', 'micro_task', $taskId);
+        $_SESSION['flash'] = t('gigs.updated');
+        $this->redirect('/catalog/gigs');
+    }
+
+    /**
+     * @param array<string, mixed> $task
+     * @return array<string, mixed>
+     */
+    private function gigAsLotForm(array $task): array
+    {
+        return [
+            'id' => (int) $task['id'],
+            'type' => 'gig',
+            'title' => (string) ($task['title'] ?? ''),
+            'description' => (string) ($task['description'] ?? ''),
+            'price' => (int) ($task['initial_price'] ?? 0),
+            'location' => (string) ($task['address'] ?? ''),
+            'image' => $task['image'] ?? null,
+            'images' => $task['images'] ?? null,
+            'status' => $task['status'] ?? 'open',
+        ];
     }
 
     public function updateLot(string $id): void
