@@ -28,10 +28,18 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                class="mt-3 inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-display font-bold text-xs uppercase tracking-wider px-5 py-2.5 rounded-xl transition shadow-soft">
                 <?= htmlspecialchars(t('catalog.publish_service', ['amount' => Wallet::formatMoney(ProductHelper::SERVICE_LISTING_FEE)])) ?>
             </a>
+        <?php elseif ($type === 'gig'): ?>
+            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400 max-w-2xl"><?= htmlspecialchars(t('gigs.lead')) ?></p>
         <?php endif; ?>
     </div>
 
-    <?php if ($hasCategoryFilters): ?>
+    <?php if ($type === 'gig'): ?>
+        <?php View::partial('catalog/gigs-board', [
+            'microCategories' => $microCategories ?? [],
+            'walletBalance' => $walletBalance ?? 0,
+            'walletHeld' => $walletHeld ?? 0,
+        ]); ?>
+    <?php elseif ($hasCategoryFilters): ?>
         <form method="get" action="<?= ProductHelper::url('/catalog/' . rawurlencode($section)) ?>"
               id="catalog-category-filters"
               class="rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white/90 dark:bg-white/[0.04] p-4 sm:p-5 shadow-soft backdrop-blur">
@@ -114,7 +122,9 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
         </script>
     <?php endif; ?>
 
-    <?php if (empty($items)): ?>
+    <?php if ($type === 'gig'): ?>
+        <?php /* карточки грузит JS */ ?>
+    <?php elseif (empty($items)): ?>
         <div class="rounded-2xl border border-dashed border-black/10 dark:border-white/15 px-5 py-14 text-center text-sm text-gray-400">
             <?= htmlspecialchars(t('catalog.empty')) ?>
         </div>

@@ -21,6 +21,7 @@ class WalletController extends Controller
             'title' => t('wallet.title'),
             'currentNav' => 'wallet',
             'balance' => $wallet->balance($uid),
+            'heldBalance' => $wallet->heldBalance($uid),
             'transactions' => $wallet->transactions($uid, 40),
             'notifications' => $n->forUser($uid),
             'unread' => $n->unreadCount($uid),

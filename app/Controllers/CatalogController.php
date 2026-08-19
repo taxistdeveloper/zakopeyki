@@ -8,6 +8,8 @@ use App\Helpers\ProductHelper;
 use App\Models\Favorite;
 use App\Models\Notification;
 use App\Models\Product;
+use App\Models\Wallet;
+use App\Services\MicroTaskService;
 
 class CatalogController extends Controller
 {
@@ -57,7 +59,16 @@ class CatalogController extends Controller
             }
         }
 
-        $items = (new Product())->allActive($type, null, $categoryFilter);
+        $items = [];
+        $microCategories = [];
+        $walletBalance = 0;
+        $walletHeld = 0;
+        if ($type === 'gig') {
+            $micro = MicroTaskService::make();
+            $microCategories = $micro->categories();
+        } else {
+            $items = (new Product())->allActive($type, null, $categoryFilter);
+        }
 
         $notifications = [];
         $unread = 0;
@@ -67,6 +78,9 @@ class CatalogController extends Controller
             $notifications = $n->forUser(Auth::id());
             $unread = $n->unreadCount(Auth::id());
             $favoriteIds = (new Favorite())->idsForUser(Auth::id());
+            $wallet = new Wallet();
+            $walletBalance = $wallet->balance(Auth::id());
+            $walletHeld = $wallet->heldBalance(Auth::id());
         }
 
         $this->view('catalog/index', [
@@ -84,6 +98,9 @@ class CatalogController extends Controller
             'unread' => $unread,
             'favoriteIds' => $favoriteIds,
             'search' => '',
+            'microCategories' => $microCategories,
+            'walletBalance' => $walletBalance,
+            'walletHeld' => $walletHeld,
         ]);
     }
 }

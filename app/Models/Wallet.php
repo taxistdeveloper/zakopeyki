@@ -17,6 +17,13 @@ class Wallet extends Model
     public const TYPE_AUCTION_HOLD = 'auction_hold';
     public const TYPE_AUCTION_REFUND = 'auction_refund';
     public const TYPE_LISTING_FEE = 'listing_fee';
+    public const TYPE_HOLD_RESPONSE_FEE = 'hold_response_fee';
+    public const TYPE_UNHOLD_RESPONSE_FEE = 'unhold_response_fee';
+    public const TYPE_CHARGE_RESPONSE_FEE = 'charge_response_fee';
+    public const TYPE_TASK_PAYOUT = 'task_payout';
+    public const TYPE_PLATFORM_COMMISSION = 'platform_commission';
+    public const TYPE_MICRO_ESCROW_HOLD = 'micro_escrow_hold';
+    public const TYPE_MICRO_ESCROW_RELEASE = 'micro_escrow_release';
 
     public function __construct()
     {
@@ -39,6 +46,7 @@ class Wallet extends Model
             "CREATE TABLE IF NOT EXISTS wallets (
                 user_id INT UNSIGNED PRIMARY KEY,
                 balance INT UNSIGNED NOT NULL DEFAULT 0,
+                held_balance INT UNSIGNED NOT NULL DEFAULT 0,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
         );
@@ -51,31 +59,56 @@ class Wallet extends Model
                 amount INT NOT NULL,
                 balance_after INT UNSIGNED NOT NULL,
                 order_id INT UNSIGNED DEFAULT NULL,
+                task_id INT UNSIGNED DEFAULT NULL,
+                acquiring_rrn VARCHAR(64) DEFAULT NULL,
                 meta VARCHAR(255) DEFAULT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 INDEX idx_user (user_id),
                 INDEX idx_order (order_id),
+                INDEX idx_task (task_id),
                 INDEX idx_type (type),
                 INDEX idx_created (created_at)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
         );
 
+        $this->ensureColumn('wallets', 'held_balance', 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER balance');
+        $this->ensureColumn('wallet_transactions', 'task_id', 'INT UNSIGNED DEFAULT NULL AFTER order_id');
+        $this->ensureColumn('wallet_transactions', 'acquiring_rrn', 'VARCHAR(64) DEFAULT NULL AFTER task_id');
+
         self::$ensured = true;
     }
 
-    /** @return array{user_id: int, balance: int} */
+    private function ensureColumn(string $table, string $column, string $definition): void
+    {
+        try {
+            $this->db->exec("ALTER TABLE `{$table}` ADD COLUMN `{$column}` {$definition}");
+        } catch (\PDOException) {
+            // already exists
+        }
+    }
+
+    /** @return array{user_id: int, balance: int, held_balance: int} */
     public function getOrCreate(int $userId): array
     {
-        $stmt = $this->db->prepare('SELECT user_id, balance FROM wallets WHERE user_id = ?');
+        $stmt = $this->db->prepare('SELECT user_id, balance, held_balance FROM wallets WHERE user_id = ?');
         $stmt->execute([$userId]);
         $row = $stmt->fetch();
         if ($row) {
-            return ['user_id' => (int) $row['user_id'], 'balance' => (int) $row['balance']];
+            return [
+                'user_id' => (int) $row['user_id'],
+                'balance' => (int) $row['balance'],
+                'held_balance' => (int) ($row['held_balance'] ?? 0),
+            ];
         }
 
-        $ins = $this->db->prepare('INSERT INTO wallets (user_id, balance) VALUES (?, 0)');
+        $ins = $this->db->prepare('INSERT INTO wallets (user_id, balance, held_balance) VALUES (?, 0, 0)');
         $ins->execute([$userId]);
-        return ['user_id' => $userId, 'balance' => 0];
+        return ['user_id' => $userId, 'balance' => 0, 'held_balance' => 0];
+    }
+
+    public function heldBalance(int $userId): int
+    {
+        return $this->getOrCreate($userId)['held_balance'];
     }
 
     public function balance(int $userId): int
@@ -275,13 +308,22 @@ class Wallet extends Model
         return $stmt->fetchAll();
     }
 
-    private function lockWallet(int $userId): int
+    /** @return array{balance: int, held_balance: int} */
+    private function lockWalletRow(int $userId): array
     {
         $this->getOrCreate($userId);
-        $stmt = $this->db->prepare('SELECT balance FROM wallets WHERE user_id = ? FOR UPDATE');
+        $stmt = $this->db->prepare('SELECT balance, held_balance FROM wallets WHERE user_id = ? FOR UPDATE');
         $stmt->execute([$userId]);
         $row = $stmt->fetch();
-        return (int) ($row['balance'] ?? 0);
+        return [
+            'balance' => (int) ($row['balance'] ?? 0),
+            'held_balance' => (int) ($row['held_balance'] ?? 0),
+        ];
+    }
+
+    private function lockWallet(int $userId): int
+    {
+        return $this->lockWalletRow($userId)['balance'];
     }
 
     private function applyCredit(int $userId, int $amount, string $type, ?int $orderId, ?string $meta): int
@@ -311,10 +353,26 @@ class Wallet extends Model
     private function logTx(int $userId, string $type, int $signedAmount, int $balanceAfter, ?int $orderId, ?string $meta): void
     {
         $stmt = $this->db->prepare(
-            'INSERT INTO wallet_transactions (user_id, type, amount, balance_after, order_id, meta)
-             VALUES (?, ?, ?, ?, ?, ?)'
+            'INSERT INTO wallet_transactions (user_id, type, amount, balance_after, order_id, task_id, acquiring_rrn, meta)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
         );
-        $stmt->execute([$userId, $type, $signedAmount, $balanceAfter, $orderId, $meta]);
+        $stmt->execute([$userId, $type, $signedAmount, $balanceAfter, $orderId, null, null, $meta]);
+    }
+
+    public function logTaskTx(
+        int $userId,
+        string $type,
+        int $signedAmount,
+        int $balanceAfter,
+        ?int $taskId,
+        ?string $rrn = null,
+        ?string $meta = null
+    ): void {
+        $stmt = $this->db->prepare(
+            'INSERT INTO wallet_transactions (user_id, type, amount, balance_after, order_id, task_id, acquiring_rrn, meta)
+             VALUES (?, ?, ?, ?, NULL, ?, ?, ?)'
+        );
+        $stmt->execute([$userId, $type, $signedAmount, $balanceAfter, $taskId, $rrn, $meta]);
     }
 
     public static function typeLabel(string $type): string

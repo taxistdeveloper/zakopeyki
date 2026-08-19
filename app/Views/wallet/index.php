@@ -25,6 +25,9 @@ $simPayments = (bool) ($GLOBALS['appConfig']['allow_simulated_payments'] ?? fals
         <div class="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-brand-500/20 blur-2xl pointer-events-none"></div>
         <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/50"><?= htmlspecialchars(t('wallet.available')) ?></p>
         <p class="font-display text-4xl sm:text-5xl font-extrabold tracking-tight mt-2 tabular-nums"><?= htmlspecialchars($balanceFmt) ?></p>
+        <?php if (!empty($heldBalance)): ?>
+            <p class="text-sm text-white/70 mt-2"><?= htmlspecialchars(t('wallet.held', ['amount' => Wallet::formatMoney((int) $heldBalance)])) ?></p>
+        <?php endif; ?>
         <p class="text-sm text-white/60 mt-3 max-w-md"><?= htmlspecialchars(t('wallet.balance_hint')) ?></p>
         <div class="mt-5 flex flex-wrap gap-2">
             <a href="<?= ProductHelper::url('/orders') ?>" class="inline-flex text-xs font-semibold px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 transition"><?= htmlspecialchars(t('nav.deals')) ?></a>
