@@ -16,6 +16,22 @@ class AMLService
     public const STATUS_BLOCKED = 'AML_BLOCKED';
     public const STATUS_CLEAR = 'clear';
 
+    public static function userListingStatus(?array $user): string
+    {
+        if ($user === null || $user === []) {
+            return 'guest';
+        }
+        if (($user['aml_status'] ?? '') === self::STATUS_BLOCKED) {
+            return 'blocked';
+        }
+        $iin = preg_replace('/\D/', '', (string) ($user['iin'] ?? '')) ?? '';
+        if (strlen($iin) === 12 && ($user['aml_status'] ?? '') === self::STATUS_CLEAR) {
+            return 'ok';
+        }
+
+        return 'needs_iin';
+    }
+
     private PDO $db;
     private ?object $redis;
     private string $redisSetKey;

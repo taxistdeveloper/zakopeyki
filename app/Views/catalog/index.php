@@ -24,7 +24,8 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
         </h2>
         <?php if ($type === 'service'): ?>
             <p class="mt-2 text-sm text-gray-500 dark:text-gray-400 max-w-2xl"><?= htmlspecialchars(t('catalog.services_board_lead')) ?></p>
-            <a href="<?= ProductHelper::url(Auth::check() ? '/profile?tab=lots&type=service' : '/login') ?>"
+            <a href="<?= ProductHelper::url(Auth::check() ? '/profile/verify-listing?type=service' : '/login') ?>"
+               <?php if (Auth::check()): ?>onclick="if (typeof openListingVerify === 'function') { event.preventDefault(); openListingVerify('service'); }"<?php endif; ?>
                class="mt-3 inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-display font-bold text-xs uppercase tracking-wider px-5 py-2.5 rounded-xl transition shadow-soft">
                 <?= htmlspecialchars(t('catalog.publish_service', ['amount' => Wallet::formatMoney(ProductHelper::SERVICE_LISTING_FEE)])) ?>
             </a>

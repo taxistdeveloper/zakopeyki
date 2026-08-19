@@ -50,7 +50,10 @@ $langSwitchUrl = static function (string $code) use ($lang): string {
             <a href="<?= htmlspecialchars($langSwitchUrl('ru')) ?>" class="inline-flex items-center justify-center px-2.5 rounded-lg leading-none transition <?= $lang === 'ru' ? 'bg-brand-500 text-white shadow-sm' : 'text-ink-700/70 dark:text-gray-400 hover:text-ink-900 dark:hover:text-white' ?>"><?= htmlspecialchars(t('header.lang_ru')) ?></a>
         </div>
         <?php if (Auth::check()): ?>
-            <a href="<?= ProductHelper::url('/profile?tab=lots') ?>" class="inline-flex items-center gap-1.5 h-10 px-3 sm:px-4 rounded-xl bg-accent-500 hover:bg-accent-400 text-white font-display font-bold text-xs sm:text-sm shadow-soft transition whitespace-nowrap" title="<?= htmlspecialchars(t('header.add_listing_title')) ?>">
+            <a href="<?= ProductHelper::url('/profile/verify-listing') ?>"
+               onclick="if (typeof openListingVerify === 'function') { event.preventDefault(); openListingVerify(); }"
+               class="inline-flex items-center gap-1.5 h-10 px-3 sm:px-4 rounded-xl bg-accent-500 hover:bg-accent-400 text-white font-display font-bold text-xs sm:text-sm shadow-soft transition whitespace-nowrap"
+               title="<?= htmlspecialchars(t('header.add_listing_title')) ?>">
                 <span class="text-base leading-none">+</span>
                 <span class="hidden sm:inline"><?= htmlspecialchars(t('header.add_listing')) ?></span>
             </a>

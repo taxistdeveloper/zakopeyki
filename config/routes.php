@@ -115,6 +115,8 @@ $router->get('/auth/google/callback', [AuthController::class, 'googleCallback'])
 $router->post('/logout', [AuthController::class, 'logout']);
 
 $router->get('/profile', [ProfileController::class, 'index']);
+$router->get('/profile/verify-listing', [ProfileController::class, 'verifyListingForm']);
+$router->post('/profile/verify-listing', [ProfileController::class, 'verifyListing']);
 $router->post('/profile/store', [ProfileController::class, 'store']);
 $router->post('/profile/lots/{id}/update', [ProfileController::class, 'updateLot']);
 $router->post('/profile/lots/{id}/delete', [ProfileController::class, 'deleteLot']);

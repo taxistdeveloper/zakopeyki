@@ -2146,6 +2146,7 @@ function url(string $path = ''): string
 
     <?php \App\Core\View::partial('partials/chat-drawer'); ?>
     <?php \App\Core\View::partial('partials/seller-profile-modal'); ?>
+    <?php \App\Core\View::partial('partials/listing-verify-modal'); ?>
 
     <div id="image-lightbox" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-ink-900/85 backdrop-blur-sm p-3 sm:p-6" role="dialog" aria-modal="true" aria-label="<?= htmlspecialchars(t('product.zoom')) ?>">
         <button type="button" id="image-lightbox-close" class="absolute top-3 right-3 sm:top-5 sm:right-5 z-20 w-10 h-10 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xl leading-none flex items-center justify-center transition" aria-label="<?= htmlspecialchars(t('product.close_photo')) ?>">✕</button>

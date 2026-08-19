@@ -155,6 +155,61 @@ class ProfileController extends Controller
         unset($_SESSION['flash'], $_SESSION['error']);
     }
 
+    public function verifyListingForm(): void
+    {
+        Auth::requireLogin();
+        $users = new User();
+        $user = $users->find(Auth::id());
+        if ($user) {
+            Auth::refresh($user);
+        }
+        $n = new Notification();
+        $type = (string) ($_GET['type'] ?? '');
+        if (!isset(ProductHelper::TYPES[$type])) {
+            $type = '';
+        }
+
+        $this->view('profile/verify-listing', [
+            'title' => t('verify.title'),
+            'currentNav' => 'profile',
+            'user' => $user ?: Auth::user(),
+            'verifyType' => $type,
+            'notifications' => $n->forUser(Auth::id()),
+            'unread' => $n->unreadCount(Auth::id()),
+            'search' => '',
+            'error' => $_SESSION['verify_listing_error'] ?? null,
+        ]);
+        unset($_SESSION['verify_listing_error']);
+    }
+
+    public function verifyListing(): void
+    {
+        Auth::requireLogin();
+        $type = (string) ($_POST['type'] ?? '');
+        if (!isset(ProductHelper::TYPES[$type])) {
+            $type = '';
+        }
+
+        $result = AMLService::make()->screenUser(
+            Auth::id(),
+            (string) ($_POST['iin'] ?? ''),
+            'listing'
+        );
+        $fresh = (new User())->find(Auth::id());
+        if ($fresh) {
+            Auth::refresh($fresh);
+        }
+
+        if (empty($result['ok'])) {
+            $_SESSION['verify_listing_error'] = $result['error'] ?? t('flash.aml_blocked');
+            $this->redirect('/profile/verify-listing' . ($type !== '' ? '?type=' . rawurlencode($type) : ''));
+        }
+
+        $_SESSION['listing_kyc_ok'] = 1;
+        $_SESSION['flash'] = t('verify.ok_flash');
+        $this->redirect('/profile?tab=lots' . ($type !== '' ? '&type=' . rawurlencode($type) : ''));
+    }
+
     public function updatePersonal(): void
     {
         Auth::requireLogin();
