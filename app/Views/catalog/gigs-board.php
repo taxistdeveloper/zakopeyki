@@ -52,7 +52,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
     </div>
 
     <div id="gigs-mine" class="hidden space-y-2"></div>
-    <div id="gigs-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    <div id="gigs-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5"></div>
 </div>
 
 <div id="gigs-detail-modal" class="hidden fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-ink-900/55 backdrop-blur-sm p-0 sm:p-4" role="dialog" aria-modal="true">
@@ -372,28 +372,39 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
         grid.innerHTML = tasks.map(function (task) {
             const d = task.pricing.bargain_options.discount_20.price;
             const imgs = Array.isArray(task.images) ? task.images : [];
-            const photo = imgs.length
-                ? '<div class="aspect-[4/3] rounded-xl overflow-hidden bg-ink-100 dark:bg-white/10">' +
-                    imgs.map(function (src, i) {
-                        return '<img src="' + escapeHtml(src) + '" alt="" class="' + (i === 0 ? 'w-full h-full object-cover' : 'hidden') + '">';
-                    }).join('') +
-                  '</div>'
+            const photoCount = imgs.length > 1
+                ? '<span class="absolute bottom-2.5 right-2.5 z-[1] text-[10px] font-bold bg-ink-900/70 text-white px-2 py-0.5 rounded-lg">' + imgs.length + '</span>'
                 : '';
+            const photo = imgs.length
+                ? '<div class="aspect-[4/3] bg-ink-100 dark:bg-white/10 relative overflow-hidden shrink-0">' +
+                    '<img src="' + escapeHtml(imgs[0]) + '" alt="" class="absolute inset-0 w-full h-full object-cover object-center transition duration-300 group-hover:scale-105">' +
+                    '<div class="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-ink-900/45 to-transparent pointer-events-none"></div>' +
+                    photoCount +
+                  '</div>'
+                : '<div class="aspect-[4/3] bg-gradient-to-br from-ink-100 via-emerald-50 to-brand-50 dark:from-white/10 dark:via-emerald-900/20 dark:to-transparent relative flex items-center justify-center overflow-hidden shrink-0">' +
+                    '<svg class="w-14 h-14 text-brand-500/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="m21 15-4.5-4.5L9 18"/></svg>' +
+                  '</div>';
             const desc = String(task.description || '').trim();
             const descHtml = desc
-                ? '<p class="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">' + escapeHtml(desc) + '</p>'
+                ? '<p class="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 leading-snug">' + escapeHtml(desc) + '</p>'
                 : '';
-            return '<article class="bg-white dark:bg-white/[0.04] rounded-2xl border border-black/[0.06] dark:border-white/10 p-4 flex flex-col gap-3 shadow-soft cursor-pointer hover:border-brand-400/50 hover:shadow-lift transition" data-detail="' + task.id + '">' +
+            const address = String(task.address || '').trim();
+            return '<article class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 overflow-hidden shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition duration-300 flex flex-col h-full cursor-pointer group backdrop-blur-sm" data-detail="' + task.id + '">' +
                 photo +
-                '<div class="flex justify-between gap-2"><span class="text-[10px] font-bold uppercase tracking-wider bg-ink-100 dark:bg-white/10 px-2 py-1 rounded-lg">' + escapeHtml(task.category.name) + '</span>' +
-                '<span class="font-display font-bold text-emerald-600">' + money(task.pricing.initial_price) + '</span></div>' +
-                '<h3 class="font-display font-bold text-ink-900 dark:text-white">' + escapeHtml(task.title || task.category.name) + '</h3>' +
+                '<div class="p-4 flex flex-col gap-2.5 flex-1">' +
+                '<div class="flex items-start justify-between gap-2">' +
+                '<span class="text-[10px] font-bold uppercase tracking-wider bg-ink-100 dark:bg-white/10 px-2 py-1 rounded-lg truncate max-w-[65%]">' + escapeHtml(task.category.name) + '</span>' +
+                '<span class="font-display font-bold text-emerald-600 shrink-0">' + money(task.pricing.initial_price) + '</span>' +
+                '</div>' +
+                '<h3 class="font-display font-bold text-[15px] leading-snug text-ink-900 dark:text-white line-clamp-2">' + escapeHtml(task.title || task.category.name) + '</h3>' +
                 descHtml +
-                '<p class="text-xs text-gray-500">' + escapeHtml(task.address || '') + '</p>' +
-                '<div class="text-xs font-semibold text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-500/10 rounded-lg p-2 text-center"><?= htmlspecialchars(t('gigs.instant_banner'), ENT_QUOTES) ?> ' + money(d) + '</div>' +
-                '<span class="text-xs font-semibold text-brand-600"><?= htmlspecialchars(t('gigs.details'), ENT_QUOTES) ?></span>' +
-                '<button type="button" class="mt-auto bg-brand-600 hover:bg-brand-500 text-white font-display font-bold text-xs uppercase tracking-wider py-2.5 rounded-xl" data-offer="' + task.id + '"><?= htmlspecialchars(t('gigs.respond'), ENT_QUOTES) ?></button>' +
-                '</article>';
+                (address
+                    ? '<p class="text-xs text-gray-500 flex items-start gap-1.5"><svg class="w-3.5 h-3.5 mt-0.5 shrink-0 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><span class="line-clamp-1">' + escapeHtml(address) + '</span></p>'
+                    : '') +
+                '<div class="mt-auto space-y-2.5 pt-1">' +
+                '<div class="text-[11px] font-semibold text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-500/10 rounded-xl px-2.5 py-2 text-center"><?= htmlspecialchars(t('gigs.instant_banner'), ENT_QUOTES) ?> ' + money(d) + '</div>' +
+                '<button type="button" class="w-full bg-brand-600 hover:bg-brand-500 text-white font-display font-bold text-[11px] uppercase tracking-wider py-2.5 rounded-xl" data-offer="' + task.id + '"><?= htmlspecialchars(t('gigs.respond'), ENT_QUOTES) ?></button>' +
+                '</div></div></article>';
         }).join('');
         grid.querySelectorAll('[data-detail]').forEach(function (card) {
             card.addEventListener('click', function () { openDetail(Number(card.dataset.detail)); });
@@ -432,9 +443,9 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
             photosEl.innerHTML = '';
         } else {
             photosEl.classList.remove('hidden');
-            photosEl.innerHTML = '<div class="aspect-[16/10] overflow-hidden">' +
+            photosEl.innerHTML = '<div class="aspect-[16/10] relative overflow-hidden bg-ink-100 dark:bg-white/10">' +
                 imgs.map(function (src, i) {
-                    return '<img src="' + escapeHtml(src) + '" alt="" data-slide="' + i + '" class="' + (i === 0 ? 'w-full h-full object-cover' : 'hidden w-full h-full object-cover') + '">';
+                    return '<img src="' + escapeHtml(src) + '" alt="" data-slide="' + i + '" class="' + (i === 0 ? 'absolute inset-0 w-full h-full object-cover object-center' : 'hidden absolute inset-0 w-full h-full object-cover object-center') + '">';
                 }).join('') + '</div>' +
                 (imgs.length > 1
                     ? '<button type="button" class="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-xl bg-white/90 dark:bg-ink-800/90 text-ink-800 dark:text-white" data-photo-nav="-1">‹</button>' +
