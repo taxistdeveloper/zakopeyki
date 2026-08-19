@@ -376,12 +376,11 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                 ? '<span class="absolute bottom-2.5 right-2.5 z-[1] text-[10px] font-bold bg-ink-900/70 text-white px-2 py-0.5 rounded-lg">' + imgs.length + '</span>'
                 : '';
             const photo = imgs.length
-                ? '<div class="aspect-[4/3] bg-ink-100 dark:bg-white/10 relative overflow-hidden shrink-0">' +
-                    '<img src="' + escapeHtml(imgs[0]) + '" alt="" class="absolute inset-0 w-full h-full object-cover object-center transition duration-300 group-hover:scale-105">' +
-                    '<div class="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-ink-900/45 to-transparent pointer-events-none"></div>' +
+                ? '<div class="aspect-[16/10] bg-[#F3F0EA] dark:bg-white/10 relative overflow-hidden shrink-0">' +
+                    '<img src="' + escapeHtml(imgs[0]) + '" alt="" class="absolute inset-0 w-full h-full object-contain object-center">' +
                     photoCount +
                   '</div>'
-                : '<div class="aspect-[4/3] bg-gradient-to-br from-ink-100 via-emerald-50 to-brand-50 dark:from-white/10 dark:via-emerald-900/20 dark:to-transparent relative flex items-center justify-center overflow-hidden shrink-0">' +
+                : '<div class="aspect-[16/10] bg-gradient-to-br from-ink-100 via-emerald-50 to-brand-50 dark:from-white/10 dark:via-emerald-900/20 dark:to-transparent relative flex items-center justify-center overflow-hidden shrink-0">' +
                     '<svg class="w-14 h-14 text-brand-500/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="m21 15-4.5-4.5L9 18"/></svg>' +
                   '</div>';
             const desc = String(task.description || '').trim();
@@ -445,7 +444,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
             photosEl.classList.remove('hidden');
             photosEl.innerHTML = '<div class="aspect-[16/10] relative overflow-hidden bg-ink-100 dark:bg-white/10">' +
                 imgs.map(function (src, i) {
-                    return '<img src="' + escapeHtml(src) + '" alt="" data-slide="' + i + '" class="' + (i === 0 ? 'absolute inset-0 w-full h-full object-cover object-center' : 'hidden absolute inset-0 w-full h-full object-cover object-center') + '">';
+                    return '<img src="' + escapeHtml(src) + '" alt="" data-slide="' + i + '" class="' + (i === 0 ? 'absolute inset-0 w-full h-full object-contain object-center' : 'hidden absolute inset-0 w-full h-full object-contain object-center') + '">';
                 }).join('') + '</div>' +
                 (imgs.length > 1
                     ? '<button type="button" class="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-xl bg-white/90 dark:bg-ink-800/90 text-ink-800 dark:text-white" data-photo-nav="-1">‹</button>' +
