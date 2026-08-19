@@ -55,6 +55,26 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
     <div id="gigs-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
 </div>
 
+<div id="gigs-detail-modal" class="hidden fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-ink-900/55 backdrop-blur-sm p-0 sm:p-4" role="dialog" aria-modal="true">
+    <div class="gigs-modal-panel w-full sm:max-w-lg bg-white dark:bg-ink-800 rounded-t-[28px] sm:rounded-[28px] overflow-hidden shadow-lift border border-white/60 dark:border-white/10 relative max-h-[92vh] flex flex-col">
+        <div class="sm:hidden flex justify-center pt-3 pb-1" aria-hidden="true"><span class="w-10 h-1 rounded-full bg-black/10 dark:bg-white/15"></span></div>
+        <button type="button" class="gigs-modal-close absolute top-4 right-4 z-10 w-9 h-9 rounded-xl bg-black/[0.06] dark:bg-white/10 text-gray-500 hover:text-ink-800" aria-label="<?= htmlspecialchars(t('gigs.modal_close')) ?>">✕</button>
+        <div id="gigs-detail-photos" class="hidden relative bg-ink-100 dark:bg-white/5"></div>
+        <div class="p-5 overflow-y-auto space-y-3">
+            <div class="flex flex-wrap items-center gap-2 pr-10">
+                <span id="gigs-detail-category" class="text-[10px] font-bold uppercase tracking-wider bg-ink-100 dark:bg-white/10 px-2 py-1 rounded-lg"></span>
+                <span id="gigs-detail-price" class="ml-auto font-display font-bold text-emerald-600"></span>
+            </div>
+            <h3 id="gigs-detail-title" class="font-display font-bold text-xl text-ink-900 dark:text-white"></h3>
+            <p id="gigs-detail-desc" class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-wrap"></p>
+            <p id="gigs-detail-address" class="text-sm text-gray-500 dark:text-gray-400"></p>
+            <p id="gigs-detail-expires" class="text-xs text-gray-400"></p>
+            <div id="gigs-detail-instant" class="text-xs font-semibold text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-500/10 rounded-lg p-2.5 text-center"></div>
+            <button type="button" id="gigs-detail-respond" class="w-full bg-brand-600 hover:bg-brand-500 text-white font-display font-bold text-xs uppercase tracking-wider py-3.5 rounded-2xl shadow-soft"><?= htmlspecialchars(t('gigs.respond')) ?></button>
+        </div>
+    </div>
+</div>
+
 <div id="gigs-offer-modal" class="hidden fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-ink-900/55 backdrop-blur-sm p-0 sm:p-4" role="dialog" aria-modal="true">
     <div class="gigs-modal-panel w-full sm:max-w-lg bg-white dark:bg-ink-800 rounded-t-[28px] sm:rounded-[28px] overflow-hidden shadow-lift border border-white/60 dark:border-white/10 p-5 relative max-h-[92vh] overflow-y-auto">
         <div class="sm:hidden flex justify-center pb-2" aria-hidden="true"><span class="w-10 h-1 rounded-full bg-black/10 dark:bg-white/15"></span></div>
@@ -137,6 +157,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
     const grid = document.getElementById('gigs-grid');
     const mineEl = document.getElementById('gigs-mine');
     const categorySelect = document.getElementById('gigs-category');
+    const detailModal = document.getElementById('gigs-detail-modal');
     const offerModal = document.getElementById('gigs-offer-modal');
     const pinModal = document.getElementById('gigs-pin-modal');
     const confirmModal = document.getElementById('gigs-confirm-modal');
@@ -158,6 +179,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
         });
     }
     function closeModals() {
+        detailModal.classList.add('hidden');
         offerModal.classList.add('hidden');
         pinModal.classList.add('hidden');
     }
@@ -198,7 +220,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
     document.querySelectorAll('.gigs-modal-close').forEach(function (btn) {
         btn.addEventListener('click', closeModals);
     });
-    [offerModal, pinModal].forEach(function (modal) {
+    [detailModal, offerModal, pinModal].forEach(function (modal) {
         modal.addEventListener('click', function (e) {
             if (e.target === modal) closeModals();
         });
@@ -357,20 +379,96 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                     }).join('') +
                   '</div>'
                 : '';
-            return '<article class="bg-white dark:bg-white/[0.04] rounded-2xl border border-black/[0.06] dark:border-white/10 p-4 flex flex-col gap-3 shadow-soft">' +
+            const desc = String(task.description || '').trim();
+            const descHtml = desc
+                ? '<p class="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">' + escapeHtml(desc) + '</p>'
+                : '';
+            return '<article class="bg-white dark:bg-white/[0.04] rounded-2xl border border-black/[0.06] dark:border-white/10 p-4 flex flex-col gap-3 shadow-soft cursor-pointer hover:border-brand-400/50 hover:shadow-lift transition" data-detail="' + task.id + '">' +
                 photo +
                 '<div class="flex justify-between gap-2"><span class="text-[10px] font-bold uppercase tracking-wider bg-ink-100 dark:bg-white/10 px-2 py-1 rounded-lg">' + escapeHtml(task.category.name) + '</span>' +
                 '<span class="font-display font-bold text-emerald-600">' + money(task.pricing.initial_price) + '</span></div>' +
-                '<h3 class="font-display font-bold text-ink-900 dark:text-white">' + escapeHtml(task.category.name) + '</h3>' +
+                '<h3 class="font-display font-bold text-ink-900 dark:text-white">' + escapeHtml(task.title || task.category.name) + '</h3>' +
+                descHtml +
                 '<p class="text-xs text-gray-500">' + escapeHtml(task.address || '') + '</p>' +
                 '<div class="text-xs font-semibold text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-500/10 rounded-lg p-2 text-center"><?= htmlspecialchars(t('gigs.instant_banner'), ENT_QUOTES) ?> ' + money(d) + '</div>' +
+                '<span class="text-xs font-semibold text-brand-600"><?= htmlspecialchars(t('gigs.details'), ENT_QUOTES) ?></span>' +
                 '<button type="button" class="mt-auto bg-brand-600 hover:bg-brand-500 text-white font-display font-bold text-xs uppercase tracking-wider py-2.5 rounded-xl" data-offer="' + task.id + '"><?= htmlspecialchars(t('gigs.respond'), ENT_QUOTES) ?></button>' +
                 '</article>';
         }).join('');
+        grid.querySelectorAll('[data-detail]').forEach(function (card) {
+            card.addEventListener('click', function () { openDetail(Number(card.dataset.detail)); });
+        });
         grid.querySelectorAll('[data-offer]').forEach(function (btn) {
-            btn.addEventListener('click', function () { openOffer(Number(btn.dataset.offer)); });
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                openOffer(Number(btn.dataset.offer));
+            });
         });
     }
+
+    function formatExpires(iso) {
+        if (!iso) return '';
+        const d = new Date(String(iso).replace(' ', 'T'));
+        if (isNaN(d.getTime())) return '';
+        return '<?= htmlspecialchars(t('gigs.expires'), ENT_QUOTES) ?>: ' + d.toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function openDetail(id) {
+        const task = tasks.find(function (t) { return t.id === id; });
+        if (!task) return;
+        selected = task;
+        document.getElementById('gigs-detail-category').textContent = task.category.name || '';
+        document.getElementById('gigs-detail-price').textContent = money(task.pricing.initial_price);
+        document.getElementById('gigs-detail-title').textContent = task.title || task.category.name || '';
+        document.getElementById('gigs-detail-desc').textContent = task.description || '';
+        document.getElementById('gigs-detail-address').textContent = task.address || '';
+        document.getElementById('gigs-detail-expires').textContent = formatExpires(task.expires_at);
+        document.getElementById('gigs-detail-instant').textContent =
+            '<?= htmlspecialchars(t('gigs.instant_banner'), ENT_QUOTES) ?> ' + money(task.pricing.bargain_options.discount_20.price);
+        const photosEl = document.getElementById('gigs-detail-photos');
+        const imgs = Array.isArray(task.images) ? task.images : [];
+        if (!imgs.length) {
+            photosEl.classList.add('hidden');
+            photosEl.innerHTML = '';
+        } else {
+            photosEl.classList.remove('hidden');
+            photosEl.innerHTML = '<div class="aspect-[16/10] overflow-hidden">' +
+                imgs.map(function (src, i) {
+                    return '<img src="' + escapeHtml(src) + '" alt="" data-slide="' + i + '" class="' + (i === 0 ? 'w-full h-full object-cover' : 'hidden w-full h-full object-cover') + '">';
+                }).join('') + '</div>' +
+                (imgs.length > 1
+                    ? '<button type="button" class="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-xl bg-white/90 dark:bg-ink-800/90 text-ink-800 dark:text-white" data-photo-nav="-1">‹</button>' +
+                      '<button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-xl bg-white/90 dark:bg-ink-800/90 text-ink-800 dark:text-white" data-photo-nav="1">›</button>' +
+                      '<div class="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">' +
+                      imgs.map(function (_, i) {
+                          return '<span class="w-1.5 h-1.5 rounded-full ' + (i === 0 ? 'bg-white' : 'bg-white/40') + '" data-photo-dot="' + i + '"></span>';
+                      }).join('') + '</div>'
+                    : '');
+            let slide = 0;
+            function showSlide(next) {
+                slide = (next + imgs.length) % imgs.length;
+                photosEl.querySelectorAll('img[data-slide]').forEach(function (img) {
+                    img.classList.toggle('hidden', Number(img.dataset.slide) !== slide);
+                });
+                photosEl.querySelectorAll('[data-photo-dot]').forEach(function (dot) {
+                    dot.className = 'w-1.5 h-1.5 rounded-full ' + (Number(dot.dataset.photoDot) === slide ? 'bg-white' : 'bg-white/40');
+                });
+            }
+            photosEl.querySelectorAll('[data-photo-nav]').forEach(function (btn) {
+                btn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    showSlide(slide + Number(btn.dataset.photoNav));
+                });
+            });
+        }
+        detailModal.classList.remove('hidden');
+    }
+    document.getElementById('gigs-detail-respond').addEventListener('click', function () {
+        if (!selected) return;
+        const id = selected.id;
+        closeModals();
+        openOffer(id);
+    });
 
     function openOffer(id) {
         if (!isAuth) { location.href = loginUrl; return; }

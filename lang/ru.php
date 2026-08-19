@@ -286,6 +286,8 @@ return [
         'instant_badge' => 'Забрать сразу без ожидания',
         'instant_banner' => 'Instant Match:',
         'respond' => 'Откликнуться / Торг',
+        'details' => 'Подробнее',
+        'expires' => 'Действует до',
         'budget' => 'Исходный бюджет',
         'opt_accept' => 'Без торга (100%)',
         'opt_discount' => 'Скидка −20%',

@@ -286,6 +286,8 @@ return [
         'instant_badge' => 'Күтпестен бірден алу',
         'instant_banner' => 'Instant Match:',
         'respond' => 'Жауап / Сауда',
+        'details' => 'Толығырақ',
+        'expires' => 'Жарамды',
         'budget' => 'Бастапқы бюджет',
         'opt_accept' => 'Саудасыз (100%)',
         'opt_discount' => 'Жеңілдік −20%',
