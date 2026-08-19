@@ -208,6 +208,11 @@ $filters = [
                         <span class="inline-flex px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wide <?= $roleClass($role) ?>">
                             <?= htmlspecialchars($roleLabel($role)) ?>
                         </span>
+                        <?php if (($u['aml_status'] ?? '') === 'AML_BLOCKED'): ?>
+                            <span class="inline-flex px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                                AML
+                            </span>
+                        <?php endif; ?>
                         <?php if ($role !== 'admin'): ?>
                             <form method="post" action="<?= ProductHelper::url('/admin/users/' . $uid . '/site-access') ?>" class="inline">
                                 <?= csrf_field() ?>

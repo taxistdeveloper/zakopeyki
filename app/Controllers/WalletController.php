@@ -6,7 +6,9 @@ use App\Core\Auth;
 use App\Core\Controller;
 use App\Helpers\ActivityLogger;
 use App\Models\Notification;
+use App\Models\User;
 use App\Models\Wallet;
+use App\Services\AMLService;
 
 class WalletController extends Controller
 {
@@ -20,6 +22,7 @@ class WalletController extends Controller
         $this->view('wallet/index', [
             'title' => t('wallet.title'),
             'currentNav' => 'wallet',
+            'user' => Auth::user(),
             'balance' => $wallet->balance($uid),
             'heldBalance' => $wallet->heldBalance($uid),
             'transactions' => $wallet->transactions($uid, 40),
@@ -77,6 +80,16 @@ class WalletController extends Controller
         $dest = (string) ($_POST['dest'] ?? 'card');
         if (!in_array($dest, ['card', 'kaspi'], true)) {
             $dest = 'card';
+        }
+
+        $aml = AMLService::make()->screenUser(Auth::id(), (string) ($_POST['iin'] ?? ''), 'withdraw');
+        if (empty($aml['ok'])) {
+            $_SESSION['error'] = $aml['error'] ?? t('flash.aml_blocked');
+            $this->redirect('/wallet');
+        }
+        $fresh = (new User())->find(Auth::id());
+        if ($fresh) {
+            Auth::refresh($fresh);
         }
 
         $result = (new Wallet())->withdraw(Auth::id(), $amount, $dest);

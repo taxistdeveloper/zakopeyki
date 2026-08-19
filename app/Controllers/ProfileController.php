@@ -14,6 +14,7 @@ use App\Models\Product;
 use App\Models\Review;
 use App\Models\User;
 use App\Models\Wallet;
+use App\Services\AMLService;
 use App\Services\MicroTaskService;
 
 class ProfileController extends Controller
@@ -319,6 +320,11 @@ class ProfileController extends Controller
         $type = $_POST['type'] ?? 'used';
         if (!isset(ProductHelper::TYPES[$type])) {
             $type = 'used';
+        }
+
+        $amlFail = $this->guardAml($type === 'gig' ? '/profile?tab=lots&type=gig' : '/profile?tab=lots');
+        if ($amlFail !== null) {
+            $this->redirect($amlFail);
         }
 
         $title = trim($_POST['title'] ?? '');
@@ -853,6 +859,25 @@ class ProfileController extends Controller
         Auth::logout();
         $_SESSION['flash'] = t('flash.account_deleted');
         $this->redirect('/');
+    }
+
+    private function guardAml(string $redirect): ?string
+    {
+        $result = AMLService::make()->screenUser(
+            Auth::id(),
+            (string) ($_POST['iin'] ?? ''),
+            'listing'
+        );
+        if (!empty($result['ok'])) {
+            $fresh = (new User())->find(Auth::id());
+            if ($fresh) {
+                Auth::refresh($fresh);
+            }
+            return null;
+        }
+
+        $_SESSION['error'] = $result['error'] ?? t('flash.aml_blocked');
+        return $redirect;
     }
 
     /**

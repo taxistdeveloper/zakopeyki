@@ -37,6 +37,9 @@ $roleClass = match ($role) {
                 <span class="inline-flex mt-2 px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wide <?= $roleClass ?>">
                     <?= htmlspecialchars($roleLabel) ?>
                 </span>
+                <?php if (($user['aml_status'] ?? '') === 'AML_BLOCKED'): ?>
+                    <span class="inline-flex mt-2 ml-1 px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">AML_BLOCKED</span>
+                <?php endif; ?>
             </div>
         </div>
     </div>

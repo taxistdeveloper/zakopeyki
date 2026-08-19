@@ -57,6 +57,21 @@ $simPayments = (bool) ($GLOBALS['appConfig']['allow_simulated_payments'] ?? fals
             <h2 class="font-display font-bold text-ink-900 dark:text-white"><?= htmlspecialchars(t('wallet.withdraw_title')) ?></h2>
             <p class="text-xs text-gray-500"><?= htmlspecialchars(t('wallet.withdraw_hint')) ?></p>
             <input type="text" name="amount" inputmode="numeric" required placeholder="<?= htmlspecialchars(t('wallet.amount_placeholder')) ?>" class="<?= $input ?>">
+            <?php
+            $walletUser = $user ?? [];
+            $walletIin = preg_replace('/\D/', '', (string) ($walletUser['iin'] ?? ''));
+            $walletHasIin = strlen((string) $walletIin) === 12;
+            $walletAmlBlocked = (($walletUser['aml_status'] ?? '') === \App\Services\AMLService::STATUS_BLOCKED);
+            ?>
+            <?php if ($walletAmlBlocked): ?>
+                <p class="text-xs font-semibold text-red-700 dark:text-red-300"><?= htmlspecialchars(t('flash.aml_blocked')) ?></p>
+            <?php elseif ($walletHasIin): ?>
+                <p class="text-[11px] text-gray-400"><?= htmlspecialchars(t('profile.iin_saved_hint')) ?></p>
+            <?php else: ?>
+                <label class="block text-xs font-bold"><?= htmlspecialchars(t('profile.iin')) ?></label>
+                <input type="text" name="iin" inputmode="numeric" maxlength="12" required pattern="\d{12}" placeholder="000000000000" class="<?= $input ?>">
+                <p class="text-[11px] text-gray-400"><?= htmlspecialchars(t('profile.iin_hint')) ?></p>
+            <?php endif; ?>
             <div class="flex gap-2">
                 <label class="flex-1 flex items-center gap-2 p-2.5 rounded-xl border border-black/[0.08] dark:border-white/10 text-xs font-semibold cursor-pointer has-[:checked]:border-brand-500">
                     <input type="radio" name="dest" value="card" checked class="accent-brand-600"> <?= htmlspecialchars(t('wallet.source_card')) ?>
@@ -65,7 +80,7 @@ $simPayments = (bool) ($GLOBALS['appConfig']['allow_simulated_payments'] ?? fals
                     <input type="radio" name="dest" value="kaspi" class="accent-brand-600"> <?= htmlspecialchars(t('wallet.source_kaspi')) ?>
                 </label>
             </div>
-            <button type="submit" class="<?= $btn ?> bg-ink-900 hover:bg-ink-800 text-white"><?= htmlspecialchars(t('wallet.withdraw_btn')) ?></button>
+            <button type="submit" class="<?= $btn ?> bg-ink-900 hover:bg-ink-800 text-white <?= $walletAmlBlocked ? 'opacity-50 pointer-events-none' : '' ?>" <?= $walletAmlBlocked ? 'disabled' : '' ?>><?= htmlspecialchars(t('wallet.withdraw_btn')) ?></button>
         </form>
     </div>
     <?php else: ?>

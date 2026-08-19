@@ -61,6 +61,8 @@ class Auth
             'login' => $user['login'] ?? null,
             'phone' => $user['phone'] ?? null,
             'bio' => $user['bio'] ?? null,
+            'iin' => $user['iin'] ?? null,
+            'aml_status' => $user['aml_status'] ?? null,
             'site_access' => !empty($user['site_access']) ? 1 : 0,
             'permissions' => self::normalizePermissions($user['permissions'] ?? null, (string) ($user['role'] ?? 'user')),
         ];

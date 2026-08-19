@@ -611,7 +611,18 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                 <div class="mb-6">
                     <h2 class="font-display text-xl font-bold"><?= htmlspecialchars($editingGig ? t('gigs.edit_lot') : ($editing ? t('profile.edit_lot') : t('profile.create_lot'))) ?></h2>
                 </div>
-                <form method="post" action="<?= $editingGig ? ProductHelper::url('/profile/gigs/' . (int) $editing['id'] . '/update') : ($editing ? ProductHelper::url('/profile/lots/' . $editing['id'] . '/update') : ProductHelper::url('/profile/store')) ?>" enctype="multipart/form-data" class="space-y-4 mb-8 p-5 rounded-2xl border border-black/[0.06] dark:border-white/10 bg-brand-50/30 dark:bg-white/[0.03]">
+                <form method="post" action="<?= $editingGig ? ProductHelper::url('/profile/gigs/' . (int) $editing['id'] . '/update') : ($editing ? ProductHelper::url('/profile/lots/' . $editing['id'] . '/update') : ProductHelper::url('/profile/store')) ?>" enctype="multipart/form-data" id="lot-create-form" class="space-y-4 mb-8 p-5 rounded-2xl border border-black/[0.06] dark:border-white/10 bg-brand-50/30 dark:bg-white/[0.03]">
+                    <?= csrf_field() ?>
+                    <?php
+                    $amlBlocked = (($user['aml_status'] ?? '') === \App\Services\AMLService::STATUS_BLOCKED);
+                    $savedIin = preg_replace('/\D/', '', (string) ($user['iin'] ?? ''));
+                    $hasSavedIin = strlen((string) $savedIin) === 12;
+                    ?>
+                    <?php if ($amlBlocked): ?>
+                        <div class="text-xs font-semibold text-red-800 dark:text-red-200 bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/40 rounded-xl px-3 py-2">
+                            <?= htmlspecialchars(t('flash.aml_blocked')) ?>
+                        </div>
+                    <?php endif; ?>
                     <?php $noPriceTypes = ['free', 'exchange', 'service']; ?>
                     <?php
                     $productTypesWithCategory = ProductHelper::PRODUCT_TYPES_WITH_CATEGORY;
@@ -749,6 +760,19 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.description')) ?></label>
                         <textarea name="description" rows="2" required class="ui-input w-full p-3 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm"><?= htmlspecialchars($editing['description'] ?? '') ?></textarea>
                     </div>
+                    <?php if (!$editing): ?>
+                    <div id="lot-iin-wrap">
+                        <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.iin')) ?> <span class="text-red-500">*</span></label>
+                        <?php if ($hasSavedIin): ?>
+                            <input type="text" value="<?= htmlspecialchars(substr($savedIin, 0, 6) . '******') ?>" readonly class="<?= $input ?> opacity-80">
+                            <p class="text-[11px] text-gray-400 mt-1"><?= htmlspecialchars(t('profile.iin_saved_hint')) ?></p>
+                        <?php else: ?>
+                            <input type="text" name="iin" id="lot-iin" inputmode="numeric" maxlength="12" autocomplete="off" required pattern="\d{12}" class="<?= $input ?>" placeholder="000000000000">
+                            <p id="lot-iin-error" class="hidden text-[11px] text-red-600 mt-1"><?= htmlspecialchars(t('flash.aml_iin_invalid')) ?></p>
+                            <p class="text-[11px] text-gray-400 mt-1"><?= htmlspecialchars(t('profile.iin_hint')) ?></p>
+                        <?php endif; ?>
+                    </div>
+                    <?php endif; ?>
                     <div id="lot-exchange-wrap" class="<?= ($editing['type'] ?? '') === 'exchange' ? '' : 'hidden' ?>">
                         <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.exchange_for')) ?> <span class="text-red-500">*</span></label>
                         <input type="text" name="exchange_for" id="lot-exchange-for" maxlength="255" class="<?= $input ?>"
@@ -1315,7 +1339,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         </div>
                     </div>
                     <div class="flex flex-col sm:flex-row gap-2">
-                        <button type="submit" id="lot-submit-btn" class="flex-1 bg-accent-500 hover:bg-accent-400 text-white font-display font-bold py-3.5 rounded-2xl text-xs uppercase tracking-wider transition shadow-soft">
+                        <button type="submit" id="lot-submit-btn" <?= $amlBlocked ? 'disabled' : '' ?> class="flex-1 bg-accent-500 hover:bg-accent-400 text-white font-display font-bold py-3.5 rounded-2xl text-xs uppercase tracking-wider transition shadow-soft disabled:opacity-50 disabled:cursor-not-allowed">
                             <?= htmlspecialchars($editing ? t('profile.update') : ($currentType === 'gig' ? t('gigs.create_btn') : t('profile.publish'))) ?>
                         </button>
                         <?php if ($editing): ?>
@@ -1325,6 +1349,46 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         <?php endif; ?>
                     </div>
                 </form>
+                <script>
+                (function () {
+                    const form = document.getElementById('lot-create-form');
+                    const input = document.getElementById('lot-iin');
+                    const err = document.getElementById('lot-iin-error');
+                    if (!form || !input) return;
+
+                    function weightsSum(iin, weights) {
+                        let sum = 0;
+                        for (let i = 0; i < 11; i++) sum += parseInt(iin[i], 10) * weights[i];
+                        return sum;
+                    }
+
+                    function validIin(raw) {
+                        const iin = String(raw || '').replace(/\D/g, '');
+                        if (!/^\d{12}$/.test(iin)) return false;
+                        const century = parseInt(iin[6], 10);
+                        const base = {1: 1800, 2: 1800, 3: 1900, 4: 1900, 5: 2000, 6: 2000}[century];
+                        if (base == null) return false;
+                        const y = base + parseInt(iin.slice(0, 2), 10);
+                        const m = parseInt(iin.slice(2, 4), 10);
+                        const d = parseInt(iin.slice(4, 6), 10);
+                        const dt = new Date(y, m - 1, d);
+                        if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return false;
+                        let control = weightsSum(iin, [1,2,3,4,5,6,7,8,9,10,11]) % 11;
+                        if (control === 10) control = weightsSum(iin, [3,4,5,6,7,8,9,10,11,1,2]) % 11;
+                        return control < 10 && control === parseInt(iin[11], 10);
+                    }
+
+                    form.addEventListener('submit', function (e) {
+                        if (validIin(input.value)) {
+                            if (err) err.classList.add('hidden');
+                            return;
+                        }
+                        e.preventDefault();
+                        if (err) err.classList.remove('hidden');
+                        input.focus();
+                    });
+                })();
+                </script>
                 <script>
                 (function () {
                     const root = document.getElementById('lot-photos');

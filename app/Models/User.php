@@ -37,6 +37,9 @@ class User extends Model
             'permissions' => "TEXT DEFAULT NULL COMMENT 'JSON permissions for manager' AFTER role",
             'site_access' => "TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Early access while stub_mode' AFTER permissions",
             'referred_by' => 'INT UNSIGNED DEFAULT NULL AFTER site_access',
+            'iin' => 'VARCHAR(12) DEFAULT NULL AFTER phone',
+            'aml_status' => 'VARCHAR(20) DEFAULT NULL AFTER iin',
+            'aml_checked_at' => 'DATETIME DEFAULT NULL AFTER aml_status',
         ];
 
         foreach ($needed as $col => $def) {
@@ -84,6 +87,12 @@ class User extends Model
 
         try {
             $this->db->exec('CREATE INDEX users_referred_by_idx ON users (referred_by)');
+        } catch (\Throwable $e) {
+            // index may already exist
+        }
+
+        try {
+            $this->db->exec('CREATE UNIQUE INDEX users_iin_unique ON users (iin)');
         } catch (\Throwable $e) {
             // index may already exist
         }
@@ -366,7 +375,7 @@ class User extends Model
     /** @return list<array<string, mixed>> */
     public function listForAdmin(?string $role = null, ?string $q = null, ?bool $siteAccess = null): array
     {
-        $sql = 'SELECT id, name, first_name, last_name, login, email, phone, role, permissions, site_access,
+        $sql = 'SELECT id, name, first_name, last_name, login, email, phone, iin, aml_status, role, permissions, site_access,
                        avatar, avatar_file, created_at, two_factor_enabled, google_id
                 FROM users WHERE 1=1';
         $params = [];
@@ -403,6 +412,22 @@ class User extends Model
     {
         $stmt = $this->db->prepare('UPDATE users SET site_access = ? WHERE id = ?');
         return $stmt->execute([$allowed ? 1 : 0, $userId]);
+    }
+
+    public function setAmlStatus(int $userId, string $status, ?string $iin = null): bool
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE users SET aml_status = ?, iin = COALESCE(?, iin), aml_checked_at = NOW() WHERE id = ?'
+        );
+        return $stmt->execute([$status, $iin !== null && $iin !== '' ? $iin : null, $userId]);
+    }
+
+    public function saveAmlClear(int $userId, string $iin): bool
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE users SET iin = ?, aml_status = ?, aml_checked_at = NOW() WHERE id = ?'
+        );
+        return $stmt->execute([$iin, 'clear', $userId]);
     }
 
     public function countWithSiteAccess(): int
