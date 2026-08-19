@@ -68,7 +68,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
             <h3 id="gigs-detail-title" class="font-display font-bold text-xl text-ink-900 dark:text-white"></h3>
             <p id="gigs-detail-desc" class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-wrap"></p>
             <p id="gigs-detail-address" class="text-sm text-gray-500 dark:text-gray-400"></p>
-            <p id="gigs-detail-customer" class="text-sm text-gray-600 dark:text-gray-300"></p>
+            <div id="gigs-detail-customer" class="empty:hidden"></div>
             <p id="gigs-detail-expires" class="text-xs text-gray-400"></p>
             <div id="gigs-detail-instant" class="text-xs font-semibold text-violet-800 dark:text-violet-300 bg-violet-50 dark:bg-violet-500/10 rounded-xl p-2.5 leading-snug"></div>
             <button type="button" id="gigs-detail-respond" class="w-full bg-brand-600 hover:bg-brand-500 text-white font-display font-bold text-xs uppercase tracking-wider py-3.5 rounded-2xl shadow-soft"><?= htmlspecialchars(t('gigs.respond')) ?></button>
@@ -211,16 +211,28 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
         }
         return '★ ' + Number(r.avg).toFixed(1) + ' · ' + r.count;
     }
-    function personHtml(person, roleLabel) {
+    function personHtml(person, roleLabel, featured) {
         if (!person) return '';
         const name = person.name ? escapeHtml(person.name) : '—';
-        const rate = ratingLabel(person.rating);
-        const inner = '<span class="font-semibold">' + name + '</span> · ' + rate;
+        const hasRating = person.rating && Number(person.rating.count);
+        const rate = hasRating
+            ? '<span class="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400 font-bold">★ ' + Number(person.rating.avg).toFixed(1) + '</span><span class="text-gray-400">(' + person.rating.count + ')</span>'
+            : '<span class="text-gray-400"><?= htmlspecialchars(t('gigs.rating_empty'), ENT_QUOTES) ?></span>';
+        const initial = (person.name || '?').trim().charAt(0).toUpperCase() || '?';
+        const inner =
+            '<span class="w-8 h-8 rounded-xl bg-teal-600 text-white text-xs font-bold flex items-center justify-center shrink-0">' + escapeHtml(initial) + '</span>' +
+            '<span class="min-w-0 flex-1">' +
+                '<span class="block text-[9px] font-bold uppercase tracking-wider text-teal-700 dark:text-teal-300">' + escapeHtml(roleLabel) + '</span>' +
+                '<span class="block font-semibold text-sm text-ink-900 dark:text-white truncate">' + name + '</span>' +
+                '<span class="flex items-center gap-1 text-[11px] mt-0.5">' + rate + '</span>' +
+            '</span>';
+        const box = featured
+            ? 'flex items-center gap-2.5 w-full rounded-xl bg-teal-50 dark:bg-teal-500/10 border border-teal-200/80 dark:border-teal-500/30 px-2.5 py-2 hover:border-teal-400/80 transition'
+            : 'inline-flex items-center gap-2 text-xs';
         if (person.id && usersBase) {
-            return '<a href="' + usersBase + person.id + '" class="text-xs text-gray-600 dark:text-gray-300 hover:text-brand-600" data-user-link>' +
-                escapeHtml(roleLabel) + ': ' + inner + '</a>';
+            return '<a href="' + usersBase + person.id + '" class="' + box + '" data-user-link>' + inner + '</a>';
         }
-        return '<span class="text-xs text-gray-500">' + escapeHtml(roleLabel) + ': ' + inner + '</span>';
+        return '<div class="' + box + '">' + inner + '</div>';
     }
     function closeModals() {
         detailModal.classList.add('hidden');
@@ -365,7 +377,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         ? '<button type="button" class="text-xs font-bold text-amber-600" data-review-task="' + t.id + '" data-review-role="' + (t.counterpart && t.counterpart.role ? t.counterpart.role : '') + '" data-review-name="' + escapeHtml(t.counterpart && t.counterpart.name ? t.counterpart.name : '') + '"><?= htmlspecialchars(t('gigs.review_btn'), ENT_QUOTES) ?></button>'
                         : '';
                     const counterpart = t.counterpart
-                        ? '<span class="text-xs text-gray-500"> · ' + personHtml(t.counterpart, t.counterpart.role === 'executor' ? '<?= htmlspecialchars(t('gigs.executor'), ENT_QUOTES) ?>' : '<?= htmlspecialchars(t('gigs.customer'), ENT_QUOTES) ?>') + '</span>'
+                        ? '<span class="block mt-1">' + personHtml(t.counterpart, t.counterpart.role === 'executor' ? '<?= htmlspecialchars(t('gigs.executor'), ENT_QUOTES) ?>' : '<?= htmlspecialchars(t('gigs.customer'), ENT_QUOTES) ?>', true) + '</span>'
                         : '';
                     return '<div class="rounded-xl border border-black/10 dark:border-white/10 p-3 text-sm flex flex-wrap items-center justify-between gap-2">' +
                         '<span><strong>' + escapeHtml(t.title) + '</strong> · ' + escapeHtml(t.status) + pin + counterpart + '</span>' +
@@ -464,7 +476,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                 (address
                     ? '<p class="text-xs text-gray-500 flex items-start gap-1.5"><svg class="w-3.5 h-3.5 mt-0.5 shrink-0 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><span class="line-clamp-1">' + escapeHtml(address) + '</span></p>'
                     : '') +
-                personHtml(task.customer, '<?= htmlspecialchars(t('gigs.customer'), ENT_QUOTES) ?>') +
+                personHtml(task.customer, '<?= htmlspecialchars(t('gigs.customer'), ENT_QUOTES) ?>', true) +
                 '<div class="mt-auto pt-1 text-[11px] font-semibold text-violet-800 dark:text-violet-300 bg-violet-50 dark:bg-violet-500/10 rounded-xl px-2.5 py-2 leading-snug">' +
                     '<span class="block"><?= htmlspecialchars(t('gigs.instant_banner'), ENT_QUOTES) ?>: ' + money(d) + '</span>' +
                     '<span class="block font-medium text-violet-600/90 dark:text-violet-300/80 mt-0.5"><?= htmlspecialchars(t('gigs.instant_hint'), ENT_QUOTES) ?></span>' +
@@ -495,7 +507,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
         document.getElementById('gigs-detail-desc').textContent = task.description || '';
         document.getElementById('gigs-detail-address').textContent = task.address || '';
         const customerEl = document.getElementById('gigs-detail-customer');
-        if (customerEl) customerEl.innerHTML = personHtml(task.customer, '<?= htmlspecialchars(t('gigs.customer'), ENT_QUOTES) ?>');
+        if (customerEl) customerEl.innerHTML = personHtml(task.customer, '<?= htmlspecialchars(t('gigs.customer'), ENT_QUOTES) ?>', true);
         document.getElementById('gigs-detail-expires').textContent = formatExpires(task.expires_at);
         document.getElementById('gigs-detail-instant').innerHTML =
             '<span class="block"><?= htmlspecialchars(t('gigs.instant_banner'), ENT_QUOTES) ?>: ' + money(task.pricing.bargain_options.discount_20.price) + '</span>' +
