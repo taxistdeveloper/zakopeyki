@@ -13,7 +13,7 @@ $loginUrl = ProductHelper::url('/login');
 $apiBase = ProductHelper::url('/api/v1/micro-tasks');
 $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm';
 ?>
-<div id="gigs-board" class="space-y-5" data-api="<?= htmlspecialchars($apiBase) ?>" data-login="<?= htmlspecialchars($loginUrl) ?>" data-auth="<?= $loggedIn ? '1' : '0' ?>" data-edit="<?= htmlspecialchars(ProductHelper::url('/profile?tab=lots&edit_gig=')) ?>">
+<div id="gigs-board" class="space-y-5" data-api="<?= htmlspecialchars($apiBase) ?>" data-login="<?= htmlspecialchars($loginUrl) ?>" data-auth="<?= $loggedIn ? '1' : '0' ?>" data-edit="<?= htmlspecialchars(ProductHelper::url('/profile?tab=lots&edit_gig=')) ?>" data-users="<?= htmlspecialchars(ProductHelper::url('/users/')) ?>">
     <?php if (!empty($flash)): ?>
         <div class="bg-emerald-50 dark:bg-emerald-900/25 text-emerald-800 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800/40 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars((string) $flash) ?></div>
     <?php endif; ?>
@@ -68,6 +68,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
             <h3 id="gigs-detail-title" class="font-display font-bold text-xl text-ink-900 dark:text-white"></h3>
             <p id="gigs-detail-desc" class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-wrap"></p>
             <p id="gigs-detail-address" class="text-sm text-gray-500 dark:text-gray-400"></p>
+            <p id="gigs-detail-customer" class="text-sm text-gray-600 dark:text-gray-300"></p>
             <p id="gigs-detail-expires" class="text-xs text-gray-400"></p>
             <div id="gigs-detail-instant" class="text-xs font-semibold text-violet-800 dark:text-violet-300 bg-violet-50 dark:bg-violet-500/10 rounded-xl p-2.5 leading-snug"></div>
             <button type="button" id="gigs-detail-respond" class="w-full bg-brand-600 hover:bg-brand-500 text-white font-display font-bold text-xs uppercase tracking-wider py-3.5 rounded-2xl shadow-soft"><?= htmlspecialchars(t('gigs.respond')) ?></button>
@@ -150,6 +151,22 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
     </div>
 </div>
 
+<div id="gigs-review-modal" class="hidden fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-ink-900/55 backdrop-blur-sm p-0 sm:p-4" role="dialog" aria-modal="true">
+    <div class="gigs-modal-panel w-full sm:max-w-sm bg-white dark:bg-ink-800 rounded-t-[28px] sm:rounded-[28px] overflow-hidden shadow-lift border border-white/60 dark:border-white/10 p-5 relative">
+        <div class="sm:hidden flex justify-center pb-2" aria-hidden="true"><span class="w-10 h-1 rounded-full bg-black/10 dark:bg-white/15"></span></div>
+        <button type="button" class="gigs-modal-close absolute top-4 right-4 w-9 h-9 rounded-xl bg-black/[0.04] dark:bg-white/10 text-gray-500">✕</button>
+        <h3 id="gigs-review-title" class="font-display font-bold text-xl pr-10"></h3>
+        <p class="text-sm text-gray-500 mt-2"><?= htmlspecialchars(t('reviews.form_hint')) ?></p>
+        <div class="flex gap-1 mt-4" id="gigs-review-stars">
+            <?php for ($i = 1; $i <= 5; $i++): ?>
+                <button type="button" data-star="<?= $i ?>" class="w-10 h-10 rounded-xl text-xl text-gray-300 hover:text-amber-400">★</button>
+            <?php endfor; ?>
+        </div>
+        <textarea id="gigs-review-body" rows="3" maxlength="2000" class="ui-input w-full mt-3 p-3 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm" placeholder="<?= htmlspecialchars(t('reviews.body_placeholder')) ?>"></textarea>
+        <button type="button" id="gigs-submit-review" class="mt-4 w-full bg-ink-900 hover:bg-ink-800 text-white font-display font-bold text-xs uppercase tracking-wider py-3.5 rounded-2xl"><?= htmlspecialchars(t('reviews.submit')) ?></button>
+    </div>
+</div>
+
 <div id="gigs-toast" class="hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-[95] max-w-[92vw] sm:max-w-md px-4 py-3 rounded-2xl shadow-lift text-sm font-semibold text-white"></div>
 
 <script>
@@ -159,6 +176,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
     const api = board.dataset.api;
     const loginUrl = board.dataset.login;
     const editBase = board.dataset.edit || '';
+    const usersBase = board.dataset.users || '';
     const isAuth = board.dataset.auth === '1';
     const grid = document.getElementById('gigs-grid');
     const mineEl = document.getElementById('gigs-mine');
@@ -166,6 +184,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
     const detailModal = document.getElementById('gigs-detail-modal');
     const offerModal = document.getElementById('gigs-offer-modal');
     const pinModal = document.getElementById('gigs-pin-modal');
+    const reviewModal = document.getElementById('gigs-review-modal');
     const confirmModal = document.getElementById('gigs-confirm-modal');
     const toastEl = document.getElementById('gigs-toast');
     const customInput = document.getElementById('gigs-custom-price');
@@ -173,6 +192,8 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
     let selected = null;
     let bargain = 'accept';
     let pinTaskId = null;
+    let reviewTaskId = null;
+    let reviewRating = 0;
     let confirmResolver = null;
     let toastTimer = null;
 
@@ -184,10 +205,28 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
             return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
         });
     }
+    function ratingLabel(r) {
+        if (!r || !Number(r.count)) {
+            return '<?= htmlspecialchars(t('gigs.rating_empty'), ENT_QUOTES) ?>';
+        }
+        return '★ ' + Number(r.avg).toFixed(1) + ' · ' + r.count;
+    }
+    function personHtml(person, roleLabel) {
+        if (!person) return '';
+        const name = person.name ? escapeHtml(person.name) : '—';
+        const rate = ratingLabel(person.rating);
+        const inner = '<span class="font-semibold">' + name + '</span> · ' + rate;
+        if (person.id && usersBase) {
+            return '<a href="' + usersBase + person.id + '" class="text-xs text-gray-600 dark:text-gray-300 hover:text-brand-600" data-user-link>' +
+                escapeHtml(roleLabel) + ': ' + inner + '</a>';
+        }
+        return '<span class="text-xs text-gray-500">' + escapeHtml(roleLabel) + ': ' + inner + '</span>';
+    }
     function closeModals() {
         detailModal.classList.add('hidden');
         offerModal.classList.add('hidden');
         pinModal.classList.add('hidden');
+        reviewModal.classList.add('hidden');
     }
     function showToast(message, isError) {
         if (!toastEl || !message) return;
@@ -226,7 +265,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
     document.querySelectorAll('.gigs-modal-close').forEach(function (btn) {
         btn.addEventListener('click', closeModals);
     });
-    [detailModal, offerModal, pinModal].forEach(function (modal) {
+    [detailModal, offerModal, pinModal, reviewModal].forEach(function (modal) {
         modal.addEventListener('click', function (e) {
             if (e.target === modal) closeModals();
         });
@@ -318,11 +357,19 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                         ? '<a href="' + editBase + t.id + '" class="text-xs font-bold text-brand-600"><?= htmlspecialchars(t('gigs.edit_btn'), ENT_QUOTES) ?></a>'
                         : '';
                     const offers = (t.offers || []).map(function (o) {
-                        return '<button type="button" class="text-xs bg-brand-600 text-white px-2 py-1 rounded-lg" data-select-offer="' + o.id + '"><?= htmlspecialchars(t('gigs.accept_offer'), ENT_QUOTES) ?> ' + money(o.proposed_price) + '</button>';
+                        const rate = ratingLabel(o.rating);
+                        const who = o.executor_name ? (escapeHtml(o.executor_name) + ' · ' + rate + ' · ') : '';
+                        return '<button type="button" class="text-xs bg-brand-600 text-white px-2 py-1 rounded-lg" data-select-offer="' + o.id + '"><?= htmlspecialchars(t('gigs.accept_offer'), ENT_QUOTES) ?> ' + who + money(o.proposed_price) + '</button>';
                     }).join(' ');
+                    const reviewBtn = t.can_review
+                        ? '<button type="button" class="text-xs font-bold text-amber-600" data-review-task="' + t.id + '" data-review-role="' + (t.counterpart && t.counterpart.role ? t.counterpart.role : '') + '" data-review-name="' + escapeHtml(t.counterpart && t.counterpart.name ? t.counterpart.name : '') + '"><?= htmlspecialchars(t('gigs.review_btn'), ENT_QUOTES) ?></button>'
+                        : '';
+                    const counterpart = t.counterpart
+                        ? '<span class="text-xs text-gray-500"> · ' + personHtml(t.counterpart, t.counterpart.role === 'executor' ? '<?= htmlspecialchars(t('gigs.executor'), ENT_QUOTES) ?>' : '<?= htmlspecialchars(t('gigs.customer'), ENT_QUOTES) ?>') + '</span>'
+                        : '';
                     return '<div class="rounded-xl border border-black/10 dark:border-white/10 p-3 text-sm flex flex-wrap items-center justify-between gap-2">' +
-                        '<span><strong>' + escapeHtml(t.title) + '</strong> · ' + escapeHtml(t.status) + pin + '</span>' +
-                        '<span class="flex flex-wrap gap-2">' + offers + completeBtn + editBtn + cancelBtn + deleteBtn + '</span></div>';
+                        '<span><strong>' + escapeHtml(t.title) + '</strong> · ' + escapeHtml(t.status) + pin + counterpart + '</span>' +
+                        '<span class="flex flex-wrap gap-2">' + offers + completeBtn + editBtn + reviewBtn + cancelBtn + deleteBtn + '</span></div>';
                 }).join('');
             mineEl.querySelectorAll('[data-pin-task]').forEach(function (btn) {
                 btn.addEventListener('click', function () { openPin(Number(btn.dataset.pinTask)); });
@@ -370,6 +417,14 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                     loadMine();
                 });
             });
+            mineEl.querySelectorAll('[data-review-task]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    openReview(Number(btn.dataset.reviewTask), btn.dataset.reviewRole, btn.dataset.reviewName);
+                });
+            });
+            mineEl.querySelectorAll('[data-user-link]').forEach(function (link) {
+                link.addEventListener('click', function (e) { e.stopPropagation(); });
+            });
         } catch (e) {}
     }
 
@@ -409,6 +464,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                 (address
                     ? '<p class="text-xs text-gray-500 flex items-start gap-1.5"><svg class="w-3.5 h-3.5 mt-0.5 shrink-0 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><span class="line-clamp-1">' + escapeHtml(address) + '</span></p>'
                     : '') +
+                personHtml(task.customer, '<?= htmlspecialchars(t('gigs.customer'), ENT_QUOTES) ?>') +
                 '<div class="mt-auto pt-1 text-[11px] font-semibold text-violet-800 dark:text-violet-300 bg-violet-50 dark:bg-violet-500/10 rounded-xl px-2.5 py-2 leading-snug">' +
                     '<span class="block"><?= htmlspecialchars(t('gigs.instant_banner'), ENT_QUOTES) ?>: ' + money(d) + '</span>' +
                     '<span class="block font-medium text-violet-600/90 dark:text-violet-300/80 mt-0.5"><?= htmlspecialchars(t('gigs.instant_hint'), ENT_QUOTES) ?></span>' +
@@ -416,6 +472,9 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
         }).join('');
         grid.querySelectorAll('[data-detail]').forEach(function (card) {
             card.addEventListener('click', function () { openDetail(Number(card.dataset.detail)); });
+        });
+        grid.querySelectorAll('[data-user-link]').forEach(function (link) {
+            link.addEventListener('click', function (e) { e.stopPropagation(); });
         });
     }
 
@@ -435,6 +494,8 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
         document.getElementById('gigs-detail-title').textContent = task.title || task.category.name || '';
         document.getElementById('gigs-detail-desc').textContent = task.description || '';
         document.getElementById('gigs-detail-address').textContent = task.address || '';
+        const customerEl = document.getElementById('gigs-detail-customer');
+        if (customerEl) customerEl.innerHTML = personHtml(task.customer, '<?= htmlspecialchars(t('gigs.customer'), ENT_QUOTES) ?>');
         document.getElementById('gigs-detail-expires').textContent = formatExpires(task.expires_at);
         document.getElementById('gigs-detail-instant').innerHTML =
             '<span class="block"><?= htmlspecialchars(t('gigs.instant_banner'), ENT_QUOTES) ?>: ' + money(task.pricing.bargain_options.discount_20.price) + '</span>' +
@@ -572,6 +633,59 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                 loadMine();
             } else {
                 showToast(json.error, true);
+            }
+        } catch (e) {
+            showToast('<?= htmlspecialchars(t('gigs.err_network'), ENT_QUOTES) ?>', true);
+        }
+        btn.disabled = false;
+    });
+
+    function paintReviewStars() {
+        document.querySelectorAll('#gigs-review-stars [data-star]').forEach(function (btn) {
+            const n = Number(btn.dataset.star);
+            btn.className = 'w-10 h-10 rounded-xl text-xl ' + (n <= reviewRating ? 'text-amber-400' : 'text-gray-300 hover:text-amber-400');
+        });
+    }
+    function openReview(id, role, name) {
+        if (!isAuth) { location.href = loginUrl; return; }
+        reviewTaskId = id;
+        reviewRating = 0;
+        document.getElementById('gigs-review-body').value = '';
+        const title = role === 'executor'
+            ? '<?= htmlspecialchars(t('reviews.rate_executor'), ENT_QUOTES) ?>'
+            : '<?= htmlspecialchars(t('reviews.rate_customer'), ENT_QUOTES) ?>';
+        document.getElementById('gigs-review-title').textContent = title + (name ? ' — ' + name : '');
+        paintReviewStars();
+        reviewModal.classList.remove('hidden');
+    }
+    document.querySelectorAll('#gigs-review-stars [data-star]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            reviewRating = Number(btn.dataset.star);
+            paintReviewStars();
+        });
+    });
+    document.getElementById('gigs-submit-review').addEventListener('click', async function () {
+        if (!reviewTaskId) return;
+        if (reviewRating < 1 || reviewRating > 5) {
+            showToast('<?= htmlspecialchars(t('reviews.rating_invalid'), ENT_QUOTES) ?>', true);
+            return;
+        }
+        const btn = this;
+        btn.disabled = true;
+        try {
+            const res = await fetch(api + '/' + reviewTaskId + '/review', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({
+                    rating: reviewRating,
+                    body: document.getElementById('gigs-review-body').value
+                })
+            });
+            const json = await res.json();
+            showToast(json.success ? (json.data.message || 'OK') : (json.error || 'Error'), !json.success);
+            if (json.success) {
+                closeModals();
+                loadMine();
             }
         } catch (e) {
             showToast('<?= htmlspecialchars(t('gigs.err_network'), ENT_QUOTES) ?>', true);

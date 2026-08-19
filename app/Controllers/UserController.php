@@ -131,6 +131,9 @@ class UserController extends Controller
                 'images' => $r['product_images'] ?? null,
             ];
             $productTitle = trim((string) ($r['product_title'] ?? ''));
+            if ($productTitle === '') {
+                $productTitle = trim((string) ($r['task_title'] ?? ''));
+            }
             $reviews[] = [
                 'id' => (int) ($r['id'] ?? 0),
                 'rating' => (int) ($r['rating'] ?? 0),

@@ -76,6 +76,7 @@ $router->post('/api/v1/micro-tasks/create', [MicroTaskController::class, 'create
 $router->post('/api/v1/micro-tasks/offers/{offerId}/select', [MicroTaskOfferController::class, 'selectOffer']);
 $router->post('/api/v1/micro-tasks/{id}/offer', [MicroTaskOfferController::class, 'submitOffer']);
 $router->post('/api/v1/micro-tasks/{id}/complete', [MicroTaskCompletionController::class, 'complete']);
+$router->post('/api/v1/micro-tasks/{id}/review', [MicroTaskController::class, 'review']);
 $router->post('/api/v1/micro-tasks/{id}/cancel', [MicroTaskController::class, 'cancel']);
 $router->post('/api/v1/micro-tasks/{id}/delete', [MicroTaskController::class, 'delete']);
 $router->get('/chat', [ChatController::class, 'index']);

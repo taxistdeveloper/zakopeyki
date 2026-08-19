@@ -52,6 +52,10 @@ class ApiRouter
             $this->completionController->complete((int) $matches[1]);
         }
 
+        if ($method === 'POST' && preg_match('#^/api/v1/micro-tasks/(\d+)/review$#', $path, $matches)) {
+            $this->taskController->review((int) $matches[1]);
+        }
+
         if ($method === 'POST' && preg_match('#^/api/v1/micro-tasks/(\d+)/cancel$#', $path, $matches)) {
             $this->taskController->cancel((int) $matches[1]);
         }

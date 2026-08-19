@@ -8,6 +8,7 @@ use App\Core\Database;
 use App\Helpers\ProductHelper;
 use App\Models\MicroTask;
 use App\Models\Product;
+use App\Models\Review;
 use Exception;
 use PDO;
 use PDOException;
@@ -723,9 +724,11 @@ class MicroTaskService
         $sql = "
             SELECT t.`id`, t.`customer_id`, t.`category_id`, c.`name` as `category_name`,
                    t.`title`, t.`description`, t.`address`, t.`initial_price`, t.`status`,
-                   t.`created_at`, t.`expires_at`, t.`image`, t.`images`
+                   t.`created_at`, t.`expires_at`, t.`image`, t.`images`,
+                   u.`name` as `customer_name`
             FROM `micro_tasks` t
             JOIN `micro_categories` c ON c.`id` = t.`category_id`
+            LEFT JOIN `users` u ON u.`id` = t.`customer_id`
             WHERE t.`status` = 'open' AND t.`expires_at` > NOW()
         ";
 
@@ -754,9 +757,13 @@ class MicroTaskService
     public function listForUser(int $userId): array
     {
         $stmt = $this->pdo->prepare("
-            SELECT t.*, c.`name` as `category_name`
+            SELECT t.*, c.`name` as `category_name`,
+                   cu.`name` as `customer_name`,
+                   eu.`name` as `executor_name`
             FROM `micro_tasks` t
             JOIN `micro_categories` c ON c.`id` = t.`category_id`
+            LEFT JOIN `users` cu ON cu.`id` = t.`customer_id`
+            LEFT JOIN `users` eu ON eu.`id` = t.`executor_id`
             WHERE t.`customer_id` = :uid OR t.`executor_id` = :uid2
             ORDER BY t.`id` DESC
             LIMIT 40
@@ -771,9 +778,10 @@ class MicroTaskService
     public function offersForCustomerTask(int $customerId, int $taskId): array
     {
         $stmt = $this->pdo->prepare("
-            SELECT o.*
+            SELECT o.*, u.`name` as `executor_name`
             FROM `micro_task_offers` o
             JOIN `micro_tasks` t ON t.`id` = o.`task_id`
+            LEFT JOIN `users` u ON u.`id` = o.`executor_id`
             WHERE o.`task_id` = :task_id AND t.`customer_id` = :customer_id AND o.`status` = 'pending'
             ORDER BY o.`id` DESC
         ");
@@ -812,15 +820,24 @@ class MicroTaskService
      */
     public function formatCatalog(array $tasks): array
     {
+        $customerIds = array_map(static fn (array $task): int => (int) $task['customer_id'], $tasks);
+        $ratings = (new Review())->statsForMany($customerIds);
+
         $formatted = [];
         foreach ($tasks as $task) {
             $initialPrice = (float) $task['initial_price'];
             $discount20 = round($initialPrice * 0.80, 2);
             $raise20 = round($initialPrice * 1.20, 2);
+            $customerId = (int) $task['customer_id'];
 
             $formatted[] = [
                 'id' => (int) $task['id'],
-                'customer_id' => (int) $task['customer_id'],
+                'customer_id' => $customerId,
+                'customer' => [
+                    'id' => $customerId,
+                    'name' => (string) ($task['customer_name'] ?? ''),
+                    'rating' => $ratings[$customerId] ?? ['avg' => 0, 'count' => 0],
+                ],
                 'category' => [
                     'id' => (int) $task['category_id'],
                     'name' => $task['category_name'],

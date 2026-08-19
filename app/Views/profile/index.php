@@ -188,9 +188,13 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                                 'avatar' => $r['author_avatar'] ?? null,
                                 'avatar_file' => $r['author_avatar_file'] ?? null,
                             ];
-                            $roleLabel = ($r['role'] ?? '') === 'as_seller'
-                                ? t('reviews.as_seller')
-                                : t('reviews.as_buyer');
+                            $role = (string) ($r['role'] ?? '');
+                            $roleLabel = match ($role) {
+                                'as_seller' => t('reviews.as_seller'),
+                                'as_executor' => t('reviews.as_executor'),
+                                'as_customer' => t('reviews.as_customer'),
+                                default => t('reviews.as_buyer'),
+                            };
                             ?>
                             <article class="rounded-2xl border border-black/[0.06] dark:border-white/10 px-4 py-4 space-y-2">
                                 <div class="flex items-start gap-3">
