@@ -22,6 +22,7 @@ if ($login === '' && !empty($user['email'])) {
 
 $tabs = [
     'personal' => ['label' => t('profile.tab_personal'), 'icon' => 'user'],
+    'business' => ['label' => t('profile.tab_business'), 'icon' => 'briefcase'],
     'photo' => ['label' => t('profile.tab_photo'), 'icon' => 'camera'],
     'bio' => ['label' => t('profile.tab_bio'), 'icon' => 'file'],
     'reviews' => ['label' => t('profile.tab_reviews'), 'icon' => 'star'],
@@ -35,6 +36,9 @@ $tabs = [
 
 $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm';
 $kycStatus = \App\Services\AMLService::userListingStatus($user);
+$accountLimit = $accountLimit ?? [];
+$businessSubscription = $businessSubscription ?? null;
+$isBusinessAccount = !empty($accountLimit['is_business']);
 ?>
 <section class="max-w-5xl mx-auto space-y-5 pb-8">
     <div class="flex items-end justify-between gap-4">
@@ -48,7 +52,11 @@ $kycStatus = \App\Services\AMLService::userListingStatus($user);
                 <div class="text-right">
                     <div class="text-sm font-semibold flex items-center justify-end gap-1.5">
                         <?= htmlspecialchars($user['name'] ?? '') ?>
-                        <?php if ($kycStatus === 'ok'): ?>
+                        <?php if ($isBusinessAccount): ?>
+                            <span class="inline-flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-wide text-sky-600 dark:text-sky-400" title="<?= htmlspecialchars(t('business.badge')) ?>">
+                                <?= htmlspecialchars(t('business.badge')) ?>
+                            </span>
+                        <?php elseif ($kycStatus === 'ok'): ?>
                             <span class="inline-flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400" title="<?= htmlspecialchars(t('profile.kyc_verified')) ?>">
                                 <?= IconHelper::svg('shield', 'w-3.5 h-3.5') ?>
                                 <?= htmlspecialchars(t('profile.kyc_badge')) ?>
@@ -170,6 +178,83 @@ $kycStatus = \App\Services\AMLService::userListingStatus($user);
                         </button>
                     </div>
                 </form>
+
+            <?php elseif ($tab === 'business'): ?>
+                <?php
+                $turnover = (int) ($accountLimit['turnover'] ?? 0);
+                $hard = (int) ($accountLimit['hard_limit'] ?? 0);
+                $remaining = (int) ($accountLimit['remaining'] ?? 0);
+                $percent = (float) ($accountLimit['percent'] ?? 0);
+                $blocked = !empty($accountLimit['blocked']);
+                $warningDue = !empty($accountLimit['warning_due']);
+                ?>
+                <div class="mb-7">
+                    <h2 class="font-display text-xl font-bold text-ink-900 dark:text-white"><?= htmlspecialchars(t('profile.tab_business')) ?></h2>
+                    <p class="text-sm text-gray-400 mt-1"><?= htmlspecialchars(t('business.tab_hint')) ?></p>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="rounded-2xl border border-black/[0.08] dark:border-white/10 p-5 bg-ink-50/60 dark:bg-white/[0.03]">
+                        <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1"><?= htmlspecialchars(t('business.account_type_label')) ?></div>
+                        <div class="text-sm font-semibold text-ink-900 dark:text-white">
+                            <?= htmlspecialchars($isBusinessAccount ? t('business.type_business') : t('business.type_personal')) ?>
+                            <?php if ($isBusinessAccount && !empty($accountLimit['business_name'])): ?>
+                                · <?= htmlspecialchars((string) $accountLimit['business_name']) ?>
+                            <?php endif; ?>
+                        </div>
+                        <?php if ($isBusinessAccount): ?>
+                            <p class="text-xs text-gray-500 mt-2"><?= htmlspecialchars(t('business.business_unlimited')) ?></p>
+                        <?php endif; ?>
+                    </div>
+
+                    <?php if (!$isBusinessAccount): ?>
+                        <div class="rounded-2xl border <?= $blocked ? 'border-red-200 bg-red-50/70' : ($warningDue ? 'border-amber-200 bg-amber-50/70' : 'border-black/[0.08] bg-white/80 dark:bg-white/[0.03]') ?> p-5">
+                            <div class="flex flex-wrap items-end justify-between gap-2 mb-3">
+                                <div>
+                                    <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1"><?= htmlspecialchars(t('business.limit_label')) ?></div>
+                                    <div class="text-sm font-semibold"><?= htmlspecialchars(t('business.limit_year', ['year' => (string) ($accountLimit['year'] ?? date('Y'))])) ?></div>
+                                </div>
+                                <div class="text-right text-sm font-bold">
+                                    <?= number_format($turnover, 0, '', ' ') ?> / <?= number_format($hard, 0, '', ' ') ?> ₸
+                                </div>
+                            </div>
+                            <div class="h-2 rounded-full bg-black/5 dark:bg-white/10 overflow-hidden">
+                                <div class="h-full rounded-full <?= $blocked ? 'bg-red-500' : ($warningDue ? 'bg-amber-500' : 'bg-brand-500') ?>" style="width: <?= min(100, max(0, $percent)) ?>%"></div>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-3">
+                                <?= htmlspecialchars(t('business.limit_remaining', [
+                                    'amount' => number_format($remaining, 0, '', ' '),
+                                    'mrp' => (string) ((int) ($accountLimit['limit_mrp'] ?? 360)),
+                                ])) ?>
+                            </p>
+                            <?php if ($blocked): ?>
+                                <p class="text-sm font-semibold text-red-700 mt-3"><?= htmlspecialchars(t('business.blocked_hint')) ?></p>
+                            <?php elseif ($warningDue): ?>
+                                <p class="text-sm font-semibold text-amber-800 mt-3"><?= htmlspecialchars(t('business.warning_hint')) ?></p>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if ($businessSubscription): ?>
+                        <div class="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 text-sm text-emerald-900">
+                            <?= htmlspecialchars(t('business.subscription_active', [
+                                'name' => (string) ($businessSubscription['package_name'] ?? t('business.package_title')),
+                                'until' => date('d.m.Y', strtotime((string) $businessSubscription['ends_at'])),
+                            ])) ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <?php if (!$isBusinessAccount): ?>
+                            <a href="<?= ProductHelper::url('/business/upgrade') ?>" class="inline-flex justify-center items-center bg-ink-900 hover:bg-ink-800 text-white font-semibold text-sm px-5 py-3 rounded-2xl">
+                                <?= htmlspecialchars(t('business.go_upgrade')) ?>
+                            </a>
+                        <?php endif; ?>
+                        <a href="<?= ProductHelper::url('/business/package') ?>" class="inline-flex justify-center items-center border border-black/10 dark:border-white/10 font-semibold text-sm px-5 py-3 rounded-2xl hover:border-brand-400">
+                            <?= htmlspecialchars(t('business.go_package')) ?>
+                        </a>
+                    </div>
+                </div>
 
             <?php elseif ($tab === 'photo'): ?>
                 <div class="mb-7 text-center sm:text-left">

@@ -16,9 +16,12 @@ use App\Models\Product;
 use App\Models\Setting;
 use App\Models\SiteVisit;
 use App\Models\SupportTicket;
+use App\Models\BusinessUpgradeRequest;
 use App\Models\MicroTask;
 use App\Models\User;
 use App\Services\AMLService;
+use App\Services\BusinessUpgradeService;
+use App\Services\PersonalLimitService;
 use App\Services\UnskilledTaskValidator;
 use App\Services\AI\SelfLearningService;
 use App\Services\EscrowService;
@@ -1132,5 +1135,60 @@ class AdminController extends Controller
         } catch (\Throwable $e) {
             // ignore mail errors
         }
+    }
+
+    public function businessRequests(): void
+    {
+        Auth::requireAdmin();
+        $status = (string) ($_GET['status'] ?? 'pending');
+        if (!in_array($status, ['pending', 'approved', 'rejected', 'all'], true)) {
+            $status = 'pending';
+        }
+        $model = new BusinessUpgradeRequest();
+        $n = new Notification();
+        $this->view('admin/business', [
+            'title' => t('admin.business'),
+            'currentNav' => 'admin',
+            'requests' => $model->listByStatus($status),
+            'pendingCount' => $model->countPending(),
+            'filterStatus' => $status,
+            'notifications' => $n->forUser(Auth::id()),
+            'unread' => $n->unreadCount(Auth::id()),
+            'flash' => $_SESSION['flash'] ?? null,
+            'error' => $_SESSION['error'] ?? null,
+        ]);
+        unset($_SESSION['flash'], $_SESSION['error']);
+    }
+
+    public function businessApprove(string $id): void
+    {
+        Auth::requireAdmin();
+        $result = (new BusinessUpgradeService())->approve((int) $id, Auth::id(), trim((string) ($_POST['note'] ?? '')));
+        $_SESSION[$result['ok'] ? 'flash' : 'error'] = $result['ok']
+            ? t('admin.business_approved')
+            : ($result['error'] ?? t('business.err_generic'));
+        $this->redirect('/admin/business');
+    }
+
+    public function businessReject(string $id): void
+    {
+        Auth::requireAdmin();
+        $result = (new BusinessUpgradeService())->reject(
+            (int) $id,
+            Auth::id(),
+            trim((string) ($_POST['reason'] ?? ''))
+        );
+        $_SESSION[$result['ok'] ? 'flash' : 'error'] = $result['ok']
+            ? t('admin.business_rejected')
+            : ($result['error'] ?? t('business.err_generic'));
+        $this->redirect('/admin/business');
+    }
+
+    public function resetPersonalLimits(): void
+    {
+        Auth::requireAdmin();
+        $count = (new PersonalLimitService())->resetAllForNewYear();
+        $_SESSION['flash'] = t('admin.business_limits_reset', ['count' => (string) $count]);
+        $this->redirect('/admin/business');
     }
 }

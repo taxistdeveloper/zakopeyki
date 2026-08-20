@@ -40,6 +40,17 @@ class User extends Model
             'iin' => 'VARCHAR(12) DEFAULT NULL AFTER phone',
             'aml_status' => 'VARCHAR(20) DEFAULT NULL AFTER iin',
             'aml_checked_at' => 'DATETIME DEFAULT NULL AFTER aml_status',
+            'account_type' => "ENUM('personal','business') NOT NULL DEFAULT 'personal' AFTER aml_checked_at",
+            'business_entity_type' => "ENUM('ip','too') DEFAULT NULL AFTER account_type",
+            'business_name' => 'VARCHAR(255) DEFAULT NULL AFTER business_entity_type',
+            'bin' => 'VARCHAR(12) DEFAULT NULL AFTER business_name',
+            'business_status' => "ENUM('none','pending','verified','rejected') NOT NULL DEFAULT 'none' AFTER bin",
+            'business_verified_at' => 'DATETIME DEFAULT NULL AFTER business_status',
+            'business_rejected_reason' => 'VARCHAR(500) DEFAULT NULL AFTER business_verified_at',
+            'personal_limit_year' => 'SMALLINT UNSIGNED DEFAULT NULL AFTER business_rejected_reason',
+            'personal_turnover_kzt' => 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER personal_limit_year',
+            'limit_warning_sent_at' => 'DATETIME DEFAULT NULL AFTER personal_turnover_kzt',
+            'limit_blocked_at' => 'DATETIME DEFAULT NULL AFTER limit_warning_sent_at',
         ];
 
         foreach ($needed as $col => $def) {
@@ -48,6 +59,8 @@ class User extends Model
                 $this->db->exec("ALTER TABLE users ADD COLUMN {$col} {$def}");
             }
         }
+
+        $this->ensureBusinessAuxTables();
 
         // role: user | manager | admin
         try {
@@ -98,6 +111,131 @@ class User extends Model
         }
 
         self::$ensured = true;
+    }
+
+    /** Публичный вход для сервисов бизнес-аккаунтов. */
+    public function ensureBusinessSchema(): void
+    {
+        $this->ensureColumns();
+    }
+
+    private function ensureBusinessAuxTables(): void
+    {
+        $this->db->exec(
+            "CREATE TABLE IF NOT EXISTS personal_turnover_ledger (
+                id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                user_id INT UNSIGNED NOT NULL,
+                order_id INT UNSIGNED DEFAULT NULL,
+                amount_kzt INT NOT NULL,
+                year SMALLINT UNSIGNED NOT NULL,
+                meta VARCHAR(255) DEFAULT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY uk_ptl_order (order_id),
+                INDEX idx_ptl_user_year (user_id, year)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+        );
+
+        try {
+            $settings = new Setting();
+            if ($settings->get('mrp_kzt') === null) {
+                $settings->set('mrp_kzt', '3932');
+            }
+            if ($settings->get('personal_limit_mrp') === null) {
+                $settings->set('personal_limit_mrp', '360');
+            }
+            if ($settings->get('personal_warning_kzt') === null) {
+                $settings->set('personal_warning_kzt', '1100000');
+            }
+        } catch (\Throwable $e) {
+            // settings may not be ready
+        }
+    }
+
+    public function resetPersonalLimitYear(int $userId, int $year): void
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE users SET personal_limit_year = ?, personal_turnover_kzt = 0,
+                limit_warning_sent_at = NULL, limit_blocked_at = NULL
+             WHERE id = ?'
+        );
+        $stmt->execute([$year, $userId]);
+    }
+
+    public function resetAllPersonalLimitsBeforeYear(int $year): int
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE users SET personal_limit_year = ?, personal_turnover_kzt = 0,
+                limit_warning_sent_at = NULL, limit_blocked_at = NULL
+             WHERE account_type = \'personal\'
+               AND (personal_limit_year IS NULL OR personal_limit_year < ?)'
+        );
+        $stmt->execute([$year, $year]);
+        return $stmt->rowCount();
+    }
+
+    public function setPersonalTurnover(int $userId, int $turnover, int $year): void
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE users SET personal_turnover_kzt = ?, personal_limit_year = ? WHERE id = ?'
+        );
+        $stmt->execute([$turnover, $year, $userId]);
+    }
+
+    public function setLimitWarningSent(int $userId): void
+    {
+        $stmt = $this->db->prepare('UPDATE users SET limit_warning_sent_at = NOW() WHERE id = ?');
+        $stmt->execute([$userId]);
+    }
+
+    public function setLimitBlocked(int $userId, bool $blocked): void
+    {
+        if ($blocked) {
+            $stmt = $this->db->prepare('UPDATE users SET limit_blocked_at = NOW() WHERE id = ?');
+            $stmt->execute([$userId]);
+            return;
+        }
+        $stmt = $this->db->prepare('UPDATE users SET limit_blocked_at = NULL WHERE id = ?');
+        $stmt->execute([$userId]);
+    }
+
+    /** @param array<string, mixed> $extra */
+    public function setBusinessStatus(int $userId, string $status, array $extra = []): void
+    {
+        $fields = ['business_status = ?'];
+        $params = [$status];
+        foreach (['business_entity_type', 'business_name', 'bin', 'business_rejected_reason'] as $key) {
+            if (array_key_exists($key, $extra)) {
+                $fields[] = "{$key} = ?";
+                $params[] = $extra[$key];
+            }
+        }
+        $params[] = $userId;
+        $sql = 'UPDATE users SET ' . implode(', ', $fields) . ' WHERE id = ?';
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+    }
+
+    /** @param array{business_entity_type:string,business_name:string,bin:string} $data */
+    public function promoteToBusiness(int $userId, array $data): void
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE users SET
+                account_type = 'business',
+                business_status = 'verified',
+                business_entity_type = ?,
+                business_name = ?,
+                bin = ?,
+                business_verified_at = NOW(),
+                business_rejected_reason = NULL,
+                limit_blocked_at = NULL
+             WHERE id = ?"
+        );
+        $stmt->execute([
+            $data['business_entity_type'],
+            $data['business_name'],
+            $data['bin'],
+            $userId,
+        ]);
     }
 
     public function findByEmail(string $email): ?array

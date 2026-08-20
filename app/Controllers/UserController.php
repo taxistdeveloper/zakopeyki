@@ -162,6 +162,10 @@ class UserController extends Controller
             }
         }
 
+        $isBusiness = (($user['account_type'] ?? '') === 'business')
+            && (($user['business_status'] ?? '') === 'verified');
+        $hasPackage = $isBusiness && (new \App\Services\BusinessPackageService())->hasActivePackage($userId);
+
         return [
             'ok' => true,
             'id' => $userId,
@@ -173,6 +177,9 @@ class UserController extends Controller
             'member_since' => $this->formatMemberSince($user['created_at'] ?? null),
             'is_online' => $isLive,
             'is_live' => $isLive,
+            'is_business' => $isBusiness,
+            'business_name' => $isBusiness ? (string) ($user['business_name'] ?? '') : '',
+            'has_business_package' => $hasPackage,
             'followers_count' => $followersCount,
             'following_count' => $followingCount,
             'sales_count' => $salesCount,

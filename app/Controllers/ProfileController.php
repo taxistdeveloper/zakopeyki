@@ -15,7 +15,9 @@ use App\Models\Review;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Services\AMLService;
+use App\Services\BusinessPackageService;
 use App\Services\MicroTaskService;
+use App\Services\PersonalLimitService;
 
 class ProfileController extends Controller
 {
@@ -34,7 +36,7 @@ class ProfileController extends Controller
         }
 
         $tab = $_GET['tab'] ?? 'personal';
-        $allowed = ['personal', 'photo', 'bio', 'reviews', 'notifications', 'password', 'lots', 'favorites', 'subscriptions', 'referral'];
+        $allowed = ['personal', 'photo', 'bio', 'reviews', 'notifications', 'password', 'lots', 'favorites', 'subscriptions', 'referral', 'business'];
         if (!in_array($tab, $allowed, true)) {
             $tab = 'personal';
         }
@@ -109,6 +111,11 @@ class ProfileController extends Controller
         $referralCount = $tab === 'referral' ? $usersModel->countReferrals(Auth::id()) : 0;
         $referralUsers = $tab === 'referral' ? $usersModel->referrals(Auth::id()) : [];
 
+        $limitService = new PersonalLimitService();
+        $accountLimit = $limitService->snapshot($profileUser ?: Auth::user());
+        $pkgService = new BusinessPackageService();
+        $businessSubscription = $pkgService->activeSubscription(Auth::id());
+
         $this->view('profile/index', [
             'title' => t('profile.title'),
             'currentNav' => 'profile',
@@ -146,6 +153,8 @@ class ProfileController extends Controller
             'referralCode' => $referralCode,
             'referralCount' => $referralCount,
             'referralUsers' => $referralUsers,
+            'accountLimit' => $accountLimit,
+            'businessSubscription' => $businessSubscription,
             'search' => '',
             'flash' => $_SESSION['flash'] ?? null,
             'error' => $_SESSION['error'] ?? null,
@@ -386,6 +395,14 @@ class ProfileController extends Controller
             $this->redirect($amlFail);
         }
 
+        if ($type !== 'gig') {
+            $limitCheck = (new PersonalLimitService())->assertCanPublish(Auth::user() ?: []);
+            if (!$limitCheck['ok']) {
+                $_SESSION['error'] = $limitCheck['error'] ?? t('business.err_limit_reached_short');
+                $this->redirect('/profile?tab=business');
+            }
+        }
+
         $title = trim($_POST['title'] ?? '');
         $description = trim($_POST['description'] ?? '');
 
@@ -412,7 +429,21 @@ class ProfileController extends Controller
             $exchangeFor = '';
         }
 
-        $resolved = $this->resolveProductImages();
+        $serviceFee = 0;
+        $pkgService = new BusinessPackageService();
+        if ($type === 'service' && !Auth::isStaff() && !$pkgService->freeServiceListing(Auth::id())) {
+            $serviceFee = ProductHelper::SERVICE_LISTING_FEE;
+            $wallet = new Wallet();
+            if ($wallet->balance(Auth::id()) < $serviceFee) {
+                $_SESSION['error'] = t('flash.service_fee_need', [
+                    'amount' => Wallet::formatMoney($serviceFee),
+                ]);
+                $this->redirect('/profile?tab=lots&type=service');
+            }
+        }
+
+        $maxPhotos = $pkgService->maxPhotosForUser(Auth::id());
+        $resolved = $this->resolveProductImages(null, true, $maxPhotos);
         if (!empty($resolved['error'])) {
             $_SESSION['error'] = $resolved['error'];
             $this->redirect('/profile?tab=lots');
@@ -436,18 +467,6 @@ class ProfileController extends Controller
         if (!$whatsapp['ok']) {
             $_SESSION['error'] = t('profile.whatsapp_invalid');
             $this->redirect('/profile?tab=lots');
-        }
-
-        $serviceFee = 0;
-        if ($type === 'service' && !Auth::isStaff()) {
-            $serviceFee = ProductHelper::SERVICE_LISTING_FEE;
-            $wallet = new Wallet();
-            if ($wallet->balance(Auth::id()) < $serviceFee) {
-                $_SESSION['error'] = t('flash.service_fee_need', [
-                    'amount' => Wallet::formatMoney($serviceFee),
-                ]);
-                $this->redirect('/profile?tab=lots&type=service');
-            }
         }
 
         $productId = (new Product())->create(array_merge([
@@ -710,10 +729,11 @@ class ProfileController extends Controller
     /**
      * @return array{images?: list<string>, cover?: string, error?: string}
      */
-    private function resolveProductImages(?array $existingProduct = null, bool $required = true): array
+    private function resolveProductImages(?array $existingProduct = null, bool $required = true, ?int $maxPhotos = null): array
     {
         $products = new Product();
         $oldFiles = $existingProduct ? ProductHelper::decodeImages($existingProduct) : [];
+        $max = max(1, $maxPhotos ?? (new BusinessPackageService())->maxPhotosForUser((int) Auth::id()));
 
         $keep = $_POST['keep_images'] ?? [];
         if (!is_array($keep)) {
@@ -732,18 +752,18 @@ class ProfileController extends Controller
             $products->deleteProductFiles(array_values($removed));
         }
 
-        $slotsLeft = 3 - count($kept);
+        $slotsLeft = $max - count($kept);
         $uploaded = $slotsLeft > 0 ? $this->uploadProductImages($slotsLeft) : [];
         if (!empty($uploaded['error'])) {
             return ['error' => $uploaded['error']];
         }
 
-        $images = array_values(array_slice(array_merge($kept, $uploaded['files'] ?? []), 0, 3));
+        $images = array_values(array_slice(array_merge($kept, $uploaded['files'] ?? []), 0, $max));
         if (!$images) {
             if (!$required) {
                 return ['images' => [], 'cover' => ''];
             }
-            return ['error' => t('flash.need_photo')];
+            return ['error' => t('flash.need_photo_n', ['n' => (string) $max])];
         }
 
         $coverRaw = trim((string) ($_POST['cover'] ?? ''));

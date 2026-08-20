@@ -20,6 +20,7 @@ use App\Controllers\SupportController;
 use App\Controllers\UserController;
 use App\Controllers\WalletController;
 use App\Controllers\BonusController;
+use App\Controllers\BusinessController;
 use App\Controllers\MicroTaskCompletionController;
 use App\Controllers\MicroTaskController;
 use App\Controllers\MicroTaskOfferController;
@@ -132,6 +133,11 @@ $router->post('/profile/delete', [ProfileController::class, 'deleteAccount']);
 $router->post('/notifications/clear', [ProfileController::class, 'clearNotifications']);
 $router->get('/orders/{id}/evidence/{file}', [OrderController::class, 'evidence']);
 
+$router->get('/business/upgrade', [BusinessController::class, 'upgradeForm']);
+$router->post('/business/upgrade', [BusinessController::class, 'upgradeSubmit']);
+$router->get('/business/package', [BusinessController::class, 'packageIndex']);
+$router->post('/business/package/{id}/buy', [BusinessController::class, 'packagePurchase']);
+
 $router->post('/stories', [StoryController::class, 'store']);
 $router->post('/stories/{id}/delete', [StoryController::class, 'delete']);
 
@@ -151,6 +157,10 @@ $router->post('/streams/{id}/delete', [StreamController::class, 'delete']);
 $router->get('/admin', [AdminController::class, 'index']);
 $router->get('/admin/logs', [AdminController::class, 'logs']);
 $router->get('/admin/aml', [AdminController::class, 'aml']);
+$router->get('/admin/business', [AdminController::class, 'businessRequests']);
+$router->post('/admin/business/{id}/approve', [AdminController::class, 'businessApprove']);
+$router->post('/admin/business/{id}/reject', [AdminController::class, 'businessReject']);
+$router->post('/admin/business/reset-limits', [AdminController::class, 'resetPersonalLimits']);
 $router->get('/admin/tickets', [AdminController::class, 'tickets']);
 $router->get('/admin/tickets/{id}', [AdminController::class, 'ticketShow']);
 $router->post('/admin/tickets/{id}/reply', [AdminController::class, 'ticketReply']);

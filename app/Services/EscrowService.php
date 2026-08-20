@@ -522,6 +522,12 @@ class EscrowService
             return ['ok' => false, 'error' => t('wallet.op_failed')];
         }
 
+        try {
+            (new PersonalLimitService())->addTurnoverFromOrder($sellerId, $orderId, $amount);
+        } catch (\Throwable $e) {
+            // лимит не должен ломать выплату
+        }
+
         $msg = $auto
             ? t('escrow.notify_auto_released', ['id' => $orderId, 'amount' => number_format($amount, 0, '', ' ')])
             : t('escrow.notify_released', ['id' => $orderId, 'amount' => number_format($amount, 0, '', ' ')]);

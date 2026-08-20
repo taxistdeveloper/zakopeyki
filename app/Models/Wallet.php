@@ -24,6 +24,7 @@ class Wallet extends Model
     public const TYPE_PLATFORM_COMMISSION = 'platform_commission';
     public const TYPE_MICRO_ESCROW_HOLD = 'micro_escrow_hold';
     public const TYPE_MICRO_ESCROW_RELEASE = 'micro_escrow_release';
+    public const TYPE_BUSINESS_PACKAGE = 'business_package';
 
     public function __construct()
     {
@@ -239,6 +240,46 @@ class Wallet extends Model
                 self::TYPE_LISTING_FEE,
                 null,
                 $productId ? ('listing:' . $productId) : 'listing'
+            );
+            if ($newBalance === null) {
+                if ($ownTx) {
+                    $this->db->rollBack();
+                }
+                return ['ok' => false, 'error' => t('wallet.insufficient')];
+            }
+            if ($ownTx) {
+                $this->db->commit();
+            }
+            return ['ok' => true, 'balance' => $newBalance];
+        } catch (\Throwable $e) {
+            if ($ownTx && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            return ['ok' => false, 'error' => t('wallet.op_failed')];
+        }
+    }
+
+    /**
+     * Оплата бизнес-пакета с кошелька.
+     * @return array{ok: bool, balance?: int, error?: string}
+     */
+    public function chargeBusinessPackage(int $userId, int $amount, int $packageId): array
+    {
+        if ($amount <= 0) {
+            return ['ok' => true, 'balance' => $this->balance($userId)];
+        }
+
+        $ownTx = !$this->db->inTransaction();
+        try {
+            if ($ownTx) {
+                $this->db->beginTransaction();
+            }
+            $newBalance = $this->applyDebit(
+                $userId,
+                $amount,
+                self::TYPE_BUSINESS_PACKAGE,
+                null,
+                'business_package:' . $packageId
             );
             if ($newBalance === null) {
                 if ($ownTx) {
