@@ -61,15 +61,25 @@ $stubMode = !empty($stubMode);
         </div>
     </div>
 
-    <div class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 shadow-soft overflow-hidden">
-        <div class="px-4 py-3.5 border-b border-black/[0.06] dark:border-white/10">
-            <h3 class="font-display font-bold text-ink-900 dark:text-white"><?= htmlspecialchars(t('admin.stats_recent_visitors')) ?></h3>
-            <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.stats_recent_visitors_hint')) ?></p>
-        </div>
+    <details class="group bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 shadow-soft overflow-hidden">
+        <summary class="list-none cursor-pointer select-none px-4 py-3.5 flex items-center justify-between gap-3 hover:bg-black/[0.02] dark:hover:bg-white/[0.03] transition [&::-webkit-details-marker]:hidden">
+            <div class="min-w-0">
+                <h3 class="font-display font-bold text-ink-900 dark:text-white"><?= htmlspecialchars(t('admin.stats_recent_visitors')) ?></h3>
+                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.stats_recent_visitors_hint')) ?></p>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <?php if (!empty($recentVisitors)): ?>
+                    <span class="min-w-[1.25rem] h-5 px-1.5 rounded-full bg-brand-500 text-white text-[10px] font-bold flex items-center justify-center"><?= count($recentVisitors) ?></span>
+                <?php endif; ?>
+                <svg class="w-4 h-4 text-gray-400 transition-transform duration-200 group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                </svg>
+            </div>
+        </summary>
         <?php if (empty($recentVisitors)): ?>
-            <div class="px-4 py-10 text-center text-sm text-gray-400"><?= htmlspecialchars(t('admin.stats_visitors_empty')) ?></div>
+            <div class="px-4 py-10 text-center text-sm text-gray-400 border-t border-black/[0.06] dark:border-white/10"><?= htmlspecialchars(t('admin.stats_visitors_empty')) ?></div>
         <?php else: ?>
-            <div class="divide-y divide-black/[0.04] dark:divide-white/5">
+            <div class="divide-y divide-black/[0.04] dark:divide-white/5 border-t border-black/[0.06] dark:border-white/10">
                 <?php foreach ($recentVisitors as $v):
                     $uid = (int) ($v['user_id'] ?? 0);
                     $name = trim((string) ($v['user_name'] ?? ''));
@@ -104,7 +114,7 @@ $stubMode = !empty($stubMode);
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>
-    </div>
+    </details>
 
     <div class="rounded-[22px] border shadow-soft overflow-hidden <?= $stubMode
         ? 'bg-amber-50/90 dark:bg-amber-950/30 border-amber-200/80 dark:border-amber-800/40'
@@ -250,44 +260,59 @@ $stubMode = !empty($stubMode);
     <?php endif; ?>
 
     <?php if ($canProducts): ?>
-    <div class="overflow-x-auto bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 shadow-soft">
-        <table class="w-full text-left text-xs">
-            <thead class="bg-ink-50/80 dark:bg-white/[0.03] border-b border-black/[0.06] dark:border-white/10">
-                <tr>
-                    <th class="px-4 py-3.5 font-semibold text-gray-500">ID</th>
-                    <th class="px-4 py-3.5 font-semibold text-gray-500"><?= htmlspecialchars(t('admin.name')) ?></th>
-                    <th class="px-4 py-3.5 font-semibold text-gray-500"><?= htmlspecialchars(t('admin.type')) ?></th>
-                    <th class="px-4 py-3.5 font-semibold text-gray-500"><?= htmlspecialchars(t('admin.status')) ?></th>
-                    <th class="px-4 py-3.5 font-semibold text-gray-500"><?= htmlspecialchars(t('admin.price')) ?></th>
-                    <th class="px-4 py-3.5 font-semibold text-gray-500"><?= htmlspecialchars(t('admin.actions')) ?></th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-black/[0.04] dark:divide-white/5">
-                <?php foreach ($items as $item): ?>
-                    <tr class="hover:bg-brand-50/40 dark:hover:bg-white/[0.03] transition">
-                        <td class="px-4 py-3.5 text-gray-400"><?= (int) $item['id'] ?></td>
-                        <td class="px-4 py-3.5 font-semibold max-w-[220px] truncate text-ink-800 dark:text-gray-200"><?= htmlspecialchars($item['title']) ?></td>
-                        <td class="px-4 py-3.5"><?= ProductHelper::label($item['type']) ?></td>
-                        <td class="px-4 py-3.5">
-                            <span class="inline-flex px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wide <?= $item['status'] === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-gray-100 text-gray-500 dark:bg-white/10' ?>"><?= $item['status'] ?></span>
-                        </td>
-                        <td class="px-4 py-3.5 font-display font-bold"><?= htmlspecialchars(ProductHelper::formatPrice($item)) ?></td>
-                        <td class="px-4 py-3.5 whitespace-nowrap">
-                            <div class="flex items-center gap-3">
-                                <a href="<?= ProductHelper::url('/product/' . $item['id']) ?>" class="text-brand-600 hover:underline font-semibold"><?= htmlspecialchars(t('admin.open')) ?></a>
-                                <form method="post" action="<?= ProductHelper::url('/admin/toggle/' . $item['id']) ?>" class="inline">
-                                    <button class="text-amber-600 hover:underline font-semibold"><?= htmlspecialchars(t('admin.archive')) ?></button>
-                                </form>
-                                <form method="post" action="<?= ProductHelper::url('/admin/delete/' . $item['id']) ?>" class="inline" onsubmit="return confirm(<?= json_encode(t('admin.confirm_delete')) ?>)">
-                                    <button class="text-red-600 hover:underline font-semibold"><?= htmlspecialchars(t('admin.delete')) ?></button>
-                                </form>
-                            </div>
-                        </td>
+    <details class="group bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 shadow-soft overflow-hidden">
+        <summary class="list-none cursor-pointer select-none px-4 py-3.5 flex items-center justify-between gap-3 hover:bg-black/[0.02] dark:hover:bg-white/[0.03] transition [&::-webkit-details-marker]:hidden">
+            <div class="min-w-0">
+                <h3 class="font-display font-bold text-ink-900 dark:text-white"><?= htmlspecialchars(t('admin.active_lots')) ?></h3>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <?php if (!empty($items)): ?>
+                    <span class="min-w-[1.25rem] h-5 px-1.5 rounded-full bg-brand-500 text-white text-[10px] font-bold flex items-center justify-center"><?= count($items) ?></span>
+                <?php endif; ?>
+                <svg class="w-4 h-4 text-gray-400 transition-transform duration-200 group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                </svg>
+            </div>
+        </summary>
+        <div class="overflow-x-auto border-t border-black/[0.06] dark:border-white/10">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-ink-50/80 dark:bg-white/[0.03] border-b border-black/[0.06] dark:border-white/10">
+                    <tr>
+                        <th class="px-4 py-3.5 font-semibold text-gray-500">ID</th>
+                        <th class="px-4 py-3.5 font-semibold text-gray-500"><?= htmlspecialchars(t('admin.name')) ?></th>
+                        <th class="px-4 py-3.5 font-semibold text-gray-500"><?= htmlspecialchars(t('admin.type')) ?></th>
+                        <th class="px-4 py-3.5 font-semibold text-gray-500"><?= htmlspecialchars(t('admin.status')) ?></th>
+                        <th class="px-4 py-3.5 font-semibold text-gray-500"><?= htmlspecialchars(t('admin.price')) ?></th>
+                        <th class="px-4 py-3.5 font-semibold text-gray-500"><?= htmlspecialchars(t('admin.actions')) ?></th>
                     </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
+                </thead>
+                <tbody class="divide-y divide-black/[0.04] dark:divide-white/5">
+                    <?php foreach ($items as $item): ?>
+                        <tr class="hover:bg-brand-50/40 dark:hover:bg-white/[0.03] transition">
+                            <td class="px-4 py-3.5 text-gray-400"><?= (int) $item['id'] ?></td>
+                            <td class="px-4 py-3.5 font-semibold max-w-[220px] truncate text-ink-800 dark:text-gray-200"><?= htmlspecialchars($item['title']) ?></td>
+                            <td class="px-4 py-3.5"><?= ProductHelper::label($item['type']) ?></td>
+                            <td class="px-4 py-3.5">
+                                <span class="inline-flex px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wide <?= $item['status'] === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-gray-100 text-gray-500 dark:bg-white/10' ?>"><?= $item['status'] ?></span>
+                            </td>
+                            <td class="px-4 py-3.5 font-display font-bold"><?= htmlspecialchars(ProductHelper::formatPrice($item)) ?></td>
+                            <td class="px-4 py-3.5 whitespace-nowrap">
+                                <div class="flex items-center gap-3">
+                                    <a href="<?= ProductHelper::url('/product/' . $item['id']) ?>" class="text-brand-600 hover:underline font-semibold"><?= htmlspecialchars(t('admin.open')) ?></a>
+                                    <form method="post" action="<?= ProductHelper::url('/admin/toggle/' . $item['id']) ?>" class="inline">
+                                        <button class="text-amber-600 hover:underline font-semibold"><?= htmlspecialchars(t('admin.archive')) ?></button>
+                                    </form>
+                                    <form method="post" action="<?= ProductHelper::url('/admin/delete/' . $item['id']) ?>" class="inline" onsubmit="return confirm(<?= json_encode(t('admin.confirm_delete')) ?>)">
+                                        <button class="text-red-600 hover:underline font-semibold"><?= htmlspecialchars(t('admin.delete')) ?></button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </details>
     <?php elseif (!$hasNav && empty($disputes)): ?>
         <div class="text-center py-14 rounded-2xl border border-dashed border-black/10 dark:border-white/10 text-gray-400 text-sm">
             <?= htmlspecialchars(t('admin.manager_no_access')) ?>
