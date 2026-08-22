@@ -131,20 +131,34 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                     </div>
 
                     <?php if ($kycStatus === 'ok'): ?>
+                        <?php
+                        $kycIinMask = \App\Services\AMLService::maskIin($user['iin'] ?? null);
+                        $kycBinMask = \App\Services\AMLService::maskIin($user['bin'] ?? null);
+                        $showKycBin = \App\Services\AMLService::isBusinessUser($user) || $kycBinMask !== '—';
+                        $showKycIin = $kycIinMask !== '—' && $kycIinMask !== $kycBinMask;
+                        ?>
                         <div class="rounded-2xl border border-emerald-200/80 dark:border-emerald-800/40 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-emerald-50/70 dark:bg-emerald-950/20">
                             <div>
                                 <div class="text-[10px] font-bold text-emerald-700/70 dark:text-emerald-400/80 uppercase tracking-wider mb-1"><?= htmlspecialchars(t('profile.kyc_label')) ?></div>
+                                <?php if ($showKycIin): ?>
                                 <div class="flex items-center gap-2 text-sm font-semibold text-emerald-900 dark:text-emerald-200">
                                     <?= IconHelper::svg('shield', 'w-4 h-4') ?>
                                     <?= htmlspecialchars(t('profile.kyc_verified')) ?>
-                                    <span class="font-mono text-xs font-medium text-emerald-800/70 dark:text-emerald-300/80 tracking-wide">
-                                    <?= htmlspecialchars(\App\Services\AMLService::maskIin(
-                                        \App\Services\AMLService::isBusinessUser($user)
-                                            ? ($user['bin'] ?? $user['iin'] ?? null)
-                                            : ($user['iin'] ?? null)
-                                    )) ?>
-                                    </span>
+                                    <span class="font-mono text-xs font-medium text-emerald-800/70 dark:text-emerald-300/80 tracking-wide"><?= htmlspecialchars($kycIinMask) ?></span>
                                 </div>
+                                <?php endif; ?>
+                                <?php if ($showKycBin): ?>
+                                <div class="flex items-center gap-2 text-sm font-semibold text-emerald-900 dark:text-emerald-200 <?= $showKycIin ? 'mt-1' : '' ?>">
+                                    <?= IconHelper::svg('shield', 'w-4 h-4') ?>
+                                    <?= htmlspecialchars(t('profile.kyc_verified_bin')) ?>
+                                    <span class="font-mono text-xs font-medium text-emerald-800/70 dark:text-emerald-300/80 tracking-wide"><?= htmlspecialchars($kycBinMask) ?></span>
+                                </div>
+                                <?php elseif (!$showKycIin): ?>
+                                <div class="flex items-center gap-2 text-sm font-semibold text-emerald-900 dark:text-emerald-200">
+                                    <?= IconHelper::svg('shield', 'w-4 h-4') ?>
+                                    <?= htmlspecialchars(\App\Services\AMLService::isBusinessUser($user) ? t('profile.kyc_verified_bin') : t('profile.kyc_verified')) ?>
+                                </div>
+                                <?php endif; ?>
                             </div>
                             <span class="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">
                                 <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500 text-white text-[10px]">✓</span>
