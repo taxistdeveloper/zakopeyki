@@ -122,7 +122,7 @@ return [
         'cat_used' => 'Қолд.',
         'cat_auctions' => 'Аукцион',
         'cat_free' => 'Тегін',
-        'cat_exchange' => 'Айырбас',
+        'cat_exchange' => 'Бартер',
         'cat_services' => 'Қызмет',
         'cat_gigs' => 'Қызметтер биржасы',
         'cat_courses' => 'Курстар',

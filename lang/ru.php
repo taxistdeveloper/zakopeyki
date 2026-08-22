@@ -122,7 +122,7 @@ return [
         'cat_used' => 'Б/У',
         'cat_auctions' => 'Аукционы',
         'cat_free' => 'Даром',
-        'cat_exchange' => 'Обмен',
+        'cat_exchange' => 'Бартер',
         'cat_services' => 'Услуги',
         'cat_gigs' => 'Биржа услуг',
         'cat_courses' => 'Курсы',
