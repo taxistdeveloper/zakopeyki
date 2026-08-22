@@ -437,7 +437,7 @@ class ProfileController extends Controller
         $serviceFee = 0;
         $pkgService = new BusinessPackageService();
         if ($type === 'service' && !Auth::isStaff() && !$pkgService->freeServiceListing(Auth::id())) {
-            $serviceFee = ProductHelper::SERVICE_LISTING_FEE;
+            $serviceFee = ProductHelper::serviceListingFee();
             $wallet = new Wallet();
             if ($wallet->balance(Auth::id()) < $serviceFee) {
                 $_SESSION['error'] = t('flash.service_fee_need', [

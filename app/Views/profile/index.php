@@ -939,7 +939,9 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                         <?= htmlspecialchars(t('profile.free_price_note')) ?>
                     </div>
                     <div id="lot-service-note" class="<?= $currentType === 'service' && !$editing ? '' : 'hidden' ?> text-xs font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/40 rounded-xl px-3 py-2">
-                        <?= htmlspecialchars(t('profile.service_board_note', ['amount' => \App\Models\Wallet::formatMoney(ProductHelper::SERVICE_LISTING_FEE)])) ?>
+                        <?= htmlspecialchars(ProductHelper::isServiceListingFreePromo()
+                            ? t('profile.service_board_note_free', ['until' => ProductHelper::serviceListingFreeUntilLabel()])
+                            : t('profile.service_board_note', ['amount' => \App\Models\Wallet::formatMoney(ProductHelper::serviceListingFee())])) ?>
                     </div>
                     <div id="lot-gig-note" class="<?= $currentType === 'gig' && !$editing ? '' : 'hidden' ?> text-xs font-semibold text-teal-800 dark:text-teal-200 bg-teal-50 dark:bg-teal-900/20 border border-teal-100 dark:border-teal-800/40 rounded-xl px-3 py-2">
                         <?= htmlspecialchars(t('gigs.profile_note')) ?>
@@ -1086,7 +1088,9 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                         const isEditingGig = <?= $editingGig ? 'true' : 'false' ?>;
                         const gigEditPath = <?= js_encode($editGigCategoryPath ?? []) ?>;
                         const publishLabel = <?= json_encode(t('profile.publish')) ?>;
-                        const publishServiceLabel = <?= json_encode(t('profile.publish_service', ['amount' => \App\Models\Wallet::formatMoney(ProductHelper::SERVICE_LISTING_FEE)])) ?>;
+                        const publishServiceLabel = <?= json_encode(ProductHelper::isServiceListingFreePromo()
+                            ? t('profile.publish_service_free')
+                            : t('profile.publish_service', ['amount' => \App\Models\Wallet::formatMoney(ProductHelper::serviceListingFee())])) ?>;
                         const publishGigLabel = <?= json_encode(t('gigs.create_btn')) ?>;
                         const locationLabelDefault = <?= json_encode(t('profile.location')) ?>;
                         const locationLabelGig = <?= json_encode(t('gigs.field_address')) ?>;

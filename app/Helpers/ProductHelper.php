@@ -66,8 +66,32 @@ class ProductHelper
 
     public const PRODUCT_TYPES_WITH_CATEGORY = ['used', 'new'];
 
-    /** Плата за публикацию объявления в разделе «Услуги» (KZT). */
+    /** Плата за публикацию объявления в разделе «Услуги» (KZT) после акционного периода. */
     public const SERVICE_LISTING_FEE = 100;
+
+    /** Бесплатная публикация услуг включительно до этой даты (Asia/Almaty). */
+    public const SERVICE_LISTING_FREE_UNTIL = '2027-08-22';
+
+    public static function isServiceListingFreePromo(): bool
+    {
+        $tz = new \DateTimeZone('Asia/Almaty');
+        $until = new \DateTimeImmutable(self::SERVICE_LISTING_FREE_UNTIL . ' 23:59:59', $tz);
+        $now = new \DateTimeImmutable('now', $tz);
+
+        return $now <= $until;
+    }
+
+    public static function serviceListingFee(): int
+    {
+        return self::isServiceListingFreePromo() ? 0 : self::SERVICE_LISTING_FEE;
+    }
+
+    public static function serviceListingFreeUntilLabel(): string
+    {
+        $until = new \DateTimeImmutable(self::SERVICE_LISTING_FREE_UNTIL, new \DateTimeZone('Asia/Almaty'));
+
+        return $until->format('d.m.Y');
+    }
 
     public static function label(string $type): string
     {
