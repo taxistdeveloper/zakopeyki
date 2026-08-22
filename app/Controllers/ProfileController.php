@@ -401,6 +401,11 @@ class ProfileController extends Controller
                 $_SESSION['error'] = $limitCheck['error'] ?? t('business.err_limit_reached_short');
                 $this->redirect('/profile?tab=business');
             }
+            $pkgCheck = (new BusinessPackageService())->assertCanCreateListing(Auth::id());
+            if (!$pkgCheck['ok']) {
+                $_SESSION['error'] = $pkgCheck['error'] ?? t('business.err_generic');
+                $this->redirect('/profile?tab=business');
+            }
         }
 
         $title = trim($_POST['title'] ?? '');
@@ -502,6 +507,8 @@ class ProfileController extends Controller
             'price' => $price,
             'listing_fee' => $serviceFee,
         ]);
+
+        $pkgService->consumeListing(Auth::id());
 
         $bonusResult = (new \App\Models\Bonus())->awardListing((int) Auth::id(), (int) $productId);
 

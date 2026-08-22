@@ -38,13 +38,28 @@ class BusinessSubscription extends Model
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
         );
 
+        $this->ensureColumn('extra_catalog', 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER payment_meta');
+        $this->ensureColumn('extra_staff', 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER extra_catalog');
+        $this->ensureColumn('extra_ai_infographic', 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER extra_staff');
+        $this->ensureColumn('extra_ai_tryon', 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER extra_ai_infographic');
+
         self::$ensured = true;
+    }
+
+    private function ensureColumn(string $column, string $definition): void
+    {
+        try {
+            $this->db->exec("ALTER TABLE business_subscriptions ADD COLUMN `{$column}` {$definition}");
+        } catch (\PDOException) {
+            // exists
+        }
     }
 
     public function activeForUser(int $userId): ?array
     {
         $stmt = $this->db->prepare(
-            "SELECT s.*, p.name AS package_name, p.slug AS package_slug, p.max_photos, p.free_service_listing, p.priority_boost
+            "SELECT s.*, p.name AS package_name, p.slug AS package_slug, p.max_photos, p.free_service_listing, p.priority_boost,
+                    p.kind AS package_kind, p.limits_json
              FROM business_subscriptions s
              LEFT JOIN business_packages p ON p.id = s.package_id
              WHERE s.user_id = ? AND s.status = 'active' AND s.ends_at > NOW()
@@ -97,5 +112,25 @@ class BusinessSubscription extends Model
             "UPDATE business_subscriptions SET starts_at = ?, ends_at = ?, status = 'active' WHERE id = ?"
         );
         $stmt->execute([$startsAt, $endsAt, $id]);
+    }
+
+    public function addExtras(int $id, int $catalog = 0, int $staff = 0, int $aiInfographic = 0, int $aiTryon = 0): void
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE business_subscriptions SET
+                extra_catalog = extra_catalog + ?,
+                extra_staff = extra_staff + ?,
+                extra_ai_infographic = extra_ai_infographic + ?,
+                extra_ai_tryon = extra_ai_tryon + ?
+             WHERE id = ?'
+        );
+        $stmt->execute([$catalog, $staff, $aiInfographic, $aiTryon, $id]);
+    }
+
+    public function hadAnyForUser(int $userId): bool
+    {
+        $stmt = $this->db->prepare('SELECT id FROM business_subscriptions WHERE user_id = ? LIMIT 1');
+        $stmt->execute([$userId]);
+        return (bool) $stmt->fetch();
     }
 }

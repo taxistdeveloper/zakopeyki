@@ -84,22 +84,15 @@ INSERT INTO `settings` (`key`, `value`) VALUES
     ('personal_warning_kzt', '1100000')
 ON DUPLICATE KEY UPDATE `value` = VALUES(`value`);
 
-INSERT INTO `business_packages` (`slug`, `name`, `description`, `price_kzt`, `duration_days`, `benefits_json`, `max_photos`, `free_service_listing`, `priority_boost`, `is_active`, `sort_order`)
-VALUES (
-    'business-pro',
-    'Бизнес-пакет',
-    'Премиум-возможности для ИП и ТОО на Zakopeyki: приоритет в выдаче, больше фото, бесплатная публикация услуг и бейдж проверенного бизнеса.',
-    9990,
-    30,
-    '["Бейдж «Проверенный бизнес»","Приоритет в каталоге и поиске","До 10 фото в объявлении","Бесплатная публикация услуг","Расширенная витрина продавца"]',
-    10,
-    1,
-    1,
-    1,
-    1
-) ON DUPLICATE KEY UPDATE
-    `name` = VALUES(`name`),
-    `description` = VALUES(`description`),
+INSERT INTO `business_packages` (`slug`, `name`, `description`, `price_kzt`, `duration_days`, `kind`, `billing`, `benefits_json`, `max_photos`, `free_service_listing`, `priority_boost`, `is_active`, `sort_order`)
+VALUES
+('business-month', 'Бизнес-пакет · 1 месяц', 'Загрузите каталог один раз — остальное Zakopeyki сделает автоматически.', 29900, 30, 'plan', 'period', '[]', 10, 1, 1, 1, 10),
+('business-3m', 'Бизнес-пакет · 3 месяца', 'Выгоднее месяца: профессиональный тариф на квартал.', 79900, 90, 'plan', 'period', '[]', 10, 1, 1, 1, 20),
+('business-6m', 'Бизнес-пакет · 6 месяцев', 'Полугодовая подписка для стабильной работы каталога.', 149900, 180, 'plan', 'period', '[]', 10, 1, 1, 1, 30),
+('business-12m', 'Бизнес-пакет · 12 месяцев', 'Годовая подписка — максимальная экономия.', 279900, 365, 'plan', 'period', '[]', 10, 1, 1, 1, 40)
+ON DUPLICATE KEY UPDATE
     `price_kzt` = VALUES(`price_kzt`),
     `duration_days` = VALUES(`duration_days`),
-    `benefits_json` = VALUES(`benefits_json`);
+    `is_active` = VALUES(`is_active`);
+
+UPDATE `business_packages` SET `is_active` = 0 WHERE `slug` = 'business-pro';

@@ -426,6 +426,22 @@ class Product extends Model
         return $stmt->fetchAll();
     }
 
+    public function countByUser(int $userId): int
+    {
+        $stmt = $this->db->prepare('SELECT COUNT(*) FROM products WHERE user_id = ?');
+        $stmt->execute([$userId]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    public function countCreatedToday(int $userId): int
+    {
+        $stmt = $this->db->prepare(
+            'SELECT COUNT(*) FROM products WHERE user_id = ? AND DATE(created_at) = CURDATE()'
+        );
+        $stmt->execute([$userId]);
+        return (int) $stmt->fetchColumn();
+    }
+
     /** Активные товары продавца для витрины эфира */
     public function activeShopByUser(int $userId, int $limit = 24): array
     {

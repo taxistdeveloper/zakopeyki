@@ -118,6 +118,7 @@ class BusinessUpgradeService
         ]);
 
         (new Notification())->createFor($userId, t('business.notify_upgrade_approved'));
+        (new BusinessPackageService())->grantTrialIfEligible($userId);
         ActivityLogger::info('business.upgrade_approve', 'Бизнес-аккаунт одобрен', 'business_upgrade', $requestId, [
             'user_id' => $userId,
         ]);
@@ -159,8 +160,11 @@ class BusinessUpgradeService
             return ['files' => []];
         }
 
-        $dir = __DIR__ . '/../../public/uploads/business';
+        $dir = dirname(__DIR__, 2) . '/public/uploads/business';
         if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
+            return ['error' => t('business.err_upload')];
+        }
+        if (!is_writable($dir)) {
             return ['error' => t('business.err_upload')];
         }
 
@@ -189,7 +193,7 @@ class BusinessUpgradeService
                 return ['error' => t('business.err_upload')];
             }
             $filename = 'biz_' . $userId . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
-            if (!move_uploaded_file($tmp, $dir . DIRECTORY_SEPARATOR . $filename)) {
+            if (!@move_uploaded_file($tmp, $dir . DIRECTORY_SEPARATOR . $filename)) {
                 return ['error' => t('business.err_upload')];
             }
             $saved[] = $filename;
