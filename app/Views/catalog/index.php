@@ -39,7 +39,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                <?php if (Auth::check() && !$listingOk): ?>onclick="if (typeof openListingVerify === 'function') { event.preventDefault(); openListingVerify('service'); }"<?php endif; ?>
                class="mt-3 inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-display font-bold text-xs uppercase tracking-wider px-5 py-2.5 rounded-xl transition shadow-soft">
                 <?= htmlspecialchars(ProductHelper::isServiceListingFreePromo()
-                    ? t('catalog.publish_service_free', ['until' => ProductHelper::serviceListingFreeUntilLabel()])
+                    ? t('catalog.publish_service_free')
                     : t('catalog.publish_service', ['amount' => Wallet::formatMoney(ProductHelper::serviceListingFee())])) ?>
             </a>
         <?php elseif ($type === 'gig'): ?>

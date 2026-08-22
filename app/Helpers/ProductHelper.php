@@ -86,13 +86,6 @@ class ProductHelper
         return self::isServiceListingFreePromo() ? 0 : self::SERVICE_LISTING_FEE;
     }
 
-    public static function serviceListingFreeUntilLabel(): string
-    {
-        $until = new \DateTimeImmutable(self::SERVICE_LISTING_FREE_UNTIL, new \DateTimeZone('Asia/Almaty'));
-
-        return $until->format('d.m.Y');
-    }
-
     public static function label(string $type): string
     {
         $key = 'types.' . $type;
