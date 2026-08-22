@@ -21,7 +21,9 @@
         <div id="seller-profile-body" class="hidden flex-1 min-h-0 overflow-y-auto">
             <div class="bg-white dark:bg-ink-900 border-b border-black/[0.06] dark:border-white/10 px-4 sm:px-6 py-5">
                 <div class="flex flex-col sm:flex-row sm:items-start gap-4">
-                    <div id="seller-profile-avatar" class="w-[72px] h-[72px] sm:w-20 sm:h-20 rounded-full bg-[#7c3aed] font-black text-white text-2xl flex items-center justify-center overflow-hidden shrink-0 ring-2 ring-black/[0.04]"></div>
+                    <div id="seller-profile-avatar-wrap" class="rounded-full shrink-0">
+                        <div id="seller-profile-avatar" class="w-[72px] h-[72px] sm:w-20 sm:h-20 rounded-full bg-[#7c3aed] font-black text-white text-2xl flex items-center justify-center overflow-hidden ring-2 ring-black/[0.04]"></div>
+                    </div>
                     <div class="min-w-0 flex-1">
                         <div class="flex flex-wrap items-start justify-between gap-3">
                             <div class="min-w-0">

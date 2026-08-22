@@ -3357,6 +3357,9 @@ function renderSellerProfile(data) {
     if (loading) loading.classList.add('hidden');
     if (body) body.classList.remove('hidden');
 
+    const avatarWrap = document.getElementById('seller-profile-avatar-wrap');
+    if (avatarWrap) avatarWrap.classList.toggle('biz-avatar', !!data.is_business);
+
     const avatar = document.getElementById('seller-profile-avatar');
     if (avatar) {
         avatar.innerHTML = '';

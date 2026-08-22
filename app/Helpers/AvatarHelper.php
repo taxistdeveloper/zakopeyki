@@ -34,9 +34,15 @@ class AvatarHelper
 
         if ($url) {
             $src = htmlspecialchars($url);
-            return "<div class=\"{$base} bg-gray-200\"><img src=\"{$src}\" alt=\"\" class=\"w-full h-full object-cover\"></div>";
+            $inner = "<div class=\"{$base} bg-gray-200\"><img src=\"{$src}\" alt=\"\" class=\"w-full h-full object-cover\"></div>";
+        } else {
+            $inner = "<div class=\"{$base} bg-brand-400 dark:bg-brand-600 font-black text-white {$textClass}\">{$initial}</div>";
         }
 
-        return "<div class=\"{$base} bg-brand-400 dark:bg-brand-600 font-black text-white {$textClass}\">{$initial}</div>";
+        if ($user && ProductHelper::sellerIsBusiness($user)) {
+            return "<div class=\"biz-avatar {$rounded} shrink-0\">{$inner}</div>";
+        }
+
+        return $inner;
     }
 }

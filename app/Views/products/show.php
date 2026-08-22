@@ -53,6 +53,8 @@ $sellerUser = [
     'name' => $item['seller_name'] ?? '',
     'avatar' => $item['seller_avatar'] ?? null,
     'avatar_file' => $item['seller_avatar_file'] ?? null,
+    'account_type' => $item['seller_account_type'] ?? '',
+    'business_status' => $item['seller_business_status'] ?? '',
 ];
 $sr = $sellerRating ?? ['avg' => 0, 'count' => 0];
 $sellerSince = '';

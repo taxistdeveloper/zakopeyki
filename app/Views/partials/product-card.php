@@ -128,14 +128,14 @@ $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" s
        data-lightbox-gallery="<?= htmlspecialchars(json_encode(array_values($imageUrls ?: [$imageUrl]), JSON_UNESCAPED_SLASHES)) ?>"
        aria-label="<?= htmlspecialchars(t('product.zoom')) ?>">
         <img src="<?= htmlspecialchars($imageUrl) ?>" alt="" class="absolute inset-0 w-full h-full object-cover transition duration-300 group-hover:scale-105 pointer-events-none">
-        <span class="absolute top-2.5 left-2.5 z-[1] text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg shadow-sm <?= $badge['class'] ?>">
+        <span class="absolute top-2.5 left-2.5 z-[6] text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg shadow-sm <?= $badge['class'] ?>">
             <?= htmlspecialchars($badge['text']) ?>
         </span>
     </a>
     <?php else: ?>
     <a href="<?= $showUrl ?>" class="aspect-[4/3] bg-gradient-to-br from-ink-100 via-brand-50 to-accent-50 dark:from-white/10 dark:via-brand-900/20 dark:to-transparent relative flex items-center justify-center overflow-hidden shrink-0">
         <span class="transition duration-300 group-hover:scale-110"><?= ProductHelper::icon($item['type'], 'w-14 h-14 text-brand-500/70') ?></span>
-        <span class="absolute top-2.5 left-2.5 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg shadow-sm <?= $badge['class'] ?>">
+        <span class="absolute top-2.5 left-2.5 z-[6] text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg shadow-sm <?= $badge['class'] ?>">
             <?= htmlspecialchars($badge['text']) ?>
         </span>
     </a>

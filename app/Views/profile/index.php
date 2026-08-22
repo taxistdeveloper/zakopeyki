@@ -282,12 +282,14 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                 <form method="post" action="<?= ProductHelper::url('/profile/avatar') ?>" enctype="multipart/form-data" class="flex flex-col items-center gap-5 py-6">
                     <label class="relative group cursor-pointer">
                         <input type="file" name="avatar" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden" onchange="this.form.submit()">
-                        <div class="w-40 h-40 rounded-[2rem] overflow-hidden border-[3px] border-brand-400/60 bg-brand-50 dark:bg-white/5 flex items-center justify-center shadow-lift ring-4 ring-brand-100/50 dark:ring-brand-500/10">
+                        <div class="<?= $isBusinessAccount ? 'biz-avatar rounded-[2rem]' : '' ?>">
+                        <div class="w-40 h-40 rounded-[2rem] overflow-hidden <?= $isBusinessAccount ? '' : 'border-[3px] border-brand-400/60 ring-4 ring-brand-100/50 dark:ring-brand-500/10 ' ?>bg-brand-50 dark:bg-white/5 flex items-center justify-center shadow-lift">
                             <?php if ($avatarUrl): ?>
                                 <img src="<?= htmlspecialchars($avatarUrl) ?>" alt="<?= htmlspecialchars(t('profile.photo_title')) ?>" class="w-full h-full object-cover">
                             <?php else: ?>
                                 <span class="text-5xl font-display font-bold text-brand-500/70"><?= htmlspecialchars(AvatarHelper::initial($user)) ?></span>
                             <?php endif; ?>
+                        </div>
                         </div>
                         <span class="absolute inset-0 rounded-[2rem] bg-ink-900/55 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold uppercase tracking-wide"><?= htmlspecialchars(t('profile.change')) ?></span>
                     </label>

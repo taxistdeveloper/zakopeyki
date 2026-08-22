@@ -2077,6 +2077,16 @@ function url(string $path = ''): string
             letter-spacing: 0.04em;
             opacity: 0.92;
         }
+        /* Рамка только на аватарке проверенного бизнеса */
+        .biz-avatar {
+            padding: 2.5px;
+            background: linear-gradient(135deg, #f8e59a 0%, #d4af37 42%, #7c3aed 100%);
+            box-shadow: 0 0 0 1px rgba(255, 248, 220, 0.7), 0 3px 10px rgba(124, 58, 237, 0.28);
+        }
+        .dark .biz-avatar {
+            background: linear-gradient(135deg, #f0d56a 0%, #c9a227 40%, #a78bfa 100%);
+            box-shadow: 0 0 0 1px rgba(167, 139, 250, 0.4), 0 3px 12px rgba(124, 58, 237, 0.4);
+        }
     </style>
 </head>
 <body class="app-shell text-ink-900 dark:text-gray-100 flex h-screen overflow-hidden select-none relative">
