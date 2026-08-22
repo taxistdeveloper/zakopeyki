@@ -1184,6 +1184,20 @@ class AdminController extends Controller
         $this->redirect('/admin/business');
     }
 
+    public function businessRevoke(string $id): void
+    {
+        Auth::requireAdmin();
+        $result = (new BusinessUpgradeService())->revoke(
+            (int) $id,
+            Auth::id(),
+            trim((string) ($_POST['reason'] ?? ''))
+        );
+        $_SESSION[$result['ok'] ? 'flash' : 'error'] = $result['ok']
+            ? t('admin.business_revoked')
+            : ($result['error'] ?? t('business.err_generic'));
+        $this->redirect('/admin/business?status=approved');
+    }
+
     public function resetPersonalLimits(): void
     {
         Auth::requireAdmin();

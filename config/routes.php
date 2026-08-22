@@ -160,6 +160,7 @@ $router->get('/admin/aml', [AdminController::class, 'aml']);
 $router->get('/admin/business', [AdminController::class, 'businessRequests']);
 $router->post('/admin/business/{id}/approve', [AdminController::class, 'businessApprove']);
 $router->post('/admin/business/{id}/reject', [AdminController::class, 'businessReject']);
+$router->post('/admin/business/{id}/revoke', [AdminController::class, 'businessRevoke']);
 $router->post('/admin/business/reset-limits', [AdminController::class, 'resetPersonalLimits']);
 $router->get('/admin/tickets', [AdminController::class, 'tickets']);
 $router->get('/admin/tickets/{id}', [AdminController::class, 'ticketShow']);

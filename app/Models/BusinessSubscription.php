@@ -106,6 +106,16 @@ class BusinessSubscription extends Model
         $stmt->execute([$id]);
     }
 
+    public function cancelActiveForUser(int $userId): int
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE business_subscriptions SET status = 'cancelled'
+             WHERE user_id = ? AND status = 'active'"
+        );
+        $stmt->execute([$userId]);
+        return $stmt->rowCount();
+    }
+
     public function updateWindow(int $id, string $startsAt, string $endsAt): void
     {
         $stmt = $this->db->prepare(

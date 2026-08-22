@@ -238,6 +238,22 @@ class User extends Model
         ]);
     }
 
+    public function demoteFromBusiness(int $userId, ?string $reason = null): void
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE users SET
+                account_type = 'personal',
+                business_status = 'none',
+                business_entity_type = NULL,
+                business_name = NULL,
+                bin = NULL,
+                business_verified_at = NULL,
+                business_rejected_reason = ?
+             WHERE id = ?"
+        );
+        $stmt->execute([$reason !== null && $reason !== '' ? mb_substr($reason, 0, 500) : null, $userId]);
+    }
+
     public function findByEmail(string $email): ?array
     {
         $stmt = $this->db->prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)');

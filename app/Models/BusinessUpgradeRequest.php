@@ -71,7 +71,8 @@ class BusinessUpgradeRequest extends Model
         $limit = max(1, min(500, $limit));
         if ($status === 'all') {
             $stmt = $this->db->query(
-                "SELECT r.*, u.name AS user_name, u.email AS user_email
+                "SELECT r.*, u.name AS user_name, u.email AS user_email,
+                        u.account_type AS user_account_type, u.business_status AS user_business_status
                  FROM business_upgrade_requests r
                  LEFT JOIN users u ON u.id = r.user_id
                  ORDER BY FIELD(r.status,'pending','approved','rejected'), r.id DESC
@@ -81,7 +82,8 @@ class BusinessUpgradeRequest extends Model
         }
 
         $stmt = $this->db->prepare(
-            "SELECT r.*, u.name AS user_name, u.email AS user_email
+            "SELECT r.*, u.name AS user_name, u.email AS user_email,
+                    u.account_type AS user_account_type, u.business_status AS user_business_status
              FROM business_upgrade_requests r
              LEFT JOIN users u ON u.id = r.user_id
              WHERE r.status = ?

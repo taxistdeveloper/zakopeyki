@@ -97,6 +97,14 @@ $filters = [
                                 <button type="submit" class="h-10 px-4 rounded-xl bg-red-600 text-white text-xs font-bold"><?= htmlspecialchars(t('admin.business_reject')) ?></button>
                             </form>
                         </div>
+                    <?php elseif ($status === 'approved' && ($req['user_account_type'] ?? '') === 'business'): ?>
+                        <?php if (!empty($req['admin_note'])): ?>
+                            <p class="text-xs text-gray-500"><?= htmlspecialchars((string) $req['admin_note']) ?></p>
+                        <?php endif; ?>
+                        <form method="post" action="<?= ProductHelper::url('/admin/business/' . (int) $req['id'] . '/revoke') ?>" class="flex flex-col sm:flex-row gap-2 pt-2 border-t border-black/[0.05] dark:border-white/10" onsubmit="return confirm(<?= json_encode(t('admin.business_revoke_confirm')) ?>)">
+                            <input type="text" name="reason" required placeholder="<?= htmlspecialchars(t('admin.business_revoke_reason')) ?>" class="flex-1 h-10 px-3 rounded-xl border border-black/10 dark:border-white/10 bg-transparent text-sm">
+                            <button type="submit" class="h-10 px-4 rounded-xl bg-red-600 text-white text-xs font-bold"><?= htmlspecialchars(t('admin.business_revoke')) ?></button>
+                        </form>
                     <?php elseif (!empty($req['admin_note'])): ?>
                         <p class="text-xs text-gray-500"><?= htmlspecialchars((string) $req['admin_note']) ?></p>
                     <?php endif; ?>

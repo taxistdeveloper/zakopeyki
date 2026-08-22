@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Helpers\ActivityLogger;
+use App\Models\BusinessSubscription;
 use App\Models\BusinessUpgradeRequest;
 use App\Models\Notification;
 use App\Models\User;
@@ -163,6 +164,37 @@ class BusinessUpgradeService
 
         (new Notification())->createFor($userId, t('business.notify_upgrade_rejected', ['reason' => $reason]));
         ActivityLogger::info('business.upgrade_reject', 'Бизнес-аккаунт отклонён', 'business_upgrade', $requestId, [
+            'user_id' => $userId,
+        ]);
+
+        return ['ok' => true];
+    }
+
+    /** @return array{ok: bool, error?: string} */
+    public function revoke(int $requestId, int $adminId, string $reason): array
+    {
+        $req = $this->requests->find($requestId);
+        if (!$req || ($req['status'] ?? '') !== 'approved') {
+            return ['ok' => false, 'error' => t('business.err_request')];
+        }
+
+        $reason = trim($reason);
+        if ($reason === '') {
+            return ['ok' => false, 'error' => t('business.err_revoke_reason')];
+        }
+
+        $userId = (int) $req['user_id'];
+        $user = $this->users->find($userId);
+        if (!$user || ($user['account_type'] ?? '') !== 'business') {
+            return ['ok' => false, 'error' => t('business.err_not_business')];
+        }
+
+        $this->users->demoteFromBusiness($userId, $reason);
+        (new BusinessSubscription())->cancelActiveForUser($userId);
+        $this->requests->markReviewed($requestId, 'rejected', $adminId, mb_substr(t('admin.business_revoked_note', ['reason' => $reason]), 0, 500));
+
+        (new Notification())->createFor($userId, t('business.notify_upgrade_revoked', ['reason' => $reason]));
+        ActivityLogger::info('business.upgrade_revoke', 'Пользователь снят с бизнеса', 'business_upgrade', $requestId, [
             'user_id' => $userId,
         ]);
 
