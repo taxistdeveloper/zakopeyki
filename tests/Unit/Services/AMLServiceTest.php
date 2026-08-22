@@ -17,6 +17,7 @@ class AMLServiceTest extends TestCase
     private PDOStatement|MockObject $stmtMock;
 
     private const VALID_IIN = '990101300013';
+    private const VALID_BIN = '090140012343';
     private const INVALID_CHECKSUM = '990101300019';
 
     protected function setUp(): void
@@ -45,6 +46,45 @@ class AMLServiceTest extends TestCase
             'empty' => ['', false],
             'spaces stripped valid' => ['990 101 300 013', true],
         ];
+    }
+
+    public function testValidateBinFormat(): void
+    {
+        $service = new AMLService($this->pdoMock);
+        $this->assertTrue($service->validateBinFormat(self::VALID_BIN));
+        $this->assertFalse($service->validateIinFormat(self::VALID_BIN));
+        $this->assertTrue($service->validateBusinessTaxId(self::VALID_BIN, 'too'));
+        $this->assertTrue($service->validateBusinessTaxId(self::VALID_IIN, 'ip'));
+        $this->assertFalse($service->validateBusinessTaxId(self::VALID_IIN, 'too'));
+    }
+
+    public function testIsBlacklistedAcceptsBinThatIsNotIin(): void
+    {
+        $this->stmtMock->expects($this->once())->method('execute')->with(['iin' => self::VALID_BIN]);
+        $this->stmtMock->expects($this->once())->method('fetchColumn')->willReturn(1);
+        $this->pdoMock->expects($this->once())
+            ->method('prepare')
+            ->with($this->stringContains('aml_blacklisted_persons'))
+            ->willReturn($this->stmtMock);
+
+        $service = new AMLService($this->pdoMock, null);
+        $this->assertTrue($service->isBlacklisted(self::VALID_BIN));
+    }
+
+    public function testUserListingStatusUsesBinForBusiness(): void
+    {
+        $this->assertSame('ok', AMLService::userListingStatus([
+            'account_type' => 'business',
+            'business_status' => 'verified',
+            'bin' => self::VALID_BIN,
+            'aml_status' => AMLService::STATUS_CLEAR,
+        ]));
+        $this->assertSame('needs_iin', AMLService::userListingStatus([
+            'account_type' => 'business',
+            'business_status' => 'verified',
+            'iin' => self::VALID_IIN,
+            'aml_status' => AMLService::STATUS_CLEAR,
+        ]));
     }
 
     public function testIsBlacklistedQueriesMysqlWhenRedisMissing(): void

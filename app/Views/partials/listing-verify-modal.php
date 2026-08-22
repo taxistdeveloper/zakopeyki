@@ -86,9 +86,15 @@ function closeListingVerify() {
         for (let i = 0; i < 11; i++) sum += parseInt(iin[i], 10) * weights[i];
         return sum;
     }
+    function hasChecksum(id) {
+        if (!/^\d{12}$/.test(id)) return false;
+        let control = weightsSum(id, [1,2,3,4,5,6,7,8,9,10,11]) % 11;
+        if (control === 10) control = weightsSum(id, [3,4,5,6,7,8,9,10,11,1,2]) % 11;
+        return control < 10 && control === parseInt(id[11], 10);
+    }
     function validIin(raw) {
         const iin = String(raw || '').replace(/\D/g, '');
-        if (!/^\d{12}$/.test(iin)) return false;
+        if (!hasChecksum(iin)) return false;
         const century = parseInt(iin[6], 10);
         const base = {1: 1800, 2: 1800, 3: 1900, 4: 1900, 5: 2000, 6: 2000}[century];
         if (base == null) return false;
@@ -96,13 +102,18 @@ function closeListingVerify() {
         const m = parseInt(iin.slice(2, 4), 10);
         const d = parseInt(iin.slice(4, 6), 10);
         const dt = new Date(y, m - 1, d);
-        if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return false;
-        let control = weightsSum(iin, [1,2,3,4,5,6,7,8,9,10,11]) % 11;
-        if (control === 10) control = weightsSum(iin, [3,4,5,6,7,8,9,10,11,1,2]) % 11;
-        return control < 10 && control === parseInt(iin[11], 10);
+        return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
+    }
+    function validBin(raw) {
+        const bin = String(raw || '').replace(/\D/g, '');
+        if (!hasChecksum(bin)) return false;
+        const m = parseInt(bin.slice(2, 4), 10);
+        return m >= 1 && m <= 12 && ['4', '5', '6'].indexOf(bin[4]) !== -1;
     }
     form.addEventListener('submit', function (e) {
-        if (validIin(input.value)) {
+        const kind = input.getAttribute('data-kind') || 'iin';
+        const ok = kind === 'bin' ? (validIin(input.value) || validBin(input.value)) : validIin(input.value);
+        if (ok) {
             if (err) err.classList.add('hidden');
             return;
         }

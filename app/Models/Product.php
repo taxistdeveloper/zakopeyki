@@ -12,6 +12,7 @@ class Product extends Model
     public function __construct()
     {
         parent::__construct();
+        (new User())->ensureBusinessSchema();
         $this->ensureSchema();
     }
 
@@ -106,7 +107,9 @@ class Product extends Model
 
     public function allActive(?string $type = null, ?string $search = null, ?string $category = null): array
     {
-        $sql = 'SELECT p.*, u.name AS seller_name, u.phone AS seller_phone
+        $sql = 'SELECT p.*, u.name AS seller_name, u.phone AS seller_phone,
+                       u.account_type AS seller_account_type, u.business_status AS seller_business_status,
+                       u.business_name AS seller_business_name, u.business_entity_type AS seller_business_entity_type
                 FROM products p
                 JOIN users u ON u.id = p.user_id
                 WHERE p.status = ?';
@@ -144,7 +147,9 @@ class Product extends Model
         $stmt = $this->db->prepare(
             'SELECT p.*, u.name AS seller_name, u.phone AS seller_phone, u.email AS seller_email,
                     u.avatar AS seller_avatar, u.avatar_file AS seller_avatar_file,
-                    u.created_at AS seller_created_at
+                    u.created_at AS seller_created_at,
+                    u.account_type AS seller_account_type, u.business_status AS seller_business_status,
+                    u.business_name AS seller_business_name, u.business_entity_type AS seller_business_entity_type
              FROM products p
              JOIN users u ON u.id = p.user_id
              WHERE p.id = ?'
@@ -198,7 +203,9 @@ class Product extends Model
             return [];
         }
 
-        $sql = 'SELECT p.*, u.name AS seller_name, u.phone AS seller_phone
+        $sql = 'SELECT p.*, u.name AS seller_name, u.phone AS seller_phone,
+                       u.account_type AS seller_account_type, u.business_status AS seller_business_status,
+                       u.business_name AS seller_business_name, u.business_entity_type AS seller_business_entity_type
                 FROM products p
                 JOIN users u ON u.id = p.user_id
                 WHERE p.status = ?
@@ -239,7 +246,9 @@ class Product extends Model
 
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
         $stmt = $this->db->prepare(
-            "SELECT p.*, u.name AS seller_name, u.phone AS seller_phone, u.email AS seller_email
+            "SELECT p.*, u.name AS seller_name, u.phone AS seller_phone, u.email AS seller_email,
+                    u.account_type AS seller_account_type, u.business_status AS seller_business_status,
+                    u.business_name AS seller_business_name, u.business_entity_type AS seller_business_entity_type
              FROM products p
              JOIN users u ON u.id = p.user_id
              WHERE p.id IN ({$placeholders})"

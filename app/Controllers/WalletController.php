@@ -82,7 +82,11 @@ class WalletController extends Controller
             $dest = 'card';
         }
 
-        $aml = AMLService::make()->screenUser(Auth::id(), (string) ($_POST['iin'] ?? ''), 'withdraw');
+        $aml = AMLService::make()->screenUser(
+            Auth::id(),
+            (string) ($_POST['bin'] ?? $_POST['iin'] ?? ''),
+            'withdraw'
+        );
         if (empty($aml['ok'])) {
             $_SESSION['error'] = $aml['error'] ?? t('flash.aml_blocked');
             $this->redirect('/wallet');

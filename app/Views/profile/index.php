@@ -138,7 +138,11 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                                     <?= IconHelper::svg('shield', 'w-4 h-4') ?>
                                     <?= htmlspecialchars(t('profile.kyc_verified')) ?>
                                     <span class="font-mono text-xs font-medium text-emerald-800/70 dark:text-emerald-300/80 tracking-wide">
-                                        <?= htmlspecialchars(\App\Services\AMLService::maskIin($user['iin'] ?? null)) ?>
+                                    <?= htmlspecialchars(\App\Services\AMLService::maskIin(
+                                        \App\Services\AMLService::isBusinessUser($user)
+                                            ? ($user['bin'] ?? $user['iin'] ?? null)
+                                            : ($user['iin'] ?? null)
+                                    )) ?>
                                     </span>
                                 </div>
                             </div>
@@ -745,8 +749,12 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                     <?= csrf_field() ?>
                     <?php
                     $amlBlocked = (($user['aml_status'] ?? '') === \App\Services\AMLService::STATUS_BLOCKED);
+                    $isBizLot = \App\Services\AMLService::isBusinessUser($user);
                     $savedIin = preg_replace('/\D/', '', (string) ($user['iin'] ?? ''));
+                    $savedBin = preg_replace('/\D/', '', (string) ($user['bin'] ?? ''));
                     $hasSavedIin = strlen((string) $savedIin) === 12;
+                    $hasSavedBin = strlen((string) $savedBin) === 12;
+                    $hasSavedTaxId = $isBizLot ? $hasSavedBin : $hasSavedIin;
                     ?>
                     <?php if ($amlBlocked): ?>
                         <div class="text-xs font-semibold text-red-800 dark:text-red-200 bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/40 rounded-xl px-3 py-2">
@@ -892,14 +900,14 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                     </div>
                     <?php if (!$editing): ?>
                     <div id="lot-iin-wrap">
-                        <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.iin')) ?> <span class="text-red-500">*</span></label>
-                        <?php if ($hasSavedIin): ?>
-                            <input type="text" value="<?= htmlspecialchars(substr($savedIin, 0, 6) . '******') ?>" readonly class="<?= $input ?> opacity-80">
-                            <p class="text-[11px] text-gray-400 mt-1"><?= htmlspecialchars(t('profile.iin_saved_hint')) ?></p>
+                        <label class="block text-xs font-bold mb-1"><?= htmlspecialchars($isBizLot ? t('profile.bin') : t('profile.iin')) ?> <span class="text-red-500">*</span></label>
+                        <?php if ($hasSavedTaxId): ?>
+                            <input type="text" value="<?= htmlspecialchars(substr($isBizLot ? $savedBin : $savedIin, 0, 6) . '******') ?>" readonly class="<?= $input ?> opacity-80">
+                            <p class="text-[11px] text-gray-400 mt-1"><?= htmlspecialchars($isBizLot ? t('profile.bin_saved_hint') : t('profile.iin_saved_hint')) ?></p>
                         <?php else: ?>
-                            <input type="text" name="iin" id="lot-iin" inputmode="numeric" maxlength="12" autocomplete="off" required pattern="\d{12}" class="<?= $input ?>" placeholder="000000000000">
-                            <p id="lot-iin-error" class="hidden text-[11px] text-red-600 mt-1"><?= htmlspecialchars(t('flash.aml_iin_invalid')) ?></p>
-                            <p class="text-[11px] text-gray-400 mt-1"><?= htmlspecialchars(t('profile.iin_hint')) ?></p>
+                            <input type="text" name="<?= $isBizLot ? 'bin' : 'iin' ?>" id="lot-iin" data-kind="<?= $isBizLot ? 'bin' : 'iin' ?>" inputmode="numeric" maxlength="12" autocomplete="off" required pattern="\d{12}" class="<?= $input ?>" placeholder="000000000000">
+                            <p id="lot-iin-error" class="hidden text-[11px] text-red-600 mt-1"><?= htmlspecialchars($isBizLot ? t('flash.aml_bin_invalid') : t('flash.aml_iin_invalid')) ?></p>
+                            <p class="text-[11px] text-gray-400 mt-1"><?= htmlspecialchars($isBizLot ? t('profile.bin_hint') : t('profile.iin_hint')) ?></p>
                         <?php endif; ?>
                     </div>
                     <?php endif; ?>
@@ -1491,10 +1499,15 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                         for (let i = 0; i < 11; i++) sum += parseInt(iin[i], 10) * weights[i];
                         return sum;
                     }
-
+                    function hasChecksum(id) {
+                        if (!/^\d{12}$/.test(id)) return false;
+                        let control = weightsSum(id, [1,2,3,4,5,6,7,8,9,10,11]) % 11;
+                        if (control === 10) control = weightsSum(id, [3,4,5,6,7,8,9,10,11,1,2]) % 11;
+                        return control < 10 && control === parseInt(id[11], 10);
+                    }
                     function validIin(raw) {
                         const iin = String(raw || '').replace(/\D/g, '');
-                        if (!/^\d{12}$/.test(iin)) return false;
+                        if (!hasChecksum(iin)) return false;
                         const century = parseInt(iin[6], 10);
                         const base = {1: 1800, 2: 1800, 3: 1900, 4: 1900, 5: 2000, 6: 2000}[century];
                         if (base == null) return false;
@@ -1502,14 +1515,19 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                         const m = parseInt(iin.slice(2, 4), 10);
                         const d = parseInt(iin.slice(4, 6), 10);
                         const dt = new Date(y, m - 1, d);
-                        if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return false;
-                        let control = weightsSum(iin, [1,2,3,4,5,6,7,8,9,10,11]) % 11;
-                        if (control === 10) control = weightsSum(iin, [3,4,5,6,7,8,9,10,11,1,2]) % 11;
-                        return control < 10 && control === parseInt(iin[11], 10);
+                        return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
+                    }
+                    function validBin(raw) {
+                        const bin = String(raw || '').replace(/\D/g, '');
+                        if (!hasChecksum(bin)) return false;
+                        const m = parseInt(bin.slice(2, 4), 10);
+                        return m >= 1 && m <= 12 && ['4', '5', '6'].indexOf(bin[4]) !== -1;
                     }
 
                     form.addEventListener('submit', function (e) {
-                        if (validIin(input.value)) {
+                        const kind = input.getAttribute('data-kind') || 'iin';
+                        const ok = kind === 'bin' ? (validIin(input.value) || validBin(input.value)) : validIin(input.value);
+                        if (ok) {
                             if (err) err.classList.add('hidden');
                             return;
                         }

@@ -54,7 +54,9 @@ class Favorite extends Model
     public function forUser(int $userId): array
     {
         $stmt = $this->db->prepare(
-            'SELECT p.*, u.name AS seller_name, u.phone AS seller_phone
+            'SELECT p.*, u.name AS seller_name, u.phone AS seller_phone,
+                    u.account_type AS seller_account_type, u.business_status AS seller_business_status,
+                    u.business_name AS seller_business_name, u.business_entity_type AS seller_business_entity_type
              FROM favorites f
              JOIN products p ON p.id = f.product_id
              JOIN users u ON u.id = p.user_id

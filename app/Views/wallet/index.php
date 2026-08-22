@@ -59,18 +59,20 @@ $simPayments = (bool) ($GLOBALS['appConfig']['allow_simulated_payments'] ?? fals
             <input type="text" name="amount" inputmode="numeric" required placeholder="<?= htmlspecialchars(t('wallet.amount_placeholder')) ?>" class="<?= $input ?>">
             <?php
             $walletUser = $user ?? [];
+            $walletIsBiz = \App\Services\AMLService::isBusinessUser($walletUser);
             $walletIin = preg_replace('/\D/', '', (string) ($walletUser['iin'] ?? ''));
-            $walletHasIin = strlen((string) $walletIin) === 12;
+            $walletBin = preg_replace('/\D/', '', (string) ($walletUser['bin'] ?? ''));
+            $walletHasId = $walletIsBiz ? strlen((string) $walletBin) === 12 : strlen((string) $walletIin) === 12;
             $walletAmlBlocked = (($walletUser['aml_status'] ?? '') === \App\Services\AMLService::STATUS_BLOCKED);
             ?>
             <?php if ($walletAmlBlocked): ?>
                 <p class="text-xs font-semibold text-red-700 dark:text-red-300"><?= htmlspecialchars(t('flash.aml_blocked')) ?></p>
-            <?php elseif ($walletHasIin): ?>
-                <p class="text-[11px] text-gray-400"><?= htmlspecialchars(t('profile.iin_saved_hint')) ?></p>
+            <?php elseif ($walletHasId): ?>
+                <p class="text-[11px] text-gray-400"><?= htmlspecialchars($walletIsBiz ? t('profile.bin_saved_hint') : t('profile.iin_saved_hint')) ?></p>
             <?php else: ?>
-                <label class="block text-xs font-bold"><?= htmlspecialchars(t('profile.iin')) ?></label>
-                <input type="text" name="iin" inputmode="numeric" maxlength="12" required pattern="\d{12}" placeholder="000000000000" class="<?= $input ?>">
-                <p class="text-[11px] text-gray-400"><?= htmlspecialchars(t('profile.iin_hint')) ?></p>
+                <label class="block text-xs font-bold"><?= htmlspecialchars($walletIsBiz ? t('profile.bin') : t('profile.iin')) ?></label>
+                <input type="text" name="<?= $walletIsBiz ? 'bin' : 'iin' ?>" inputmode="numeric" maxlength="12" required pattern="\d{12}" placeholder="000000000000" class="<?= $input ?>">
+                <p class="text-[11px] text-gray-400"><?= htmlspecialchars($walletIsBiz ? t('profile.bin_hint') : t('profile.iin_hint')) ?></p>
             <?php endif; ?>
             <div class="flex gap-2">
                 <label class="flex-1 flex items-center gap-2 p-2.5 rounded-xl border border-black/[0.08] dark:border-white/10 text-xs font-semibold cursor-pointer has-[:checked]:border-brand-500">

@@ -224,10 +224,20 @@ $waBtnClass = 'w-full inline-flex items-center justify-center gap-2 h-12 px-4 ro
                 aria-label="<?= htmlspecialchars(t('product.open_seller') . ': ' . ($item['seller_name'] ?? '')) ?>">
             <?= AvatarHelper::html($sellerUser, 'w-11 h-11', 'text-sm', 'rounded-full') ?>
             <span class="min-w-0 flex-1">
-                <span class="flex items-center gap-1.5 min-w-0">
+                <span class="flex items-center gap-1.5 min-w-0 flex-wrap">
                     <span class="font-semibold text-ink-900 dark:text-white truncate"><?= htmlspecialchars($item['seller_name']) ?></span>
+                    <?php if (ProductHelper::sellerIsBusiness($item)): ?>
+                        <span class="inline-flex items-center text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-sky-600 text-white shrink-0"><?= htmlspecialchars(t('business.badge')) ?></span>
+                    <?php else: ?>
                     <svg class="w-4 h-4 text-accent-500 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    <?php endif; ?>
                 </span>
+                <?php
+                $sellerBizLabel = ProductHelper::sellerBusinessLabel($item);
+                ?>
+                <?php if ($sellerBizLabel !== ''): ?>
+                    <span class="block text-[12px] text-sky-700 dark:text-sky-300 font-semibold mt-0.5 truncate"><?= htmlspecialchars($sellerBizLabel) ?></span>
+                <?php endif; ?>
                 <?php if ($sellerSince !== ''): ?>
                     <span class="block text-[12px] text-gray-400 mt-0.5"><?= htmlspecialchars($sellerSince) ?></span>
                 <?php endif; ?>

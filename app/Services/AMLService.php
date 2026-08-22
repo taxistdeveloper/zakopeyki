@@ -16,6 +16,18 @@ class AMLService
     public const STATUS_BLOCKED = 'AML_BLOCKED';
     public const STATUS_CLEAR = 'clear';
 
+    public static function isBusinessUser(?array $user): bool
+    {
+        if ($user === null || $user === []) {
+            return false;
+        }
+        if (($user['account_type'] ?? '') === 'business') {
+            return true;
+        }
+
+        return in_array((string) ($user['business_status'] ?? ''), ['pending', 'verified'], true);
+    }
+
     public static function userListingStatus(?array $user): string
     {
         if ($user === null || $user === []) {
@@ -23,6 +35,14 @@ class AMLService
         }
         if (($user['aml_status'] ?? '') === self::STATUS_BLOCKED) {
             return 'blocked';
+        }
+        if (self::isBusinessUser($user)) {
+            $bin = preg_replace('/\D/', '', (string) ($user['bin'] ?? '')) ?? '';
+            if (strlen($bin) === 12 && ($user['aml_status'] ?? '') === self::STATUS_CLEAR) {
+                return 'ok';
+            }
+
+            return 'needs_iin';
         }
         $iin = preg_replace('/\D/', '', (string) ($user['iin'] ?? '')) ?? '';
         if (strlen($iin) === 12 && ($user['aml_status'] ?? '') === self::STATUS_CLEAR) {
@@ -88,9 +108,9 @@ class AMLService
     }
 
     /**
-     * @return array{ok: bool, error?: string, iin?: string, blocked?: bool}
+     * @return array{ok: bool, error?: string, iin?: string, bin?: string, blocked?: bool}
      */
-    public function screenUser(int $userId, string $iinInput, string $context = 'listing'): array
+    public function screenUser(int $userId, string $idInput, string $context = 'listing', ?string $entityType = null): array
     {
         $this->ensureSchema();
         $users = new User();
@@ -103,7 +123,40 @@ class AMLService
             return ['ok' => false, 'blocked' => true, 'error' => t('flash.aml_blocked')];
         }
 
-        $iin = $this->normalizeIin($iinInput);
+        $useBin = self::isBusinessUser($user) || $context === 'business_upgrade' || $context === 'business_approve';
+        $entity = strtolower((string) ($entityType ?: ($user['business_entity_type'] ?? '')));
+
+        if ($useBin) {
+            $bin = $this->normalizeIin($idInput);
+            if ($bin === '') {
+                $bin = $this->normalizeIin((string) ($user['bin'] ?? ''));
+            }
+            if (!$this->validateBusinessTaxId($bin, $entity)) {
+                return ['ok' => false, 'error' => t('flash.aml_bin_invalid')];
+            }
+            if ($this->isBlacklisted($bin)) {
+                $this->blockUser($userId, $bin, $context, false);
+                return ['ok' => false, 'blocked' => true, 'bin' => $bin, 'error' => t('flash.aml_blocked')];
+            }
+
+            $saveIin = $this->validateIinFormat($bin) ? $bin : null;
+            $users->saveAmlClear($userId, $saveIin, $bin);
+
+            $prev = (string) ($user['aml_status'] ?? '');
+            if ($prev !== self::STATUS_CLEAR) {
+                ActivityLogger::info(
+                    'aml.verified',
+                    'AML: БИН/ИИН прошёл сверку с перечнем АФМ РК',
+                    'user',
+                    $userId,
+                    ['id_tail' => substr($bin, -4), 'context' => $context, 'kind' => 'bin']
+                );
+            }
+
+            return ['ok' => true, 'bin' => $bin];
+        }
+
+        $iin = $this->normalizeIin($idInput);
         if ($iin === '') {
             $iin = $this->normalizeIin((string) ($user['iin'] ?? ''));
         }
@@ -113,7 +166,7 @@ class AMLService
         }
 
         if ($this->isBlacklisted($iin)) {
-            $this->blockUser($userId, $iin, $context);
+            $this->blockUser($userId, $iin, $context, true);
             return ['ok' => false, 'blocked' => true, 'iin' => $iin, 'error' => t('flash.aml_blocked')];
         }
 
@@ -136,8 +189,8 @@ class AMLService
     public function isBlacklisted(string $iin): bool
     {
         $clean = $this->normalizeIin($iin);
-        if (!$this->validateIinFormat($clean)) {
-            throw new InvalidArgumentException('Некорректный формат ИИН: ' . $iin);
+        if (!$this->hasValidChecksum($clean)) {
+            throw new InvalidArgumentException('Некорректный формат ИИН/БИН: ' . $iin);
         }
 
         if ($this->redis !== null && method_exists($this->redis, 'sIsMember')) {
@@ -172,10 +225,36 @@ class AMLService
         return preg_replace('/\D/', '', $iin) ?? '';
     }
 
+    public function hasValidChecksum(string $id): bool
+    {
+        $id = $this->normalizeIin($id);
+        if (strlen($id) !== 12 || !ctype_digit($id)) {
+            return false;
+        }
+
+        $weights1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+        $controlSum = 0;
+        for ($i = 0; $i < 11; $i++) {
+            $controlSum += (int) $id[$i] * $weights1[$i];
+        }
+        $controlDigit = $controlSum % 11;
+
+        if ($controlDigit === 10) {
+            $weights2 = [3, 4, 5, 6, 7, 8, 9, 10, 11, 1, 2];
+            $controlSum = 0;
+            for ($i = 0; $i < 11; $i++) {
+                $controlSum += (int) $id[$i] * $weights2[$i];
+            }
+            $controlDigit = $controlSum % 11;
+        }
+
+        return $controlDigit < 10 && $controlDigit === (int) $id[11];
+    }
+
     public function validateIinFormat(string $iin): bool
     {
         $iin = $this->normalizeIin($iin);
-        if (strlen($iin) !== 12 || !ctype_digit($iin)) {
+        if (!$this->hasValidChecksum($iin)) {
             return false;
         }
 
@@ -193,27 +272,33 @@ class AMLService
         $year = $yearBase + (int) substr($iin, 0, 2);
         $month = (int) substr($iin, 2, 2);
         $day = (int) substr($iin, 4, 2);
-        if (!checkdate($month, $day, $year)) {
+
+        return checkdate($month, $day, $year);
+    }
+
+    public function validateBinFormat(string $bin): bool
+    {
+        $bin = $this->normalizeIin($bin);
+        if (!$this->hasValidChecksum($bin)) {
             return false;
         }
 
-        $weights1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-        $controlSum = 0;
-        for ($i = 0; $i < 11; $i++) {
-            $controlSum += (int) $iin[$i] * $weights1[$i];
-        }
-        $controlDigit = $controlSum % 11;
-
-        if ($controlDigit === 10) {
-            $weights2 = [3, 4, 5, 6, 7, 8, 9, 10, 11, 1, 2];
-            $controlSum = 0;
-            for ($i = 0; $i < 11; $i++) {
-                $controlSum += (int) $iin[$i] * $weights2[$i];
-            }
-            $controlDigit = $controlSum % 11;
+        $month = (int) substr($bin, 2, 2);
+        if ($month < 1 || $month > 12) {
+            return false;
         }
 
-        return $controlDigit < 10 && $controlDigit === (int) $iin[11];
+        return in_array($bin[4], ['4', '5', '6'], true);
+    }
+
+    public function validateBusinessTaxId(string $id, string $entityType = ''): bool
+    {
+        $entityType = strtolower($entityType);
+        if ($entityType === 'too') {
+            return $this->validateBinFormat($id);
+        }
+
+        return $this->validateIinFormat($id) || $this->validateBinFormat($id);
     }
 
     public static function maskIin(?string $iin): string
@@ -241,15 +326,20 @@ class AMLService
         ];
     }
 
-    private function blockUser(int $userId, string $iin, string $context): void
+    private function blockUser(int $userId, string $id, string $context, bool $storeAsIin): void
     {
-        (new User())->setAmlStatus($userId, self::STATUS_BLOCKED, $iin);
+        (new User())->setAmlStatus(
+            $userId,
+            self::STATUS_BLOCKED,
+            $storeAsIin ? $id : null,
+            $storeAsIin ? null : $id
+        );
         ActivityLogger::error(
             'aml.blocked',
             'AML_BLOCKED: совпадение с перечнем АФМ РК',
             'user',
             $userId,
-            ['iin_tail' => substr($iin, -4), 'context' => $context]
+            ['id_tail' => substr($id, -4), 'context' => $context, 'kind' => $storeAsIin ? 'iin' : 'bin']
         );
     }
 }

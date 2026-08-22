@@ -62,6 +62,7 @@ class Auth
             'phone' => $user['phone'] ?? null,
             'bio' => $user['bio'] ?? null,
             'iin' => $user['iin'] ?? null,
+            'bin' => $user['bin'] ?? null,
             'aml_status' => $user['aml_status'] ?? null,
             'account_type' => $user['account_type'] ?? 'personal',
             'business_status' => $user['business_status'] ?? 'none',

@@ -27,8 +27,10 @@
                             <div class="min-w-0">
                                 <div class="flex items-center gap-1.5 flex-wrap">
                                     <h2 id="seller-profile-name" class="font-display text-xl sm:text-2xl font-extrabold text-ink-900 dark:text-white tracking-tight"></h2>
-                                    <svg class="w-5 h-5 text-[#7c3aed] shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                                    <span id="seller-profile-business-badge" class="hidden inline-flex items-center text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-md bg-sky-600 text-white"><?= htmlspecialchars(t('business.badge')) ?></span>
+                                    <svg id="seller-profile-verified-icon" class="w-5 h-5 text-[#7c3aed] shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
                                 </div>
+                                <p id="seller-profile-business-name" class="hidden text-sm font-semibold text-sky-700 dark:text-sky-300 mt-1"></p>
                                 <p id="seller-profile-since" class="text-sm text-gray-400 mt-1"></p>
                                 <p id="seller-profile-online" class="hidden mt-1.5 text-sm font-medium text-emerald-600 inline-flex items-center gap-1.5">
                                     <span class="w-2 h-2 rounded-full bg-emerald-500"></span>

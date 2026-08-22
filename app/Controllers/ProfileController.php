@@ -205,7 +205,7 @@ class ProfileController extends Controller
 
         $result = AMLService::make()->screenUser(
             Auth::id(),
-            (string) ($_POST['iin'] ?? ''),
+            (string) ($_POST['bin'] ?? $_POST['iin'] ?? ''),
             'listing'
         );
         $fresh = (new User())->find(Auth::id());
@@ -951,7 +951,7 @@ class ProfileController extends Controller
     {
         $result = AMLService::make()->screenUser(
             Auth::id(),
-            (string) ($_POST['iin'] ?? ''),
+            (string) ($_POST['bin'] ?? $_POST['iin'] ?? ''),
             'listing'
         );
         if (!empty($result['ok'])) {

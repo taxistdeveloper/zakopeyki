@@ -179,6 +179,8 @@ class UserController extends Controller
             'is_live' => $isLive,
             'is_business' => $isBusiness,
             'business_name' => $isBusiness ? (string) ($user['business_name'] ?? '') : '',
+            'business_entity_type' => $isBusiness ? (string) ($user['business_entity_type'] ?? '') : '',
+            'business_label' => $isBusiness ? ProductHelper::sellerBusinessLabel($user) : '',
             'has_business_package' => $hasPackage,
             'followers_count' => $followersCount,
             'following_count' => $followingCount,

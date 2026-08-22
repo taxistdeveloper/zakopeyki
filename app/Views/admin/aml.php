@@ -103,6 +103,7 @@ $filters = [
                             <p class="text-[11px] text-gray-400 mt-0.5 truncate">
                                 <?= htmlspecialchars((string) ($u['email'] ?? '')) ?>
                                 · <?= htmlspecialchars(t('admin.aml_iin')) ?> <?= htmlspecialchars(AMLService::maskIin($u['iin'] ?? null)) ?>
+                                · <?= htmlspecialchars(t('admin.aml_bin')) ?> <?= htmlspecialchars(AMLService::maskIin($u['bin'] ?? null)) ?>
                             </p>
                         </div>
                     </div>

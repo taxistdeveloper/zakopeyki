@@ -3376,6 +3376,17 @@ function renderSellerProfile(data) {
     const nameEl = document.getElementById('seller-profile-name');
     if (nameEl) nameEl.textContent = data.name || '';
 
+    const bizBadge = document.getElementById('seller-profile-business-badge');
+    if (bizBadge) bizBadge.classList.toggle('hidden', !data.is_business);
+    const bizName = document.getElementById('seller-profile-business-name');
+    if (bizName) {
+        const label = String(data.business_label || data.business_name || '').trim();
+        bizName.textContent = label;
+        bizName.classList.toggle('hidden', !data.is_business || !label);
+    }
+    const verifiedIcon = document.getElementById('seller-profile-verified-icon');
+    if (verifiedIcon) verifiedIcon.classList.toggle('hidden', !!data.is_business);
+
     const sinceEl = document.getElementById('seller-profile-since');
     if (sinceEl) sinceEl.textContent = data.member_since || '';
 

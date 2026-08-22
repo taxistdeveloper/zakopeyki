@@ -63,8 +63,14 @@ class BusinessUpgradeService
         }
 
         $bin = preg_replace('/\D/', '', (string) ($data['bin'] ?? '')) ?? '';
-        if (strlen($bin) !== 12) {
-            return ['ok' => false, 'error' => t('business.err_bin')];
+        $aml = AMLService::make();
+        if (!$aml->validateBusinessTaxId($bin, $entity)) {
+            return ['ok' => false, 'error' => t('business.err_bin_format')];
+        }
+
+        $screen = $aml->screenUser($userId, $bin, 'business_upgrade', $entity);
+        if (empty($screen['ok'])) {
+            return ['ok' => false, 'error' => $screen['error'] ?? t('business.err_aml')];
         }
 
         $docs = $this->storeDocs($userId, $files);
@@ -110,6 +116,16 @@ class BusinessUpgradeService
         }
 
         $userId = (int) $req['user_id'];
+        $screen = AMLService::make()->screenUser(
+            $userId,
+            (string) ($req['bin'] ?? ''),
+            'business_approve',
+            (string) ($req['entity_type'] ?? '')
+        );
+        if (empty($screen['ok'])) {
+            return ['ok' => false, 'error' => $screen['error'] ?? t('business.err_aml')];
+        }
+
         $this->requests->markReviewed($requestId, 'approved', $adminId, $note);
         $this->users->promoteToBusiness($userId, [
             'business_entity_type' => $req['entity_type'],

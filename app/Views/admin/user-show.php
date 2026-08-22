@@ -109,6 +109,10 @@ $roleClass = match ($role) {
                 <dd class="mt-0.5 text-ink-800 dark:text-gray-200 font-mono tracking-wide"><?= htmlspecialchars(\App\Services\AMLService::maskIin($user['iin'] ?? null)) ?></dd>
             </div>
             <div>
+                <dt class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.aml_bin')) ?></dt>
+                <dd class="mt-0.5 text-ink-800 dark:text-gray-200 font-mono tracking-wide"><?= htmlspecialchars(\App\Services\AMLService::maskIin($user['bin'] ?? null)) ?></dd>
+            </div>
+            <div>
                 <dt class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.aml_checked_at')) ?></dt>
                 <dd class="mt-0.5 text-ink-800 dark:text-gray-200"><?= htmlspecialchars((string) ($user['aml_checked_at'] ?? '—')) ?></dd>
             </div>

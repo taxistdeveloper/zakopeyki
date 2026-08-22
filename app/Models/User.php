@@ -513,7 +513,7 @@ class User extends Model
     /** @return list<array<string, mixed>> */
     public function listForAdmin(?string $role = null, ?string $q = null, ?bool $siteAccess = null, ?string $amlStatus = null): array
     {
-        $sql = 'SELECT id, name, first_name, last_name, login, email, phone, iin, aml_status, aml_checked_at, role, permissions, site_access,
+        $sql = 'SELECT id, name, first_name, last_name, login, email, phone, iin, bin, aml_status, aml_checked_at, role, permissions, site_access,
                        avatar, avatar_file, created_at, two_factor_enabled, google_id
                 FROM users WHERE 1=1';
         $params = [];
@@ -541,10 +541,10 @@ class User extends Model
             $sql .= ' AND (
                 name LIKE ? OR email LIKE ? OR login LIKE ?
                 OR first_name LIKE ? OR last_name LIKE ? OR phone LIKE ?
-                OR CAST(id AS CHAR) = ? OR iin LIKE ?
+                OR CAST(id AS CHAR) = ? OR iin LIKE ? OR bin LIKE ?
             )';
             $like = '%' . $q . '%';
-            $params = array_merge($params, [$like, $like, $like, $like, $like, $like, $q, $like]);
+            $params = array_merge($params, [$like, $like, $like, $like, $like, $like, $q, $like, $like]);
         }
 
         $order = $amlStatus !== null
@@ -592,20 +592,34 @@ class User extends Model
         return $stmt->execute([$allowed ? 1 : 0, $userId]);
     }
 
-    public function setAmlStatus(int $userId, string $status, ?string $iin = null): bool
+    public function setAmlStatus(int $userId, string $status, ?string $iin = null, ?string $bin = null): bool
     {
         $stmt = $this->db->prepare(
-            'UPDATE users SET aml_status = ?, iin = COALESCE(?, iin), aml_checked_at = NOW() WHERE id = ?'
+            'UPDATE users SET aml_status = ?, iin = COALESCE(?, iin), bin = COALESCE(?, bin), aml_checked_at = NOW() WHERE id = ?'
         );
-        return $stmt->execute([$status, $iin !== null && $iin !== '' ? $iin : null, $userId]);
+        return $stmt->execute([
+            $status,
+            $iin !== null && $iin !== '' ? $iin : null,
+            $bin !== null && $bin !== '' ? $bin : null,
+            $userId,
+        ]);
     }
 
-    public function saveAmlClear(int $userId, string $iin): bool
+    public function saveAmlClear(int $userId, ?string $iin = null, ?string $bin = null): bool
     {
-        $stmt = $this->db->prepare(
-            'UPDATE users SET iin = ?, aml_status = ?, aml_checked_at = NOW() WHERE id = ?'
-        );
-        return $stmt->execute([$iin, 'clear', $userId]);
+        $sets = ['aml_status = ?', 'aml_checked_at = NOW()'];
+        $params = ['clear'];
+        if ($iin !== null && $iin !== '') {
+            $sets[] = 'iin = ?';
+            $params[] = $iin;
+        }
+        if ($bin !== null && $bin !== '') {
+            $sets[] = 'bin = ?';
+            $params[] = $bin;
+        }
+        $params[] = $userId;
+        $stmt = $this->db->prepare('UPDATE users SET ' . implode(', ', $sets) . ' WHERE id = ?');
+        return $stmt->execute($params);
     }
 
     public function countWithSiteAccess(): int

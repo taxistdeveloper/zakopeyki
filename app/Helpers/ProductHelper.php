@@ -149,6 +149,38 @@ class ProductHelper
         return self::formatCategory($parent, $child);
     }
 
+    /** Продавец объявления — верифицированный бизнес-аккаунт. */
+    public static function sellerIsBusiness(array $item): bool
+    {
+        $type = (string) ($item['seller_account_type'] ?? $item['account_type'] ?? '');
+        $status = (string) ($item['seller_business_status'] ?? $item['business_status'] ?? '');
+        return $type === 'business' && $status === 'verified';
+    }
+
+    /** Подпись ИП/ТОО: «ИП Иванов» или «ТОО Сети». */
+    public static function sellerBusinessLabel(array $item): string
+    {
+        if (!self::sellerIsBusiness($item)) {
+            return '';
+        }
+        $name = trim((string) ($item['seller_business_name'] ?? $item['business_name'] ?? ''));
+        $entity = strtolower((string) ($item['seller_business_entity_type'] ?? $item['business_entity_type'] ?? ''));
+        $prefix = match ($entity) {
+            'too' => (string) t('business.entity_too'),
+            'ip' => (string) t('business.entity_ip'),
+            default => '',
+        };
+        if ($name === '') {
+            return $prefix;
+        }
+        $upper = mb_strtoupper($name);
+        if ($prefix !== '' && (str_starts_with($upper, 'ИП ') || str_starts_with($upper, 'ТОО ')
+            || str_starts_with($upper, 'ЖК ') || str_starts_with($upper, 'ЖШС '))) {
+            return $name;
+        }
+        return $prefix !== '' ? ($prefix . ' ' . $name) : $name;
+    }
+
     public static function badge(string $type): array
     {
         $classes = [

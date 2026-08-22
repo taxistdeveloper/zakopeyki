@@ -74,6 +74,11 @@ if ($type === 'course') {
 
 $showBuyCartPair = $canCart && $primaryHref && in_array($type, ['used', 'new', 'course', 'gig'], true) && !$isFreePrice;
 $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>';
+$isBusinessSeller = ProductHelper::sellerIsBusiness($item);
+$bizLabel = ProductHelper::sellerBusinessLabel($item);
+$bizBadge = $isBusinessSeller
+    ? '<span class="inline-flex items-center text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg shadow-sm bg-sky-600 text-white">' . htmlspecialchars(t('business.badge')) . '</span>'
+    : '';
 ?>
 <?php if ($mini): ?>
 <article class="bg-white dark:bg-white/[0.04] rounded-2xl border border-black/[0.06] dark:border-white/10 overflow-hidden hover:shadow-soft transition duration-300 flex flex-col h-full cursor-pointer group relative"
@@ -82,6 +87,9 @@ $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" s
         <?php if ($imageUrl): ?>
         <a href="<?= $showUrl ?>" class="photo-wm aspect-[4/3] bg-ink-100 dark:bg-white/10 relative block overflow-hidden">
             <img src="<?= htmlspecialchars($imageUrl) ?>" alt="" class="absolute inset-0 w-full h-full object-cover transition duration-300 group-hover:scale-105 pointer-events-none">
+            <?php if ($isBusinessSeller): ?>
+                <span class="absolute top-2 left-2 z-[1] text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md shadow-sm bg-sky-600 text-white"><?= htmlspecialchars(t('business.badge')) ?></span>
+            <?php endif; ?>
         </a>
         <?php else: ?>
         <a href="<?= $showUrl ?>" class="aspect-[4/3] bg-gradient-to-br from-ink-100 via-brand-50 to-accent-50 dark:from-white/10 dark:via-brand-900/20 dark:to-transparent relative flex items-center justify-center">
@@ -102,6 +110,9 @@ $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" s
         <h3 class="text-[13px] font-semibold line-clamp-2 min-h-[2.4rem] text-ink-800 dark:text-gray-200 leading-snug">
             <a href="<?= $showUrl ?>"><?= htmlspecialchars($item['title']) ?></a>
         </h3>
+        <?php if ($bizLabel !== ''): ?>
+            <p class="text-[10px] text-sky-700 dark:text-sky-300 font-semibold truncate -mt-1" title="<?= htmlspecialchars($bizLabel) ?>"><?= htmlspecialchars($bizLabel) ?></p>
+        <?php endif; ?>
         <div class="mt-auto flex items-center justify-between gap-2">
             <span class="text-sm font-display font-bold <?= $isFreePrice ? 'text-violet-600 dark:text-violet-300' : 'text-ink-900 dark:text-white' ?>"><?= htmlspecialchars($price) ?></span>
             <?php if ($canCart): ?>
@@ -128,15 +139,21 @@ $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" s
        data-lightbox-gallery="<?= htmlspecialchars(json_encode(array_values($imageUrls ?: [$imageUrl]), JSON_UNESCAPED_SLASHES)) ?>"
        aria-label="<?= htmlspecialchars(t('product.zoom')) ?>">
         <img src="<?= htmlspecialchars($imageUrl) ?>" alt="" class="absolute inset-0 w-full h-full object-cover transition duration-300 group-hover:scale-105 pointer-events-none">
-        <span class="absolute top-2.5 left-2.5 z-[1] text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg shadow-sm <?= $badge['class'] ?>">
-            <?= htmlspecialchars($badge['text']) ?>
+        <span class="absolute top-2.5 left-2.5 z-[1] flex flex-col items-start gap-1">
+            <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg shadow-sm <?= $badge['class'] ?>">
+                <?= htmlspecialchars($badge['text']) ?>
+            </span>
+            <?= $bizBadge ?>
         </span>
     </a>
     <?php else: ?>
     <a href="<?= $showUrl ?>" class="aspect-[4/3] bg-gradient-to-br from-ink-100 via-brand-50 to-accent-50 dark:from-white/10 dark:via-brand-900/20 dark:to-transparent relative flex items-center justify-center overflow-hidden shrink-0">
         <span class="transition duration-300 group-hover:scale-110"><?= ProductHelper::icon($item['type'], 'w-14 h-14 text-brand-500/70') ?></span>
-        <span class="absolute top-2.5 left-2.5 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg shadow-sm <?= $badge['class'] ?>">
-            <?= htmlspecialchars($badge['text']) ?>
+        <span class="absolute top-2.5 left-2.5 flex flex-col items-start gap-1">
+            <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg shadow-sm <?= $badge['class'] ?>">
+                <?= htmlspecialchars($badge['text']) ?>
+            </span>
+            <?= $bizBadge ?>
         </span>
     </a>
     <?php endif; ?>
@@ -170,6 +187,9 @@ $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" s
                 <p class="mt-1.5 h-4" aria-hidden="true"></p>
             <?php endif; ?>
             <p class="text-[10px] text-gray-400 mt-1 truncate"><?= htmlspecialchars($item['location']) ?></p>
+            <?php if ($bizLabel !== ''): ?>
+                <p class="text-[10px] text-sky-700 dark:text-sky-300 font-semibold mt-1 truncate" title="<?= htmlspecialchars($bizLabel) ?>"><?= htmlspecialchars($bizLabel) ?></p>
+            <?php endif; ?>
             <?php if ($type === 'exchange' && !empty($item['exchange_for'])): ?>
                 <p class="text-[10px] text-indigo-600 dark:text-indigo-300 mt-1 line-clamp-2">
                     <span class="font-semibold"><?= htmlspecialchars(t('product.exchange_for_short')) ?>:</span>
