@@ -11,7 +11,7 @@ class ProductHelper
         'new' => 'Новый товар',
         'auction' => 'Аукцион',
         'free' => 'Отдам бесплатно',
-        'exchange' => 'Обмен',
+        'exchange' => 'Бартер',
         'service' => 'Услуги',
         'gig' => 'Биржа услуг',
         'course' => 'Курс',
