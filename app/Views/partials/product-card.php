@@ -153,32 +153,32 @@ $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" s
         </button>
         <?php \App\Core\View::partial('partials/share-buttons', ['item' => $item, 'overlay' => true]); ?>
     </div>
-    <div class="p-4 flex flex-col flex-1 <?= $compact ? 'gap-2.5' : 'gap-3' ?>">
-        <div class="<?= $compact ? '' : 'min-h-[4.75rem]' ?>">
-            <h3 class="text-xs sm:text-sm font-semibold line-clamp-2 <?= $compact ? '' : 'min-h-[2.5rem]' ?> text-ink-800 dark:text-gray-200 leading-snug">
+    <div class="px-3.5 pt-3 pb-3.5 flex flex-col flex-1 gap-2">
+        <div class="space-y-1">
+            <h3 class="text-xs sm:text-sm font-semibold line-clamp-2 text-ink-800 dark:text-gray-200 leading-snug">
                 <a href="<?= $showUrl ?>"><?= htmlspecialchars($item['title']) ?></a>
             </h3>
             <?php if ($showCardCategory):
                 [$cardParent, $cardChild] = ProductHelper::parseCategory($item['category']);
             ?>
-                <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-1.5 line-clamp-1 h-4" title="<?= htmlspecialchars(ProductHelper::categoryLabel($cardParent) . ' / ' . ProductHelper::categoryLabel($cardChild)) ?>">
+                <p class="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-1" title="<?= htmlspecialchars(ProductHelper::categoryLabel($cardParent) . ' / ' . ProductHelper::categoryLabel($cardChild)) ?>">
                     <span class="text-ink-700 dark:text-gray-300 font-medium"><?= htmlspecialchars(ProductHelper::categoryLabel($cardParent)) ?></span>
                     <span class="text-gray-300 dark:text-gray-600 mx-0.5">/</span>
                     <span class="text-brand-600 dark:text-brand-400"><?= htmlspecialchars(ProductHelper::categoryLabel($cardChild)) ?></span>
                 </p>
-            <?php else: ?>
-                <p class="mt-1.5 h-4" aria-hidden="true"></p>
             <?php endif; ?>
-            <p class="text-[10px] text-gray-400 mt-1 truncate"><?= htmlspecialchars($item['location']) ?></p>
+            <?php if (!empty($item['location'])): ?>
+                <p class="text-[10px] text-gray-400 truncate"><?= htmlspecialchars($item['location']) ?></p>
+            <?php endif; ?>
             <?php if ($type === 'exchange' && !empty($item['exchange_for'])): ?>
-                <p class="text-[10px] text-indigo-600 dark:text-indigo-300 mt-1 line-clamp-2">
+                <p class="text-[10px] text-indigo-600 dark:text-indigo-300 line-clamp-2 leading-snug">
                     <span class="font-semibold"><?= htmlspecialchars(t('product.exchange_for_short')) ?>:</span>
                     <?= htmlspecialchars($item['exchange_for']) ?>
                 </p>
             <?php endif; ?>
         </div>
-        <div class="mt-auto space-y-2">
-            <div class="flex justify-between items-center min-h-[1.25rem]">
+        <div class="mt-auto space-y-1.5">
+            <div class="flex justify-between items-center">
                 <span class="text-sm font-display font-bold <?= $isFreePrice ? 'text-violet-600 dark:text-violet-300' : 'text-ink-900 dark:text-white' ?>"><?= htmlspecialchars($price) ?></span>
             </div>
             <?php if ($primaryHref || $canCart): ?>
