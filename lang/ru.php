@@ -8,7 +8,7 @@ return [
         'used' => 'Товары Б/У',
         'auctions' => 'Аукционы',
         'free' => 'Отдам даром',
-        'exchange' => 'Обмен',
+        'exchange' => 'Бартер',
         'services' => 'Услуги',
         'services_board' => 'Биржа услуг',
         'courses' => 'Курсы',
