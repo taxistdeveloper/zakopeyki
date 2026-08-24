@@ -44,7 +44,7 @@ if ($type === 'course') {
     $primaryHref = $buyUrl;
     $primaryLabel = t('card.order');
     $primaryClass = 'bg-blue-600 hover:bg-blue-700 text-white';
-} elseif ($isFreePrice && in_array($type, ['free', 'used', 'new'], true)) {
+} elseif ($isFreePrice && in_array($type, ['free', 'used', 'new'], true) && !$isOwn) {
     $primaryHref = $showUrl;
     $primaryLabel = t('card.take');
     $primaryClass = 'bg-violet-600 hover:bg-violet-700 text-white';
