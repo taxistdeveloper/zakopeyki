@@ -46,6 +46,8 @@ class DigitalAccessService
             $days
         );
 
+        $this->skipShippingHold($orderId, $order);
+
         $buyer = (new User())->find((int) $order['buyer_id']);
         if ($buyer) {
             (new Notification())->createFor(
@@ -128,5 +130,20 @@ class DigitalAccessService
                 ? t('digital.wm_order', ['id' => (string) $orderId])
                 : (($name !== '' ? $name : ('ID ' . (int) ($user['id'] ?? 0))) . ' — Zakopeyki.kz'),
         };
+    }
+
+    /** Курс не едет почтой: доступ сразу, эскроу держим на срок проверки. */
+    private function skipShippingHold(int $orderId, array $order): void
+    {
+        if (($order['status'] ?? '') !== 'escrowed') {
+            return;
+        }
+        $inspect = date('Y-m-d H:i:s', time() + (\App\Services\EscrowService::INSPECT_DAYS * 86400));
+        (new Order())->updateFields($orderId, [
+            'delivery_method' => 'digital',
+            'status' => 'delivered',
+            'delivered_at' => date('Y-m-d H:i:s'),
+            'inspect_until' => $inspect,
+        ]);
     }
 }

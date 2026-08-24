@@ -22,7 +22,8 @@ if (!empty($order['dispute_evidence'])) {
 $myReview = $myReview ?? null;
 $counterpartReview = $counterpartReview ?? null;
 
-$steps = ['escrowed', 'shipped', 'delivered', 'completed'];
+$isDigital = (($order['product_type'] ?? '') === 'course') || (($order['delivery_method'] ?? '') === 'digital');
+$steps = $isDigital ? ['escrowed', 'delivered', 'completed'] : ['escrowed', 'shipped', 'delivered', 'completed'];
 $stepIndex = array_search($status, $steps, true);
 if ($status === 'dispute' || $status === 'return_approved' || $status === 'return_shipped' || $status === 'return_delivered') {
     $stepIndex = 2;
@@ -133,7 +134,11 @@ $btn = 'inline-flex items-center justify-center w-full font-display font-bold py
     </div>
 
     <div class="space-y-4">
-        <?php if (!empty($isSeller) && $status === 'escrowed'): ?>
+        <?php if (!empty($isDigital) && !empty($isBuyer)): ?>
+            <a href="<?= ProductHelper::url('/digital/' . (int) $order['product_id'] . '/watch') ?>" class="<?= $btn ?> bg-violet-700 hover:bg-violet-600 text-white"><?= htmlspecialchars(t('digital.open_player')) ?></a>
+        <?php endif; ?>
+
+        <?php if (!empty($isSeller) && $status === 'escrowed' && empty($isDigital)): ?>
             <form method="post" action="<?= ProductHelper::url('/orders/' . (int) $order['id'] . '/ship') ?>" class="bg-white/90 dark:bg-white/[0.04] rounded-[24px] border border-black/[0.06] dark:border-white/10 p-5 space-y-3 shadow-soft">
                 <h3 class="font-display font-bold text-ink-900 dark:text-white"><?= htmlspecialchars(t('escrow.ship_title')) ?></h3>
                 <p class="text-xs text-gray-500"><?= htmlspecialchars(t('escrow.ship_hint')) ?></p>

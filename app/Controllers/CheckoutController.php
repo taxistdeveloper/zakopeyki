@@ -121,8 +121,8 @@ class CheckoutController extends Controller
         Auth::requireLogin();
 
         $productId = (int) $id;
-        $method = (string) ($_POST['payment_method'] ?? 'card');
-        $delivery = (string) ($_POST['delivery_method'] ?? 'kazpost');
+        $method = (string) ($_POST['payment_method'] ?? $_POST['payment_method'] ?? 'card');
+        $delivery = (string) ($_POST['delivery_method'] ?? $_POST['delivery_method'] ?? 'kazpost');
 
         $result = (new Order())->createEscrow($productId, Auth::id(), $method, $delivery);
 
@@ -152,7 +152,7 @@ class CheckoutController extends Controller
             'method' => $method,
             'delivery' => $delivery,
         ]);
-        $this->redirect('/orders/' . (int) $result['order_id']);
+        $this->redirectAfterPay($result, [$productId]);
     }
 
     public function cartPay(): void
@@ -166,8 +166,8 @@ class CheckoutController extends Controller
             return;
         }
 
-        $method = (string) ($_POST['payment_method'] ?? 'card');
-        $delivery = (string) ($_POST['delivery_method'] ?? 'kazpost');
+        $method = (string) ($_POST['payment_method'] ?? $_POST['payment_method'] ?? 'card');
+        $delivery = (string) ($_POST['delivery_method'] ?? $_POST['delivery_method'] ?? 'kazpost');
 
         $result = (new Order())->createEscrowCart($items, Auth::id(), $method, $delivery);
 
@@ -203,17 +203,55 @@ class CheckoutController extends Controller
         ]);
 
         if (count($orderIds) > 1) {
+            if ($this->allDigital($items)) {
+                $_SESSION['flash'] = t('checkout.success_digital');
+                $this->redirect('/digital');
+                return;
+            }
             $_SESSION['flash'] = t('checkout.cart_paid', ['count' => count($orderIds)]);
             $this->redirect('/orders');
             return;
         }
 
-        $this->redirect('/orders/' . (int) $result['order_id']);
+        $this->redirectAfterPay($result, array_map(static fn ($row) => (int) $row['id'], $items));
     }
 
     public function success(string $id): void
     {
         Auth::requireLogin();
-        $this->redirect('/orders/' . (int) $id);
+        $this->redirectAfterPay(['ok' => true, 'order_id' => (int) $id], []);
+    }
+
+    /** @param list<int> $productIds */
+    private function redirectAfterPay(array $result, array $productIds): void
+    {
+        $orderId = (int) ($result['order_id'] ?? 0);
+        $order = $orderId > 0 ? (new Order())->find($orderId) : null;
+        $productId = (int) ($order['product_id'] ?? ($productIds[0] ?? 0));
+        $product = $productId > 0 ? (new Product())->find($productId) : null;
+        if ($product && ProductHelper::isDigitalListing($product)) {
+            $_SESSION['flash'] = t('checkout.success_digital');
+            $this->redirect('/digital/' . $productId . '/watch');
+            return;
+        }
+        if ($orderId > 0) {
+            $this->redirect('/orders/' . $orderId);
+            return;
+        }
+        $this->redirect('/orders');
+    }
+
+    /** @param list<array<string, mixed>> $items */
+    private function allDigital(array $items): bool
+    {
+        if ($items === []) {
+            return false;
+        }
+        foreach ($items as $item) {
+            if (!ProductHelper::isDigitalListing($item)) {
+                return false;
+            }
+        }
+        return true;
     }
 }

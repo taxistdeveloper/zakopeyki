@@ -247,6 +247,9 @@ class Order extends Model
         $delivery = in_array($deliveryMethod, EscrowService::DELIVERY_METHODS, true)
             ? $deliveryMethod
             : 'kazpost';
+        if (ProductHelper::isDigitalListing($product)) {
+            $delivery = 'digital';
+        }
 
         $fp = new \App\Services\FreedomPay\Client();
         $useFreedomPay = $method === 'card' && $fp->isConfigured();
@@ -513,7 +516,7 @@ class Order extends Model
                     (int) $product['user_id'],
                     $amount,
                     $method,
-                    $delivery,
+                    ProductHelper::isDigitalListing($product) ? 'digital' : $delivery,
                 ]);
                 $orderId = (int) $this->db->lastInsertId();
                 $orderIds[] = $orderId;
@@ -636,7 +639,7 @@ class Order extends Model
                     $buyerId,
                     (int) $product['user_id'],
                     $amount,
-                    $delivery,
+                    ProductHelper::isDigitalListing($product) ? 'digital' : $delivery,
                 ]);
                 $orderId = (int) $this->db->lastInsertId();
                 $orderIds[] = $orderId;

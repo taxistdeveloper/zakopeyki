@@ -14,6 +14,13 @@ $priceLabel = number_format($total, 0, '', ' ') . ' ₸';
 $checkoutPayUrl = $checkoutPayUrl ?? ProductHelper::url('/checkout/' . (int) ($items[0]['id'] ?? 0) . '/pay');
 $cancelUrl = $cancelUrl ?? ProductHelper::url('/cart');
 $fromCart = !empty($fromCart);
+$digitalOnly = $items !== [];
+foreach ($items as $row) {
+    if (!ProductHelper::isDigitalListing($row)) {
+        $digitalOnly = false;
+        break;
+    }
+}
 $walletBalance = (int) ($walletBalance ?? 0);
 $need = $total;
 $canWallet = $walletBalance >= $need;
@@ -58,7 +65,7 @@ $canCard = $fpConfigured || $simPayments;
         <form method="post" action="<?= $checkoutPayUrl ?>" class="p-5 sm:p-6 space-y-5">
             <?= csrf_field() ?>
             <div class="rounded-2xl bg-amber-50/90 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/40 px-4 py-3 text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
-                <?= htmlspecialchars(t('checkout.escrow_notice')) ?>
+                <?= htmlspecialchars(t($digitalOnly ? 'checkout.digital_notice' : 'checkout.escrow_notice')) ?>
                 <?php if (count($items) > 1): ?>
                     <span class="block mt-1.5"><?= htmlspecialchars(t('checkout.cart_escrow_hint')) ?></span>
                 <?php endif; ?>
@@ -72,6 +79,9 @@ $canCard = $fpConfigured || $simPayments;
                 <a href="<?= ProductHelper::url('/wallet') ?>" class="text-xs font-semibold text-brand-600 hover:underline"><?= htmlspecialchars(t('wallet.top_up')) ?></a>
             </div>
 
+            <?php if ($digitalOnly): ?>
+                <input type="hidden" name="delivery_method" value="digital">
+            <?php else: ?>
             <div class="space-y-2">
                 <h3 class="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400"><?= htmlspecialchars(t('checkout.delivery')) ?></h3>
                 <?php
@@ -84,6 +94,7 @@ $canCard = $fpConfigured || $simPayments;
                     </label>
                 <?php endforeach; ?>
             </div>
+            <?php endif; ?>
 
             <div class="space-y-2">
                 <h3 class="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400"><?= htmlspecialchars(t('checkout.method')) ?></h3>

@@ -128,6 +128,13 @@ class PaymentController extends Controller
         if ($orderId > 0) {
             $order = (new Order())->find($orderId);
             if ($order && (int) ($order['buyer_id'] ?? 0) === Auth::id()) {
+                $product = (new \App\Models\Product())->find((int) ($order['product_id'] ?? 0));
+                if ($product && \App\Helpers\ProductHelper::isDigitalListing($product)
+                    && in_array(($order['status'] ?? ''), ['escrowed', 'delivered', 'completed', 'confirmed'], true)) {
+                    $_SESSION['flash'] = t('checkout.success_digital');
+                    $this->redirect('/digital/' . (int) $product['id'] . '/watch');
+                    return;
+                }
                 if (($order['status'] ?? '') === 'escrowed') {
                     $_SESSION['flash'] = t('checkout.success_text');
                     $this->redirect('/orders/' . $orderId);
