@@ -40,7 +40,7 @@ $primaryHref = null;
 $primaryLabel = null;
 $primaryClass = null;
 
-if ($type === 'course') {
+if ($type === 'course' && !$isOwn) {
     $primaryHref = $buyUrl;
     $primaryLabel = t('card.order');
     $primaryClass = 'bg-blue-600 hover:bg-blue-700 text-white';
@@ -48,7 +48,7 @@ if ($type === 'course') {
     $primaryHref = $showUrl;
     $primaryLabel = t('card.take');
     $primaryClass = 'bg-violet-600 hover:bg-violet-700 text-white';
-} elseif ($type === 'used' || $type === 'new') {
+} elseif (($type === 'used' || $type === 'new') && !$isOwn) {
     $primaryHref = $buyUrl;
     $primaryLabel = t('card.buy');
     $primaryClass = 'bg-accent-500 hover:bg-accent-400 text-white';
@@ -56,7 +56,7 @@ if ($type === 'course') {
     $primaryHref = $showUrl;
     $primaryLabel = t('card.more');
     $primaryClass = 'bg-emerald-600 hover:bg-emerald-700 text-white';
-} elseif ($type === 'gig') {
+} elseif ($type === 'gig' && !$isOwn) {
     $primaryHref = $buyUrl;
     $primaryLabel = t('card.order');
     $primaryClass = 'bg-emerald-600 hover:bg-emerald-700 text-white';
@@ -66,7 +66,7 @@ if ($type === 'course') {
     $primaryClass = $isOwn
         ? 'border border-black/10 dark:border-white/15 text-ink-800 dark:text-gray-200 bg-transparent'
         : 'bg-red-600 hover:bg-red-700 text-white';
-} elseif ($type === 'exchange') {
+} elseif ($type === 'exchange' && !$isOwn) {
     $primaryHref = $showUrl;
     $primaryLabel = t('card.exchange');
     $primaryClass = 'bg-indigo-600 hover:bg-indigo-700 text-white';

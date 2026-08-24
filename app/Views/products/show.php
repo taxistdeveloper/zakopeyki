@@ -280,7 +280,7 @@ $waBtnClass = 'w-full inline-flex items-center justify-center gap-2 h-12 px-4 ro
         </div>
     </div>
 
-    <?php if ($whatsappHref): ?>
+    <?php if ($whatsappHref && !$isOwnProduct): ?>
     <a href="<?= htmlspecialchars($whatsappHref) ?>"
        target="_blank"
        rel="noopener noreferrer"
@@ -421,7 +421,7 @@ $waBtnClass = 'w-full inline-flex items-center justify-center gap-2 h-12 px-4 ro
         </script>
     <?php endif; ?>
 
-    <?php if ($purchasable): ?>
+    <?php if ($purchasable && !$isOwnProduct): ?>
         <div class="space-y-2.5">
             <div class="grid grid-cols-2 gap-2.5">
                 <a href="<?= $buyUrl ?>" class="inline-flex items-center justify-center gap-2 h-12 px-3 rounded-xl bg-accent-500 hover:bg-accent-400 text-white font-semibold text-[13px] sm:text-sm transition">

@@ -74,6 +74,11 @@ class ProductController extends Controller
             return;
         }
 
+        if (Auth::check() && (int) ($product['user_id'] ?? 0) === (int) Auth::id()) {
+            $this->redirect('/product/' . $productId);
+            return;
+        }
+
         $digits = ProductHelper::whatsappDigits((string) ($product['whatsapp'] ?? ''));
         if ($digits === null) {
             $_SESSION['error'] = t('product.whatsapp_unavailable');

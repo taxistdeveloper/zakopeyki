@@ -112,6 +112,14 @@ class ChatController extends Controller
                 return;
             }
             $otherId = (int) $product['user_id'];
+            if ($otherId === $uid) {
+                if ($wantsJson) {
+                    $this->json(['ok' => false, 'error' => t('chat.self')], 422);
+                }
+                $_SESSION['error'] = t('chat.self');
+                $this->redirect('/product/' . $productId);
+                return;
+            }
         }
 
         $chat = new Chat();
