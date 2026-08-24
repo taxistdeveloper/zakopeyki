@@ -370,6 +370,14 @@ class ProductHelper
         return ($item['type'] ?? '') === 'course';
     }
 
+    public static function currentUserOwnsDigital(int $productId): bool
+    {
+        if ($productId <= 0 || !\App\Core\Auth::check()) {
+            return false;
+        }
+        return (new \App\Models\DigitalProduct())->userOwnsListing((int) \App\Core\Auth::id(), $productId);
+    }
+
     public static function isPurchasable(array $item): bool
     {
         if (($item['status'] ?? 'active') !== 'active') {

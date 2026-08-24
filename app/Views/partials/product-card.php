@@ -19,6 +19,10 @@ $isOwn = Auth::check() && (int) ($item['user_id'] ?? 0) === (int) Auth::id();
 $canCart = $purchasable && !$isOwn;
 
 $type = $item['type'] ?? '';
+$ownedDigital = $type === 'course' && !$isOwn && ProductHelper::currentUserOwnsDigital((int) ($item['id'] ?? 0));
+if ($ownedDigital) {
+    $canCart = false;
+}
 $isFreePrice = $type === 'free'
     || (
         (int) ($item['price'] ?? 0) === 0
@@ -40,7 +44,11 @@ $primaryHref = null;
 $primaryLabel = null;
 $primaryClass = null;
 
-if ($type === 'course' && !$isOwn) {
+if ($ownedDigital) {
+    $primaryHref = ProductHelper::url('/digital/' . (int) $item['id'] . '/watch');
+    $primaryLabel = t('card.purchased');
+    $primaryClass = 'bg-violet-700 hover:bg-violet-600 text-white';
+} elseif ($type === 'course' && !$isOwn) {
     $primaryHref = $buyUrl;
     $primaryLabel = t('card.order');
     $primaryClass = 'bg-blue-600 hover:bg-blue-700 text-white';
@@ -104,7 +112,9 @@ $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" s
         </h3>
         <div class="mt-auto flex items-center justify-between gap-2">
             <span class="text-sm font-display font-bold <?= $isFreePrice ? 'text-violet-600 dark:text-violet-300' : 'text-ink-900 dark:text-white' ?>"><?= htmlspecialchars($price) ?></span>
-            <?php if ($canCart): ?>
+            <?php if ($ownedDigital): ?>
+                <a href="<?= htmlspecialchars($primaryHref) ?>" class="text-[10px] font-bold uppercase tracking-wider text-violet-700 dark:text-violet-300"><?= htmlspecialchars(t('card.purchased')) ?></a>
+            <?php elseif ($canCart): ?>
                 <button type="button"
                         class="cart-btn inline-flex items-center justify-center w-9 h-9 rounded-xl bg-accent-50 dark:bg-accent-500/10 text-accent-600 dark:text-accent-400 hover:bg-accent-500 hover:text-white transition <?= $inCart ? 'is-in-cart bg-accent-500 text-white' : '' ?>"
                         data-product-id="<?= (int) $item['id'] ?>"
@@ -131,6 +141,9 @@ $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" s
         <span class="absolute top-2.5 left-2.5 z-[6] text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg shadow-sm <?= $badge['class'] ?>">
             <?= htmlspecialchars($badge['text']) ?>
         </span>
+        <?php if ($ownedDigital): ?>
+            <span class="absolute bottom-2.5 left-2.5 z-[6] text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg bg-violet-700 text-white shadow-sm"><?= htmlspecialchars(t('card.purchased')) ?></span>
+        <?php endif; ?>
     </a>
     <?php else: ?>
     <a href="<?= $showUrl ?>" class="aspect-[4/3] bg-gradient-to-br from-ink-100 via-brand-50 to-accent-50 dark:from-white/10 dark:via-brand-900/20 dark:to-transparent relative flex items-center justify-center overflow-hidden shrink-0">
@@ -138,6 +151,9 @@ $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" s
         <span class="absolute top-2.5 left-2.5 z-[6] text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg shadow-sm <?= $badge['class'] ?>">
             <?= htmlspecialchars($badge['text']) ?>
         </span>
+        <?php if ($ownedDigital): ?>
+            <span class="absolute bottom-2.5 left-2.5 z-[6] text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg bg-violet-700 text-white shadow-sm"><?= htmlspecialchars(t('card.purchased')) ?></span>
+        <?php endif; ?>
     </a>
     <?php endif; ?>
     <div class="absolute top-2.5 right-2.5 z-20 flex flex-col gap-1.5">

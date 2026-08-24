@@ -9,6 +9,8 @@ class DigitalProduct extends Model
 {
     protected string $table = 'digital_products';
     private static bool $ensured = false;
+    /** @var array<int, list<int>> */
+    private static array $ownedListingCache = [];
 
     public const KINDS = ['vod', 'live_open', 'live_closed', 'webinar', 'course', 'event', 'bundle'];
 
@@ -374,6 +376,34 @@ class DigitalProduct extends Model
         );
         $stmt->execute([$userId]);
         return $stmt->fetchAll();
+    }
+
+    /** @return list<int> product_id лотов с действующим доступом */
+    public function ownedListingIds(int $userId): array
+    {
+        if ($userId <= 0) {
+            return [];
+        }
+        if (isset(self::$ownedListingCache[$userId])) {
+            return self::$ownedListingCache[$userId];
+        }
+        $stmt = $this->db->prepare(
+            "SELECT d.product_id
+             FROM digital_access a
+             INNER JOIN digital_products d ON d.id = a.digital_product_id
+             WHERE a.user_id = ?
+               AND a.status = 'active'
+               AND (a.access_until IS NULL OR a.access_until > NOW())"
+        );
+        $stmt->execute([$userId]);
+        $ids = array_map('intval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
+        self::$ownedListingCache[$userId] = $ids;
+        return $ids;
+    }
+
+    public function userOwnsListing(int $userId, int $productId): bool
+    {
+        return $productId > 0 && in_array($productId, $this->ownedListingIds($userId), true);
     }
 
     public function grantAccess(int $userId, int $digitalProductId, int $orderId, int $accessDays): array
