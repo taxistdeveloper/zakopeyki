@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Core\Model;
+use App\Helpers\ProductHelper;
 
 class Payment extends Model
 {
@@ -221,7 +222,10 @@ class Payment extends Model
                 $sold = $this->db->prepare(
                     "UPDATE products SET status = 'sold' WHERE id = ? AND status IN ('active', 'reserved')"
                 );
-                $sold->execute([(int) $item['product_id']]);
+                $productRow = (new Product())->find((int) $item['product_id']);
+                if (!$productRow || !ProductHelper::isDigitalListing($productRow)) {
+                    $sold->execute([(int) $item['product_id']]);
+                }
             }
 
             $updPay = $this->db->prepare(
@@ -252,6 +256,7 @@ class Payment extends Model
                         ])
                     );
                 }
+                (new \App\Services\Digital\DigitalAccessService())->grantFromPaidOrder((int) $item['order_id']);
             }
 
             return [

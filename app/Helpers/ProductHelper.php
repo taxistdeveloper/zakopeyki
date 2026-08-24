@@ -17,6 +17,77 @@ class ProductHelper
         'course' => 'Курс',
     ];
 
+    /** Формат цифрового курса (пишется в category). */
+    public const COURSE_FORMATS = [
+        'recording' => 'Запись',
+        'live' => 'Онлайн-трансляция',
+        'both' => 'Запись и трансляция',
+    ];
+
+    public static function isCourseAuthor(?array $user): bool
+    {
+        return !empty($user['is_course_author']);
+    }
+
+    /** Типы лотов в обычной форме (курсы — только у автора). */
+    public static function marketplaceTypes(): array
+    {
+        $types = self::TYPES;
+        unset($types['course']);
+
+        return $types;
+    }
+
+    public static function courseFormatLabel(string $format): string
+    {
+        return self::COURSE_FORMATS[$format] ?? self::COURSE_FORMATS['recording'];
+    }
+
+    public static function courseFormatFromCategory(?string $category): string
+    {
+        $category = trim((string) $category);
+        foreach (self::COURSE_FORMATS as $key => $label) {
+            if ($category === $label) {
+                return $key;
+            }
+        }
+
+        return 'recording';
+    }
+
+    /**
+     * Разбор описания курса: лид и пункты программы.
+     *
+     * @return array{excerpt: string, body: string, lessons: list<string>, format: string, format_label: string}
+     */
+    public static function coursePage(array $item): array
+    {
+        $body = trim((string) ($item['description'] ?? ''));
+        $format = self::courseFormatFromCategory($item['category'] ?? null);
+        $lessons = [];
+        foreach (preg_split('/\R/u', $body) ?: [] as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+            if (preg_match('/^(?:урок|модуль|тема|lesson|сабақ)\s*№?\s*\d+/iu', $line)
+                || preg_match('/^\d+[\.\)]\s+\S/u', $line)
+                || preg_match('/^[-–—•]\s+\S/u', $line)) {
+                $lessons[] = preg_replace('/^[-–—•]\s+/u', '', $line) ?? $line;
+            }
+        }
+        $plain = trim(preg_replace('/\s+/u', ' ', $body) ?? '');
+        $excerpt = $plain === '' ? '' : (mb_strlen($plain) > 220 ? mb_substr($plain, 0, 217) . '…' : $plain);
+
+        return [
+            'excerpt' => $excerpt,
+            'body' => $body,
+            'lessons' => $lessons,
+            'format' => $format,
+            'format_label' => self::courseFormatLabel($format),
+        ];
+    }
+
     /** Разделы и подкатегории для «Товар Б/У» и «Новый товар» */
     public const PRODUCT_CATEGORY_TREE = [
         'Электроника и бытовая техника' => [
@@ -292,6 +363,12 @@ class ProductHelper
 
     /** Типы объявлений, которые можно оплатить на платформе. */
     public const PURCHASABLE_TYPES = ['used', 'new', 'gig', 'course'];
+
+    /** Цифровой контент: не снимается с витрины после каждой продажи. */
+    public static function isDigitalListing(array $item): bool
+    {
+        return ($item['type'] ?? '') === 'course';
+    }
 
     public static function isPurchasable(array $item): bool
     {

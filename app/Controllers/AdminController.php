@@ -1205,4 +1205,49 @@ class AdminController extends Controller
         $_SESSION['flash'] = t('admin.business_limits_reset', ['count' => (string) $count]);
         $this->redirect('/admin/business');
     }
+
+    public function streamSettings(): void
+    {
+        Auth::requireAdmin();
+        $s = new Setting();
+        $this->view('admin/stream', [
+            'title' => t('admin.stream_title'),
+            'currentNav' => 'admin',
+            'accountId' => (string) $s->get('cf_stream_account_id', ''),
+            'hasToken' => trim((string) $s->get('cf_stream_api_token', '')) !== '',
+            'customerSubdomain' => (string) $s->get('cf_stream_customer_subdomain', ''),
+            'signingKeyId' => (string) $s->get('cf_stream_signing_key_id', ''),
+            'hasPem' => trim((string) $s->get('cf_stream_signing_key_pem', '')) !== '',
+            'hasWebhook' => trim((string) $s->get('cf_stream_webhook_secret', '')) !== '',
+            'requireSigned' => $s->getBool('cf_stream_require_signed', true) !== false,
+            'flash' => $_SESSION['flash'] ?? null,
+            'error' => $_SESSION['error'] ?? null,
+        ]);
+        unset($_SESSION['flash'], $_SESSION['error']);
+    }
+
+    public function streamSettingsSave(): void
+    {
+        Auth::requireAdmin();
+        $s = new Setting();
+        $s->set('cf_stream_account_id', trim((string) ($_POST['cf_stream_account_id'] ?? '')));
+        $token = trim((string) ($_POST['cf_stream_api_token'] ?? ''));
+        if ($token !== '') {
+            $s->set('cf_stream_api_token', $token);
+        }
+        $s->set('cf_stream_customer_subdomain', trim((string) ($_POST['cf_stream_customer_subdomain'] ?? '')));
+        $s->set('cf_stream_signing_key_id', trim((string) ($_POST['cf_stream_signing_key_id'] ?? '')));
+        $pem = trim((string) ($_POST['cf_stream_signing_key_pem'] ?? ''));
+        if ($pem !== '') {
+            $s->set('cf_stream_signing_key_pem', $pem);
+        }
+        $wh = trim((string) ($_POST['cf_stream_webhook_secret'] ?? ''));
+        if ($wh !== '') {
+            $s->set('cf_stream_webhook_secret', $wh);
+        }
+        $s->set('cf_stream_require_signed', isset($_POST['cf_stream_require_signed']) ? '1' : '0');
+        ActivityLogger::info('admin.stream_settings', 'Обновлены настройки Cloudflare Stream', 'settings', 0);
+        $_SESSION['flash'] = t('admin.stream_saved');
+        $this->redirect('/admin/stream');
+    }
 }

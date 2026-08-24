@@ -80,6 +80,7 @@ if (!empty($appConfig['stub_mode']) && !\App\Core\Auth::hasSiteAccess(true)) {
         '/payments/freedompay/result',
         '/payments/freedompay/success',
         '/payments/freedompay/failure',
+        '/webhooks/cloudflare/stream',
     ];
     $stubAllowedPrefix = '/reset-password/';
     $stubOk = in_array($stubPath, $stubAllowed, true)

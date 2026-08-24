@@ -51,6 +51,8 @@ class User extends Model
             'personal_turnover_kzt' => 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER personal_limit_year',
             'limit_warning_sent_at' => 'DATETIME DEFAULT NULL AFTER personal_turnover_kzt',
             'limit_blocked_at' => 'DATETIME DEFAULT NULL AFTER limit_warning_sent_at',
+            'is_course_author' => 'TINYINT(1) NOT NULL DEFAULT 0 AFTER limit_blocked_at',
+            'course_author_at' => 'DATETIME DEFAULT NULL AFTER is_course_author',
         ];
 
         foreach ($needed as $col => $def) {
@@ -236,6 +238,14 @@ class User extends Model
             $data['bin'],
             $userId,
         ]);
+    }
+
+    public function enableCourseAuthor(int $userId): void
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE users SET is_course_author = 1, course_author_at = COALESCE(course_author_at, NOW()) WHERE id = ?'
+        );
+        $stmt->execute([$userId]);
     }
 
     public function demoteFromBusiness(int $userId, ?string $reason = null): void

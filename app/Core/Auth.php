@@ -68,6 +68,7 @@ class Auth
             'business_status' => $user['business_status'] ?? 'none',
             'business_name' => $user['business_name'] ?? null,
             'business_entity_type' => $user['business_entity_type'] ?? null,
+            'is_course_author' => !empty($user['is_course_author']) ? 1 : 0,
             'site_access' => !empty($user['site_access']) ? 1 : 0,
             'permissions' => self::normalizePermissions($user['permissions'] ?? null, (string) ($user['role'] ?? 'user')),
         ];
@@ -159,6 +160,13 @@ class Auth
     public static function isManager(): bool
     {
         return (self::user()['role'] ?? '') === 'manager';
+    }
+
+    public static function isCourseAuthor(?array $user = null): bool
+    {
+        $user = $user ?? self::user();
+
+        return !empty($user['is_course_author']);
     }
 
     /** Админ или менеджер (сотрудник панели) */

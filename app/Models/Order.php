@@ -302,8 +302,10 @@ class Order extends Model
                 return ['ok' => false, 'error' => $pay['error'] ?? t('checkout.payment_failed')];
             }
 
-            $sold = $this->db->prepare("UPDATE products SET status = 'sold' WHERE id = ? AND status = 'active'");
-            $sold->execute([$productId]);
+            if (!ProductHelper::isDigitalListing($product)) {
+                $sold = $this->db->prepare("UPDATE products SET status = 'sold' WHERE id = ? AND status = 'active'");
+                $sold->execute([$productId]);
+            }
 
             $this->db->commit();
 
@@ -315,6 +317,8 @@ class Order extends Model
                     'id' => $orderId,
                 ])
             );
+
+            (new \App\Services\Digital\DigitalAccessService())->grantFromPaidOrder($orderId);
 
             return ['ok' => true, 'order_id' => $orderId];
         } catch (\Throwable $e) {
@@ -402,7 +406,9 @@ class Order extends Model
             $reserve = $this->db->prepare(
                 "UPDATE products SET status = 'reserved' WHERE id = ? AND status = 'active'"
             );
-            $reserve->execute([$productId]);
+            if (!ProductHelper::isDigitalListing($product)) {
+                $reserve->execute([$productId]);
+            }
 
             $this->db->commit();
         } catch (\Throwable $e) {
@@ -523,7 +529,9 @@ class Order extends Model
                 }
 
                 $sold = $this->db->prepare("UPDATE products SET status = 'sold' WHERE id = ? AND status = 'active'");
-                $sold->execute([$productId]);
+                if (!ProductHelper::isDigitalListing($product)) {
+                    $sold->execute([$productId]);
+                }
 
                 $notify[] = [
                     'seller_id' => (int) $product['user_id'],
@@ -545,6 +553,7 @@ class Order extends Model
                         'id' => $row['order_id'],
                     ])
                 );
+                (new \App\Services\Digital\DigitalAccessService())->grantFromPaidOrder((int) $row['order_id']);
             }
 
             return [
@@ -642,7 +651,9 @@ class Order extends Model
                 $reserve = $this->db->prepare(
                     "UPDATE products SET status = 'reserved' WHERE id = ? AND status = 'active'"
                 );
-                $reserve->execute([$productId]);
+                if (!ProductHelper::isDigitalListing($product)) {
+                    $reserve->execute([$productId]);
+                }
             }
 
             $paymentModel->createPending([

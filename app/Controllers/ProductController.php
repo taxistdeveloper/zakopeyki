@@ -11,6 +11,7 @@ use App\Models\Notification;
 use App\Models\Product;
 use App\Models\Review;
 use App\Models\SupportTicket;
+use App\Services\Digital\DigitalAccessService;
 
 class ProductController extends Controller
 {
@@ -49,6 +50,11 @@ class ProductController extends Controller
 
         $product['view_count'] = (new Product())->recordView((int) $id, (int) $product['user_id']);
 
+        $digitalHasAccess = false;
+        if (($product['type'] ?? '') === 'course' && Auth::check()) {
+            $digitalHasAccess = (new DigitalAccessService())->resolveViewer((int) $id, (int) Auth::id())['ok'] ?? false;
+        }
+
         $this->view('products/show', [
             'title' => $product['title'],
             'currentNav' => '',
@@ -61,6 +67,7 @@ class ProductController extends Controller
             'similar' => $similar,
             'favoriteIds' => $favoriteIds,
             'search' => '',
+            'digitalHasAccess' => $digitalHasAccess,
         ]);
     }
 
