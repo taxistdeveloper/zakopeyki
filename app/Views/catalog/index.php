@@ -43,6 +43,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                     : t('catalog.publish_service', ['amount' => Wallet::formatMoney(ProductHelper::serviceListingFee())])) ?>
             </a>
         <?php elseif ($type === 'free'): ?>
+            <span class="mt-2 block text-sm text-gray-500 dark:text-gray-400 max-w-2xl"><?= htmlspecialchars(t('catalog.free_board_lead')) ?></span>
             <?php
             if (!Auth::check()) {
                 $publishHref = ProductHelper::url('/login');
