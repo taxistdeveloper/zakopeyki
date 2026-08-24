@@ -97,6 +97,113 @@ $starts = !empty($row['starts_at']) ? date('Y-m-d\TH:i', strtotime((string) $row
         <button type="button" id="zk-direct-upload" class="h-11 px-5 rounded-xl border text-xs font-bold uppercase"><?= htmlspecialchars(t('digital.direct_upload')) ?></button>
         <p id="zk-upload-status" class="text-xs text-gray-400"></p>
     </form>
+
+    <?php $stats = $stats ?? ['viewers' => 0, 'seconds' => 0, 'tickets' => 0, 'chat' => 0]; ?>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="rounded-2xl border border-black/5 p-3 text-center">
+            <div class="text-xl font-display font-bold"><?= (int) $stats['viewers'] ?></div>
+            <div class="text-[11px] text-gray-400"><?= htmlspecialchars(t('digital.stat_viewers')) ?></div>
+        </div>
+        <div class="rounded-2xl border border-black/5 p-3 text-center">
+            <div class="text-xl font-display font-bold"><?= (int) round(((int) $stats['seconds']) / 60) ?></div>
+            <div class="text-[11px] text-gray-400"><?= htmlspecialchars(t('digital.stat_minutes')) ?></div>
+        </div>
+        <div class="rounded-2xl border border-black/5 p-3 text-center">
+            <div class="text-xl font-display font-bold"><?= (int) $stats['tickets'] ?></div>
+            <div class="text-[11px] text-gray-400"><?= htmlspecialchars(t('digital.stat_tickets')) ?></div>
+        </div>
+        <div class="rounded-2xl border border-black/5 p-3 text-center">
+            <div class="text-xl font-display font-bold"><?= (int) $stats['chat'] ?></div>
+            <div class="text-[11px] text-gray-400"><?= htmlspecialchars(t('digital.stat_chat')) ?></div>
+        </div>
+    </div>
+
+    <div class="rounded-2xl border border-black/[0.06] p-5 bg-white dark:bg-white/[0.04] space-y-4">
+        <h2 class="font-display font-bold"><?= htmlspecialchars(t('digital.lessons_title')) ?></h2>
+        <?php foreach (($lessons ?? []) as $lesson): ?>
+            <form method="post" action="<?= ProductHelper::url('/digital/studio/' . $id . '/lessons') ?>" enctype="multipart/form-data" class="space-y-2 border border-black/5 rounded-xl p-3">
+                <?= csrf_field() ?>
+                <input type="hidden" name="lesson_id" value="<?= (int) $lesson['id'] ?>">
+                <input name="title" class="<?= $input ?>" value="<?= htmlspecialchars((string) $lesson['title']) ?>">
+                <div class="grid grid-cols-2 gap-2">
+                    <select name="kind" class="<?= $input ?>">
+                        <?php foreach (['video', 'pdf', 'text', 'live_session'] as $lk): ?>
+                            <option value="<?= $lk ?>" <?= ($lesson['kind'] ?? '') === $lk ? 'selected' : '' ?>><?= htmlspecialchars(t('digital.lesson_' . $lk)) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <input name="sort_order" type="number" class="<?= $input ?>" value="<?= (int) ($lesson['sort_order'] ?? 0) ?>">
+                </div>
+                <textarea name="body" rows="3" class="<?= $input ?> h-auto py-2"><?= htmlspecialchars((string) ($lesson['body'] ?? '')) ?></textarea>
+                <input name="cf_video_uid" class="<?= $input ?>" placeholder="Stream UID" value="<?= htmlspecialchars((string) ($lesson['cf_video_uid'] ?? '')) ?>">
+                <label class="text-sm flex gap-2 items-center"><input type="checkbox" name="is_preview" value="1" <?= !empty($lesson['is_preview']) ? 'checked' : '' ?>> <?= htmlspecialchars(t('digital.preview')) ?></label>
+                <input type="file" name="file" accept=".pdf,image/*">
+                <div class="flex gap-2">
+                    <button class="h-10 px-4 rounded-xl bg-violet-700 text-white text-xs font-bold uppercase"><?= htmlspecialchars(t('digital.save')) ?></button>
+                </div>
+            </form>
+            <form method="post" action="<?= ProductHelper::url('/digital/studio/' . $id . '/lessons/' . (int) $lesson['id'] . '/delete') ?>"><?= csrf_field() ?>
+                <button class="text-xs text-red-600"><?= htmlspecialchars(t('digital.delete')) ?></button>
+            </form>
+        <?php endforeach; ?>
+        <form method="post" action="<?= ProductHelper::url('/digital/studio/' . $id . '/lessons') ?>" enctype="multipart/form-data" class="space-y-2 pt-2">
+            <?= csrf_field() ?>
+            <h3 class="text-sm font-semibold"><?= htmlspecialchars(t('digital.lesson_add')) ?></h3>
+            <input name="title" required class="<?= $input ?>" placeholder="<?= htmlspecialchars(t('digital.lesson_title')) ?>">
+            <select name="kind" class="<?= $input ?>">
+                <option value="video"><?= htmlspecialchars(t('digital.lesson_video')) ?></option>
+                <option value="pdf"><?= htmlspecialchars(t('digital.lesson_pdf')) ?></option>
+                <option value="text"><?= htmlspecialchars(t('digital.lesson_text')) ?></option>
+                <option value="live_session"><?= htmlspecialchars(t('digital.lesson_live_session')) ?></option>
+            </select>
+            <textarea name="body" rows="3" class="<?= $input ?> h-auto py-2"></textarea>
+            <input name="cf_video_uid" class="<?= $input ?>" placeholder="Stream UID">
+            <label class="text-sm flex gap-2"><input type="checkbox" name="is_preview" value="1"> <?= htmlspecialchars(t('digital.preview')) ?></label>
+            <input type="file" name="file" accept=".pdf,image/*">
+            <button class="h-11 px-5 rounded-xl bg-violet-700 text-white text-xs font-bold uppercase"><?= htmlspecialchars(t('digital.lesson_add')) ?></button>
+        </form>
+    </div>
+
+    <div class="rounded-2xl border border-black/[0.06] p-5 bg-white dark:bg-white/[0.04] space-y-4">
+        <h2 class="font-display font-bold"><?= htmlspecialchars(t('digital.sessions_title')) ?></h2>
+        <?php foreach (($sessions ?? []) as $s): ?>
+            <div class="border border-black/5 rounded-xl p-3 space-y-2">
+                <form method="post" action="<?= ProductHelper::url('/digital/studio/' . $id . '/sessions') ?>" class="space-y-2">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="session_id" value="<?= (int) $s['id'] ?>">
+                    <input name="title" class="<?= $input ?>" value="<?= htmlspecialchars((string) $s['title']) ?>">
+                    <input type="datetime-local" name="starts_at" class="<?= $input ?>" value="<?= !empty($s['starts_at']) ? htmlspecialchars(date('Y-m-d\TH:i', strtotime((string) $s['starts_at']))) : '' ?>">
+                    <input type="number" name="duration_minutes" class="<?= $input ?>" value="<?= (int) ($s['duration_minutes'] ?? 90) ?>">
+                    <button class="h-10 px-4 rounded-xl border text-xs font-bold uppercase"><?= htmlspecialchars(t('digital.save')) ?></button>
+                </form>
+                <?php if (!empty($s['rtmps_url'])): ?>
+                    <input readonly class="<?= $input ?> font-mono text-xs" value="<?= htmlspecialchars((string) $s['rtmps_url']) ?>">
+                    <input readonly class="<?= $input ?> font-mono text-xs" value="<?= htmlspecialchars((string) $s['stream_key']) ?>">
+                <?php endif; ?>
+                <div class="flex flex-wrap gap-2">
+                    <form method="post" action="<?= ProductHelper::url('/digital/studio/' . $id . '/sessions/' . (int) $s['id'] . '/provision') ?>"><?= csrf_field() ?>
+                        <button class="h-10 px-3 rounded-xl border text-xs font-bold"><?= htmlspecialchars(t('digital.get_key')) ?></button>
+                    </form>
+                    <form method="post" action="<?= ProductHelper::url('/digital/studio/' . $id . '/sessions/' . (int) $s['id'] . '/go-live') ?>"><?= csrf_field() ?>
+                        <button class="h-10 px-3 rounded-xl bg-red-600 text-white text-xs font-bold"><?= htmlspecialchars(t('digital.go_live')) ?></button>
+                    </form>
+                    <form method="post" action="<?= ProductHelper::url('/digital/studio/' . $id . '/sessions/' . (int) $s['id'] . '/end') ?>"><?= csrf_field() ?>
+                        <button class="h-10 px-3 rounded-xl border text-xs font-bold"><?= htmlspecialchars(t('digital.end_live')) ?></button>
+                    </form>
+                    <form method="post" action="<?= ProductHelper::url('/digital/studio/' . $id . '/sessions/' . (int) $s['id'] . '/delete') ?>"><?= csrf_field() ?>
+                        <button class="h-10 px-3 text-xs text-red-600"><?= htmlspecialchars(t('digital.delete')) ?></button>
+                    </form>
+                </div>
+            </div>
+        <?php endforeach; ?>
+        <form method="post" action="<?= ProductHelper::url('/digital/studio/' . $id . '/sessions') ?>" class="space-y-2">
+            <?= csrf_field() ?>
+            <h3 class="text-sm font-semibold"><?= htmlspecialchars(t('digital.session_add')) ?></h3>
+            <input name="title" required class="<?= $input ?>" placeholder="<?= htmlspecialchars(t('digital.session_title')) ?>">
+            <input type="datetime-local" name="starts_at" class="<?= $input ?>">
+            <input type="number" name="duration_minutes" class="<?= $input ?>" value="90">
+            <button class="h-11 px-5 rounded-xl bg-violet-700 text-white text-xs font-bold uppercase"><?= htmlspecialchars(t('digital.session_add')) ?></button>
+        </form>
+    </div>
 </section>
 <script>
 (function () {

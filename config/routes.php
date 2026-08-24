@@ -157,6 +157,7 @@ $router->post('/streams/live/feature', [StreamController::class, 'featureProduct
 $router->post('/streams/{id}/delete', [StreamController::class, 'delete']);
 
 $router->get('/digital', [DigitalController::class, 'library']);
+$router->get('/digital/certificate/{code}', [DigitalController::class, 'certificatePublic']);
 $router->get('/digital/studio', [DigitalController::class, 'studio']);
 $router->get('/digital/studio/{id}', [DigitalController::class, 'studioShow']);
 $router->post('/digital/studio/{id}/save', [DigitalController::class, 'studioSave']);
@@ -166,8 +167,21 @@ $router->post('/digital/studio/{id}/end', [DigitalController::class, 'studioEnd'
 $router->post('/digital/studio/{id}/upload', [DigitalController::class, 'studioUpload']);
 $router->post('/digital/studio/{id}/attach-uid', [DigitalController::class, 'studioAttachUid']);
 $router->get('/digital/{id}/watch', [DigitalController::class, 'watch']);
+$router->get('/digital/{id}/certificate', [DigitalController::class, 'certificate']);
 $router->post('/digital/{id}/playback', [DigitalController::class, 'playback']);
 $router->post('/digital/{id}/heartbeat', [DigitalController::class, 'heartbeat']);
+$router->post('/digital/{id}/complete', [DigitalController::class, 'completeLesson']);
+$router->get('/digital/{id}/chat', [DigitalController::class, 'chatPoll']);
+$router->post('/digital/{id}/chat', [DigitalController::class, 'chatPost']);
+$router->post('/digital/{id}/chat/hide', [DigitalController::class, 'chatHide']);
+$router->post('/digital/studio/{id}/lessons', [DigitalController::class, 'studioLessonSave']);
+$router->post('/digital/studio/{id}/lessons/{lessonId}/delete', [DigitalController::class, 'studioLessonDelete']);
+$router->post('/digital/studio/{id}/lessons/{lessonId}/upload', [DigitalController::class, 'studioLessonUpload']);
+$router->post('/digital/studio/{id}/sessions', [DigitalController::class, 'studioSessionSave']);
+$router->post('/digital/studio/{id}/sessions/{sessionId}/delete', [DigitalController::class, 'studioSessionDelete']);
+$router->post('/digital/studio/{id}/sessions/{sessionId}/provision', [DigitalController::class, 'studioSessionProvision']);
+$router->post('/digital/studio/{id}/sessions/{sessionId}/go-live', [DigitalController::class, 'studioSessionGoLive']);
+$router->post('/digital/studio/{id}/sessions/{sessionId}/end', [DigitalController::class, 'studioSessionEnd']);
 $router->post('/webhooks/cloudflare/stream', [DigitalController::class, 'webhook']);
 
 $router->get('/admin', [AdminController::class, 'index']);

@@ -29,9 +29,17 @@ $items = $items ?? [];
                             <?php if (!empty($row['access_until'])): ?>
                                 · <?= htmlspecialchars(t('digital.until')) ?> <?= htmlspecialchars(date('d.m.Y', strtotime((string) $row['access_until']))) ?>
                             <?php endif; ?>
+                            <?php if (!empty($row['progress']['required'])): ?>
+                                · <?= (int) ($row['progress']['percent'] ?? 0) ?>%
+                            <?php endif; ?>
                         </div>
                     </div>
-                    <a href="<?= ProductHelper::url('/digital/' . (int) $row['listing_id'] . '/watch') ?>" class="h-11 px-4 inline-flex items-center justify-center rounded-xl bg-violet-700 text-white text-xs font-bold uppercase"><?= htmlspecialchars(t('digital.open_player')) ?></a>
+                    <div class="flex gap-2 shrink-0">
+                        <?php if (!empty($row['certificate'])): ?>
+                            <a href="<?= ProductHelper::url('/digital/' . (int) $row['listing_id'] . '/certificate') ?>" class="h-11 px-4 inline-flex items-center justify-center rounded-xl border border-violet-300 text-violet-800 text-xs font-bold uppercase"><?= htmlspecialchars(t('digital.cert_short')) ?></a>
+                        <?php endif; ?>
+                        <a href="<?= ProductHelper::url('/digital/' . (int) $row['listing_id'] . '/watch') ?>" class="h-11 px-4 inline-flex items-center justify-center rounded-xl bg-violet-700 text-white text-xs font-bold uppercase"><?= htmlspecialchars(t('digital.open_player')) ?></a>
+                    </div>
                 </div>
             <?php endforeach; ?>
         </div>

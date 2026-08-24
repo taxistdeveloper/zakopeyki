@@ -115,3 +115,29 @@ CREATE TABLE IF NOT EXISTS digital_provider_events (
     INDEX idx_dpe_type (event_type, created_at),
     INDEX idx_dpe_uid (event_uid)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS digital_lesson_progress (
+    user_id INT UNSIGNED NOT NULL,
+    lesson_id INT UNSIGNED NOT NULL,
+    digital_product_id INT UNSIGNED NOT NULL,
+    seconds_watched INT UNSIGNED NOT NULL DEFAULT 0,
+    completed_at DATETIME DEFAULT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, lesson_id),
+    INDEX idx_dlp_product (digital_product_id, user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS digital_certificates (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    digital_product_id INT UNSIGNED NOT NULL,
+    public_code CHAR(16) NOT NULL,
+    holder_name VARCHAR(190) NOT NULL,
+    product_title VARCHAR(255) NOT NULL,
+    issued_at DATETIME NOT NULL,
+    UNIQUE KEY uk_dc_code (public_code),
+    UNIQUE KEY uk_dc_user_product (user_id, digital_product_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ALTER TABLE digital_chat_messages ADD COLUMN is_hidden TINYINT(1) NOT NULL DEFAULT 0;
+-- ALTER TABLE digital_chat_messages ADD COLUMN hidden_by INT UNSIGNED DEFAULT NULL;

@@ -174,6 +174,7 @@ class CloudflareStreamClient
             'kid' => $kid,
             'exp' => $exp,
             'nbf' => $nbf,
+            'downloadable' => false,
         ], JSON_UNESCAPED_SLASHES));
         $unsigned = $header . '.' . $payload;
 

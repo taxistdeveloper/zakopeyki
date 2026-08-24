@@ -84,7 +84,8 @@ if (!empty($appConfig['stub_mode']) && !\App\Core\Auth::hasSiteAccess(true)) {
     ];
     $stubAllowedPrefix = '/reset-password/';
     $stubOk = in_array($stubPath, $stubAllowed, true)
-        || str_starts_with($stubPath, $stubAllowedPrefix);
+        || str_starts_with($stubPath, $stubAllowedPrefix)
+        || str_starts_with($stubPath, '/digital/certificate/');
 
     if (!$stubOk) {
         \App\Core\View::render('stub/coming-soon', [

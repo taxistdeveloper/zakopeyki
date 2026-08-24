@@ -167,16 +167,59 @@ class DigitalStreamingService
     public function applyWebhook(array $payload): void
     {
         $type = (string) ($payload['eventType'] ?? $payload['type'] ?? '');
-        $uid = (string) (
+        $videoUid = (string) (
             $payload['data']['uid']
             ?? $payload['uid']
-            ?? $payload['liveInput']['uid']
             ?? $payload['video']['uid']
             ?? ''
         );
+        $liveUid = (string) (
+            $payload['liveInput']['uid']
+            ?? $payload['data']['liveInput']['uid']
+            ?? $payload['input']['uid']
+            ?? ''
+        );
+        $uid = $videoUid !== '' ? $videoUid : $liveUid;
         $eventId = $this->digital->storeProviderEvent($type !== '' ? $type : 'unknown', $uid ?: null, $payload);
 
-        $dp = $uid !== '' ? ($this->digital->findByLiveInputUid($uid) ?: $this->digital->findByVideoUid($uid)) : null;
+        $dp = null;
+        if ($liveUid !== '') {
+            $dp = $this->digital->findByLiveInputUid($liveUid);
+        }
+        if (!$dp && $videoUid !== '') {
+            $dp = $this->digital->findByVideoUid($videoUid);
+        }
+        $session = $liveUid !== '' ? $this->digital->findSessionByLiveInputUid($liveUid) : null;
+        if (!$session && $uid !== '') {
+            $session = $this->digital->findSessionByVideoUid($uid);
+        }
+        if (!$dp && $session) {
+            $dp = $this->digital->find((int) $session['digital_product_id']);
+        }
+
+        if ($session) {
+            if (str_contains(strtolower($type), 'connected') || $type === 'live_input.connected') {
+                $this->digital->updateSessionFields((int) $session['id'], ['live_status' => 'live']);
+            }
+            if (str_contains(strtolower($type), 'disconnected') || $type === 'live_input.disconnected') {
+                $this->digital->updateSessionFields((int) $session['id'], ['live_status' => 'ended']);
+            }
+            if (in_array($type, ['video.ready', 'readyToStream'], true) || !empty($payload['readyToStream'])) {
+                $hadRecording = trim((string) ($session['cf_recording_uid'] ?? '')) !== '';
+                $this->digital->updateSessionFields((int) $session['id'], [
+                    'cf_recording_uid' => $uid,
+                    'cf_playback_uid' => $uid,
+                    'live_status' => 'ended',
+                ]);
+                if (!$hadRecording && $dp) {
+                    $product = (new Product())->find((int) $dp['product_id']);
+                    $this->notifyBuyers((int) $dp['id'], t('digital.notify_recording_session', [
+                        'title' => (string) ($product['title'] ?? ''),
+                        'session' => (string) ($session['title'] ?? ''),
+                    ]));
+                }
+            }
+        }
 
         if ($dp) {
             if (str_contains(strtolower($type), 'connected') || $type === 'live_input.connected') {
@@ -185,25 +228,168 @@ class DigitalStreamingService
             if (str_contains(strtolower($type), 'disconnected') || $type === 'live_input.disconnected') {
                 $this->digital->updateFields((int) $dp['id'], ['live_status' => 'ended']);
             }
-            if (in_array($type, ['video.ready', 'readyToStream'], true) || !empty($payload['readyToStream'])) {
+            if (!$session && (in_array($type, ['video.ready', 'readyToStream'], true) || !empty($payload['readyToStream']))) {
+                $hadRecording = trim((string) ($dp['cf_recording_uid'] ?? '')) !== '';
                 $this->digital->updateFields((int) $dp['id'], [
                     'cf_recording_uid' => $uid,
                     'cf_playback_uid' => $uid,
                     'live_status' => $dp['live_status'] === 'live' ? 'ended' : $dp['live_status'],
                 ]);
-                $product = (new Product())->find((int) $dp['product_id']);
-                $this->notifyBuyers((int) $dp['id'], t('digital.notify_recording', [
-                    'title' => (string) ($product['title'] ?? ''),
-                ]));
+                if (!$hadRecording) {
+                    $product = (new Product())->find((int) $dp['product_id']);
+                    $this->notifyBuyers((int) $dp['id'], t('digital.notify_recording', [
+                        'title' => (string) ($product['title'] ?? ''),
+                    ]));
+                }
             }
         }
 
         $this->digital->markProviderEventProcessed($eventId);
     }
 
+    public function provisionSession(int $digitalId, int $sessionId, int $authorId): array
+    {
+        $row = $this->digital->find($digitalId);
+        if (!$row || (int) $row['author_id'] !== $authorId) {
+            return ['ok' => false, 'error' => t('digital.forbidden')];
+        }
+        $session = $this->digital->findSession($sessionId);
+        if (!$session || (int) $session['digital_product_id'] !== $digitalId) {
+            return ['ok' => false, 'error' => t('digital.not_found')];
+        }
+        $name = (string) $session['title'];
+        if (!empty($session['cf_live_input_uid'])) {
+            $existing = $this->cf->getLiveInput((string) $session['cf_live_input_uid']);
+            if ($existing['ok']) {
+                $this->digital->updateSessionFields($sessionId, [
+                    'rtmps_url' => $existing['rtmps_url'] ?? $session['rtmps_url'],
+                    'stream_key' => $existing['stream_key'] ?? $session['stream_key'],
+                    'live_status' => $session['live_status'] === 'idle' ? 'ready' : $session['live_status'],
+                    'cf_playback_uid' => $existing['uid'] ?: $session['cf_playback_uid'],
+                ]);
+                return ['ok' => true];
+            }
+        }
+        $created = $this->cf->createLiveInput($name, true);
+        if (!$created['ok']) {
+            return $created;
+        }
+        $this->digital->updateSessionFields($sessionId, [
+            'cf_live_input_uid' => $created['uid'],
+            'cf_playback_uid' => $created['uid'],
+            'rtmps_url' => $created['rtmps_url'],
+            'stream_key' => $created['stream_key'],
+            'live_status' => 'ready',
+        ]);
+        return ['ok' => true];
+    }
+
+    public function startSession(int $digitalId, int $sessionId, int $authorId): array
+    {
+        $row = $this->digital->find($digitalId);
+        if (!$row || (int) $row['author_id'] !== $authorId) {
+            return ['ok' => false, 'error' => t('digital.forbidden')];
+        }
+        $session = $this->digital->findSession($sessionId);
+        if (!$session || empty($session['cf_live_input_uid'])) {
+            return ['ok' => false, 'error' => t('digital.live_missing')];
+        }
+        $this->digital->updateSessionFields($sessionId, ['live_status' => 'live']);
+        $this->digital->updateFields($digitalId, [
+            'live_status' => 'live',
+            'cf_live_input_uid' => $session['cf_live_input_uid'],
+            'cf_playback_uid' => $session['cf_playback_uid'] ?? $session['cf_live_input_uid'],
+            'rtmps_url' => $session['rtmps_url'],
+            'stream_key' => $session['stream_key'],
+        ]);
+        $product = (new Product())->find((int) $row['product_id']);
+        $this->notifyBuyers($digitalId, t('digital.notify_live', [
+            'title' => (string) ($product['title'] ?? '') . ' — ' . (string) $session['title'],
+        ]));
+        return ['ok' => true];
+    }
+
+    public function endSession(int $digitalId, int $sessionId, int $authorId): array
+    {
+        $row = $this->digital->find($digitalId);
+        if (!$row || (int) $row['author_id'] !== $authorId) {
+            return ['ok' => false, 'error' => t('digital.forbidden')];
+        }
+        $session = $this->digital->findSession($sessionId);
+        if (!$session || (int) $session['digital_product_id'] !== $digitalId) {
+            return ['ok' => false, 'error' => t('digital.not_found')];
+        }
+        $this->digital->updateSessionFields($sessionId, ['live_status' => 'ended']);
+        $this->digital->updateFields($digitalId, ['live_status' => 'ended']);
+        return ['ok' => true];
+    }
+
+    public function createLessonUpload(int $digitalId, int $lessonId, int $authorId): array
+    {
+        $row = $this->digital->find($digitalId);
+        if (!$row || (int) $row['author_id'] !== $authorId) {
+            return ['ok' => false, 'error' => t('digital.forbidden')];
+        }
+        $lesson = $this->digital->findLesson($lessonId);
+        if (!$lesson || (int) $lesson['digital_product_id'] !== $digitalId) {
+            return ['ok' => false, 'error' => t('digital.not_found')];
+        }
+        $up = $this->cf->createDirectUpload((string) $lesson['title']);
+        if (!$up['ok']) {
+            return $up;
+        }
+        $this->digital->updateLessonFields($lessonId, ['cf_video_uid' => $up['uid']]);
+        return $up;
+    }
+
     /**
-     * Какой uid отдавать плееру: live input, запись или VOD.
+     * @return array{ok: bool, type?: string, uid?: string, file?: string, body?: string, error?: string, phase?: string}
      */
+    public function resolvePlayable(array $dp, ?int $lessonId, ?int $sessionId): array
+    {
+        if ($sessionId) {
+            $session = $this->digital->findSession($sessionId);
+            if (!$session || (int) $session['digital_product_id'] !== (int) $dp['id']) {
+                return ['ok' => false, 'error' => t('digital.not_found')];
+            }
+            $uid = (string) ($session['cf_recording_uid'] ?: $session['cf_playback_uid'] ?: $session['cf_live_input_uid'] ?: '');
+            if ($uid === '') {
+                return ['ok' => false, 'error' => t('digital.video_missing')];
+            }
+            $phase = (string) $session['live_status'] === 'live' ? 'live' : 'vod';
+            return ['ok' => true, 'type' => 'video', 'uid' => $uid, 'phase' => $phase];
+        }
+        if ($lessonId) {
+            $lesson = $this->digital->findLesson($lessonId);
+            if (!$lesson || (int) $lesson['digital_product_id'] !== (int) $dp['id']) {
+                return ['ok' => false, 'error' => t('digital.not_found')];
+            }
+            if (($lesson['kind'] ?? '') === 'text') {
+                return ['ok' => true, 'type' => 'text', 'body' => (string) ($lesson['body'] ?? '')];
+            }
+            if (($lesson['kind'] ?? '') === 'pdf') {
+                $file = (string) ($lesson['file_path'] ?? '');
+                if ($file === '') {
+                    return ['ok' => false, 'error' => t('digital.file_missing')];
+                }
+                return ['ok' => true, 'type' => 'pdf', 'file' => $file];
+            }
+            if (($lesson['kind'] ?? '') === 'live_session' && !empty($lesson['live_session_id'])) {
+                return $this->resolvePlayable($dp, null, (int) $lesson['live_session_id']);
+            }
+            $uid = (string) ($lesson['cf_video_uid'] ?? '');
+            if ($uid === '') {
+                return ['ok' => false, 'error' => t('digital.video_missing')];
+            }
+            return ['ok' => true, 'type' => 'video', 'uid' => $uid, 'phase' => 'vod'];
+        }
+        $uid = $this->playbackUid($dp);
+        if (!$uid) {
+            return ['ok' => false, 'error' => t('digital.video_missing')];
+        }
+        return ['ok' => true, 'type' => 'video', 'uid' => $uid, 'phase' => $this->viewerPhase($dp)];
+    }
+
     public function playbackUid(array $dp): ?string
     {
         $status = (string) ($dp['live_status'] ?? 'idle');

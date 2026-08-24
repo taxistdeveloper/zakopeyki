@@ -84,17 +84,33 @@ class DigitalAccessService
         }
 
         $access = $this->digital->findAccess($userId, (int) $dp['id']);
-        if (!$this->digital->accessIsValid($access)) {
-            return ['ok' => false, 'error' => t('digital.no_access'), 'digital' => $dp, 'product' => $product];
+        if ($this->digital->accessIsValid($access)) {
+            return [
+                'ok' => true,
+                'access' => $access,
+                'digital' => $dp,
+                'product' => $product,
+                'is_author' => false,
+            ];
         }
 
-        return [
-            'ok' => true,
-            'access' => $access,
-            'digital' => $dp,
-            'product' => $product,
-            'is_author' => false,
-        ];
+        $previewId = (int) ($_GET['lesson_id'] ?? $_POST['lesson_id'] ?? 0);
+        if ($previewId > 0) {
+            $lesson = $this->digital->findLesson($previewId);
+            if ($lesson && (int) $lesson['digital_product_id'] === (int) $dp['id'] && !empty($lesson['is_preview'])) {
+                return [
+                    'ok' => true,
+                    'access' => ['id' => 0, 'status' => 'active', 'access_until' => null, 'order_id' => null],
+                    'digital' => $dp,
+                    'product' => $product,
+                    'is_author' => false,
+                    'preview_only' => true,
+                    'preview_lesson_id' => $previewId,
+                ];
+            }
+        }
+
+        return ['ok' => false, 'error' => t('digital.no_access'), 'digital' => $dp, 'product' => $product];
     }
 
     public function watermarkText(array $viewer, array $user): string
