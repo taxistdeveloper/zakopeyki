@@ -293,6 +293,20 @@ $btn = 'inline-flex items-center justify-center w-full font-display font-bold py
             </script>
         <?php endif; ?>
 
+        <?php if (!empty($isBuyer) && in_array($status, ['escrowed', 'awaiting_payment'], true)): ?>
+            <div class="rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white/80 dark:bg-white/[0.03] px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                <p class="font-semibold text-ink-900 dark:text-white"><?= htmlspecialchars(t('escrow.return_now_title')) ?></p>
+                <p class="text-xs text-gray-500 mt-1"><?= htmlspecialchars(t('escrow.return_escrowed_hint')) ?></p>
+            </div>
+        <?php endif; ?>
+
+        <?php if (!empty($isSeller) && in_array($status, ['escrowed', 'shipped', 'delivered'], true)): ?>
+            <div class="rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white/80 dark:bg-white/[0.03] px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                <p class="font-semibold text-ink-900 dark:text-white"><?= htmlspecialchars(t('escrow.return_now_title')) ?></p>
+                <p class="text-xs text-gray-500 mt-1"><?= htmlspecialchars(t('escrow.return_seller_wait')) ?></p>
+            </div>
+        <?php endif; ?>
+
         <?php if ($status === 'shipped' && !empty($isBuyer)): ?>
             <form method="post" action="<?= ProductHelper::url('/orders/' . (int) $order['id'] . '/delivered') ?>" class="bg-white/90 dark:bg-white/[0.04] rounded-[24px] border border-black/[0.06] dark:border-white/10 p-5 space-y-3 shadow-soft">
                 <?= csrf_field() ?>
@@ -302,38 +316,19 @@ $btn = 'inline-flex items-center justify-center w-full font-display font-bold py
             </form>
         <?php endif; ?>
 
-        <?php if (!empty($isBuyer) && in_array($status, ['shipped', 'delivered'], true)): ?>
-            <form method="post" action="<?= ProductHelper::url('/orders/' . (int) $order['id'] . '/confirm') ?>" class="bg-white/90 dark:bg-white/[0.04] rounded-[24px] border border-emerald-200/70 dark:border-emerald-900/40 p-5 space-y-3 shadow-soft">
-                <h3 class="font-display font-bold text-emerald-800 dark:text-emerald-300"><?= htmlspecialchars(t('escrow.confirm_title')) ?></h3>
-                <p class="text-xs text-gray-500"><?= htmlspecialchars(t('escrow.confirm_hint')) ?></p>
-                <button type="submit" class="<?= $btn ?> bg-emerald-600 hover:bg-emerald-500 text-white"><?= htmlspecialchars(t('escrow.confirm_btn')) ?></button>
-            </form>
-        <?php endif; ?>
+        <?php
+        $canQualityReturn = !empty($isBuyer)
+            && in_array($status, ['shipped', 'delivered'], true)
+            && (empty($isDigital) || $status === 'delivered');
+        $shippedAtTs = !empty($order['shipped_at']) ? strtotime((string) $order['shipped_at']) : 0;
+        $canInr = !empty($isBuyer)
+            && $status === 'shipped'
+            && empty($isDigital)
+            && $shippedAtTs > 0
+            && $shippedAtTs <= strtotime('-' . ReturnService::INR_WAIT_DAYS . ' days');
+        ?>
 
-        <?php if (!empty($isBuyer) && $status === 'shipped' && ($order['delivery_method'] ?? '') === 'courier'): ?>
-            <form method="post" action="<?= ProductHelper::url('/orders/' . (int) $order['id'] . '/dispute') ?>" enctype="multipart/form-data" class="bg-white/90 dark:bg-white/[0.04] rounded-[24px] border border-amber-200/70 dark:border-amber-900/40 p-5 space-y-3 shadow-soft">
-                <?= csrf_field() ?>
-                <input type="hidden" name="return_reason" value="<?= htmlspecialchars(ReturnService::REASON_COURIER_VOID) ?>">
-                <h3 class="font-display font-bold text-amber-800 dark:text-amber-300"><?= htmlspecialchars(t('escrow.courier_void_title')) ?></h3>
-                <p class="text-xs text-gray-500"><?= htmlspecialchars(t('escrow.courier_void_hint')) ?></p>
-                <textarea name="reason" rows="3" required minlength="10" placeholder="<?= htmlspecialchars(t('escrow.dispute_placeholder')) ?>" class="<?= $input ?> h-auto py-3"></textarea>
-                <button type="submit" class="<?= $btn ?> bg-amber-600 hover:bg-amber-500 text-white"><?= htmlspecialchars(t('escrow.courier_void_btn')) ?></button>
-            </form>
-        <?php endif; ?>
-
-        <?php if (!empty($isBuyer) && $status === 'shipped' && empty($isDigital)): ?>
-            <form method="post" action="<?= ProductHelper::url('/orders/' . (int) $order['id'] . '/dispute') ?>" enctype="multipart/form-data" class="bg-white/90 dark:bg-white/[0.04] rounded-[24px] border border-red-200/70 dark:border-red-900/40 p-5 space-y-3 shadow-soft">
-                <?= csrf_field() ?>
-                <input type="hidden" name="return_reason" value="<?= htmlspecialchars(ReturnService::REASON_NOT_RECEIVED) ?>">
-                <h3 class="font-display font-bold text-red-700 dark:text-red-300"><?= htmlspecialchars(t('escrow.inr_title')) ?></h3>
-                <p class="text-xs text-gray-500"><?= htmlspecialchars(t('escrow.inr_hint')) ?></p>
-                <textarea name="reason" rows="3" required minlength="10" placeholder="<?= htmlspecialchars(t('escrow.dispute_placeholder')) ?>" class="<?= $input ?> h-auto py-3"></textarea>
-                <input type="file" name="evidence[]" accept="image/*,video/mp4,video/webm" multiple class="block w-full text-xs text-gray-500">
-                <button type="submit" class="<?= $btn ?> bg-red-600 hover:bg-red-500 text-white"><?= htmlspecialchars(t('escrow.dispute_btn')) ?></button>
-            </form>
-        <?php endif; ?>
-
-        <?php if (!empty($isBuyer) && $status === 'delivered'): ?>
+        <?php if ($canQualityReturn): ?>
             <form method="post" action="<?= ProductHelper::url('/orders/' . (int) $order['id'] . '/dispute') ?>" enctype="multipart/form-data" class="bg-white/90 dark:bg-white/[0.04] rounded-[24px] border border-red-200/70 dark:border-red-900/40 p-5 space-y-3 shadow-soft">
                 <?= csrf_field() ?>
                 <h3 class="font-display font-bold text-red-700 dark:text-red-300"><?= htmlspecialchars(t('escrow.dispute_title')) ?></h3>
@@ -352,6 +347,47 @@ $btn = 'inline-flex items-center justify-center w-full font-display font-bold py
                 <input type="file" name="evidence[]" accept="image/*,video/mp4,video/webm" multiple class="block w-full text-xs text-gray-500">
                 <button type="submit" class="<?= $btn ?> bg-red-600 hover:bg-red-500 text-white"><?= htmlspecialchars(t('escrow.dispute_btn')) ?></button>
             </form>
+        <?php endif; ?>
+
+        <?php if (!empty($isBuyer) && $status === 'shipped' && ($order['delivery_method'] ?? '') === 'courier'): ?>
+            <form method="post" action="<?= ProductHelper::url('/orders/' . (int) $order['id'] . '/dispute') ?>" enctype="multipart/form-data" class="bg-white/90 dark:bg-white/[0.04] rounded-[24px] border border-amber-200/70 dark:border-amber-900/40 p-5 space-y-3 shadow-soft">
+                <?= csrf_field() ?>
+                <input type="hidden" name="return_reason" value="<?= htmlspecialchars(ReturnService::REASON_COURIER_VOID) ?>">
+                <h3 class="font-display font-bold text-amber-800 dark:text-amber-300"><?= htmlspecialchars(t('escrow.courier_void_title')) ?></h3>
+                <p class="text-xs text-gray-500"><?= htmlspecialchars(t('escrow.courier_void_hint')) ?></p>
+                <textarea name="reason" rows="3" required minlength="10" placeholder="<?= htmlspecialchars(t('escrow.dispute_placeholder')) ?>" class="<?= $input ?> h-auto py-3"></textarea>
+                <button type="submit" class="<?= $btn ?> bg-amber-600 hover:bg-amber-500 text-white"><?= htmlspecialchars(t('escrow.courier_void_btn')) ?></button>
+            </form>
+        <?php endif; ?>
+
+        <?php if ($canInr): ?>
+            <form method="post" action="<?= ProductHelper::url('/orders/' . (int) $order['id'] . '/dispute') ?>" enctype="multipart/form-data" class="bg-white/90 dark:bg-white/[0.04] rounded-[24px] border border-red-200/70 dark:border-red-900/40 p-5 space-y-3 shadow-soft">
+                <?= csrf_field() ?>
+                <input type="hidden" name="return_reason" value="<?= htmlspecialchars(ReturnService::REASON_NOT_RECEIVED) ?>">
+                <h3 class="font-display font-bold text-red-700 dark:text-red-300"><?= htmlspecialchars(t('escrow.inr_title')) ?></h3>
+                <p class="text-xs text-gray-500"><?= htmlspecialchars(t('escrow.inr_hint')) ?></p>
+                <textarea name="reason" rows="3" required minlength="10" placeholder="<?= htmlspecialchars(t('escrow.dispute_placeholder')) ?>" class="<?= $input ?> h-auto py-3"></textarea>
+                <input type="file" name="evidence[]" accept="image/*,video/mp4,video/webm" multiple class="block w-full text-xs text-gray-500">
+                <button type="submit" class="<?= $btn ?> bg-red-600 hover:bg-red-500 text-white"><?= htmlspecialchars(t('escrow.dispute_btn')) ?></button>
+            </form>
+        <?php elseif (!empty($isBuyer) && $status === 'shipped' && empty($isDigital)): ?>
+            <p class="text-xs text-gray-400 px-1"><?= htmlspecialchars(t('escrow.return_inr_wait', ['days' => ReturnService::INR_WAIT_DAYS])) ?></p>
+        <?php endif; ?>
+
+        <?php if (!empty($isBuyer) && in_array($status, ['shipped', 'delivered'], true)): ?>
+            <form method="post" action="<?= ProductHelper::url('/orders/' . (int) $order['id'] . '/confirm') ?>" class="bg-white/90 dark:bg-white/[0.04] rounded-[24px] border border-emerald-200/70 dark:border-emerald-900/40 p-5 space-y-3 shadow-soft">
+                <?= csrf_field() ?>
+                <h3 class="font-display font-bold text-emerald-800 dark:text-emerald-300"><?= htmlspecialchars(t('escrow.confirm_title')) ?></h3>
+                <p class="text-xs text-gray-500"><?= htmlspecialchars(t('escrow.confirm_hint')) ?></p>
+                <button type="submit" class="<?= $btn ?> bg-emerald-600 hover:bg-emerald-500 text-white"><?= htmlspecialchars(t('escrow.confirm_btn')) ?></button>
+            </form>
+        <?php endif; ?>
+
+        <?php if (!empty($isBuyer) && $status === 'completed'): ?>
+            <div class="rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white/80 dark:bg-white/[0.03] px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                <p class="font-semibold text-ink-900 dark:text-white"><?= htmlspecialchars(t('escrow.return_now_title')) ?></p>
+                <p class="text-xs text-gray-500 mt-1"><?= htmlspecialchars(t('escrow.return_completed_hint')) ?></p>
+            </div>
         <?php endif; ?>
 
         <?php if (!empty($isBuyer) && $status === 'return_requested' && ($order['return_offer_status'] ?? '') === 'pending'): ?>

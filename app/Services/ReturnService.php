@@ -170,10 +170,10 @@ class ReturnService
             if ($digital) {
                 return ['ok' => false, 'error' => t('escrow.return_reason_invalid')];
             }
-            if ($status !== 'delivered') {
+            if (!in_array($status, ['delivered', 'shipped'], true)) {
                 return ['ok' => false, 'error' => t('escrow.dispute_only_delivered')];
             }
-            if (!$this->inspectWindowOpen($order)) {
+            if ($status === 'delivered' && !$this->inspectWindowOpen($order)) {
                 return ['ok' => false, 'error' => t('escrow.inspect_expired')];
             }
         }
@@ -181,7 +181,7 @@ class ReturnService
         $payer = $this->shippingPayerFor($reason, $digital);
         $requiresShipment = $this->requiresShipment($reason, $digital, false);
 
-        $this->orders->updateFields($orderId, [
+        $fields = [
             'status' => 'return_requested',
             'return_reason' => $reason,
             'dispute_reason' => $comment,
@@ -194,7 +194,15 @@ class ReturnService
             'return_offer_amount' => null,
             'return_offer_until' => null,
             'seller_response_until' => date('Y-m-d H:i:s', strtotime('+' . self::SELLER_RESPOND_DAYS . ' days')),
-        ]);
+        ];
+        if ($status === 'shipped' && $reason !== self::REASON_NOT_RECEIVED && $reason !== self::REASON_COURIER_VOID) {
+            $fields['delivered_at'] = date('Y-m-d H:i:s');
+            $fields['inspect_until'] = date(
+                'Y-m-d H:i:s',
+                strtotime('+' . EscrowService::INSPECT_DAYS . ' days')
+            );
+        }
+        $this->orders->updateFields($orderId, $fields);
 
         $this->events->add($orderId, 'case_opened', 'buyer', $buyerId, [
             'reason' => $reason,
