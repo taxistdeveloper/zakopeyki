@@ -59,7 +59,7 @@ $input = 'ui-input w-full h-12 px-3.5 rounded-xl border border-black/[0.1] dark:
     <?php else: ?>
         <form method="post" action="<?= ProductHelper::url('/profile/verify-listing') ?>" id="listing-verify-form" class="space-y-4">
             <?= csrf_field() ?>
-            <?php if ($verifyType !== '' && isset(ProductHelper::TYPES[$verifyType])): ?>
+            <?php if ($verifyType !== '' && isset(ProductHelper::marketplaceTypes()[$verifyType])): ?>
                 <input type="hidden" name="type" value="<?= htmlspecialchars($verifyType) ?>">
             <?php endif; ?>
             <?php if ($verifyStatus === 'ok'): ?>

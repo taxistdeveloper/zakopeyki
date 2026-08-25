@@ -23,7 +23,6 @@ if ($login === '' && !empty($user['email'])) {
 $tabs = [
     'personal' => ['label' => t('profile.tab_personal'), 'icon' => 'user'],
     'business' => ['label' => t('profile.tab_business'), 'icon' => 'briefcase'],
-    'author' => ['label' => t('profile.tab_author'), 'icon' => 'graduation'],
     'photo' => ['label' => t('profile.tab_photo'), 'icon' => 'camera'],
     'bio' => ['label' => t('profile.tab_bio'), 'icon' => 'file'],
     'reviews' => ['label' => t('profile.tab_reviews'), 'icon' => 'star'],
@@ -40,7 +39,6 @@ $kycStatus = \App\Services\AMLService::userListingStatus($user);
 $accountLimit = $accountLimit ?? [];
 $businessSubscription = $businessSubscription ?? null;
 $isBusinessAccount = !empty($accountLimit['is_business']);
-$isCourseAuthor = !empty($isCourseAuthor) || ProductHelper::isCourseAuthor($user);
 ?>
 <section class="max-w-5xl mx-auto space-y-5 pb-8">
     <div class="flex items-end justify-between gap-4">
@@ -57,11 +55,6 @@ $isCourseAuthor = !empty($isCourseAuthor) || ProductHelper::isCourseAuthor($user
                         <?php if ($isBusinessAccount): ?>
                             <span class="inline-flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-wide text-sky-600 dark:text-sky-400" title="<?= htmlspecialchars(t('business.badge')) ?>">
                                 <?= htmlspecialchars(t('business.badge')) ?>
-                            </span>
-                        <?php endif; ?>
-                        <?php if (!empty($isCourseAuthor)): ?>
-                            <span class="inline-flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-600 dark:text-violet-400" title="<?= htmlspecialchars(t('author.badge')) ?>">
-                                <?= htmlspecialchars(t('author.badge')) ?>
                             </span>
                         <?php endif; ?>
                         <?php if ($kycStatus === 'ok' && !$isBusinessAccount): ?>
@@ -761,131 +754,6 @@ $isCourseAuthor = !empty($isCourseAuthor) || ProductHelper::isCourseAuthor($user
                 })();
                 </script>
 
-            <?php elseif ($tab === 'author'): ?>
-                <?php
-                $courseEditing = ($editProduct ?? null) && (($editProduct['type'] ?? '') === 'course') ? $editProduct : null;
-                $myCourses = array_values(array_filter($products ?? [], static fn ($p) => ($p['type'] ?? '') === 'course'));
-                $courseFormat = ProductHelper::courseFormatFromCategory($courseEditing['category'] ?? null);
-                $courseImages = $courseEditing ? ProductHelper::decodeImages($courseEditing) : [];
-                ?>
-                <div class="mb-6">
-                    <h2 class="font-display text-xl font-bold"><?= htmlspecialchars(t('author.studio_title')) ?></h2>
-                    <p class="text-sm text-gray-400 mt-1"><?= htmlspecialchars(t('author.studio_hint')) ?></p>
-                </div>
-
-                <?php if (!$isCourseAuthor): ?>
-                    <div class="rounded-2xl border border-violet-200/80 dark:border-violet-800/40 bg-violet-50/50 dark:bg-violet-950/20 p-5 space-y-4">
-                        <div>
-                            <h3 class="font-semibold text-ink-900 dark:text-white"><?= htmlspecialchars(t('author.enable_title')) ?></h3>
-                            <p class="text-sm text-gray-500 mt-1"><?= htmlspecialchars(t('author.enable_lead')) ?></p>
-                        </div>
-                        <?php if ($kycStatus !== 'ok'): ?>
-                            <p class="text-sm text-amber-800 dark:text-amber-200"><?= htmlspecialchars(t('author.need_kyc')) ?></p>
-                            <a href="<?= ProductHelper::url('/profile/verify-listing?type=course') ?>" class="inline-flex bg-ink-900 text-white text-sm font-semibold px-5 py-3 rounded-2xl">
-                                <?= htmlspecialchars(t('profile.kyc_go')) ?>
-                            </a>
-                        <?php else: ?>
-                            <form method="post" action="<?= ProductHelper::url('/profile/author/enable') ?>" class="space-y-4">
-                                <?= csrf_field() ?>
-                                <label class="flex items-start gap-3 text-sm text-ink-800 dark:text-gray-200">
-                                    <input type="checkbox" name="author_terms" value="1" required class="mt-1 rounded border-black/20">
-                                    <span><?= htmlspecialchars(t('author.terms_check')) ?></span>
-                                </label>
-                                <button type="submit" class="bg-violet-600 hover:bg-violet-500 text-white font-semibold text-sm px-5 py-3 rounded-2xl">
-                                    <?= htmlspecialchars(t('author.enable_btn')) ?>
-                                </button>
-                            </form>
-                        <?php endif; ?>
-                    </div>
-                <?php else: ?>
-                    <form method="post" action="<?= $courseEditing ? ProductHelper::url('/profile/lots/' . (int) $courseEditing['id'] . '/update') : ProductHelper::url('/profile/store') ?>" enctype="multipart/form-data" class="space-y-4 mb-8 p-5 rounded-2xl border border-violet-200/70 dark:border-violet-800/40 bg-violet-50/30 dark:bg-white/[0.03]">
-                        <?= csrf_field() ?>
-                        <input type="hidden" name="type" value="course">
-                        <h3 class="font-semibold"><?= htmlspecialchars($courseEditing ? t('author.edit_title') : t('author.create_title')) ?></h3>
-                        <div>
-                            <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.title_field')) ?></label>
-                            <input type="text" name="title" required class="<?= $input ?>" value="<?= htmlspecialchars($courseEditing['title'] ?? '') ?>">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('author.format')) ?></label>
-                            <select name="course_format" class="<?= $input ?>">
-                                <?php foreach (ProductHelper::COURSE_FORMATS as $fmt => $fmtLabel): ?>
-                                    <option value="<?= htmlspecialchars($fmt) ?>" <?= $courseFormat === $fmt ? 'selected' : '' ?>><?= htmlspecialchars(t('author.format_' . ($fmt === 'recording' ? 'recording' : ($fmt === 'live' ? 'live' : 'both')))) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.description')) ?></label>
-                            <textarea name="description" rows="4" required class="<?= $input ?> h-auto py-3" placeholder="<?= htmlspecialchars(t('author.desc_ph')) ?>"><?= htmlspecialchars($courseEditing['description'] ?? '') ?></textarea>
-                        </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('author.price')) ?></label>
-                                <input type="text" name="price" required class="<?= $input ?>" value="<?= htmlspecialchars((string) ($courseEditing['price'] ?? '')) ?>">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.location')) ?></label>
-                                <input type="text" name="location" class="<?= $input ?>" value="<?= htmlspecialchars($courseEditing['location'] ?? 'Караганда') ?>">
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.whatsapp')) ?></label>
-                            <input type="tel" name="whatsapp" class="<?= $input ?>" value="<?= htmlspecialchars(ProductHelper::formatWhatsappInput($courseEditing['whatsapp'] ?? '')) ?>">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.photos')) ?> <?= $courseEditing ? '' : '<span class="text-red-500">*</span>' ?></label>
-                            <?php foreach ($courseImages as $img): ?>
-                                <input type="hidden" name="keep_images[]" value="<?= htmlspecialchars($img) ?>">
-                            <?php endforeach; ?>
-                            <input type="file" name="images[]" accept="image/jpeg,image/png,image/webp,image/gif" multiple <?= $courseEditing ? '' : 'required' ?> class="block text-sm">
-                        </div>
-                        <div class="flex flex-wrap gap-2">
-                            <button type="submit" class="bg-violet-600 hover:bg-violet-500 text-white font-display font-bold py-3.5 px-6 rounded-2xl text-xs uppercase tracking-wider">
-                                <?= htmlspecialchars($courseEditing ? t('author.save') : t('author.publish')) ?>
-                            </button>
-                            <?php if ($courseEditing): ?>
-                                <a href="<?= ProductHelper::url('/profile?tab=author') ?>" class="px-5 py-3.5 rounded-2xl border border-black/10 text-xs font-bold uppercase"><?= htmlspecialchars(t('profile.cancel_edit')) ?></a>
-                            <?php endif; ?>
-                        </div>
-                    </form>
-
-                    <h3 class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3"><?= htmlspecialchars(t('author.my_courses')) ?> (<?= count($myCourses) ?>)</h3>
-                    <p class="text-sm mb-4"><a class="text-violet-700 font-semibold" href="<?= ProductHelper::url('/digital/studio') ?>"><?= htmlspecialchars(t('digital.studio_title')) ?> →</a></p>
-                    <?php if (!$myCourses): ?>
-                        <p class="text-sm text-gray-400"><?= htmlspecialchars(t('author.empty')) ?></p>
-                    <?php else: ?>
-                        <div class="space-y-2">
-                            <?php foreach ($myCourses as $p):
-                                $thumb = ProductHelper::imageUrl($p);
-                            ?>
-                                <div class="flex flex-col sm:flex-row sm:items-center gap-3 bg-white dark:bg-white/5 border border-black/[0.06] dark:border-white/10 rounded-2xl px-4 py-3.5">
-                                    <a href="<?= ProductHelper::url('/product/' . $p['id']) ?>" class="flex items-center gap-3 flex-1 min-w-0">
-                                        <div class="w-12 h-12 rounded-xl overflow-hidden bg-violet-50 dark:bg-white/5 flex-shrink-0 flex items-center justify-center">
-                                            <?php if ($thumb): ?>
-                                                <img src="<?= htmlspecialchars($thumb) ?>" alt="" class="w-full h-full object-cover">
-                                            <?php else: ?>
-                                                <?= ProductHelper::icon('course', 'w-6 h-6 text-violet-500/80') ?>
-                                            <?php endif; ?>
-                                        </div>
-                                        <div class="min-w-0">
-                                            <div class="text-sm font-semibold truncate"><?= htmlspecialchars($p['title']) ?></div>
-                                            <div class="text-[10px] text-gray-400 mt-0.5"><?= htmlspecialchars($p['category'] ?? ProductHelper::label('course')) ?> · <?= htmlspecialchars($p['status']) ?></div>
-                                        </div>
-                                    </a>
-                                    <div class="flex items-center justify-between sm:justify-end gap-3 flex-shrink-0">
-                                        <span class="text-sm font-display font-bold text-violet-600 whitespace-nowrap"><?= htmlspecialchars(ProductHelper::formatPrice($p)) ?></span>
-                                        <a href="<?= ProductHelper::url('/profile?tab=author&edit=' . $p['id']) ?>" class="px-2.5 py-1.5 rounded-xl text-[11px] font-bold border border-black/[0.08]"><?= htmlspecialchars(t('profile.edit')) ?></a>
-                                        <form method="post" action="<?= ProductHelper::url('/profile/lots/' . $p['id'] . '/delete') ?>" onsubmit="return confirm(<?= json_encode(t('profile.confirm_delete_lot')) ?>);">
-                                            <?= csrf_field() ?>
-                                            <button type="submit" class="px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-red-600 border border-red-200/80"><?= htmlspecialchars(t('profile.delete')) ?></button>
-                                        </form>
-                                    </div>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
-                    <?php endif; ?>
-                <?php endif; ?>
-
             <?php elseif ($tab === 'lots'): ?>
                 <?php
                 $editing = $editProduct ?? null;
@@ -915,9 +783,9 @@ $isCourseAuthor = !empty($isCourseAuthor) || ProductHelper::isCourseAuthor($user
                     $productTypesWithCategory = ProductHelper::PRODUCT_TYPES_WITH_CATEGORY;
                     $categoryTree = $productCategoryTree ?? ProductHelper::PRODUCT_CATEGORY_TREE;
                     $currentType = $editing['type'] ?? '';
-                    if ($currentType === '') {
+                    if ($currentType === '' || $currentType === 'course' || !isset($types[$currentType])) {
                         $pref = $prefLotType ?? '';
-                        $currentType = isset(ProductHelper::TYPES[$pref]) ? $pref : 'used';
+                        $currentType = isset($types[$pref]) ? $pref : 'used';
                     }
                     [$currentParent, $currentChild] = ProductHelper::parseCategory($editing['category'] ?? null);
                     $showCategory = in_array($currentType, $productTypesWithCategory, true);
@@ -931,7 +799,6 @@ $isCourseAuthor = !empty($isCourseAuthor) || ProductHelper::isCourseAuthor($user
                         'exchange' => ['idle' => 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300', 'on' => 'bg-indigo-500 text-white', 'ring' => 'border-indigo-400 bg-indigo-50/80 dark:bg-indigo-500/10'],
                         'service' => ['idle' => 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300', 'on' => 'bg-emerald-500 text-white', 'ring' => 'border-emerald-400 bg-emerald-50/80 dark:bg-emerald-500/10'],
                         'gig' => ['idle' => 'bg-teal-50 text-teal-600 dark:bg-teal-500/15 dark:text-teal-300', 'on' => 'bg-teal-600 text-white', 'ring' => 'border-teal-400 bg-teal-50/80 dark:bg-teal-500/10'],
-                        'course' => ['idle' => 'bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300', 'on' => 'bg-blue-500 text-white', 'ring' => 'border-blue-400 bg-blue-50/80 dark:bg-blue-500/10'],
                     ];
                     $selectTrigger = $input . ' flex items-center justify-between gap-2 text-left pr-3 cursor-pointer';
                     ?>
@@ -1854,7 +1721,7 @@ $isCourseAuthor = !empty($isCourseAuthor) || ProductHelper::isCourseAuthor($user
                 <?php endif; ?>
 
                 <?php
-                $lotProducts = array_values(array_filter($products ?? [], static fn ($p) => ($p['type'] ?? '') !== 'course'));
+                $lotProducts = $products ?? [];
                 ?>
                 <h3 class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Опубликованные (<?= count($lotProducts) ?>)</h3>
                 <?php if (empty($lotProducts)): ?>

@@ -12,7 +12,7 @@ class DigitalProduct extends Model
     /** @var array<int, list<int>> */
     private static array $ownedListingCache = [];
 
-    public const KINDS = ['vod', 'live_open', 'live_closed', 'webinar', 'course', 'event', 'bundle'];
+    public const KINDS = ['vod', 'live_open', 'live_closed', 'webinar', 'event', 'bundle'];
 
     public function __construct()
     {
@@ -266,7 +266,7 @@ class DigitalProduct extends Model
         return match ($fmt) {
             'recording' => 'vod',
             'live' => 'live_closed',
-            default => 'course',
+            default => 'vod',
         };
     }
 

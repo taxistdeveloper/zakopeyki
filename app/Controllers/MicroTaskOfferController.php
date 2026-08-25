@@ -17,6 +17,7 @@ class MicroTaskOfferController extends BaseApiController
 
     public function submitOffer(int $id): void
     {
+        $this->requireGigsAccess();
         $taskId = $id;
         $executorId = $this->getAuthenticatedUserId();
         if ($executorId <= 0) {
@@ -43,6 +44,7 @@ class MicroTaskOfferController extends BaseApiController
 
     public function selectOffer(int $offerId): void
     {
+        $this->requireGigsAccess();
         $customerId = $this->getAuthenticatedUserId();
         if ($customerId <= 0) {
             $this->jsonResponse(false, null, t('gigs.err_auth'), 401);

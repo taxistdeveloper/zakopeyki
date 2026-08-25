@@ -118,6 +118,8 @@ class Product extends Model
         if ($type) {
             $sql .= ' AND p.type = ?';
             $params[] = $type;
+        } else {
+            $sql .= ' AND p.type <> \'course\'';
         }
 
         if ($search) {
@@ -210,6 +212,7 @@ class Product extends Model
                 JOIN users u ON u.id = p.user_id
                 WHERE p.status = ?
                   AND p.id != ?
+                  AND p.type <> \'course\'
                   AND (' . implode(' OR ', $filters) . ')
                 ORDER BY (p.type = ?) DESC';
         $params = array_merge(['active', $id], $filterParams, [$type]);

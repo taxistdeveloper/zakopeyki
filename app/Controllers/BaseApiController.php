@@ -48,4 +48,11 @@ abstract class BaseApiController extends Controller
 
         return 0;
     }
+
+    protected function requireGigsAccess(): void
+    {
+        if (!Auth::canAccessGigs()) {
+            $this->jsonResponse(false, null, t('catalog.not_found'), 404);
+        }
+    }
 }

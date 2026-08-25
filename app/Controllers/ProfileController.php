@@ -36,7 +36,10 @@ class ProfileController extends Controller
         }
 
         $tab = $_GET['tab'] ?? 'personal';
-        $allowed = ['personal', 'photo', 'bio', 'reviews', 'notifications', 'password', 'lots', 'favorites', 'subscriptions', 'referral', 'business', 'author'];
+        if ($tab === 'author') {
+            $this->redirect('/profile?tab=lots');
+        }
+        $allowed = ['personal', 'photo', 'bio', 'reviews', 'notifications', 'password', 'lots', 'favorites', 'subscriptions', 'referral', 'business'];
         if (!in_array($tab, $allowed, true)) {
             $tab = 'personal';
         }
@@ -64,7 +67,7 @@ class ProfileController extends Controller
         $editGigCategoryId = 0;
         $editGigCategoryPath = [];
         $microSvc = MicroTaskService::make();
-        if ($tab === 'lots' && !empty($_GET['edit_gig'])) {
+        if ($tab === 'lots' && !empty($_GET['edit_gig']) && Auth::canAccessGigs()) {
             $gigRow = $microSvc->findOwned((int) $_GET['edit_gig'], Auth::id());
             if ($gigRow && (string) $gigRow['status'] === 'open') {
                 $editProduct = $this->gigAsLotForm($gigRow);
@@ -76,22 +79,11 @@ class ProfileController extends Controller
             } else {
                 $_SESSION['error'] = t('gigs.err_not_found');
             }
-        } elseif (in_array($tab, ['lots', 'author'], true) && !empty($_GET['edit'])) {
+        } elseif ($tab === 'lots' && !empty($_GET['edit'])) {
             $candidate = (new Product())->find((int) $_GET['edit']);
             if ($candidate && (int) $candidate['user_id'] === Auth::id()) {
                 $editProduct = $candidate;
             }
-        }
-
-        $isCourseAuthor = ProductHelper::isCourseAuthor($dbUser ?: Auth::user());
-        if ($tab === 'lots' && $editProduct && ($editProduct['type'] ?? '') === 'course') {
-            $this->redirect('/profile?tab=author&edit=' . (int) $editProduct['id']);
-        }
-        if ($tab === 'lots' && (string) ($_GET['type'] ?? '') === 'course') {
-            $this->redirect('/profile?tab=author');
-        }
-        if ($tab === 'author' && $editProduct && ($editProduct['type'] ?? '') !== 'course') {
-            $this->redirect('/profile?tab=lots&edit=' . (int) $editProduct['id']);
         }
 
         $n = new Notification();
@@ -142,7 +134,7 @@ class ProfileController extends Controller
             'editingGig' => $editingGig,
             'editGigCategoryId' => $editGigCategoryId,
             'editGigCategoryPath' => $editGigCategoryPath,
-            'microTasks' => $tab === 'lots' ? array_values(array_filter(
+            'microTasks' => ($tab === 'lots' && Auth::canAccessGigs()) ? array_values(array_filter(
                 $microSvc->listForUser(Auth::id()),
                 static fn (array $row): bool => (int) $row['customer_id'] === (int) Auth::id()
             )) : [],
@@ -153,7 +145,6 @@ class ProfileController extends Controller
                 array_keys(ProductHelper::marketplaceTypes()),
                 array_map(static fn (string $type) => ProductHelper::label($type), array_keys(ProductHelper::marketplaceTypes()))
             ),
-            'isCourseAuthor' => $isCourseAuthor,
             'productCategoryTree' => ProductHelper::PRODUCT_CATEGORY_TREE,
             'microCategories' => $microSvc->categories(),
             'microGigTree' => $microSvc->categoryTree(),
@@ -186,7 +177,7 @@ class ProfileController extends Controller
         }
         $n = new Notification();
         $type = (string) ($_GET['type'] ?? '');
-        if (!isset(ProductHelper::TYPES[$type])) {
+        if (!isset(ProductHelper::marketplaceTypes()[$type])) {
             $type = '';
         }
 
@@ -211,7 +202,7 @@ class ProfileController extends Controller
     {
         Auth::requireLogin();
         $type = (string) ($_POST['type'] ?? '');
-        if (!isset(ProductHelper::TYPES[$type])) {
+        if (!isset(ProductHelper::marketplaceTypes()[$type])) {
             $type = '';
         }
 
@@ -398,17 +389,14 @@ class ProfileController extends Controller
         Auth::requireLogin();
 
         $type = $_POST['type'] ?? 'used';
-        if (!isset(ProductHelper::TYPES[$type])) {
+        if ($type === 'course') {
+            $this->redirect('/profile?tab=lots');
+        }
+        if (!isset(ProductHelper::marketplaceTypes()[$type])) {
             $type = 'used';
         }
 
-        $authorFailUrl = '/profile?tab=author';
-        $lotsFailUrl = $type === 'course' ? $authorFailUrl : '/profile?tab=lots';
-
-        if ($type === 'course' && !Auth::isCourseAuthor() && !Auth::isStaff()) {
-            $_SESSION['error'] = t('author.need_account');
-            $this->redirect($authorFailUrl);
-        }
+        $lotsFailUrl = '/profile?tab=lots';
 
         $amlFail = $this->guardAml($type === 'gig' ? '/profile?tab=lots&type=gig' : $lotsFailUrl);
         if ($amlFail !== null) {
@@ -495,9 +483,6 @@ class ProfileController extends Controller
         }
 
         $category = ProductHelper::normalizeCategory($_POST['category'] ?? null, $type);
-        if ($type === 'course') {
-            $category = ProductHelper::courseFormatLabel((string) ($_POST['course_format'] ?? 'recording'));
-        }
 
         $productId = (new Product())->create(array_merge([
             'user_id' => Auth::id(),
@@ -552,17 +537,14 @@ class ProfileController extends Controller
                 'amount' => \App\Models\Bonus::format((int) $bonusResult['amount']),
             ]);
         }
-        if ($type === 'course') {
-            $created = (new Product())->find((int) $productId);
-            if ($created) {
-                (new \App\Models\DigitalProduct())->ensureForListing($created);
-            }
-        }
-        $this->redirect($type === 'course' ? '/profile?tab=author' : '/profile?tab=lots');
+        $this->redirect('/profile?tab=lots');
     }
 
     private function storeGig(string $description): void
     {
+        if (!Auth::canAccessGigs()) {
+            $this->redirect('/profile?tab=lots');
+        }
         $photos = $this->resolveProductImages(null, false);
         if (!empty($photos['error'])) {
             $_SESSION['error'] = $photos['error'];
@@ -595,6 +577,9 @@ class ProfileController extends Controller
     public function updateGig(string $id): void
     {
         Auth::requireLogin();
+        if (!Auth::canAccessGigs()) {
+            $this->redirect('/profile?tab=lots');
+        }
 
         $taskId = (int) $id;
         $editUrl = '/profile?tab=lots&edit_gig=' . $taskId;
@@ -667,20 +652,16 @@ class ProfileController extends Controller
         }
 
         $type = $_POST['type'] ?? $product['type'];
-        if (!isset(ProductHelper::TYPES[$type]) || $type === 'gig') {
-            $type = $product['type'] === 'gig' ? 'used' : $product['type'];
+        if (!isset(ProductHelper::marketplaceTypes()[$type]) || $type === 'gig') {
+            $type = isset(ProductHelper::marketplaceTypes()[$product['type'] ?? ''])
+                ? $product['type']
+                : 'used';
         }
         if ($type === 'gig') {
             $_SESSION['error'] = t('gigs.err_edit_as_product');
             $this->redirect('/profile?tab=lots');
         }
-        if (($type === 'course' || ($product['type'] ?? '') === 'course') && !Auth::isCourseAuthor() && !Auth::isStaff()) {
-            $_SESSION['error'] = t('author.need_account');
-            $this->redirect('/profile?tab=author');
-        }
-        $editUrl = ($type === 'course' || ($product['type'] ?? '') === 'course')
-            ? '/profile?tab=author&edit=' . (int) $id
-            : '/profile?tab=lots&edit=' . (int) $id;
+        $editUrl = '/profile?tab=lots&edit=' . (int) $id;
 
         $title = trim($_POST['title'] ?? '');
         $description = trim($_POST['description'] ?? '');
@@ -726,9 +707,6 @@ class ProfileController extends Controller
         }
 
         $category = ProductHelper::normalizeCategory($_POST['category'] ?? ($product['category'] ?? null), $type);
-        if ($type === 'course') {
-            $category = ProductHelper::courseFormatLabel((string) ($_POST['course_format'] ?? ProductHelper::courseFormatFromCategory($product['category'] ?? null)));
-        }
 
         $products->updateProduct((int) $id, array_merge([
             'type' => $type,
@@ -750,13 +728,7 @@ class ProfileController extends Controller
         ]);
 
         $_SESSION['flash'] = t('flash.lot_updated');
-        if ($type === 'course') {
-            $fresh = (new Product())->find((int) $id);
-            if ($fresh) {
-                (new \App\Models\DigitalProduct())->ensureForListing($fresh);
-            }
-        }
-        $this->redirect($type === 'course' ? '/profile?tab=author' : '/profile?tab=lots');
+        $this->redirect('/profile?tab=lots');
     }
 
     public function deleteLot(string $id): void
@@ -779,42 +751,13 @@ class ProfileController extends Controller
             (int) $id
         );
         $_SESSION['flash'] = t('flash.lot_deleted');
-        $this->redirect(($product['type'] ?? '') === 'course' ? '/profile?tab=author' : '/profile?tab=lots');
+        $this->redirect('/profile?tab=lots');
     }
 
     public function enableCourseAuthor(): void
     {
         Auth::requireLogin();
-
-        $user = (new User())->find(Auth::id());
-        if ($user) {
-            Auth::refresh($user);
-        }
-
-        if (Auth::isCourseAuthor()) {
-            $_SESSION['flash'] = t('author.already');
-            $this->redirect('/profile?tab=author');
-        }
-
-        if (AMLService::userListingStatus($user ?: Auth::user()) !== 'ok') {
-            $_SESSION['error'] = t('author.need_kyc');
-            $this->redirect('/profile/verify-listing?type=course');
-        }
-
-        if (empty($_POST['author_terms'])) {
-            $_SESSION['error'] = t('author.need_terms');
-            $this->redirect('/profile?tab=author');
-        }
-
-        (new User())->enableCourseAuthor(Auth::id());
-        $fresh = (new User())->find(Auth::id());
-        if ($fresh) {
-            Auth::refresh($fresh);
-        }
-
-        ActivityLogger::info('author.enable', 'Включён кабинет автора курсов', 'user', Auth::id());
-        $_SESSION['flash'] = t('author.enabled');
-        $this->redirect('/profile?tab=author');
+        $this->redirect('/profile?tab=lots');
     }
 
     /**

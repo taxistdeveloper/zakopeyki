@@ -1224,7 +1224,6 @@ body.debug .hit {
                 <button type="button" class="hit hit-cat" style="left:33.85%; top:71.00%; width:8.75%; height:19.00%" data-label="Аукционы" aria-label="Аукционы"></button>
                 <button type="button" class="hit hit-cat" style="left:43.28%; top:71.00%; width:8.75%; height:19.00%" data-label="Услуги" aria-label="Услуги"></button>
                 <button type="button" class="hit hit-cat" style="left:52.71%; top:71.00%; width:8.75%; height:19.00%" data-label="Биржа услуг" aria-label="Биржа услуг"></button>
-                <button type="button" class="hit hit-cat" style="left:62.14%; top:71.00%; width:8.75%; height:19.00%" data-label="Курсы" aria-label="Курсы"></button>
                 <button type="button" class="hit hit-cat" style="left:71.56%; top:71.00%; width:8.75%; height:19.00%" data-label="Обмен" aria-label="Обмен"></button>
                 <button type="button" class="hit hit-cat" style="left:80.99%; top:71.00%; width:8.75%; height:19.00%" data-label="Даром" aria-label="Даром"></button>
               </nav>

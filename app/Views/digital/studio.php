@@ -28,7 +28,7 @@ $cfReady = !empty($cfReady);
                     <div class="min-w-0">
                         <div class="font-semibold truncate"><?= htmlspecialchars((string) ($row['title'] ?? '')) ?></div>
                         <div class="text-[11px] text-gray-400 mt-0.5">
-                            <?= htmlspecialchars(t('digital.kind_' . ($row['kind'] ?? 'course'))) ?>
+                            <?= htmlspecialchars(t('digital.kind_' . ($row['kind'] ?? 'vod'))) ?>
                             · <?= htmlspecialchars(t('digital.status_' . ($row['live_status'] ?? 'idle'))) ?>
                         </div>
                     </div>

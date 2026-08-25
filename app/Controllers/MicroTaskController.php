@@ -24,6 +24,7 @@ class MicroTaskController extends BaseApiController
 
     public function create(): void
     {
+        $this->requireGigsAccess();
         $userId = $this->getAuthenticatedUserId();
         if ($userId <= 0) {
             $this->jsonResponse(false, null, t('gigs.err_auth'), 401);
@@ -58,6 +59,7 @@ class MicroTaskController extends BaseApiController
 
     public function list(): void
     {
+        $this->requireGigsAccess();
         $categoryId = isset($_GET['category_id']) ? (int) $_GET['category_id'] : null;
         $tasks = $this->taskService->listOpen($categoryId);
         $formatted = $this->taskService->formatCatalog($tasks);
@@ -71,6 +73,7 @@ class MicroTaskController extends BaseApiController
 
     public function mine(): void
     {
+        $this->requireGigsAccess();
         $userId = $this->getAuthenticatedUserId();
         if ($userId <= 0) {
             $this->jsonResponse(false, null, t('gigs.err_auth'), 401);
@@ -150,6 +153,7 @@ class MicroTaskController extends BaseApiController
 
     public function review(int $id): void
     {
+        $this->requireGigsAccess();
         $userId = $this->getAuthenticatedUserId();
         if ($userId <= 0) {
             $this->jsonResponse(false, null, t('gigs.err_auth'), 401);
@@ -170,6 +174,7 @@ class MicroTaskController extends BaseApiController
 
     public function cancel(int $id): void
     {
+        $this->requireGigsAccess();
         $userId = $this->getAuthenticatedUserId();
         if ($userId <= 0) {
             $this->jsonResponse(false, null, t('gigs.err_auth'), 401);
@@ -188,6 +193,7 @@ class MicroTaskController extends BaseApiController
 
     public function delete(int $id): void
     {
+        $this->requireGigsAccess();
         $userId = $this->getAuthenticatedUserId();
         if ($userId <= 0) {
             $this->jsonResponse(false, null, t('gigs.err_auth'), 401);

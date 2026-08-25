@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Core\Auth;
 use App\Helpers\ProductHelper;
 use App\Models\Product;
 
@@ -37,7 +38,6 @@ class CatalogAiAssistant
         'auction' => ['аукцион', 'ставка', 'ставки', 'торг', 'лот'],
         'service' => ['услуга', 'услуги', 'мастер', 'ремонт', 'помощь мастера', 'сервис'],
         'gig' => ['биржа услуг', 'биржа', 'гиг', 'разовая работа', 'подработка', 'задания', 'фриланс'],
-        'course' => ['курс', 'курсы', 'обучение', 'урок', 'уроки', 'тренин'],
         'new' => ['новый', 'новая', 'новое', 'новые', 'маркетплейс'],
         'used' => ['б/у', 'бу', 'б у', 'подержан', 'секонд'],
     ];
@@ -227,6 +227,9 @@ class CatalogAiAssistant
     private function detectType(string $lower): ?string
     {
         foreach (self::TYPE_HINTS as $type => $words) {
+            if ($type === 'gig' && !Auth::canAccessGigs()) {
+                continue;
+            }
             foreach ($words as $word) {
                 if (mb_strpos($lower, $word) !== false) {
                     return $type;

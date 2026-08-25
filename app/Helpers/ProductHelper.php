@@ -34,6 +34,9 @@ class ProductHelper
     {
         $types = self::TYPES;
         unset($types['course']);
+        if (!\App\Core\Auth::canAccessGigs()) {
+            unset($types['gig']);
+        }
 
         return $types;
     }
@@ -362,7 +365,7 @@ class ProductHelper
     }
 
     /** Типы объявлений, которые можно оплатить на платформе. */
-    public const PURCHASABLE_TYPES = ['used', 'new', 'gig', 'course'];
+    public const PURCHASABLE_TYPES = ['used', 'new', 'gig'];
 
     /** Цифровой контент: не снимается с витрины после каждой продажи. */
     public static function isDigitalListing(array $item): bool

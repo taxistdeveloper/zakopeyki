@@ -24,7 +24,7 @@ $items = $items ?? [];
                     <div class="min-w-0 flex-1">
                         <div class="font-semibold truncate"><?= htmlspecialchars((string) ($row['title'] ?? '')) ?></div>
                         <div class="text-[11px] text-gray-400 mt-0.5">
-                            <?= htmlspecialchars(t('digital.kind_' . ($row['kind'] ?? 'course'))) ?>
+                            <?= htmlspecialchars(t('digital.kind_' . ($row['kind'] ?? 'vod'))) ?>
                             · <?= htmlspecialchars(t('digital.status_' . ($row['live_status'] ?? 'idle'))) ?>
                             <?php if (!empty($row['access_until'])): ?>
                                 · <?= htmlspecialchars(t('digital.until')) ?> <?= htmlspecialchars(date('d.m.Y', strtotime((string) $row['access_until']))) ?>

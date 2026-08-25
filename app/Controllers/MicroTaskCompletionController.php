@@ -17,6 +17,7 @@ class MicroTaskCompletionController extends BaseApiController
 
     public function complete(int $id): void
     {
+        $this->requireGigsAccess();
         $taskId = $id;
         $executorId = $this->getAuthenticatedUserId();
         if ($executorId <= 0) {

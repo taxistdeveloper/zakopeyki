@@ -5,13 +5,37 @@ $product = $product ?? [];
 $id = (int) ($row['id'] ?? 0);
 $input = 'w-full h-11 px-3.5 rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 text-sm';
 $starts = !empty($row['starts_at']) ? date('Y-m-d\TH:i', strtotime((string) $row['starts_at'])) : '';
+$kindSelected = ($row['kind'] ?? '') === 'course' ? 'vod' : (string) ($row['kind'] ?? '');
 ?>
 <section class="max-w-3xl mx-auto pb-16 space-y-6">
     <div>
         <a href="<?= ProductHelper::url('/digital/studio') ?>" class="text-sm text-gray-400 hover:text-violet-600">← <?= htmlspecialchars(t('digital.studio_title')) ?></a>
         <h1 class="font-display text-2xl font-bold mt-2"><?= htmlspecialchars((string) ($product['title'] ?? t('digital.studio_item'))) ?></h1>
+        <p class="text-sm text-gray-500 mt-1"><?= htmlspecialchars(t('digital.pick_lead')) ?></p>
         <p class="text-xs text-gray-400 mt-1"><?= htmlspecialchars(t('digital.status_' . ($row['live_status'] ?? 'idle'))) ?></p>
     </div>
+    <?php
+    $lessons = $lessons ?? [];
+    $sessions = $sessions ?? [];
+    $emptyStudio = $lessons === [] && $sessions === [];
+    ?>
+    <div class="grid sm:grid-cols-2 gap-3">
+        <a href="#lessons" class="rounded-2xl border-2 border-violet-200 bg-violet-50/70 dark:bg-violet-950/20 p-5 hover:border-violet-400 transition">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-violet-600 mb-1"><?= htmlspecialchars(t('digital.pick_lessons_kicker')) ?></div>
+            <div class="font-display text-lg font-bold"><?= htmlspecialchars(t('digital.pick_lessons_title')) ?></div>
+            <p class="text-sm text-gray-600 dark:text-gray-300 mt-2"><?= htmlspecialchars(t('digital.pick_lessons_text')) ?></p>
+            <span class="inline-flex mt-4 h-10 px-4 items-center rounded-xl bg-violet-700 text-white text-xs font-bold uppercase"><?= htmlspecialchars(t('digital.pick_lessons_btn')) ?></span>
+        </a>
+        <a href="#live" class="rounded-2xl border-2 border-red-200 bg-red-50/60 dark:bg-red-950/20 p-5 hover:border-red-400 transition">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-red-600 mb-1"><?= htmlspecialchars(t('digital.pick_live_kicker')) ?></div>
+            <div class="font-display text-lg font-bold"><?= htmlspecialchars(t('digital.pick_live_title')) ?></div>
+            <p class="text-sm text-gray-600 dark:text-gray-300 mt-2"><?= htmlspecialchars(t('digital.pick_live_text')) ?></p>
+            <span class="inline-flex mt-4 h-10 px-4 items-center rounded-xl bg-red-600 text-white text-xs font-bold uppercase"><?= htmlspecialchars(t('digital.pick_live_btn')) ?></span>
+        </a>
+    </div>
+    <?php if ($emptyStudio): ?>
+        <p class="text-sm text-violet-800 bg-violet-50 border border-violet-100 rounded-xl px-4 py-3"><?= htmlspecialchars(t('digital.pick_empty')) ?></p>
+    <?php endif; ?>
     <?php if (!empty($flash)): ?>
         <div class="rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-800 px-4 py-3 text-sm font-semibold"><?= htmlspecialchars((string) $flash) ?></div>
     <?php endif; ?>
@@ -22,14 +46,16 @@ $starts = !empty($row['starts_at']) ? date('Y-m-d\TH:i', strtotime((string) $row
         <div class="rounded-2xl border border-amber-200 bg-amber-50 text-amber-900 px-4 py-3 text-sm"><?= htmlspecialchars(t('digital.cf_admin_hint')) ?></div>
     <?php endif; ?>
 
-    <form method="post" action="<?= ProductHelper::url('/digital/studio/' . $id . '/save') ?>" class="space-y-4 rounded-2xl border border-black/[0.06] p-5 bg-white dark:bg-white/[0.04]">
+    <details class="rounded-2xl border border-black/[0.06] p-5 bg-white dark:bg-white/[0.04]">
+        <summary class="font-display font-bold cursor-pointer"><?= htmlspecialchars(t('digital.extra_settings')) ?></summary>
+        <form method="post" action="<?= ProductHelper::url('/digital/studio/' . $id . '/save') ?>" class="space-y-4 mt-4">
         <?= csrf_field() ?>
         <h2 class="font-display font-bold"><?= htmlspecialchars(t('digital.schedule')) ?></h2>
         <div>
             <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('digital.kind')) ?></label>
             <select name="kind" class="<?= $input ?>">
                 <?php foreach (($kinds ?? []) as $kind): ?>
-                    <option value="<?= htmlspecialchars($kind) ?>" <?= ($row['kind'] ?? '') === $kind ? 'selected' : '' ?>><?= htmlspecialchars(t('digital.kind_' . $kind)) ?></option>
+                    <option value="<?= htmlspecialchars($kind) ?>" <?= $kindSelected === $kind ? 'selected' : '' ?>><?= htmlspecialchars(t('digital.kind_' . $kind)) ?></option>
                 <?php endforeach; ?>
             </select>
         </div>
@@ -60,11 +86,13 @@ $starts = !empty($row['starts_at']) ? date('Y-m-d\TH:i', strtotime((string) $row
             <?= htmlspecialchars(t('digital.record_enabled')) ?>
         </label>
         <button class="h-11 px-5 rounded-xl bg-violet-700 text-white text-xs font-bold uppercase"><?= htmlspecialchars(t('digital.save')) ?></button>
-    </form>
+        </form>
+    </details>
 
-    <div class="space-y-3 rounded-2xl border border-black/[0.06] p-5 bg-white dark:bg-white/[0.04]">
-        <h2 class="font-display font-bold"><?= htmlspecialchars(t('digital.obs_title')) ?></h2>
-        <p class="text-sm text-gray-500"><?= htmlspecialchars(t('digital.obs_lead')) ?></p>
+    <div id="live" class="space-y-3 rounded-2xl border-2 border-red-100 p-5 bg-white dark:bg-white/[0.04] scroll-mt-24">
+        <h2 class="font-display font-bold"><?= htmlspecialchars(t('digital.pick_live_title')) ?></h2>
+        <p class="text-sm text-gray-500"><?= htmlspecialchars(t('digital.pick_live_text')) ?></p>
+        <h3 class="font-semibold text-sm pt-2"><?= htmlspecialchars(t('digital.obs_title')) ?></h3>
         <?php if (!empty($row['rtmps_url'])): ?>
             <div>
                 <div class="text-[11px] font-bold text-gray-400 mb-1">RTMPS</div>
@@ -118,8 +146,9 @@ $starts = !empty($row['starts_at']) ? date('Y-m-d\TH:i', strtotime((string) $row
         </div>
     </div>
 
-    <div class="rounded-2xl border border-black/[0.06] p-5 bg-white dark:bg-white/[0.04] space-y-4">
-        <h2 class="font-display font-bold"><?= htmlspecialchars(t('digital.lessons_title')) ?></h2>
+    <div id="lessons" class="rounded-2xl border-2 border-violet-100 p-5 bg-white dark:bg-white/[0.04] space-y-4 scroll-mt-24">
+        <h2 class="font-display font-bold"><?= htmlspecialchars(t('digital.pick_lessons_title')) ?></h2>
+        <p class="text-sm text-gray-500"><?= htmlspecialchars(t('digital.pick_lessons_text')) ?></p>
         <?php foreach (($lessons ?? []) as $lesson): ?>
             <form method="post" action="<?= ProductHelper::url('/digital/studio/' . $id . '/lessons') ?>" enctype="multipart/form-data" class="space-y-2 border border-black/5 rounded-xl p-3">
                 <?= csrf_field() ?>
@@ -165,6 +194,7 @@ $starts = !empty($row['starts_at']) ? date('Y-m-d\TH:i', strtotime((string) $row
 
     <div class="rounded-2xl border border-black/[0.06] p-5 bg-white dark:bg-white/[0.04] space-y-4">
         <h2 class="font-display font-bold"><?= htmlspecialchars(t('digital.sessions_title')) ?></h2>
+        <p class="text-sm text-gray-500"><?= htmlspecialchars(t('digital.pick_live_text')) ?></p>
         <?php foreach (($sessions ?? []) as $s): ?>
             <div class="border border-black/5 rounded-xl p-3 space-y-2">
                 <form method="post" action="<?= ProductHelper::url('/digital/studio/' . $id . '/sessions') ?>" class="space-y-2">

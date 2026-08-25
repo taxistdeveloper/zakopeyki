@@ -176,6 +176,12 @@ class Auth
         return $role === 'admin' || $role === 'manager';
     }
 
+    /** Биржа услуг пока только для сотрудников, не для обычных пользователей. */
+    public static function canAccessGigs(): bool
+    {
+        return self::isStaff();
+    }
+
     public static function can(string $permission): bool
     {
         if (!self::check()) {

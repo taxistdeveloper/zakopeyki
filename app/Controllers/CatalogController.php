@@ -20,11 +20,19 @@ class CatalogController extends Controller
         'exchange' => ['titleKey' => 'catalog.heading_exchange', 'type' => 'exchange', 'nav' => 'exchange'],
         'services' => ['titleKey' => 'catalog.heading_services', 'type' => 'service', 'nav' => 'services'],
         'gigs' => ['titleKey' => 'catalog.heading_gigs', 'type' => 'gig', 'nav' => 'services_board'],
-        'courses' => ['titleKey' => 'catalog.heading_courses', 'type' => 'course', 'nav' => 'courses'],
     ];
 
     public function show(string $section): void
     {
+        if ($section === 'courses') {
+            $this->redirect('/');
+            return;
+        }
+        if ($section === 'gigs' && !Auth::canAccessGigs()) {
+            http_response_code(404);
+            $this->view('errors/404', ['title' => t('catalog.not_found')]);
+            return;
+        }
         if (!isset($this->pages[$section])) {
             http_response_code(404);
             $this->view('errors/404', ['title' => t('catalog.not_found')]);

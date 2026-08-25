@@ -210,7 +210,7 @@ class DigitalController extends Controller
         Auth::requireLogin();
         if (!Auth::isCourseAuthor() && !Auth::isAdmin()) {
             $_SESSION['error'] = t('digital.studio_forbidden');
-            $this->redirect('/profile?tab=author');
+            $this->redirect('/profile');
             return;
         }
         $rows = (new DigitalProduct())->forAuthor((int) Auth::id());
