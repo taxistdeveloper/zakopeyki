@@ -7,8 +7,10 @@ use App\Core\Controller;
 use App\Helpers\ActivityLogger;
 use App\Models\Notification;
 use App\Models\Order;
+use App\Models\OrderReturnEvent;
 use App\Models\Review;
 use App\Services\EscrowService;
+use App\Services\ReturnService;
 
 class OrderController extends Controller
 {
@@ -72,6 +74,7 @@ class OrderController extends Controller
             'title' => t('escrow.deal_title', ['id' => $orderId]),
             'currentNav' => 'orders',
             'order' => $order,
+            'returnEvents' => (new OrderReturnEvent())->forOrder($orderId),
             'isBuyer' => $isBuyer,
             'isSeller' => $isSeller,
             'isAdmin' => $canModerate,
@@ -151,9 +154,73 @@ class OrderController extends Controller
             (int) $id,
             Auth::id(),
             (string) ($_POST['reason'] ?? ''),
-            $files['files'] ?? []
+            $files['files'] ?? [],
+            (string) ($_POST['return_reason'] ?? '')
         );
         $this->flashResult($result, (int) $id, 'order.dispute');
+    }
+
+    public function sellerAcceptReturn(string $id): void
+    {
+        Auth::requireLogin();
+        $keepItem = !empty($_POST['keep_item']);
+        $result = (new ReturnService())->acceptReturn((int) $id, Auth::id(), $keepItem, false);
+        $this->flashResult($result, (int) $id, 'order.return_accept');
+    }
+
+    public function sellerOfferPartial(string $id): void
+    {
+        Auth::requireLogin();
+        $amount = (int) preg_replace('/\D+/', '', (string) ($_POST['partial_amount'] ?? '0'));
+        $result = (new ReturnService())->offerPartial((int) $id, Auth::id(), $amount);
+        $this->flashResult($result, (int) $id, 'order.return_partial');
+    }
+
+    public function sellerDeclineReturn(string $id): void
+    {
+        Auth::requireLogin();
+        $result = (new ReturnService())->declineReturn(
+            (int) $id,
+            Auth::id(),
+            (string) ($_POST['decline_note'] ?? '')
+        );
+        $this->flashResult($result, (int) $id, 'order.return_decline');
+    }
+
+    public function buyerAcceptPartial(string $id): void
+    {
+        Auth::requireLogin();
+        $result = (new ReturnService())->acceptPartial((int) $id, Auth::id());
+        $this->flashResult($result, (int) $id, 'order.return_partial_accept');
+    }
+
+    public function buyerDeclinePartial(string $id): void
+    {
+        Auth::requireLogin();
+        $result = (new ReturnService())->declinePartial((int) $id, Auth::id());
+        $this->flashResult($result, (int) $id, 'order.return_partial_decline');
+    }
+
+    public function buyerEscalate(string $id): void
+    {
+        Auth::requireLogin();
+        $result = (new ReturnService())->escalate((int) $id, Auth::id());
+        $this->flashResult($result, (int) $id, 'order.return_escalate');
+    }
+
+    public function arbiterFullRefund(string $id): void
+    {
+        Auth::requirePermission('disputes');
+        $result = (new ReturnService())->arbiterFullRefund((int) $id, Auth::id());
+        $this->flashResult($result, (int) $id, 'order.arbiter_full_refund');
+    }
+
+    public function arbiterPartialRefund(string $id): void
+    {
+        Auth::requirePermission('disputes');
+        $amount = (int) preg_replace('/\D+/', '', (string) ($_POST['partial_amount'] ?? '0'));
+        $result = (new ReturnService())->arbiterPartialRefund((int) $id, Auth::id(), $amount);
+        $this->flashResult($result, (int) $id, 'order.arbiter_partial');
     }
 
     public function returnShip(string $id): void

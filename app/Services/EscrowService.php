@@ -22,10 +22,12 @@ class EscrowService
         'delivered',
         'completed',
         'dispute',
+        'return_requested',
         'return_approved',
         'return_shipped',
         'return_delivered',
         'refunded',
+        'partial_refunded',
         'cancelled',
     ];
 
@@ -36,7 +38,7 @@ class EscrowService
         $this->orders = $orders ?? new Order();
     }
 
-    /** Авто: если срок проверки истёк — разморозить продавцу. */
+    /** Авто: срок проверки, ответ продавца, отправка и подтверждение возврата. */
     public function processDeadlines(?int $orderId = null): void
     {
         $list = $orderId
@@ -51,8 +53,13 @@ class EscrowService
             if (!$until || strtotime((string) $until) > time()) {
                 continue;
             }
-            $this->releaseToSeller((int) $order['id'], null, true);
+            $this->settle((int) $order['id'], 0, [
+                'auto' => true,
+                'status' => 'completed',
+            ]);
         }
+
+        (new ReturnService($this, $this->orders))->processTimedActions();
     }
 
     /** @return array{ok: bool, error?: string} */
@@ -342,176 +349,159 @@ class EscrowService
             ]);
         }
 
-        return $this->releaseToSeller($orderId, $buyerId, false);
+        return $this->settle($orderId, 0, [
+            'actor_id' => $buyerId,
+            'auto' => false,
+            'status' => 'completed',
+        ]);
     }
 
     /** @return array{ok: bool, error?: string} */
-    public function openDispute(int $orderId, int $buyerId, string $reason, array $evidenceFiles = []): array
-    {
-        $order = $this->orders->find($orderId);
-        if (!$order) {
-            return ['ok' => false, 'error' => t('escrow.not_found')];
-        }
-        if ((int) $order['buyer_id'] !== $buyerId) {
-            return ['ok' => false, 'error' => t('escrow.forbidden')];
-        }
-        if (($order['status'] ?? '') !== 'delivered') {
-            return ['ok' => false, 'error' => t('escrow.dispute_only_delivered')];
-        }
-
-        $reason = trim($reason);
-        if (mb_strlen($reason) < 10) {
-            return ['ok' => false, 'error' => t('escrow.dispute_reason_short')];
-        }
-
-        $this->orders->updateFields($orderId, [
-            'status' => 'dispute',
-            'dispute_reason' => $reason,
-            'dispute_evidence' => $evidenceFiles ? json_encode($evidenceFiles, JSON_UNESCAPED_UNICODE) : null,
-            'disputed_at' => date('Y-m-d H:i:s'),
-        ]);
-
-        (new Notification())->createFor(
-            (int) $order['seller_id'],
-            t('escrow.notify_dispute', ['id' => $orderId])
+    public function openDispute(
+        int $orderId,
+        int $buyerId,
+        string $reason,
+        array $evidenceFiles = [],
+        string $returnReason = ReturnService::REASON_NOT_AS_DESCRIBED
+    ): array {
+        return (new ReturnService($this, $this->orders))->openCase(
+            $orderId,
+            $buyerId,
+            $returnReason !== '' ? $returnReason : ReturnService::REASON_NOT_AS_DESCRIBED,
+            $reason,
+            $evidenceFiles
         );
-
-        return ['ok' => true];
     }
 
-    /** Арбитр (админ): одобрить возврат. */
+    /** Арбитр (админ): одобрить возврат товара. */
     public function approveReturn(int $orderId, int $adminId): array
     {
-        $order = $this->orders->find($orderId);
-        if (!$order || ($order['status'] ?? '') !== 'dispute') {
-            return ['ok' => false, 'error' => t('escrow.bad_status')];
-        }
-
-        $this->orders->updateFields($orderId, [
-            'status' => 'return_approved',
-            'arbiter_id' => $adminId,
-            'arbiter_decision' => 'approve_return',
-            'arbiter_at' => date('Y-m-d H:i:s'),
-        ]);
-
-        (new Notification())->createFor(
-            (int) $order['buyer_id'],
-            t('escrow.notify_return_approved', ['id' => $orderId])
-        );
-        (new Notification())->createFor(
-            (int) $order['seller_id'],
-            t('escrow.notify_return_approved_seller', ['id' => $orderId])
-        );
-
-        return ['ok' => true];
+        return (new ReturnService($this, $this->orders))->arbiterApproveShipment($orderId, $adminId);
     }
 
     /** Арбитр: отклонить спор → деньги продавцу. */
     public function rejectDispute(int $orderId, int $adminId): array
     {
-        $order = $this->orders->find($orderId);
-        if (!$order || ($order['status'] ?? '') !== 'dispute') {
-            return ['ok' => false, 'error' => t('escrow.bad_status')];
-        }
-
-        $this->orders->updateFields($orderId, [
-            'arbiter_id' => $adminId,
-            'arbiter_decision' => 'reject_dispute',
-            'arbiter_at' => date('Y-m-d H:i:s'),
-        ]);
-
-        return $this->releaseToSeller($orderId, null, false);
+        return (new ReturnService($this, $this->orders))->arbiterSellerFavor($orderId, $adminId);
     }
 
     /** Покупатель отправляет товар обратно. */
     public function addReturnTracking(int $orderId, int $buyerId, string $tracking): array
     {
-        $order = $this->orders->find($orderId);
-        if (!$order) {
-            return ['ok' => false, 'error' => t('escrow.not_found')];
-        }
-        if ((int) $order['buyer_id'] !== $buyerId) {
-            return ['ok' => false, 'error' => t('escrow.forbidden')];
-        }
-        if (($order['status'] ?? '') !== 'return_approved') {
-            return ['ok' => false, 'error' => t('escrow.bad_status')];
-        }
-
-        $tracking = trim($tracking);
-        if ($tracking === '' || mb_strlen($tracking) < 5) {
-            return ['ok' => false, 'error' => t('escrow.track_required')];
-        }
-
-        $this->orders->updateFields($orderId, [
-            'status' => 'return_shipped',
-            'return_tracking' => $tracking,
-            'return_shipped_at' => date('Y-m-d H:i:s'),
-        ]);
-
-        (new Notification())->createFor(
-            (int) $order['seller_id'],
-            t('escrow.notify_return_shipped', ['id' => $orderId, 'track' => $tracking])
-        );
-
-        return ['ok' => true];
+        return (new ReturnService($this, $this->orders))->addReturnTracking($orderId, $buyerId, $tracking);
     }
 
     /** Продавец подтвердил получение возврата → деньги покупателю. */
     public function confirmReturnReceived(int $orderId, int $sellerId): array
     {
-        $order = $this->orders->find($orderId);
-        if (!$order) {
-            return ['ok' => false, 'error' => t('escrow.not_found')];
-        }
-        if ((int) $order['seller_id'] !== $sellerId) {
-            return ['ok' => false, 'error' => t('escrow.forbidden')];
-        }
-        if (($order['status'] ?? '') !== 'return_shipped') {
-            return ['ok' => false, 'error' => t('escrow.bad_status')];
-        }
-
-        $this->orders->updateFields($orderId, [
-            'status' => 'return_delivered',
-            'return_delivered_at' => date('Y-m-d H:i:s'),
-        ]);
-
-        return $this->refundToBuyer($orderId);
+        return (new ReturnService($this, $this->orders))->confirmReturnReceived($orderId, $sellerId);
     }
 
-    /** @return array{ok: bool, error?: string} */
-    private function releaseToSeller(int $orderId, ?int $actorId, bool $auto): array
+    /**
+     * Расщепление эскроу: покупателю $amountToBuyer, остаток продавцу.
+     *
+     * @param array{
+     *   actor_id?: int|null,
+     *   auto?: bool,
+     *   reactivate?: bool,
+     *   revoke_digital?: bool,
+     *   keep_item?: bool,
+     *   status?: string
+     * } $options
+     * @return array{ok: bool, error?: string}
+     */
+    public function settle(int $orderId, int $amountToBuyer, array $options = []): array
     {
         $order = $this->orders->find($orderId);
         if (!$order) {
             return ['ok' => false, 'error' => t('escrow.not_found')];
         }
-        $status = $order['status'] ?? '';
-        if ($status === 'completed') {
-            return ['ok' => true];
-        }
-        if (!in_array($status, ['delivered', 'dispute', 'shipped'], true)) {
-            return ['ok' => false, 'error' => t('escrow.bad_status')];
-        }
-        if (($order['escrow_hold'] ?? '') === 'released_seller') {
+
+        $hold = (string) ($order['escrow_hold'] ?? '');
+        $status = (string) ($order['status'] ?? '');
+        if (in_array($status, ['completed', 'refunded', 'partial_refunded', 'cancelled'], true)
+            || in_array($hold, ['released_seller', 'refunded_buyer', 'split_settled'], true)
+        ) {
             return ['ok' => true];
         }
 
-        $amount = (int) $order['amount'];
+        $allowed = [
+            'delivered',
+            'dispute',
+            'shipped',
+            'return_requested',
+            'return_approved',
+            'return_shipped',
+            'return_delivered',
+        ];
+        if (!in_array($status, $allowed, true)) {
+            return ['ok' => false, 'error' => t('escrow.bad_status')];
+        }
+
+        $total = (int) $order['amount'];
+        if ($amountToBuyer < 0) {
+            $amountToBuyer = 0;
+        }
+        if ($amountToBuyer > $total) {
+            $amountToBuyer = $total;
+        }
+        $amountToSeller = $total - $amountToBuyer;
+
+        $finalStatus = (string) ($options['status'] ?? '');
+        if ($finalStatus === '') {
+            if ($amountToBuyer === $total) {
+                $finalStatus = 'refunded';
+            } elseif ($amountToBuyer === 0) {
+                $finalStatus = 'completed';
+            } else {
+                $finalStatus = 'partial_refunded';
+            }
+        }
+
+        $reactivate = (bool) ($options['reactivate'] ?? ($amountToBuyer === $total && empty($options['keep_item'])));
+        $revokeDigital = (bool) ($options['revoke_digital'] ?? false);
+        $auto = (bool) ($options['auto'] ?? false);
+        $actorId = isset($options['actor_id']) ? (int) $options['actor_id'] : null;
+
+        $buyerId = (int) $order['buyer_id'];
         $sellerId = (int) $order['seller_id'];
 
         try {
             $db = Database::connect();
             $db->beginTransaction();
 
-            $this->orders->updateFields($orderId, [
-                'status' => 'completed',
-                'escrow_hold' => 'released_seller',
-                'confirmed_at' => date('Y-m-d H:i:s'),
-                'released_at' => date('Y-m-d H:i:s'),
-            ]);
+            $holdValue = $amountToBuyer === $total
+                ? 'refunded_buyer'
+                : ($amountToBuyer === 0 ? 'released_seller' : 'split_settled');
 
-            (new Wallet())->releaseFromEscrow($sellerId, $amount, $orderId);
-            (new Bonus())->awardSale($sellerId, $orderId);
+            $fields = [
+                'status' => $finalStatus,
+                'escrow_hold' => $holdValue,
+                'refund_amount' => $amountToBuyer,
+            ];
+            if ($amountToSeller > 0) {
+                $fields['confirmed_at'] = date('Y-m-d H:i:s');
+                $fields['released_at'] = date('Y-m-d H:i:s');
+            }
+            if ($amountToBuyer > 0) {
+                $fields['refunded_at'] = date('Y-m-d H:i:s');
+            }
+            $this->orders->updateFields($orderId, $fields);
+
+            $wallet = new Wallet();
+            if ($amountToBuyer > 0) {
+                $wallet->refundFromEscrow($buyerId, $amountToBuyer, $orderId);
+            }
+            if ($amountToSeller > 0) {
+                $wallet->releaseFromEscrow($sellerId, $amountToSeller, $orderId);
+                (new Bonus())->awardSale($sellerId, $orderId);
+            }
+            if ($reactivate) {
+                $this->reactivateProduct($db, (int) ($order['product_id'] ?? 0));
+            }
+            if ($revokeDigital) {
+                (new \App\Models\DigitalProduct())->revokeAccessByOrder($orderId);
+            }
 
             $db->commit();
         } catch (\Throwable $e) {
@@ -522,25 +512,41 @@ class EscrowService
             return ['ok' => false, 'error' => t('wallet.op_failed')];
         }
 
-        try {
-            (new PersonalLimitService())->addTurnoverFromOrder($sellerId, $orderId, $amount);
-        } catch (\Throwable $e) {
-            // лимит не должен ломать выплату
+        if ($amountToSeller > 0) {
+            try {
+                (new PersonalLimitService())->addTurnoverFromOrder($sellerId, $orderId, $amountToSeller);
+            } catch (\Throwable $e) {
+            }
+
+            $msg = $auto
+                ? t('escrow.notify_auto_released', ['id' => $orderId, 'amount' => number_format($amountToSeller, 0, '', ' ')])
+                : t('escrow.notify_released', ['id' => $orderId, 'amount' => number_format($amountToSeller, 0, '', ' ')]);
+            (new Notification())->createFor($sellerId, $msg);
+            (new Notification())->createFor(
+                $sellerId,
+                t('bonuses.notify_sale', ['amount' => Bonus::format(Bonus::AMOUNT_SALE)])
+            );
+            if ($actorId === null || $actorId !== $buyerId) {
+                if ($amountToBuyer === 0) {
+                    (new Notification())->createFor(
+                        $buyerId,
+                        t('escrow.notify_completed_buyer', ['id' => $orderId])
+                    );
+                }
+            }
         }
 
-        $msg = $auto
-            ? t('escrow.notify_auto_released', ['id' => $orderId, 'amount' => number_format($amount, 0, '', ' ')])
-            : t('escrow.notify_released', ['id' => $orderId, 'amount' => number_format($amount, 0, '', ' ')]);
-
-        (new Notification())->createFor($sellerId, $msg);
-        (new Notification())->createFor(
-            $sellerId,
-            t('bonuses.notify_sale', ['amount' => Bonus::format(Bonus::AMOUNT_SALE)])
-        );
-        if ($actorId === null || $actorId !== (int) $order['buyer_id']) {
+        if ($amountToBuyer > 0) {
             (new Notification())->createFor(
-                (int) $order['buyer_id'],
-                t('escrow.notify_completed_buyer', ['id' => $orderId])
+                $buyerId,
+                t('escrow.notify_refunded', [
+                    'id' => $orderId,
+                    'amount' => number_format($amountToBuyer, 0, '', ' '),
+                ])
+            );
+            (new Notification())->createFor(
+                $sellerId,
+                t('escrow.notify_refunded_seller', ['id' => $orderId])
             );
         }
 
@@ -548,54 +554,22 @@ class EscrowService
     }
 
     /** @return array{ok: bool, error?: string} */
+    private function releaseToSeller(int $orderId, ?int $actorId, bool $auto): array
+    {
+        return $this->settle($orderId, 0, [
+            'actor_id' => $actorId,
+            'auto' => $auto,
+            'status' => 'completed',
+        ]);
+    }
+
+    /** @return array{ok: bool, error?: string} */
     private function refundToBuyer(int $orderId): array
     {
-        $order = $this->orders->find($orderId);
-        if (!$order) {
-            return ['ok' => false, 'error' => t('escrow.not_found')];
-        }
-        if (($order['escrow_hold'] ?? '') === 'refunded_buyer' || ($order['status'] ?? '') === 'refunded') {
-            return ['ok' => true];
-        }
-
-        $amount = (int) $order['amount'];
-        $buyerId = (int) $order['buyer_id'];
-
-        try {
-            $db = Database::connect();
-            $db->beginTransaction();
-
-            $this->orders->updateFields($orderId, [
-                'status' => 'refunded',
-                'escrow_hold' => 'refunded_buyer',
-                'refunded_at' => date('Y-m-d H:i:s'),
-            ]);
-
-            (new Wallet())->refundFromEscrow($buyerId, $amount, $orderId);
-            $this->reactivateProduct($db, (int) ($order['product_id'] ?? 0));
-
-            $db->commit();
-        } catch (\Throwable $e) {
-            $db = Database::connect();
-            if ($db->inTransaction()) {
-                $db->rollBack();
-            }
-            return ['ok' => false, 'error' => t('wallet.op_failed')];
-        }
-
-        (new Notification())->createFor(
-            $buyerId,
-            t('escrow.notify_refunded', [
-                'id' => $orderId,
-                'amount' => number_format($amount, 0, '', ' '),
-            ])
-        );
-        (new Notification())->createFor(
-            (int) $order['seller_id'],
-            t('escrow.notify_refunded_seller', ['id' => $orderId])
-        );
-
-        return ['ok' => true];
+        return $this->settle($orderId, (int) (($this->orders->find($orderId)['amount'] ?? 0)), [
+            'reactivate' => true,
+            'status' => 'refunded',
+        ]);
     }
 
     private function isParty(array $order, int $userId): bool

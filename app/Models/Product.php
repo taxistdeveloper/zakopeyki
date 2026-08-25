@@ -86,8 +86,8 @@ class Product extends Model
                        WHERE o2.product_id = p.id
                          AND o2.status IN (
                              'awaiting_payment', 'escrowed', 'shipped', 'delivered',
-                             'dispute', 'return_approved', 'return_shipped',
-                             'return_delivered', 'completed'
+                             'dispute', 'return_requested', 'return_approved', 'return_shipped',
+                             'return_delivered', 'completed', 'partial_refunded'
                          )
                    )"
             );

@@ -51,6 +51,17 @@ class Order extends Model
                 return_shipped_at DATETIME DEFAULT NULL,
                 return_delivered_at DATETIME DEFAULT NULL,
                 refunded_at DATETIME DEFAULT NULL,
+                return_reason VARCHAR(40) DEFAULT NULL,
+                return_shipping_payer VARCHAR(16) DEFAULT NULL,
+                return_requires_shipment TINYINT(1) NOT NULL DEFAULT 0,
+                return_keep_item TINYINT(1) NOT NULL DEFAULT 0,
+                seller_response_until DATETIME DEFAULT NULL,
+                return_ship_until DATETIME DEFAULT NULL,
+                return_confirm_until DATETIME DEFAULT NULL,
+                return_offer_amount INT UNSIGNED DEFAULT NULL,
+                return_offer_status VARCHAR(16) NOT NULL DEFAULT 'none',
+                return_offer_until DATETIME DEFAULT NULL,
+                refund_amount INT UNSIGNED DEFAULT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 paid_at TIMESTAMP NULL DEFAULT NULL,
                 INDEX idx_buyer (buyer_id),
@@ -80,6 +91,17 @@ class Order extends Model
             'return_shipped_at' => 'DATETIME DEFAULT NULL',
             'return_delivered_at' => 'DATETIME DEFAULT NULL',
             'refunded_at' => 'DATETIME DEFAULT NULL',
+            'return_reason' => 'VARCHAR(40) DEFAULT NULL',
+            'return_shipping_payer' => 'VARCHAR(16) DEFAULT NULL',
+            'return_requires_shipment' => 'TINYINT(1) NOT NULL DEFAULT 0',
+            'return_keep_item' => 'TINYINT(1) NOT NULL DEFAULT 0',
+            'seller_response_until' => 'DATETIME DEFAULT NULL',
+            'return_ship_until' => 'DATETIME DEFAULT NULL',
+            'return_confirm_until' => 'DATETIME DEFAULT NULL',
+            'return_offer_amount' => 'INT UNSIGNED DEFAULT NULL',
+            'return_offer_status' => "VARCHAR(16) NOT NULL DEFAULT 'none'",
+            'return_offer_until' => 'DATETIME DEFAULT NULL',
+            'refund_amount' => 'INT UNSIGNED DEFAULT NULL',
         ]);
 
         // Старый ENUM paid → escrowed semantics
@@ -185,6 +207,39 @@ class Order extends Model
              ORDER BY o.disputed_at DESC, o.created_at DESC'
         );
         $stmt->execute([$status]);
+        return $stmt->fetchAll();
+    }
+
+    /** @return list<array> */
+    public function findReturnQueue(): array
+    {
+        $stmt = $this->db->query(
+            "SELECT o.*, p.title AS product_title,
+                    buyer.name AS buyer_name, seller.name AS seller_name
+             FROM orders o
+             JOIN products p ON p.id = o.product_id
+             JOIN users buyer ON buyer.id = o.buyer_id
+             JOIN users seller ON seller.id = o.seller_id
+             WHERE o.status IN (
+                 'return_requested', 'dispute', 'return_approved', 'return_shipped'
+             )
+             ORDER BY COALESCE(o.disputed_at, o.created_at) DESC"
+        );
+        return $stmt->fetchAll();
+    }
+
+    /** @return list<array> */
+    public function findByStatuses(array $statuses): array
+    {
+        $statuses = array_values(array_filter($statuses, static fn ($s) => is_string($s) && $s !== ''));
+        if ($statuses === []) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($statuses), '?'));
+        $stmt = $this->db->prepare(
+            "SELECT * FROM orders WHERE status IN ({$placeholders})"
+        );
+        $stmt->execute($statuses);
         return $stmt->fetchAll();
     }
 

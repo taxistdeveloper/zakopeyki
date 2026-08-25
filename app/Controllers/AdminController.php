@@ -66,7 +66,7 @@ class AdminController extends Controller
             'hits_week' => 0,
         ];
         $recentVisitors = [];
-        $disputes = $canDisputes ? $orderModel->findByStatus('dispute') : [];
+        $disputes = $canDisputes ? $orderModel->findReturnQueue() : [];
 
         $n = new Notification();
         $notifications = $n->forUser(Auth::id());

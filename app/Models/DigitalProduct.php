@@ -432,6 +432,18 @@ class DigitalProduct extends Model
         return $this->findAccess($userId, $digitalProductId) ?? [];
     }
 
+    public function revokeAccessByOrder(int $orderId): void
+    {
+        if ($orderId <= 0) {
+            return;
+        }
+        $stmt = $this->db->prepare(
+            "UPDATE digital_access SET status = 'revoked' WHERE order_id = ? AND status = 'active'"
+        );
+        $stmt->execute([$orderId]);
+        self::$ownedListingCache = [];
+    }
+
     public function storePlaybackTicket(
         int $accessId,
         int $userId,
