@@ -81,7 +81,7 @@ class ProfileController extends Controller
             }
         } elseif ($tab === 'lots' && !empty($_GET['edit'])) {
             $candidate = (new Product())->find((int) $_GET['edit']);
-            if ($candidate && (int) $candidate['user_id'] === Auth::id()) {
+            if ($candidate && (int) $candidate['user_id'] === Auth::id() && ($candidate['type'] ?? '') !== 'course') {
                 $editProduct = $candidate;
             }
         }

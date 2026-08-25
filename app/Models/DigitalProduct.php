@@ -248,7 +248,7 @@ class DigitalProduct extends Model
             'SELECT d.*, p.title, p.price, p.status AS listing_status, p.category
              FROM digital_products d
              INNER JOIN products p ON p.id = d.product_id
-             WHERE d.author_id = ?
+             WHERE d.author_id = ? AND p.type <> \'course\'
              ORDER BY d.updated_at DESC'
         );
         $stmt->execute([$authorId]);
@@ -371,7 +371,7 @@ class DigitalProduct extends Model
              FROM digital_access a
              INNER JOIN digital_products d ON d.id = a.digital_product_id
              INNER JOIN products p ON p.id = d.product_id
-             WHERE a.user_id = ?
+             WHERE a.user_id = ? AND p.type <> \'course\'
              ORDER BY a.created_at DESC'
         );
         $stmt->execute([$userId]);

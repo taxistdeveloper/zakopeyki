@@ -433,7 +433,7 @@ class Product extends Model
 
     public function byUser(int $userId): array
     {
-        $stmt = $this->db->prepare('SELECT * FROM products WHERE user_id = ? ORDER BY created_at DESC');
+        $stmt = $this->db->prepare('SELECT * FROM products WHERE user_id = ? AND type <> \'course\' ORDER BY created_at DESC');
         $stmt->execute([$userId]);
         return $stmt->fetchAll();
     }
@@ -459,7 +459,7 @@ class Product extends Model
     {
         $stmt = $this->db->prepare(
             "SELECT * FROM products
-             WHERE user_id = ? AND status = 'active'
+             WHERE user_id = ? AND status = 'active' AND type <> 'course'
              ORDER BY created_at DESC
              LIMIT ?"
         );
@@ -493,7 +493,7 @@ class Product extends Model
     public function countActive(): int
     {
         return (int) $this->db->query(
-            "SELECT COUNT(*) FROM products WHERE status='active'"
+            "SELECT COUNT(*) FROM products WHERE status='active' AND type <> 'course'"
         )->fetchColumn();
     }
 

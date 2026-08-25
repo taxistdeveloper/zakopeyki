@@ -196,10 +196,10 @@ body {
 .countdown-slot {
   position: absolute;
   left: 52.1%;
-  top: 51.3%;
-  width: 26.5%;
-  height: 13.2%;
-  transform: translateX(-50%);
+  top: 56%;
+  width: 34%;
+  height: 30%;
+  transform: translate(-50%, -50%);
   z-index: 3;
   display: flex;
   align-items: center;
@@ -213,10 +213,10 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: clamp(0.08rem, 0.35cqw, 0.35rem);
+  gap: clamp(0.2rem, 0.7cqw, 0.7rem);
   width: 100%;
   height: 100%;
-  padding: 1% 2%;
+  padding: 4% 3%;
   text-align: center;
 }
 
@@ -675,9 +675,10 @@ body.debug .hit {
 /* Tablet */
 @media (max-width: 899px) {
   .countdown-slot {
-    top: 50.8%;
-    width: 30%;
-    height: 14%;
+    top: 56%;
+    width: 36%;
+    height: 32%;
+    transform: translate(-50%, -50%);
   }
 
   .cd-title {
@@ -1083,10 +1084,10 @@ body.debug .hit {
   .countdown-slot {
     position: absolute;
     left: 52.1%;
-    top: 51%;
-    transform: translateX(-50%);
-    width: 34%;
-    height: 18%;
+    top: 56%;
+    transform: translate(-50%, -50%);
+    width: 36%;
+    height: 32%;
     margin: 0;
     max-width: none;
   }
@@ -1219,12 +1220,12 @@ body.debug .hit {
                 aria-hidden="true"
               />
               <nav id="categories" aria-label="Категории">
-                <button type="button" class="hit hit-cat" style="left:15.00%; top:71.00%; width:8.75%; height:19.00%" data-label="Товары new" aria-label="Товары new"></button>
-                <button type="button" class="hit hit-cat" style="left:24.53%; top:71.00%; width:8.75%; height:19.00%" data-label="Товары Б/у" aria-label="Товары Б/у"></button>
-                <button type="button" class="hit hit-cat" style="left:33.85%; top:71.00%; width:8.75%; height:19.00%" data-label="Аукционы" aria-label="Аукционы"></button>
-                <button type="button" class="hit hit-cat" style="left:43.28%; top:71.00%; width:8.75%; height:19.00%" data-label="Услуги" aria-label="Услуги"></button>
-                <button type="button" class="hit hit-cat" style="left:52.71%; top:71.00%; width:8.75%; height:19.00%" data-label="Обмен" aria-label="Обмен"></button>
-                <button type="button" class="hit hit-cat" style="left:62.14%; top:71.00%; width:8.75%; height:19.00%" data-label="Даром" aria-label="Даром"></button>
+                <button type="button" class="hit hit-cat" style="left:9.8%; top:68.5%; width:12.4%; height:23.5%" data-label="Товары new" aria-label="Товары new"></button>
+                <button type="button" class="hit hit-cat" style="left:23.6%; top:68.5%; width:12.4%; height:23.5%" data-label="Товары Б/у" aria-label="Товары Б/у"></button>
+                <button type="button" class="hit hit-cat" style="left:37.4%; top:68.5%; width:12.4%; height:23.5%" data-label="Аукционы" aria-label="Аукционы"></button>
+                <button type="button" class="hit hit-cat" style="left:51.2%; top:68.5%; width:12.4%; height:23.5%" data-label="Услуги" aria-label="Услуги"></button>
+                <button type="button" class="hit hit-cat" style="left:65.0%; top:68.5%; width:12.4%; height:23.5%" data-label="Обмен" aria-label="Обмен"></button>
+                <button type="button" class="hit hit-cat" style="left:78.8%; top:68.5%; width:12.4%; height:23.5%" data-label="Даром" aria-label="Даром"></button>
               </nav>
             </div>
           </div>

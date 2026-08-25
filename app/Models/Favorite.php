@@ -60,7 +60,7 @@ class Favorite extends Model
              FROM favorites f
              JOIN products p ON p.id = f.product_id
              JOIN users u ON u.id = p.user_id
-             WHERE f.user_id = ?
+             WHERE f.user_id = ? AND p.type <> \'course\'
              ORDER BY f.created_at DESC'
         );
         $stmt->execute([$userId]);

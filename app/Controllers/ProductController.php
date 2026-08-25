@@ -18,7 +18,7 @@ class ProductController extends Controller
     public function show(string $id): void
     {
         $product = (new Product())->findWithSeller((int) $id);
-        if (!$product) {
+        if (!$product || ($product['type'] ?? '') === 'course') {
             http_response_code(404);
             $this->view('errors/404', ['title' => t('product.not_found')]);
             return;
