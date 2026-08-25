@@ -90,7 +90,7 @@ if (!empty($appConfig['stub_mode']) && !\App\Core\Auth::hasSiteAccess(true)) {
     if (!$stubOk) {
         \App\Core\View::render('stub/coming-soon', [
             'title' => 'Скоро открытие',
-            'opensAt' => (string) ($appConfig['stub_opens_at'] ?? '2026-08-06 00:00:00'),
+            'opensAt' => (string) ($appConfig['stub_opens_at'] ?? '2026-09-30 00:00:00'),
         ], '');
         exit;
     }

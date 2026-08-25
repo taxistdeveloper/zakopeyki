@@ -24,13 +24,8 @@ class CatalogController extends Controller
 
     public function show(string $section): void
     {
-        if ($section === 'courses') {
+        if ($section === 'courses' || $section === 'gigs') {
             $this->redirect('/');
-            return;
-        }
-        if ($section === 'gigs' && !Auth::canAccessGigs()) {
-            http_response_code(404);
-            $this->view('errors/404', ['title' => t('catalog.not_found')]);
             return;
         }
         if (!isset($this->pages[$section])) {

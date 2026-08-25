@@ -17,5 +17,5 @@ return [
     // Можно переключить в админке (/admin) — значение пишется в таблицу settings.
     // Fallback, если в БД ещё нет ключа stub_mode: true = закрыт.
     'stub_mode' => true,
-    'stub_opens_at' => '2026-08-30 00:00:00',
+    'stub_opens_at' => '2026-09-30 00:00:00',
 ];

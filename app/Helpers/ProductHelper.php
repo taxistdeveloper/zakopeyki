@@ -33,10 +33,7 @@ class ProductHelper
     public static function marketplaceTypes(): array
     {
         $types = self::TYPES;
-        unset($types['course']);
-        if (!\App\Core\Auth::canAccessGigs()) {
-            unset($types['gig']);
-        }
+        unset($types['course'], $types['gig']);
 
         return $types;
     }

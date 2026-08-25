@@ -3,7 +3,7 @@
 use App\Helpers\ProductHelper;
 
 $heroUrl = ProductHelper::url('/public/assets/img/stub-hero.jpg');
-$opensAt = $opensAt ?? '2026-08-30 00:00:00';
+$opensAt = $opensAt ?? '2026-09-30 00:00:00';
 $opensTs = strtotime($opensAt) ?: (time() + 7 * 86400);
 $opensIso = date('Y-m-d\TH:i:sP', $opensTs);
 $loginUrl = ProductHelper::url('/login');
@@ -1203,7 +1203,7 @@ body.debug .hit {
                     <span class="cd-lbl">секунд</span>
                   </div>
                 </div>
-                <p class="cd-note">30 августа откроется сайт</p>
+                <p class="cd-note">30 сентября откроется сайт</p>
               </div>
             </div>
 
@@ -1223,9 +1223,8 @@ body.debug .hit {
                 <button type="button" class="hit hit-cat" style="left:24.53%; top:71.00%; width:8.75%; height:19.00%" data-label="Товары Б/у" aria-label="Товары Б/у"></button>
                 <button type="button" class="hit hit-cat" style="left:33.85%; top:71.00%; width:8.75%; height:19.00%" data-label="Аукционы" aria-label="Аукционы"></button>
                 <button type="button" class="hit hit-cat" style="left:43.28%; top:71.00%; width:8.75%; height:19.00%" data-label="Услуги" aria-label="Услуги"></button>
-                <button type="button" class="hit hit-cat" style="left:52.71%; top:71.00%; width:8.75%; height:19.00%" data-label="Биржа услуг" aria-label="Биржа услуг"></button>
-                <button type="button" class="hit hit-cat" style="left:71.56%; top:71.00%; width:8.75%; height:19.00%" data-label="Обмен" aria-label="Обмен"></button>
-                <button type="button" class="hit hit-cat" style="left:80.99%; top:71.00%; width:8.75%; height:19.00%" data-label="Даром" aria-label="Даром"></button>
+                <button type="button" class="hit hit-cat" style="left:52.71%; top:71.00%; width:8.75%; height:19.00%" data-label="Обмен" aria-label="Обмен"></button>
+                <button type="button" class="hit hit-cat" style="left:62.14%; top:71.00%; width:8.75%; height:19.00%" data-label="Даром" aria-label="Даром"></button>
               </nav>
             </div>
           </div>
@@ -1252,7 +1251,7 @@ body.debug .hit {
         <p class="cta-modal__eyebrow">Ранний доступ</p>
         <p class="cta-modal__title" id="cta-modal-title">Будьте среди первых</p>
         <p class="cta-modal__sub">
-          30 августа открываем сайт. Зарегистрируйтесь заранее — и встретьте запуск во всеоружии.
+          30 сентября открываем сайт. Зарегистрируйтесь заранее — и встретьте запуск во всеоружии.
         </p>
         <a class="cta-modal__btn" href="<?= htmlspecialchars($registerUrl) ?>">
           Создать аккаунт
