@@ -195,10 +195,10 @@ body {
 
 .countdown-slot {
   position: absolute;
-  left: 52.1%;
-  top: 56%;
-  width: 34%;
-  height: 30%;
+  left: 51%;
+  top: 53.6%;
+  width: 20.4%;
+  height: 11.4%;
   transform: translate(-50%, -50%);
   z-index: 3;
   display: flex;
@@ -213,16 +213,16 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: clamp(0.2rem, 0.7cqw, 0.7rem);
+  gap: 0.18em;
   width: 100%;
   height: 100%;
-  padding: 4% 3%;
+  padding: 0.15em 0.35em 0.2em;
   text-align: center;
 }
 
 .cd-title {
   margin: 0;
-  font-size: clamp(0.5rem, 1.15cqw, 1rem);
+  font-size: clamp(0.42rem, 0.95cqw, 0.82rem);
   font-weight: 600;
   color: #fff;
   letter-spacing: 0.01em;
@@ -231,8 +231,8 @@ body {
 }
 
 .cd-note {
-  margin: 0;
-  font-size: clamp(0.4rem, 0.9cqw, 0.78rem);
+  margin: 0.05em 0 0;
+  font-size: clamp(0.34rem, 0.72cqw, 0.62rem);
   font-weight: 600;
   color: rgba(255, 255, 255, 0.92);
   letter-spacing: 0.02em;
@@ -257,7 +257,7 @@ body {
 }
 
 .cd-num {
-  font-size: clamp(0.85rem, 2.85cqw, 2.55rem);
+  font-size: clamp(0.7rem, 2.15cqw, 1.85rem);
   font-weight: 800;
   letter-spacing: 0.02em;
   line-height: 1;
@@ -281,7 +281,7 @@ body {
 }
 
 .cd-sep {
-  font-size: clamp(0.75rem, 2.5cqw, 2.2rem);
+  font-size: clamp(0.6rem, 1.9cqw, 1.65rem);
   font-weight: 800;
   line-height: 1;
   padding-top: 0.05em;
@@ -675,9 +675,10 @@ body.debug .hit {
 /* Tablet */
 @media (max-width: 899px) {
   .countdown-slot {
-    top: 56%;
-    width: 36%;
-    height: 32%;
+    left: 51%;
+    top: 53.6%;
+    width: 22%;
+    height: 12%;
     transform: translate(-50%, -50%);
   }
 
@@ -1083,11 +1084,11 @@ body.debug .hit {
 
   .countdown-slot {
     position: absolute;
-    left: 52.1%;
-    top: 56%;
+    left: 51%;
+    top: 53.6%;
     transform: translate(-50%, -50%);
-    width: 36%;
-    height: 32%;
+    width: 22%;
+    height: 12.5%;
     margin: 0;
     max-width: none;
   }
