@@ -158,12 +158,16 @@ class Payment extends Model
         }
 
         $cartItems = $this->cartItemsFromMeta($payment['meta'] ?? null);
+        $dealMode = $this->dealModeFromMeta($payment['meta'] ?? null);
         $orderModel = new Order();
 
         if ($cartItems === []) {
             $order = $orderModel->find((int) $payment['order_id']);
             if (!$order || ($order['status'] ?? '') !== 'awaiting_payment') {
                 return ['ok' => false, 'error' => 'order_invalid'];
+            }
+            if (($order['deal_mode'] ?? '') === 'direct') {
+                $dealMode = 'direct';
             }
             $cartItems = [[
                 'order_id' => (int) $payment['order_id'],
@@ -202,21 +206,44 @@ class Payment extends Model
 
             $wallet = new Wallet();
             foreach ($cartItems as $item) {
-                $pay = $wallet->payExternalToEscrow(
-                    (int) $locked['buyer_id'],
-                    (int) $item['amount'],
-                    (int) $item['order_id'],
-                    'freedompay'
-                );
+                $sellerId = (int) ($item['seller_id'] ?? 0);
+                if ($sellerId <= 0) {
+                    $productRow = (new Product())->find((int) $item['product_id']);
+                    $sellerId = (int) ($productRow['user_id'] ?? 0);
+                }
+
+                if ($dealMode === 'direct') {
+                    $pay = $wallet->payExternalDirect(
+                        (int) $locked['buyer_id'],
+                        $sellerId,
+                        (int) $item['amount'],
+                        (int) $item['order_id'],
+                        'freedompay'
+                    );
+                } else {
+                    $pay = $wallet->payExternalToEscrow(
+                        (int) $locked['buyer_id'],
+                        (int) $item['amount'],
+                        (int) $item['order_id'],
+                        'freedompay'
+                    );
+                }
                 if (!$pay['ok']) {
                     $this->db->rollBack();
                     return ['ok' => false, 'error' => $pay['error'] ?? 'wallet_failed'];
                 }
 
-                $orderModel->updateFields((int) $item['order_id'], [
+                $now = date('Y-m-d H:i:s');
+                $orderModel->updateFields((int) $item['order_id'], $dealMode === 'direct' ? [
+                    'status' => 'completed',
+                    'escrow_hold' => 'released_seller',
+                    'paid_at' => $now,
+                    'released_at' => $now,
+                    'confirmed_at' => $now,
+                ] : [
                     'status' => 'escrowed',
                     'escrow_hold' => 'holding',
-                    'paid_at' => date('Y-m-d H:i:s'),
+                    'paid_at' => $now,
                 ]);
 
                 $sold = $this->db->prepare(
@@ -242,6 +269,7 @@ class Payment extends Model
             $n = new Notification();
             foreach ($cartItems as $item) {
                 $product = (new Product())->find((int) $item['product_id']);
+                $orderRow = $orderModel->find((int) $item['order_id']);
                 $sellerId = (int) ($item['seller_id'] ?? 0);
                 if ($sellerId <= 0 && $product) {
                     $sellerId = (int) $product['user_id'];
@@ -249,14 +277,16 @@ class Payment extends Model
                 if ($sellerId > 0) {
                     $n->createFor(
                         $sellerId,
-                        t('escrow.notify_escrowed', [
+                        t($dealMode === 'direct' ? 'checkout.seller_notice_direct' : 'escrow.notify_escrowed', [
                             'title' => $product['title'] ?? ($item['title'] ?? ''),
-                            'amount' => number_format((int) $item['amount'], 0, '', ' '),
+                            'amount' => number_format((int) ($orderRow['amount'] ?? $item['amount']), 0, '', ' '),
                             'id' => (int) $item['order_id'],
                         ])
                     );
                 }
-                (new \App\Services\Digital\DigitalAccessService())->grantFromPaidOrder((int) $item['order_id']);
+                if ($dealMode !== 'direct') {
+                    (new \App\Services\Digital\DigitalAccessService())->grantFromPaidOrder((int) $item['order_id']);
+                }
             }
 
             return [
@@ -368,5 +398,17 @@ class Payment extends Model
         }
 
         return $items;
+    }
+
+    private function dealModeFromMeta(mixed $meta): string
+    {
+        if (!is_string($meta) || $meta === '') {
+            return 'escrow';
+        }
+        $decoded = json_decode($meta, true);
+        if (!is_array($decoded)) {
+            return 'escrow';
+        }
+        return ($decoded['deal_mode'] ?? '') === 'direct' ? 'direct' : 'escrow';
     }
 }

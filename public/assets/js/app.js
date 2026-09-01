@@ -4783,9 +4783,9 @@ document.addEventListener('keydown', function (e) {
     const modal = document.getElementById("buy-choice-modal");
     const panel = modal && modal.querySelector("[data-buy-choice-panel]");
     const escrowLink = document.getElementById("buy-choice-escrow");
-    const directBtn = document.getElementById("buy-choice-direct");
+    const directLink = document.getElementById("buy-choice-direct");
     const productEl = document.getElementById("buy-choice-product");
-    if (!modal || !panel || !escrowLink || !directBtn) return;
+    if (!modal || !panel || !escrowLink || !directLink) return;
 
     let state = { productId: "", checkoutUrl: "", auth: true, loginUrl: "" };
     let lastFocus = null;
@@ -4807,6 +4807,9 @@ document.addEventListener('keydown', function (e) {
             }
         }
         escrowLink.href = state.auth ? state.checkoutUrl : state.loginUrl;
+        directLink.href = state.auth
+            ? (state.checkoutUrl + (state.checkoutUrl.indexOf("?") >= 0 ? "&" : "?") + "deal=direct")
+            : state.loginUrl;
         lastFocus = document.activeElement;
         modal.classList.remove("hidden");
         modal.setAttribute("aria-hidden", "false");
@@ -4841,17 +4844,6 @@ document.addEventListener('keydown', function (e) {
         if (e.key === "Escape" && !modal.classList.contains("hidden")) {
             e.preventDefault();
             closeModal();
-        }
-    });
-
-    directBtn.addEventListener("click", function () {
-        closeModal();
-        if (!state.auth) {
-            window.location.href = state.loginUrl;
-            return;
-        }
-        if (typeof window.openSellerChat === "function") {
-            window.openSellerChat({ product_id: state.productId });
         }
     });
 

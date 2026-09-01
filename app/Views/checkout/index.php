@@ -1,6 +1,7 @@
 <?php
 use App\Helpers\ProductHelper;
 use App\Models\Wallet;
+use App\Services\EscrowService;
 use App\Services\FreedomPay\Client as FreedomPayClient;
 
 $items = $items ?? (isset($item) ? [$item] : []);
@@ -10,10 +11,17 @@ if ($total <= 0) {
         $total += (int) ($row['price'] ?? 0);
     }
 }
-$priceLabel = number_format($total, 0, '', ' ') . ' ₸';
+$dealMode = ($dealMode ?? 'escrow') === 'direct' ? 'direct' : 'escrow';
+$fromCart = !empty($fromCart);
+$isDirectDeal = $dealMode === 'direct' && !$fromCart;
+$isEscrowDeal = !$isDirectDeal;
+$arbitrationFee = $isEscrowDeal ? EscrowService::arbitrationFeeForItems($items) : 0;
+$payTotal = $total + $arbitrationFee;
+$priceLabel = number_format($payTotal, 0, '', ' ') . ' ₸';
+$subtotalLabel = number_format($total, 0, '', ' ') . ' ₸';
+$feeLabel = number_format($arbitrationFee, 0, '', ' ') . ' ₸';
 $checkoutPayUrl = $checkoutPayUrl ?? ProductHelper::url('/checkout/' . (int) ($items[0]['id'] ?? 0) . '/pay');
 $cancelUrl = $cancelUrl ?? ProductHelper::url('/cart');
-$fromCart = !empty($fromCart);
 $digitalOnly = $items !== [];
 foreach ($items as $row) {
     if (!ProductHelper::isDigitalListing($row)) {
@@ -22,7 +30,7 @@ foreach ($items as $row) {
     }
 }
 $walletBalance = (int) ($walletBalance ?? 0);
-$need = $total;
+$need = $payTotal;
 $canWallet = $walletBalance >= $need;
 $fpConfigured = (new FreedomPayClient())->isConfigured();
 $simPayments = (bool) ($GLOBALS['appConfig']['allow_simulated_payments'] ?? false) && !$fpConfigured;
@@ -32,7 +40,7 @@ $canCard = $fpConfigured || $simPayments;
     <div>
         <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-400"><?= htmlspecialchars(t('checkout.eyebrow')) ?></p>
         <h1 class="font-display text-2xl sm:text-3xl font-bold tracking-tight text-ink-900 dark:text-white mt-1"><?= htmlspecialchars(t('checkout.title')) ?></h1>
-        <p class="text-sm text-gray-500 mt-1.5"><?= htmlspecialchars(t('checkout.subtitle')) ?></p>
+        <p class="text-sm text-gray-500 mt-1.5"><?= htmlspecialchars(t($isDirectDeal ? 'checkout.subtitle_direct' : 'checkout.subtitle')) ?></p>
     </div>
 
     <?php if (!empty($error)): ?>
@@ -64,8 +72,11 @@ $canCard = $fpConfigured || $simPayments;
 
         <form method="post" action="<?= $checkoutPayUrl ?>" class="p-5 sm:p-6 space-y-5">
             <?= csrf_field() ?>
-            <div class="rounded-2xl bg-amber-50/90 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/40 px-4 py-3 text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
-                <?= htmlspecialchars(t($digitalOnly ? 'checkout.digital_notice' : 'checkout.escrow_notice')) ?>
+            <?php if ($isDirectDeal): ?>
+                <input type="hidden" name="deal_mode" value="direct">
+            <?php endif; ?>
+            <div class="rounded-2xl <?= $isDirectDeal ? 'bg-slate-50/90 dark:bg-slate-950/20 border-slate-200/70 dark:border-slate-800/40 text-slate-900 dark:text-slate-200' : 'bg-amber-50/90 dark:bg-amber-950/20 border-amber-200/70 dark:border-amber-800/40 text-amber-900 dark:text-amber-200' ?> border px-4 py-3 text-xs leading-relaxed">
+                <?= htmlspecialchars(t($isDirectDeal ? 'checkout.direct_notice' : ($digitalOnly ? 'checkout.digital_notice' : 'checkout.escrow_notice'))) ?>
                 <?php if (count($items) > 1): ?>
                     <span class="block mt-1.5"><?= htmlspecialchars(t('checkout.cart_escrow_hint')) ?></span>
                 <?php endif; ?>
@@ -129,13 +140,25 @@ $canCard = $fpConfigured || $simPayments;
                 <?php endif; ?>
             </div>
 
-            <div class="flex justify-between items-center pt-2 border-t border-black/[0.05] dark:border-white/10">
-                <span class="text-sm text-gray-500"><?= htmlspecialchars(t('checkout.to_pay')) ?></span>
-                <span class="font-display text-2xl font-extrabold text-ink-900 dark:text-white"><?= htmlspecialchars($priceLabel) ?></span>
+            <div class="space-y-2 pt-2 border-t border-black/[0.05] dark:border-white/10">
+                <?php if ($isEscrowDeal && $arbitrationFee > 0): ?>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-500"><?= htmlspecialchars(t('checkout.subtotal')) ?></span>
+                        <span class="font-semibold text-ink-800 dark:text-gray-200"><?= htmlspecialchars($subtotalLabel) ?></span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-500"><?= htmlspecialchars(t('checkout.arbitration_fee', ['percent' => EscrowService::ARBITRATION_FEE_PERCENT])) ?></span>
+                        <span class="font-semibold text-ink-800 dark:text-gray-200"><?= htmlspecialchars($feeLabel) ?></span>
+                    </div>
+                <?php endif; ?>
+                <div class="flex justify-between items-center <?= $isEscrowDeal && $arbitrationFee > 0 ? 'pt-1' : '' ?>">
+                    <span class="text-sm text-gray-500"><?= htmlspecialchars(t($isDirectDeal ? 'checkout.to_pay_direct' : 'checkout.to_pay')) ?></span>
+                    <span class="font-display text-2xl font-extrabold text-ink-900 dark:text-white"><?= htmlspecialchars($priceLabel) ?></span>
+                </div>
             </div>
 
             <button type="submit" <?= (!$canWallet && !$canCard) ? 'disabled' : '' ?> class="w-full bg-accent-500 hover:bg-accent-400 disabled:opacity-50 disabled:cursor-not-allowed text-white font-display font-bold py-3.5 rounded-2xl text-sm uppercase tracking-wider transition shadow-soft">
-                <?= htmlspecialchars(t('checkout.pay_escrow_btn')) ?>
+                <?= htmlspecialchars(t($isDirectDeal ? 'checkout.pay_direct_btn' : 'checkout.pay_escrow_btn')) ?>
             </button>
             <a href="<?= $cancelUrl ?>" class="block w-full text-center text-sm text-gray-400 hover:text-brand-600 font-medium transition">
                 <?= htmlspecialchars(t('checkout.cancel')) ?>

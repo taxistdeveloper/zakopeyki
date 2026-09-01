@@ -45,12 +45,12 @@
                 <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-1 opacity-60 group-hover:opacity-100 transition" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
             </a>
 
-            <button type="button"
-                    id="buy-choice-direct"
-                    class="w-full flex items-start gap-3.5 p-4 rounded-2xl border border-black/[0.08] dark:border-white/10 bg-white dark:bg-white/[0.03] hover:border-accent-400/60 hover:bg-accent-50/50 dark:hover:bg-accent-500/10 transition text-left group">
+            <a href="#"
+               id="buy-choice-direct"
+               class="flex items-start gap-3.5 p-4 rounded-2xl border border-black/[0.08] dark:border-white/10 bg-white dark:bg-white/[0.03] hover:border-accent-400/60 hover:bg-accent-50/50 dark:hover:bg-accent-500/10 transition group">
                 <span class="w-11 h-11 rounded-xl bg-ink-100 dark:bg-white/10 text-ink-700 dark:text-gray-200 flex items-center justify-center shrink-0">
                     <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
                     </svg>
                 </span>
                 <span class="min-w-0 flex-1">
@@ -58,7 +58,7 @@
                     <span class="block text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed"><?= htmlspecialchars(t('product.buy_direct_hint')) ?></span>
                 </span>
                 <svg class="w-4 h-4 text-gray-400 shrink-0 mt-1 opacity-60 group-hover:opacity-100 transition" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
-            </button>
+            </a>
 
             <button type="button"
                     data-buy-choice-close

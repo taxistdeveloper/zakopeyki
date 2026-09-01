@@ -401,6 +401,12 @@ class ProductHelper
         return self::url('/checkout/' . (int) $productId);
     }
 
+    public static function checkoutUrlWithDeal(int|string $productId, string $deal = 'escrow'): string
+    {
+        $url = self::checkoutUrl($productId);
+        return $deal === 'direct' ? $url . '?deal=direct' : $url;
+    }
+
     public static function cartCheckoutUrl(): string
     {
         return self::url('/checkout/cart');

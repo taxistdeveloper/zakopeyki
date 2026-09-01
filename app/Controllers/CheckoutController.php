@@ -60,12 +60,14 @@ class CheckoutController extends Controller
 
         $n = new Notification();
         $walletBalance = (new Wallet())->balance(Auth::id());
+        $dealMode = $this->resolveDealMode((string) ($_GET['deal'] ?? 'escrow'), $product);
         $this->view('checkout/index', [
             'title' => t('checkout.title'),
             'currentNav' => '',
             'items' => [$product],
             'item' => $product,
             'fromCart' => false,
+            'dealMode' => $dealMode,
             'total' => (int) ($product['price'] ?? 0),
             'walletBalance' => $walletBalance,
             'notifications' => $n->forUser(Auth::id()),
@@ -103,6 +105,7 @@ class CheckoutController extends Controller
             'items' => $items,
             'item' => $items[0],
             'fromCart' => true,
+            'dealMode' => 'escrow',
             'total' => $total,
             'walletBalance' => $walletBalance,
             'notifications' => $n->forUser(Auth::id()),
@@ -123,15 +126,28 @@ class CheckoutController extends Controller
         $productId = (int) $id;
         $method = (string) ($_POST['payment_method'] ?? $_POST['payment_method'] ?? 'card');
         $delivery = (string) ($_POST['delivery_method'] ?? $_POST['delivery_method'] ?? 'kazpost');
+        $dealMode = (string) ($_POST['deal_mode'] ?? 'escrow');
+        if (!in_array($dealMode, ['escrow', 'direct'], true)) {
+            $dealMode = 'escrow';
+        }
 
-        $result = (new Order())->createEscrow($productId, Auth::id(), $method, $delivery);
+        $product = (new Product())->find($productId);
+        if ($dealMode === 'direct' && (!$product || !ProductHelper::supportsDirectBuy($product))) {
+            $dealMode = 'escrow';
+        }
+
+        $result = (new Order())->createEscrow($productId, Auth::id(), $method, $delivery, $dealMode);
 
         if (!$result['ok']) {
             ActivityLogger::warning('order.pay', $result['error'] ?? 'Ошибка оплаты', 'product', $productId, [
                 'method' => $method,
             ]);
             $_SESSION['checkout_error'] = $result['error'] ?? t('checkout.payment_failed');
-            $this->redirect('/checkout/' . $productId);
+            $redirect = '/checkout/' . $productId;
+            if ($dealMode === 'direct') {
+                $redirect .= '?deal=direct';
+            }
+            $this->redirect($redirect);
             return;
         }
 
@@ -235,6 +251,9 @@ class CheckoutController extends Controller
             return;
         }
         if ($orderId > 0) {
+            if (($order['deal_mode'] ?? '') === 'direct') {
+                $_SESSION['flash'] = t('checkout.success_direct');
+            }
             $this->redirect('/orders/' . $orderId);
             return;
         }
@@ -253,5 +272,17 @@ class CheckoutController extends Controller
             }
         }
         return true;
+    }
+
+    /** @param array<string, mixed>|null $product */
+    private function resolveDealMode(string $deal, ?array $product): string
+    {
+        if ($deal !== 'direct') {
+            return 'escrow';
+        }
+        if (!$product || !ProductHelper::supportsDirectBuy($product)) {
+            return 'escrow';
+        }
+        return 'direct';
     }
 }

@@ -16,6 +16,35 @@ class EscrowService
     /** Дней на проверку товара после доставки */
     public const INSPECT_DAYS = 3;
 
+    /** Арбитражный сбор площадки при безопасной сделке (эскроу), % */
+    public const ARBITRATION_FEE_PERCENT = 3;
+
+    public static function arbitrationFee(int $productAmount): int
+    {
+        if ($productAmount <= 0) {
+            return 0;
+        }
+        return (int) round($productAmount * self::ARBITRATION_FEE_PERCENT / 100);
+    }
+
+    public static function buyerChargeTotal(int $productAmount, string $dealMode = 'escrow'): int
+    {
+        if ($dealMode !== 'escrow') {
+            return $productAmount;
+        }
+        return $productAmount + self::arbitrationFee($productAmount);
+    }
+
+    /** @param list<array<string, mixed>> $items */
+    public static function arbitrationFeeForItems(array $items): int
+    {
+        $fee = 0;
+        foreach ($items as $item) {
+            $fee += self::arbitrationFee((int) ($item['price'] ?? 0));
+        }
+        return $fee;
+    }
+
     public const STATUSES = [
         'escrowed',
         'shipped',
@@ -153,6 +182,8 @@ class EscrowService
         }
 
         $amount = (int) $order['amount'];
+        $arbitrationFee = (int) ($order['arbitration_fee'] ?? 0);
+        $refundTotal = $amount + $arbitrationFee;
         $productId = (int) $order['product_id'];
         $needsRefund = $status === 'escrowed' && ($order['escrow_hold'] ?? '') === 'holding';
         $cancelledOrderIds = [$orderId];
@@ -182,7 +213,7 @@ class EscrowService
             $this->orders->updateFields($orderId, $fields);
 
             if ($needsRefund) {
-                (new Wallet())->refundFromEscrow($buyerId, $amount, $orderId);
+                (new Wallet())->refundFromEscrow($buyerId, $refundTotal, $orderId);
             }
 
             $cancelledOrderIds = [$orderId];
@@ -439,6 +470,7 @@ class EscrowService
         }
 
         $total = (int) $order['amount'];
+        $arbitrationFee = (int) ($order['arbitration_fee'] ?? 0);
         if ($amountToBuyer < 0) {
             $amountToBuyer = 0;
         }
@@ -446,6 +478,7 @@ class EscrowService
             $amountToBuyer = $total;
         }
         $amountToSeller = $total - $amountToBuyer;
+        $refundTotal = $amountToBuyer === $total ? $amountToBuyer + $arbitrationFee : $amountToBuyer;
 
         $finalStatus = (string) ($options['status'] ?? '');
         if ($finalStatus === '') {
@@ -489,11 +522,14 @@ class EscrowService
             $this->orders->updateFields($orderId, $fields);
 
             $wallet = new Wallet();
-            if ($amountToBuyer > 0) {
-                $wallet->refundFromEscrow($buyerId, $amountToBuyer, $orderId);
+            if ($refundTotal > 0) {
+                $wallet->refundFromEscrow($buyerId, $refundTotal, $orderId);
             }
             if ($amountToSeller > 0) {
                 $wallet->releaseFromEscrow($sellerId, $amountToSeller, $orderId);
+                if ($arbitrationFee > 0) {
+                    $wallet->collectEscrowCommission($arbitrationFee, $orderId);
+                }
                 (new Bonus())->awardSale($sellerId, $orderId);
             }
             if ($reactivate) {

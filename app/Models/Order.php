@@ -102,6 +102,8 @@ class Order extends Model
             'return_offer_status' => "VARCHAR(16) NOT NULL DEFAULT 'none'",
             'return_offer_until' => 'DATETIME DEFAULT NULL',
             'refund_amount' => 'INT UNSIGNED DEFAULT NULL',
+            'deal_mode' => "VARCHAR(16) NOT NULL DEFAULT 'escrow'",
+            'arbitration_fee' => 'INT UNSIGNED NOT NULL DEFAULT 0',
         ]);
 
         // Старый ENUM paid → escrowed semantics
@@ -278,8 +280,14 @@ class Order extends Model
      * Карта через FreedomPay: awaiting_payment + redirect_url.
      * @return array{ok: bool, order_id?: int, redirect_url?: string, error?: string}
      */
-    public function createEscrow(int $productId, int $buyerId, string $paymentMethod, string $deliveryMethod): array
-    {
+    public function createEscrow(
+        int $productId,
+        int $buyerId,
+        string $paymentMethod,
+        string $deliveryMethod,
+        string $dealMode = 'escrow'
+    ): array {
+        $dealMode = $dealMode === 'direct' ? 'direct' : 'escrow';
         $product = (new Product())->find($productId);
         if (!$product || ($product['status'] ?? '') !== 'active') {
             return ['ok' => false, 'error' => t('checkout.unavailable')];
@@ -297,6 +305,8 @@ class Order extends Model
         if ($amount <= 0) {
             return ['ok' => false, 'error' => t('checkout.invalid_price')];
         }
+        $arbitrationFee = $dealMode === 'escrow' ? EscrowService::arbitrationFee($amount) : 0;
+        $chargeTotal = $amount + $arbitrationFee;
 
         $method = in_array($paymentMethod, ['wallet', 'card', 'kaspi'], true) ? $paymentMethod : 'wallet';
         $delivery = in_array($deliveryMethod, EscrowService::DELIVERY_METHODS, true)
@@ -315,11 +325,20 @@ class Order extends Model
         }
 
         if ($useFreedomPay) {
-            return $this->createFreedomPayEscrow($product, $buyerId, $amount, $delivery, $fp);
+            return $this->createFreedomPayEscrow(
+                $product,
+                $buyerId,
+                $amount,
+                $delivery,
+                $fp,
+                $dealMode,
+                $arbitrationFee,
+                $chargeTotal
+            );
         }
 
         $wallet = new Wallet();
-        if ($method === 'wallet' && $wallet->balance($buyerId) < $amount) {
+        if ($method === 'wallet' && $wallet->balance($buyerId) < $chargeTotal) {
             return ['ok' => false, 'error' => t('wallet.insufficient_checkout')];
         }
 
@@ -334,26 +353,41 @@ class Order extends Model
                 return ['ok' => false, 'error' => t('checkout.unavailable')];
             }
 
+            $sellerId = (int) $product['user_id'];
+            $isDirect = $dealMode === 'direct';
+            $now = date('Y-m-d H:i:s');
+
             $stmt = $this->db->prepare(
                 'INSERT INTO orders (
                     product_id, buyer_id, seller_id, amount, payment_method, delivery_method,
-                    status, escrow_hold, paid_at
-                 ) VALUES (?, ?, ?, ?, ?, ?, \'escrowed\', \'holding\', NOW())'
+                    status, escrow_hold, deal_mode, arbitration_fee, paid_at, released_at, confirmed_at
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
             );
             $stmt->execute([
                 $productId,
                 $buyerId,
-                (int) $product['user_id'],
+                $sellerId,
                 $amount,
                 $method,
                 $delivery,
+                $isDirect ? 'completed' : 'escrowed',
+                $isDirect ? 'released_seller' : 'holding',
+                $dealMode,
+                $arbitrationFee,
+                $now,
+                $isDirect ? $now : null,
+                $isDirect ? $now : null,
             ]);
             $orderId = (int) $this->db->lastInsertId();
 
-            if ($method === 'wallet') {
-                $pay = $wallet->holdForEscrow($buyerId, $amount, $orderId);
+            if ($isDirect) {
+                $pay = $method === 'wallet'
+                    ? $wallet->payDirectToSeller($buyerId, $sellerId, $amount, $orderId)
+                    : $wallet->payExternalDirect($buyerId, $sellerId, $amount, $orderId, $method);
+            } elseif ($method === 'wallet') {
+                $pay = $wallet->holdForEscrow($buyerId, $chargeTotal, $orderId);
             } else {
-                $pay = $wallet->payExternalToEscrow($buyerId, $amount, $orderId, $method);
+                $pay = $wallet->payExternalToEscrow($buyerId, $chargeTotal, $orderId, $method);
             }
             if (!$pay['ok']) {
                 $this->db->rollBack();
@@ -368,17 +402,19 @@ class Order extends Model
             $this->db->commit();
 
             (new Notification())->createFor(
-                (int) $product['user_id'],
-                t('escrow.notify_escrowed', [
+                $sellerId,
+                t($isDirect ? 'checkout.seller_notice_direct' : 'escrow.notify_escrowed', [
                     'title' => $product['title'],
                     'amount' => number_format($amount, 0, '', ' '),
                     'id' => $orderId,
                 ])
             );
 
-            (new \App\Services\Digital\DigitalAccessService())->grantFromPaidOrder($orderId);
+            if (!$isDirect) {
+                (new \App\Services\Digital\DigitalAccessService())->grantFromPaidOrder($orderId);
+            }
 
-            return ['ok' => true, 'order_id' => $orderId];
+            return ['ok' => true, 'order_id' => $orderId, 'deal_mode' => $dealMode];
         } catch (\Throwable $e) {
             if ($this->db->inTransaction()) {
                 $this->db->rollBack();
@@ -399,8 +435,15 @@ class Order extends Model
         int $buyerId,
         int $amount,
         string $delivery,
-        \App\Services\FreedomPay\Client $fp
+        \App\Services\FreedomPay\Client $fp,
+        string $dealMode = 'escrow',
+        int $arbitrationFee = 0,
+        int $chargeTotal = 0
     ): array {
+        if ($chargeTotal <= 0) {
+            $chargeTotal = EscrowService::buyerChargeTotal($amount, $dealMode);
+            $arbitrationFee = $dealMode === 'escrow' ? EscrowService::arbitrationFee($amount) : 0;
+        }
         $productId = (int) $product['id'];
         $buyer = (new User())->find($buyerId);
         $paymentModel = new Payment();
@@ -408,7 +451,7 @@ class Order extends Model
 
         $init = $fp->initPayment([
             'order_id' => $pgOrderId,
-            'amount' => $amount,
+            'amount' => $chargeTotal,
             'description' => mb_substr((string) ($product['title'] ?? ('Product #' . $productId)), 0, 200),
             'user_id' => (string) $buyerId,
             'user_email' => (string) ($buyer['email'] ?? ''),
@@ -438,8 +481,8 @@ class Order extends Model
             $stmt = $this->db->prepare(
                 'INSERT INTO orders (
                     product_id, buyer_id, seller_id, amount, payment_method, delivery_method,
-                    status, escrow_hold, paid_at
-                 ) VALUES (?, ?, ?, ?, \'card\', ?, \'awaiting_payment\', \'pending\', NULL)'
+                    status, escrow_hold, deal_mode, arbitration_fee, paid_at
+                 ) VALUES (?, ?, ?, ?, \'card\', ?, \'awaiting_payment\', \'pending\', ?, ?, NULL)'
             );
             $stmt->execute([
                 $productId,
@@ -447,6 +490,8 @@ class Order extends Model
                 (int) $product['user_id'],
                 $amount,
                 $delivery,
+                $dealMode === 'direct' ? 'direct' : 'escrow',
+                $arbitrationFee,
             ]);
             $orderId = (int) $this->db->lastInsertId();
 
@@ -455,10 +500,11 @@ class Order extends Model
                 'order_id' => $orderId,
                 'product_id' => $productId,
                 'buyer_id' => $buyerId,
-                'amount' => $amount,
+                'amount' => $chargeTotal,
                 'delivery_method' => $delivery,
                 'payment_method' => 'card',
                 'pg_payment_id' => !empty($init['payment_id']) ? (string) $init['payment_id'] : null,
+                'meta' => json_encode(['deal_mode' => $dealMode === 'direct' ? 'direct' : 'escrow'], JSON_UNESCAPED_UNICODE),
             ]);
 
             $reserve = $this->db->prepare(
@@ -519,6 +565,8 @@ class Order extends Model
             $validated[] = $product;
             $total += $amount;
         }
+        $arbitrationFeeTotal = EscrowService::arbitrationFeeForItems($validated);
+        $chargeTotal = $total + $arbitrationFeeTotal;
 
         $method = in_array($paymentMethod, ['wallet', 'card', 'kaspi'], true) ? $paymentMethod : 'wallet';
         $delivery = in_array($deliveryMethod, EscrowService::DELIVERY_METHODS, true)
@@ -534,11 +582,11 @@ class Order extends Model
         }
 
         if ($useFreedomPay) {
-            return $this->createFreedomPayEscrowCart($validated, $buyerId, $total, $delivery, $fp);
+            return $this->createFreedomPayEscrowCart($validated, $buyerId, $total, $delivery, $fp, $arbitrationFeeTotal, $chargeTotal);
         }
 
         $wallet = new Wallet();
-        if ($method === 'wallet' && $wallet->balance($buyerId) < $total) {
+        if ($method === 'wallet' && $wallet->balance($buyerId) < $chargeTotal) {
             return ['ok' => false, 'error' => t('wallet.insufficient_checkout')];
         }
 
@@ -550,6 +598,8 @@ class Order extends Model
             foreach ($validated as $product) {
                 $productId = (int) $product['id'];
                 $amount = (int) $product['price'];
+                $itemFee = EscrowService::arbitrationFee($amount);
+                $itemCharge = $amount + $itemFee;
 
                 $lock = $this->db->prepare('SELECT id, status FROM products WHERE id = ? FOR UPDATE');
                 $lock->execute([$productId]);
@@ -562,8 +612,8 @@ class Order extends Model
                 $stmt = $this->db->prepare(
                     'INSERT INTO orders (
                         product_id, buyer_id, seller_id, amount, payment_method, delivery_method,
-                        status, escrow_hold, paid_at
-                     ) VALUES (?, ?, ?, ?, ?, ?, \'escrowed\', \'holding\', NOW())'
+                        status, escrow_hold, deal_mode, arbitration_fee, paid_at
+                     ) VALUES (?, ?, ?, ?, ?, ?, \'escrowed\', \'holding\', \'escrow\', ?, NOW())'
                 );
                 $stmt->execute([
                     $productId,
@@ -572,14 +622,15 @@ class Order extends Model
                     $amount,
                     $method,
                     ProductHelper::isDigitalListing($product) ? 'digital' : $delivery,
+                    $itemFee,
                 ]);
                 $orderId = (int) $this->db->lastInsertId();
                 $orderIds[] = $orderId;
 
                 if ($method === 'wallet') {
-                    $pay = $wallet->holdForEscrow($buyerId, $amount, $orderId);
+                    $pay = $wallet->holdForEscrow($buyerId, $itemCharge, $orderId);
                 } else {
-                    $pay = $wallet->payExternalToEscrow($buyerId, $amount, $orderId, $method);
+                    $pay = $wallet->payExternalToEscrow($buyerId, $itemCharge, $orderId, $method);
                 }
                 if (!$pay['ok']) {
                     $this->db->rollBack();
@@ -636,8 +687,14 @@ class Order extends Model
         int $buyerId,
         int $total,
         string $delivery,
-        \App\Services\FreedomPay\Client $fp
+        \App\Services\FreedomPay\Client $fp,
+        int $arbitrationFeeTotal = 0,
+        int $chargeTotal = 0
     ): array {
+        if ($chargeTotal <= 0) {
+            $arbitrationFeeTotal = EscrowService::arbitrationFeeForItems($products);
+            $chargeTotal = $total + $arbitrationFeeTotal;
+        }
         $buyer = (new User())->find($buyerId);
         $paymentModel = new Payment();
         $pgOrderId = 'zk-cart-' . $buyerId . '-' . bin2hex(random_bytes(6));
@@ -649,7 +706,7 @@ class Order extends Model
 
         $init = $fp->initPayment([
             'order_id' => $pgOrderId,
-            'amount' => $total,
+            'amount' => $chargeTotal,
             'description' => $description,
             'user_id' => (string) $buyerId,
             'user_email' => (string) ($buyer['email'] ?? ''),
@@ -674,6 +731,7 @@ class Order extends Model
             foreach ($products as $product) {
                 $productId = (int) $product['id'];
                 $amount = (int) $product['price'];
+                $itemFee = EscrowService::arbitrationFee($amount);
 
                 $lock = $this->db->prepare('SELECT id, status FROM products WHERE id = ? FOR UPDATE');
                 $lock->execute([$productId]);
@@ -686,8 +744,8 @@ class Order extends Model
                 $stmt = $this->db->prepare(
                     'INSERT INTO orders (
                         product_id, buyer_id, seller_id, amount, payment_method, delivery_method,
-                        status, escrow_hold, paid_at
-                     ) VALUES (?, ?, ?, ?, \'card\', ?, \'awaiting_payment\', \'pending\', NULL)'
+                        status, escrow_hold, deal_mode, arbitration_fee, paid_at
+                     ) VALUES (?, ?, ?, ?, \'card\', ?, \'awaiting_payment\', \'pending\', \'escrow\', ?, NULL)'
                 );
                 $stmt->execute([
                     $productId,
@@ -695,13 +753,14 @@ class Order extends Model
                     (int) $product['user_id'],
                     $amount,
                     ProductHelper::isDigitalListing($product) ? 'digital' : $delivery,
+                    $itemFee,
                 ]);
                 $orderId = (int) $this->db->lastInsertId();
                 $orderIds[] = $orderId;
                 $cartItems[] = [
                     'order_id' => $orderId,
                     'product_id' => $productId,
-                    'amount' => $amount,
+                    'amount' => $amount + $itemFee,
                     'seller_id' => (int) $product['user_id'],
                     'title' => (string) ($product['title'] ?? ''),
                 ];
@@ -719,7 +778,7 @@ class Order extends Model
                 'order_id' => $orderIds[0],
                 'product_id' => $firstProductId,
                 'buyer_id' => $buyerId,
-                'amount' => $total,
+                'amount' => $chargeTotal,
                 'delivery_method' => $delivery,
                 'payment_method' => 'card',
                 'pg_payment_id' => !empty($init['payment_id']) ? (string) $init['payment_id'] : null,

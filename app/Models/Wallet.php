@@ -25,6 +25,8 @@ class Wallet extends Model
     public const TYPE_MICRO_ESCROW_HOLD = 'micro_escrow_hold';
     public const TYPE_MICRO_ESCROW_RELEASE = 'micro_escrow_release';
     public const TYPE_BUSINESS_PACKAGE = 'business_package';
+    public const TYPE_DIRECT_PAYMENT = 'direct_payment';
+    public const TYPE_DIRECT_RECEIVE = 'direct_receive';
 
     public function __construct()
     {
@@ -217,6 +219,39 @@ class Wallet extends Model
     public function refundFromEscrow(int $buyerId, int $amount, int $orderId): void
     {
         $this->applyCredit($buyerId, $amount, self::TYPE_ESCROW_REFUND, $orderId, null);
+    }
+
+    /**
+     * Прямая оплата продавцу без эскроу (внутри внешней транзакции заказа).
+     * @return array{ok: bool, error?: string}
+     */
+    public function payDirectToSeller(int $buyerId, int $sellerId, int $amount, int $orderId): array
+    {
+        $after = $this->applyDebit($buyerId, $amount, self::TYPE_DIRECT_PAYMENT, $orderId, null);
+        if ($after === null) {
+            return ['ok' => false, 'error' => t('wallet.insufficient')];
+        }
+        $this->applyCredit($sellerId, $amount, self::TYPE_DIRECT_RECEIVE, $orderId, null);
+        return ['ok' => true];
+    }
+
+    /**
+     * Оплата картой/Kaspi без эскроу: виртуально пополнить и сразу перевести продавцу.
+     * @return array{ok: bool, error?: string}
+     */
+    public function payExternalDirect(int $buyerId, int $sellerId, int $amount, int $orderId, string $source): array
+    {
+        $this->applyCredit($buyerId, $amount, self::TYPE_DEPOSIT, $orderId, 'checkout:' . $source);
+        return $this->payDirectToSeller($buyerId, $sellerId, $amount, $orderId);
+    }
+
+    /** Зафиксировать арбитражный сбор площадки с эскроу. */
+    public function collectEscrowCommission(int $amount, int $orderId): void
+    {
+        if ($amount <= 0) {
+            return;
+        }
+        $this->applyCredit(0, $amount, self::TYPE_PLATFORM_COMMISSION, $orderId, 'escrow');
     }
 
     /**
