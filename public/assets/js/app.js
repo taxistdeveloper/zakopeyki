@@ -4778,3 +4778,94 @@ document.addEventListener('keydown', function (e) {
         this.style.height = Math.min(this.scrollHeight, 112) + "px";
     });
 })();
+
+(function () {
+    const modal = document.getElementById("buy-choice-modal");
+    const panel = modal && modal.querySelector("[data-buy-choice-panel]");
+    const escrowLink = document.getElementById("buy-choice-escrow");
+    const directBtn = document.getElementById("buy-choice-direct");
+    const productEl = document.getElementById("buy-choice-product");
+    if (!modal || !panel || !escrowLink || !directBtn) return;
+
+    let state = { productId: "", checkoutUrl: "", auth: true, loginUrl: "" };
+    let lastFocus = null;
+
+    function openModal(opts) {
+        state = {
+            productId: opts.productId || "",
+            checkoutUrl: opts.checkoutUrl || "",
+            auth: opts.auth !== false,
+            loginUrl: opts.loginUrl || ""
+        };
+        if (productEl) {
+            if (opts.title) {
+                productEl.textContent = opts.title;
+                productEl.classList.remove("hidden");
+            } else {
+                productEl.textContent = "";
+                productEl.classList.add("hidden");
+            }
+        }
+        escrowLink.href = state.auth ? state.checkoutUrl : state.loginUrl;
+        lastFocus = document.activeElement;
+        modal.classList.remove("hidden");
+        modal.setAttribute("aria-hidden", "false");
+        document.documentElement.style.overflow = "hidden";
+        requestAnimationFrame(function () {
+            panel.classList.remove("translate-y-3", "sm:translate-y-2", "opacity-0");
+            panel.classList.add("translate-y-0", "opacity-100");
+        });
+        escrowLink.focus({ preventScroll: true });
+    }
+
+    function closeModal() {
+        panel.classList.add("translate-y-3", "sm:translate-y-2", "opacity-0");
+        panel.classList.remove("translate-y-0", "opacity-100");
+        window.setTimeout(function () {
+            modal.classList.add("hidden");
+            modal.setAttribute("aria-hidden", "true");
+            document.documentElement.style.overflow = "";
+            if (lastFocus && typeof lastFocus.focus === "function") {
+                lastFocus.focus({ preventScroll: true });
+            }
+        }, 180);
+    }
+
+    modal.querySelectorAll("[data-buy-choice-close]").forEach(function (btn) {
+        btn.addEventListener("click", closeModal);
+    });
+    modal.addEventListener("click", function (e) {
+        if (e.target === modal) closeModal();
+    });
+    document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && !modal.classList.contains("hidden")) {
+            e.preventDefault();
+            closeModal();
+        }
+    });
+
+    directBtn.addEventListener("click", function () {
+        closeModal();
+        if (!state.auth) {
+            window.location.href = state.loginUrl;
+            return;
+        }
+        if (typeof window.openSellerChat === "function") {
+            window.openSellerChat({ product_id: state.productId });
+        }
+    });
+
+    document.addEventListener("click", function (e) {
+        const btn = e.target.closest("[data-buy-open]");
+        if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        openModal({
+            productId: btn.getAttribute("data-product-id") || "",
+            checkoutUrl: btn.getAttribute("data-checkout-url") || "",
+            title: btn.getAttribute("data-title") || "",
+            auth: btn.getAttribute("data-auth") !== "0",
+            loginUrl: btn.getAttribute("data-login-url") || ""
+        });
+    });
+})();

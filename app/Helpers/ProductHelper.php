@@ -389,6 +389,13 @@ class ProductHelper
         return (int) ($item['price'] ?? 0) > 0;
     }
 
+    /** Покупка напрямую у продавца (без эскроу) — для физических товаров и услуг. */
+    public static function supportsDirectBuy(array $item): bool
+    {
+        return in_array($item['type'] ?? '', ['used', 'new', 'gig'], true)
+            && (int) ($item['price'] ?? 0) > 0;
+    }
+
     public static function checkoutUrl(int|string $productId): string
     {
         return self::url('/checkout/' . (int) $productId);

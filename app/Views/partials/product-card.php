@@ -81,6 +81,7 @@ if ($ownedDigital) {
 }
 
 $showBuyCartPair = $canCart && $primaryHref && in_array($type, ['used', 'new', 'course', 'gig'], true) && !$isFreePrice;
+$showBuyChoice = $canCart && $primaryHref && ProductHelper::supportsDirectBuy($item) && !$isFreePrice;
 $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>';
 ?>
 <?php if ($mini): ?>
@@ -200,7 +201,20 @@ $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" s
             <?php if ($primaryHref || $canCart): ?>
             <div class="flex <?= $compact && $showBuyCartPair ? 'flex-row items-stretch' : 'flex-col' ?> gap-1.5 pt-2 border-t border-black/[0.05] dark:border-white/10">
                 <?php if ($showBuyCartPair): ?>
+                    <?php if ($showBuyChoice): ?>
+                    <button type="button"
+                            class="<?= $ctaBtn ?> <?= $primaryClass ?>"
+                            data-buy-open
+                            data-product-id="<?= (int) $item['id'] ?>"
+                            data-checkout-url="<?= htmlspecialchars($checkoutUrl) ?>"
+                            data-title="<?= htmlspecialchars($item['title']) ?>"
+                            data-auth="<?= Auth::check() ? '1' : '0' ?>"
+                            data-login-url="<?= htmlspecialchars(ProductHelper::url('/login')) ?>">
+                        <?= htmlspecialchars($primaryLabel) ?>
+                    </button>
+                    <?php else: ?>
                     <a href="<?= $primaryHref ?>" class="<?= $ctaBtn ?> <?= $primaryClass ?>"><?= htmlspecialchars($primaryLabel) ?></a>
+                    <?php endif; ?>
                     <button type="button"
                             class="cart-btn <?= $compact ? 'inline-flex items-center justify-center w-11 shrink-0 rounded-xl ' . $cartBtnClass : $ctaBtn . ' ' . $cartBtnClass ?>"
                             data-product-id="<?= (int) $item['id'] ?>"
@@ -215,7 +229,20 @@ $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" s
                     </button>
                 <?php else: ?>
                     <?php if ($primaryHref): ?>
+                        <?php if ($showBuyChoice): ?>
+                        <button type="button"
+                                class="<?= $ctaSolo ?> <?= $primaryClass ?>"
+                                data-buy-open
+                                data-product-id="<?= (int) $item['id'] ?>"
+                                data-checkout-url="<?= htmlspecialchars($checkoutUrl) ?>"
+                                data-title="<?= htmlspecialchars($item['title']) ?>"
+                                data-auth="<?= Auth::check() ? '1' : '0' ?>"
+                                data-login-url="<?= htmlspecialchars(ProductHelper::url('/login')) ?>">
+                            <?= htmlspecialchars($primaryLabel) ?>
+                        </button>
+                        <?php else: ?>
                         <a href="<?= $primaryHref ?>" class="<?= $ctaSolo ?> <?= $primaryClass ?>"><?= htmlspecialchars($primaryLabel) ?></a>
+                        <?php endif; ?>
                     <?php endif; ?>
                     <?php if ($canCart): ?>
                         <button type="button"

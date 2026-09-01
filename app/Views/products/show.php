@@ -25,6 +25,7 @@ $postedAt = !empty($item['created_at']) ? date('d.m.Y', strtotime((string) $item
 $buyLabel = in_array($type, ['course', 'service', 'gig'], true) ? t('card.order') : t('card.buy');
 $buyUrl = Auth::check() ? $checkoutUrl : ProductHelper::url('/login');
 $buyText = Auth::check() ? $buyLabel : t('product.login_to_buy');
+$showBuyChoice = $purchasable && ProductHelper::supportsDirectBuy($item);
 
 $catalogByType = [
     'new' => ['url' => '/catalog/new', 'label' => t('nav.new')],
@@ -423,10 +424,24 @@ $waBtnClass = 'w-full inline-flex items-center justify-center gap-2 h-12 px-4 ro
     <?php if ($purchasable && !$isOwnProduct): ?>
         <div class="space-y-2.5">
             <div class="grid grid-cols-2 gap-2.5">
+                <?php if ($showBuyChoice): ?>
+                <button type="button"
+                        class="inline-flex items-center justify-center gap-2 h-12 px-3 rounded-xl bg-accent-500 hover:bg-accent-400 text-white font-semibold text-[13px] sm:text-sm transition"
+                        data-buy-open
+                        data-product-id="<?= (int) $item['id'] ?>"
+                        data-checkout-url="<?= htmlspecialchars($checkoutUrl) ?>"
+                        data-title="<?= htmlspecialchars($item['title']) ?>"
+                        data-auth="<?= Auth::check() ? '1' : '0' ?>"
+                        data-login-url="<?= htmlspecialchars(ProductHelper::url('/login')) ?>">
+                    <?= $cartIconSvg ?>
+                    <?= htmlspecialchars($buyText) ?>
+                </button>
+                <?php else: ?>
                 <a href="<?= $buyUrl ?>" class="inline-flex items-center justify-center gap-2 h-12 px-3 rounded-xl bg-accent-500 hover:bg-accent-400 text-white font-semibold text-[13px] sm:text-sm transition">
                     <?= $cartIconSvg ?>
                     <?= htmlspecialchars($buyText) ?>
                 </a>
+                <?php endif; ?>
                 <button type="button"
                         class="cart-btn inline-flex items-center justify-center gap-2 h-12 px-3 rounded-xl border-2 border-accent-500 text-accent-600 dark:text-accent-400 bg-white dark:bg-transparent hover:bg-accent-50 dark:hover:bg-accent-500/10 font-semibold text-[13px] sm:text-sm transition disabled:opacity-40 disabled:pointer-events-none <?= $inCart ? 'is-in-cart bg-accent-50 dark:bg-accent-500/10' : '' ?>"
                         data-product-id="<?= (int) $item['id'] ?>"
