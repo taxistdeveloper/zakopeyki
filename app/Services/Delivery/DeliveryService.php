@@ -46,6 +46,12 @@ class DeliveryService
         $service = new self();
         $deliveryOrderId = $service->orders->createForP2pOrder($order, (string) ($product['title'] ?? ''));
 
+        (new \App\Services\Listing\ListingShippingService())->applyToDeliveryOrder(
+            (int) $order['product_id'],
+            $deliveryOrderId,
+            (int) $order['seller_id']
+        );
+
         $buyerId = (int) $order['buyer_id'];
         $sellerId = (int) $order['seller_id'];
         $n = new Notification();

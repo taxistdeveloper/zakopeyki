@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Models\Wallet;
 use App\Services\AMLService;
 use App\Services\BusinessPackageService;
+use App\Services\Listing\ListingShippingService;
 use App\Services\MicroTaskService;
 use App\Services\PersonalLimitService;
 
@@ -119,6 +120,12 @@ class ProfileController extends Controller
         $pkgService = new BusinessPackageService();
         $businessSubscription = $pkgService->activeSubscription(Auth::id());
 
+        $listingPackagings = (new ListingShippingService())->packagings();
+        $listingShipping = null;
+        if ($editProduct && empty($editingGig)) {
+            $listingShipping = (new ListingShippingService())->findForProduct((int) $editProduct['id']);
+        }
+
         $this->view('profile/index', [
             'title' => t('profile.title'),
             'currentNav' => 'profile',
@@ -163,6 +170,8 @@ class ProfileController extends Controller
             'error' => $_SESSION['error'] ?? null,
             'twoFactorSetup' => $twoFactorSetup,
             'recoveryCodes' => is_array($recoveryCodes) ? $recoveryCodes : null,
+            'listingShipping' => $listingShipping,
+            'listingPackagings' => $listingPackagings,
         ]);
         unset($_SESSION['flash'], $_SESSION['error']);
     }
@@ -484,6 +493,14 @@ class ProfileController extends Controller
 
         $category = ProductHelper::normalizeCategory($_POST['category'] ?? null, $type);
 
+        $dbUser = (new User())->find(Auth::id());
+        $shippingSvc = new ListingShippingService();
+        $shipResult = $shippingSvc->validateAndBuild(Auth::id(), $type, $_POST, $dbUser);
+        if (!$shipResult['ok']) {
+            $_SESSION['error'] = $shipResult['error'] ?? t('listing_shipping.validation_failed');
+            $this->redirect($lotsFailUrl);
+        }
+
         $productId = (new Product())->create(array_merge([
             'user_id' => Auth::id(),
             'type' => $type,
@@ -498,6 +515,10 @@ class ProfileController extends Controller
             'image' => $resolved['cover'],
             'images' => $resolved['images'],
         ], $auction['fields']));
+
+        if (!empty($shipResult['data'])) {
+            $shippingSvc->saveForProduct((int) $productId, $shipResult['data']);
+        }
 
         if ($serviceFee > 0) {
             $pay = (new Wallet())->chargeListingFee(Auth::id(), $serviceFee, (int) $productId);
@@ -708,6 +729,14 @@ class ProfileController extends Controller
 
         $category = ProductHelper::normalizeCategory($_POST['category'] ?? ($product['category'] ?? null), $type);
 
+        $dbUser = (new User())->find(Auth::id());
+        $shippingSvc = new ListingShippingService();
+        $shipResult = $shippingSvc->validateAndBuild(Auth::id(), $type, $_POST, $dbUser);
+        if (!$shipResult['ok']) {
+            $_SESSION['error'] = $shipResult['error'] ?? t('listing_shipping.validation_failed');
+            $this->redirect($editUrl);
+        }
+
         $products->updateProduct((int) $id, array_merge([
             'type' => $type,
             'category' => $category,
@@ -722,6 +751,10 @@ class ProfileController extends Controller
             'images' => $resolved['images'],
             'status' => $product['status'] ?? 'active',
         ], $auction['fields']));
+
+        if (!empty($shipResult['data'])) {
+            $shippingSvc->saveForProduct((int) $id, $shipResult['data']);
+        }
 
         ActivityLogger::info('product.update', 'Обновлено объявление «' . $title . '»', 'product', (int) $id, [
             'type' => $type,

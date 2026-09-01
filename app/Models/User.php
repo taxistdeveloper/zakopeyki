@@ -53,6 +53,15 @@ class User extends Model
             'limit_blocked_at' => 'DATETIME DEFAULT NULL AFTER limit_warning_sent_at',
             'is_course_author' => 'TINYINT(1) NOT NULL DEFAULT 0 AFTER limit_blocked_at',
             'course_author_at' => 'DATETIME DEFAULT NULL AFTER is_course_author',
+            'ship_country' => "VARCHAR(64) DEFAULT 'KZ' AFTER course_author_at",
+            'ship_region' => 'VARCHAR(120) DEFAULT NULL AFTER ship_country',
+            'ship_city' => 'VARCHAR(120) DEFAULT NULL AFTER ship_region',
+            'ship_street' => 'VARCHAR(200) DEFAULT NULL AFTER ship_city',
+            'ship_building' => 'VARCHAR(40) DEFAULT NULL AFTER ship_street',
+            'ship_apartment' => 'VARCHAR(40) DEFAULT NULL AFTER ship_building',
+            'ship_postal_code' => 'VARCHAR(20) DEFAULT NULL AFTER ship_apartment',
+            'ship_contact_name' => 'VARCHAR(160) DEFAULT NULL AFTER ship_postal_code',
+            'ship_phone' => 'VARCHAR(32) DEFAULT NULL AFTER ship_contact_name',
         ];
 
         foreach ($needed as $col => $def) {
@@ -823,5 +832,48 @@ class User extends Model
 
         $del = $this->db->prepare('DELETE FROM users WHERE id = ?');
         return $del->execute([$userId]);
+    }
+
+    /** @return array<string, mixed> */
+    public static function defaultShipFrom(?array $user): array
+    {
+        if (!$user) {
+            return [];
+        }
+        return [
+            'ship_country' => $user['ship_country'] ?? 'KZ',
+            'ship_region' => $user['ship_region'] ?? null,
+            'ship_city' => $user['ship_city'] ?? null,
+            'ship_street' => $user['ship_street'] ?? null,
+            'ship_building' => $user['ship_building'] ?? null,
+            'ship_apartment' => $user['ship_apartment'] ?? null,
+            'ship_postal_code' => $user['ship_postal_code'] ?? null,
+            'ship_contact_name' => $user['ship_contact_name'] ?? ($user['name'] ?? null),
+            'ship_phone' => $user['ship_phone'] ?? ($user['phone'] ?? null),
+        ];
+    }
+
+    /** @param array<string, mixed> $ship */
+    public function saveDefaultShipFrom(int $userId, array $ship): void
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE users SET
+                ship_country = ?, ship_region = ?, ship_city = ?, ship_street = ?,
+                ship_building = ?, ship_apartment = ?, ship_postal_code = ?,
+                ship_contact_name = ?, ship_phone = ?
+             WHERE id = ?'
+        );
+        $stmt->execute([
+            $ship['ship_country'] ?? 'KZ',
+            $ship['ship_region'] ?? null,
+            $ship['ship_city'] ?? null,
+            $ship['ship_street'] ?? null,
+            $ship['ship_building'] ?? null,
+            $ship['ship_apartment'] ?? null,
+            $ship['ship_postal_code'] ?? null,
+            $ship['ship_contact_name'] ?? null,
+            $ship['ship_phone'] ?? null,
+            $userId,
+        ]);
     }
 }

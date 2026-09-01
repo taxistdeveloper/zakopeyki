@@ -1054,6 +1054,9 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                                value="<?= htmlspecialchars(ProductHelper::formatWhatsappInput($editing['whatsapp'] ?? '')) ?>">
                         <p class="text-[11px] text-gray-400 mt-1"><?= htmlspecialchars(t('profile.whatsapp_hint')) ?></p>
                     </div>
+                    <?php if (!$editingGig): ?>
+                        <?php require __DIR__ . '/partials/lot-shipping-block.php'; ?>
+                    <?php endif; ?>
                     <script>
                     (function () {
                         const typeSelect = document.getElementById('lot-type');

@@ -12,6 +12,7 @@ use App\Models\Product;
 use App\Models\Review;
 use App\Models\SupportTicket;
 use App\Services\Digital\DigitalAccessService;
+use App\Services\Listing\ListingShippingService;
 
 class ProductController extends Controller
 {
@@ -55,6 +56,15 @@ class ProductController extends Controller
             $digitalHasAccess = (new DigitalAccessService())->resolveViewer((int) $id, (int) Auth::id())['ok'] ?? false;
         }
 
+        $listingShipping = null;
+        if (!ProductHelper::isDigitalListing($product)) {
+            $shipRow = (new ListingShippingService())->findForProduct((int) $id);
+            $listingShipping = (new ListingShippingService())->buyerSummary(
+                $shipRow,
+                (string) ($product['location'] ?? '')
+            );
+        }
+
         $this->view('products/show', [
             'title' => $product['title'],
             'currentNav' => '',
@@ -68,6 +78,7 @@ class ProductController extends Controller
             'favoriteIds' => $favoriteIds,
             'search' => '',
             'digitalHasAccess' => $digitalHasAccess,
+            'listingShipping' => $listingShipping,
         ]);
     }
 
