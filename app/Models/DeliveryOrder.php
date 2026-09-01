@@ -279,7 +279,66 @@ class DeliveryOrder extends Model
         );
 
         $this->seedDefaults();
+        $this->ensureUpgradeColumns();
         self::$ensured = true;
+    }
+
+    private function ensureUpgradeColumns(): void
+    {
+        $this->ensureTableColumns('delivery_packagings', [
+            'packaging_type' => "VARCHAR(16) NOT NULL DEFAULT 'box'",
+            'padding_cm' => 'DECIMAL(4,1) NOT NULL DEFAULT 2.0',
+            'sort_order' => 'INT UNSIGNED NOT NULL DEFAULT 0',
+        ]);
+        $this->ensureTableColumns('delivery_shipments', [
+            'item_weight' => 'DECIMAL(10,3) DEFAULT NULL',
+            'packaging_weight' => 'DECIMAL(10,3) DEFAULT NULL',
+            'gross_weight' => 'DECIMAL(10,3) DEFAULT NULL',
+            'item_length' => 'DECIMAL(10,2) DEFAULT NULL',
+            'item_width' => 'DECIMAL(10,2) DEFAULT NULL',
+            'item_height' => 'DECIMAL(10,2) DEFAULT NULL',
+            'package_length' => 'DECIMAL(10,2) DEFAULT NULL',
+            'package_width' => 'DECIMAL(10,2) DEFAULT NULL',
+            'package_height' => 'DECIMAL(10,2) DEFAULT NULL',
+            'billed_length' => 'DECIMAL(10,2) DEFAULT NULL',
+            'billed_width' => 'DECIMAL(10,2) DEFAULT NULL',
+            'billed_height' => 'DECIMAL(10,2) DEFAULT NULL',
+            'billed_gross_weight' => 'DECIMAL(10,3) DEFAULT NULL',
+            'is_irregular' => 'TINYINT(1) NOT NULL DEFAULT 0',
+            'irregular_reason' => 'VARCHAR(64) DEFAULT NULL',
+            'recommended_packaging_id' => 'INT UNSIGNED DEFAULT NULL',
+        ]);
+        $this->ensureTableColumns('delivery_quotes', [
+            'quote_status' => "VARCHAR(16) NOT NULL DEFAULT 'active'",
+            'handling_amount' => 'INT UNSIGNED NOT NULL DEFAULT 0',
+            'snapshot_json' => 'LONGTEXT DEFAULT NULL',
+            'calculation_method' => 'VARCHAR(64) DEFAULT NULL',
+        ]);
+    }
+
+    /** @param array<string, string> $columns */
+    private function ensureTableColumns(string $table, array $columns): void
+    {
+        $existing = [];
+        try {
+            $rows = $this->db->query("SHOW COLUMNS FROM {$table}")->fetchAll();
+            foreach ($rows as $row) {
+                $existing[strtolower((string) $row['Field'])] = true;
+            }
+        } catch (\Throwable $e) {
+            return;
+        }
+
+        foreach ($columns as $name => $definition) {
+            if (isset($existing[strtolower($name)])) {
+                continue;
+            }
+            try {
+                $this->db->exec("ALTER TABLE {$table} ADD COLUMN {$name} {$definition}");
+            } catch (\Throwable $e) {
+                // ignore
+            }
+        }
     }
 
     private function seedDefaults(): void
@@ -297,9 +356,10 @@ class DeliveryOrder extends Model
         }
 
         $packs = [
-            ['S', 'Коробка S', 2, 20, 15, 10, 0],
-            ['M', 'Коробка M', 5, 30, 25, 20, 0],
-            ['L', 'Коробка L', 10, 40, 35, 30, 0],
+            ['S', 'Малая (S)', 3, 20, 20, 20, 0, 1],
+            ['M', 'Средняя (M)', 10, 40, 30, 20, 0, 2],
+            ['L', 'Большая (L)', 20, 60, 40, 40, 0, 3],
+            ['XL', 'Очень большая (XL)', 30, 100, 60, 60, 0, 4],
         ];
         foreach ($packs as $p) {
             $check = $this->db->prepare(
@@ -311,10 +371,10 @@ class DeliveryOrder extends Model
             }
             $ins = $this->db->prepare(
                 'INSERT INTO delivery_packagings
-                 (logistics_provider_id, code, name, max_weight_kg, length_cm, width_cm, height_cm, price_amount)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+                 (logistics_provider_id, code, name, max_weight_kg, length_cm, width_cm, height_cm, price_amount, sort_order)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
             );
-            $ins->execute([$providerId, $p[0], $p[1], $p[2], $p[3], $p[4], $p[5], $p[6]]);
+            $ins->execute([$providerId, $p[0], $p[1], $p[2], $p[3], $p[4], $p[5], $p[6], $p[7]]);
         }
 
         $services = [
@@ -408,16 +468,40 @@ class DeliveryOrder extends Model
     public function quotesFor(int $deliveryOrderId): array
     {
         $stmt = $this->db->prepare(
-            'SELECT * FROM delivery_quotes WHERE delivery_order_id = ? ORDER BY total_amount ASC, id ASC'
+            "SELECT * FROM delivery_quotes
+             WHERE delivery_order_id = ? AND COALESCE(quote_status, 'active') = 'active'
+             ORDER BY total_amount ASC, id ASC"
         );
         $stmt->execute([$deliveryOrderId]);
         return $stmt->fetchAll() ?: [];
     }
 
+    public function invalidateQuotes(int $deliveryOrderId, string $reason = 'parameters_changed'): void
+    {
+        $this->db->prepare(
+            "UPDATE delivery_quotes
+             SET quote_status = 'invalidated', is_selected = 0
+             WHERE delivery_order_id = ? AND COALESCE(quote_status, 'active') = 'active'"
+        )->execute([$deliveryOrderId]);
+
+        $this->updateFields($deliveryOrderId, [
+            'quote_id' => null,
+            'total_amount' => null,
+            'payment_status' => 'unpaid',
+        ]);
+
+        $this->logEvent($deliveryOrderId, null, 'system', 'quotes_invalidated', null, null, [
+            'reason' => $reason,
+        ]);
+    }
+
     public function selectedQuoteFor(int $deliveryOrderId): ?array
     {
         $stmt = $this->db->prepare(
-            'SELECT * FROM delivery_quotes WHERE delivery_order_id = ? AND is_selected = 1 LIMIT 1'
+            "SELECT * FROM delivery_quotes
+             WHERE delivery_order_id = ? AND is_selected = 1
+               AND COALESCE(quote_status, 'active') IN ('active', 'paid_snapshot')
+             LIMIT 1"
         );
         $stmt->execute([$deliveryOrderId]);
         $row = $stmt->fetch();
@@ -445,7 +529,7 @@ class DeliveryOrder extends Model
     public function packagingsForProvider(int $providerId): array
     {
         $stmt = $this->db->prepare(
-            'SELECT * FROM delivery_packagings WHERE logistics_provider_id = ? AND is_active = 1 ORDER BY id ASC'
+            'SELECT * FROM delivery_packagings WHERE logistics_provider_id = ? AND is_active = 1 ORDER BY sort_order ASC, id ASC'
         );
         $stmt->execute([$providerId]);
         return $stmt->fetchAll() ?: [];
@@ -580,25 +664,47 @@ class DeliveryOrder extends Model
     {
         $stmt = $this->db->prepare(
             'UPDATE delivery_shipments SET
-                package_count = ?, weight_value = ?, length_value = ?, width_value = ?, height_value = ?,
+                package_count = ?,
+                item_weight = ?, packaging_weight = ?, gross_weight = ?,
+                item_length = ?, item_width = ?, item_height = ?,
+                package_length = ?, package_width = ?, package_height = ?,
+                billed_length = ?, billed_width = ?, billed_height = ?, billed_gross_weight = ?,
+                weight_value = ?, length_value = ?, width_value = ?, height_value = ?,
                 weight_source = ?, dimension_source = ?, measurement_status = ?,
-                packaging_id = ?, packaging_name_snapshot = ?, dimensions_unknown = ?,
-                is_fragile = ?, special_handling = ?
+                packaging_id = ?, packaging_name_snapshot = ?, recommended_packaging_id = ?,
+                dimensions_unknown = ?, is_fragile = ?, is_irregular = ?, irregular_reason = ?,
+                special_handling = ?
              WHERE delivery_order_id = ?'
         );
         $stmt->execute([
             max(1, (int) ($data['package_count'] ?? 1)),
-            $data['weight_value'] ?? null,
-            $data['length_value'] ?? null,
-            $data['width_value'] ?? null,
-            $data['height_value'] ?? null,
+            $data['item_weight'] ?? null,
+            $data['packaging_weight'] ?? null,
+            $data['gross_weight'] ?? null,
+            $data['item_length'] ?? null,
+            $data['item_width'] ?? null,
+            $data['item_height'] ?? null,
+            $data['package_length'] ?? null,
+            $data['package_width'] ?? null,
+            $data['package_height'] ?? null,
+            $data['billed_length'] ?? null,
+            $data['billed_width'] ?? null,
+            $data['billed_height'] ?? null,
+            $data['billed_gross_weight'] ?? null,
+            $data['weight_value'] ?? $data['gross_weight'] ?? null,
+            $data['length_value'] ?? $data['package_length'] ?? null,
+            $data['width_value'] ?? $data['package_width'] ?? null,
+            $data['height_value'] ?? $data['package_height'] ?? null,
             $data['weight_source'] ?? 'seller',
             $data['dimension_source'] ?? 'seller',
             $data['measurement_status'] ?? 'preliminary',
             $data['packaging_id'] ?? null,
             $data['packaging_name_snapshot'] ?? null,
+            $data['recommended_packaging_id'] ?? null,
             !empty($data['dimensions_unknown']) ? 1 : 0,
             !empty($data['is_fragile']) ? 1 : 0,
+            !empty($data['is_irregular']) ? 1 : 0,
+            $data['irregular_reason'] ?? null,
             $data['special_handling'] ?? null,
             $deliveryOrderId,
         ]);
@@ -606,18 +712,20 @@ class DeliveryOrder extends Model
 
     public function saveQuotes(int $deliveryOrderId, int $providerId, string $requestId, array $quotes): void
     {
-        $clear = $this->db->prepare(
-            'UPDATE delivery_quotes SET is_selected = 0 WHERE delivery_order_id = ?'
-        );
-        $clear->execute([$deliveryOrderId]);
+        $this->db->prepare(
+            "UPDATE delivery_quotes SET quote_status = 'superseded', is_selected = 0
+             WHERE delivery_order_id = ? AND COALESCE(quote_status, 'active') = 'active'"
+        )->execute([$deliveryOrderId]);
 
         $stmt = $this->db->prepare(
             'INSERT INTO delivery_quotes (
                 delivery_order_id, logistics_provider_id, request_id, tariff_id, tariff_version,
-                service_code, service_name, base_amount, packaging_amount, extra_services_amount,
-                discount_amount, total_amount, currency, billable_weight, billable_weight_method,
-                eta_days_min, eta_days_max, valid_until, request_payload_hash, response_hash
-             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                service_code, service_name, base_amount, packaging_amount, handling_amount,
+                extra_services_amount, discount_amount, total_amount, currency,
+                billable_weight, billable_weight_method, calculation_method,
+                eta_days_min, eta_days_max, valid_until,
+                request_payload_hash, response_hash, snapshot_json, quote_status
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
 
         foreach ($quotes as $q) {
@@ -631,17 +739,21 @@ class DeliveryOrder extends Model
                 $q['service_name'],
                 (int) ($q['base_amount'] ?? 0),
                 (int) ($q['packaging_amount'] ?? 0),
+                (int) ($q['handling_amount'] ?? 0),
                 (int) ($q['extra_services_amount'] ?? 0),
                 (int) ($q['discount_amount'] ?? 0),
                 (int) $q['total_amount'],
                 $q['currency'] ?? 'KZT',
                 $q['billable_weight'] ?? null,
                 $q['billable_weight_method'] ?? null,
+                $q['calculation_method'] ?? null,
                 $q['eta_days_min'] ?? null,
                 $q['eta_days_max'] ?? null,
                 $q['valid_until'],
                 $q['request_payload_hash'] ?? null,
                 $q['response_hash'] ?? null,
+                !empty($q['snapshot_json']) ? (is_string($q['snapshot_json']) ? $q['snapshot_json'] : json_encode($q['snapshot_json'], JSON_UNESCAPED_UNICODE)) : null,
+                'active',
             ]);
         }
     }
@@ -659,8 +771,9 @@ class DeliveryOrder extends Model
 
         $this->db->prepare('UPDATE delivery_quotes SET is_selected = 0 WHERE delivery_order_id = ?')
             ->execute([$deliveryOrderId]);
-        $this->db->prepare('UPDATE delivery_quotes SET is_selected = 1 WHERE id = ?')
-            ->execute([$quoteId]);
+        $this->db->prepare(
+            "UPDATE delivery_quotes SET is_selected = 1, quote_status = 'active' WHERE id = ?"
+        )->execute([$quoteId]);
 
         $this->db->prepare(
             'UPDATE delivery_orders SET quote_id = ?, total_amount = ?, currency = ?, version = version + 1 WHERE id = ?'
@@ -672,6 +785,13 @@ class DeliveryOrder extends Model
         ]);
 
         return $quote;
+    }
+
+    public function markQuotePaidSnapshot(int $quoteId): void
+    {
+        $this->db->prepare(
+            "UPDATE delivery_quotes SET quote_status = 'paid_snapshot' WHERE id = ?"
+        )->execute([$quoteId]);
     }
 
     public function updateFields(int $id, array $fields): void

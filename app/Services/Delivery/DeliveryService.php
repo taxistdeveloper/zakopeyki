@@ -97,42 +97,105 @@ class DeliveryService
 
         $dimensionsUnknown = !empty($input['dimensions_unknown']);
         $packagingId = (int) ($input['packaging_id'] ?? 0);
-        $packagingName = null;
-        $packagingPrice = 0;
+        $packReco = new PackagingRecommendationService();
+        $packagings = $this->orders->packagingsForProvider((int) $row['logistics_provider_id']);
 
-        if ($packagingId > 0) {
-            $pack = $this->orders->packagingById($packagingId);
-            if ($pack) {
-                $packagingName = $pack['name'];
-                $packagingPrice = (int) $pack['price_amount'];
-            }
+        $itemWeight = $this->positiveFloat($input['item_weight'] ?? null);
+        $itemL = $this->positiveFloat($input['item_length'] ?? null);
+        $itemW = $this->positiveFloat($input['item_width'] ?? null);
+        $itemH = $this->positiveFloat($input['item_height'] ?? null);
+
+        // Обратная совместимость: weight_value / length_value как gross/упаковка
+        $legacyGross = $this->positiveFloat($input['weight_value'] ?? null);
+        if ($itemWeight === null && $legacyGross !== null && !$dimensionsUnknown) {
+            $itemWeight = max(0.01, $legacyGross - $packReco->defaultPackagingWeightKg());
+        }
+        if ($itemL === null && !$dimensionsUnknown) {
+            $itemL = $this->positiveFloat($input['length_value'] ?? null);
+            $itemW = $this->positiveFloat($input['width_value'] ?? null);
+            $itemH = $this->positiveFloat($input['height_value'] ?? null);
         }
 
-        $weight = $dimensionsUnknown ? null : $this->positiveFloat($input['weight_value'] ?? null);
-        $length = $dimensionsUnknown ? null : $this->positiveFloat($input['length_value'] ?? null);
-        $width = $dimensionsUnknown ? null : $this->positiveFloat($input['width_value'] ?? null);
-        $height = $dimensionsUnknown ? null : $this->positiveFloat($input['height_value'] ?? null);
+        $packagingWeight = $this->positiveFloat($input['packaging_weight'] ?? null)
+            ?? $packReco->defaultPackagingWeightKg();
 
-        if (!$dimensionsUnknown && ($weight === null || $weight <= 0)) {
+        $recommendation = $packReco->recommend($packagings, $itemWeight, $itemL, $itemW, $itemH);
+        $recommendedId = $recommendation['recommended']['id'] ?? null;
+
+        $pack = null;
+        $packagingName = null;
+        $packagingPrice = 0;
+        if ($packagingId > 0) {
+            $pack = $this->orders->packagingById($packagingId);
+            if (!$pack) {
+                return ['ok' => false, 'error' => t('delivery.packaging_required')];
+            }
+            $validPack = $packReco->validateSelection($pack, $itemWeight, $itemL, $itemW, $itemH);
+            if (!$validPack['ok']) {
+                return ['ok' => false, 'error' => $validPack['error'] ?? t('delivery.packaging_incompatible')];
+            }
+            $packagingName = $pack['name'];
+            $packagingPrice = (int) $pack['price_amount'];
+        }
+
+        if (!$dimensionsUnknown && ($itemWeight === null || $itemWeight <= 0)) {
             return ['ok' => false, 'error' => t('delivery.weight_required')];
         }
         if ($dimensionsUnknown && $packagingId <= 0) {
             return ['ok' => false, 'error' => t('delivery.packaging_required')];
         }
 
+        $packageL = $pack ? (float) ($pack['length_cm'] ?? 0) : $itemL;
+        $packageW = $pack ? (float) ($pack['width_cm'] ?? 0) : $itemW;
+        $packageH = $pack ? (float) ($pack['height_cm'] ?? 0) : $itemH;
+
+        if (!$dimensionsUnknown && ($packageL === null || $packageW === null || $packageH === null)) {
+            return ['ok' => false, 'error' => t('delivery.dimensions_required')];
+        }
+
+        $grossWeight = ($itemWeight ?? 0) + $packagingWeight;
+        if ($dimensionsUnknown && $itemWeight === null) {
+            $grossWeight = $packagingWeight > 0 ? $packagingWeight : 1.0;
+        }
+
+        $billedL = $packageL !== null ? $packReco->billedDimension((float) $packageL) : null;
+        $billedW = $packageW !== null ? $packReco->billedDimension((float) $packageW) : null;
+        $billedH = $packageH !== null ? $packReco->billedDimension((float) $packageH) : null;
+        $billedGross = $packReco->billedDimension($grossWeight);
+
+        $isIrregular = !empty($input['is_irregular']);
+        $irregularReason = $isIrregular ? (trim((string) ($input['irregular_reason'] ?? 'other')) ?: 'other') : null;
+
+        if ($this->shouldInvalidateQuotes($row)) {
+            $this->orders->invalidateQuotes($deliveryOrderId, 'shipment_changed');
+            $this->resetOrderAfterQuoteInvalidation($deliveryOrderId);
+        }
+
         $this->orders->updateShipment($deliveryOrderId, [
             'package_count' => max(1, (int) ($input['package_count'] ?? 1)),
-            'weight_value' => $weight,
-            'length_value' => $length,
-            'width_value' => $width,
-            'height_value' => $height,
+            'item_weight' => $itemWeight,
+            'packaging_weight' => $packagingWeight,
+            'gross_weight' => $grossWeight,
+            'item_length' => $itemL,
+            'item_width' => $itemW,
+            'item_height' => $itemH,
+            'package_length' => $packageL,
+            'package_width' => $packageW,
+            'package_height' => $packageH,
+            'billed_length' => $billedL,
+            'billed_width' => $billedW,
+            'billed_height' => $billedH,
+            'billed_gross_weight' => $billedGross,
             'weight_source' => $dimensionsUnknown && $packagingId > 0 ? 'packaging' : 'seller',
             'dimension_source' => $dimensionsUnknown && $packagingId > 0 ? 'packaging' : 'seller',
             'measurement_status' => 'preliminary',
             'packaging_id' => $packagingId > 0 ? $packagingId : null,
             'packaging_name_snapshot' => $packagingName,
+            'recommended_packaging_id' => $recommendedId,
             'dimensions_unknown' => $dimensionsUnknown,
             'is_fragile' => !empty($input['is_fragile']),
+            'is_irregular' => $isIrregular,
+            'irregular_reason' => $irregularReason,
             'special_handling' => trim((string) ($input['special_handling'] ?? '')) ?: null,
         ]);
 
@@ -143,6 +206,8 @@ class DeliveryService
 
         $this->orders->logEvent($deliveryOrderId, $actorId, 'seller', 'sender_saved', null, null, [
             'packaging_price' => $packagingPrice,
+            'recommended_packaging_id' => $recommendedId,
+            'gross_weight' => $grossWeight,
         ]);
 
         $this->syncDataCompleteness($deliveryOrderId);
@@ -181,7 +246,8 @@ class DeliveryService
             return ['ok' => false, 'error' => t('delivery.pvz_required')];
         }
 
-        $recipientId = $this->orders->upsertRecipient($deliveryOrderId, [
+        $oldFingerprint = $this->recipientFingerprint($row['recipient'] ?? null);
+        $newData = [
             'name' => $name,
             'phone' => $phone,
             'email' => trim((string) ($input['email'] ?? '')) ?: null,
@@ -195,7 +261,17 @@ class DeliveryService
             'pvz_code' => trim((string) ($input['pvz_code'] ?? '')) ?: null,
             'pvz_name' => trim((string) ($input['pvz_name'] ?? '')) ?: null,
             'notes' => trim((string) ($input['notes'] ?? '')) ?: null,
-        ]);
+        ];
+
+        if ($this->shouldInvalidateQuotes($row) && $oldFingerprint !== null) {
+            $newFingerprint = $this->recipientFingerprint($newData);
+            if ($oldFingerprint !== $newFingerprint) {
+                $this->orders->invalidateQuotes($deliveryOrderId, 'address_changed');
+                $this->resetOrderAfterQuoteInvalidation($deliveryOrderId);
+            }
+        }
+
+        $recipientId = $this->orders->upsertRecipient($deliveryOrderId, $newData);
 
         $this->orders->updateFields($deliveryOrderId, [
             'recipient_id' => $recipientId,
@@ -239,6 +315,7 @@ class DeliveryService
             'shipment' => $row['shipment'],
             'packaging_price' => $packagingPrice,
         ];
+        $snapshot = $this->buildQuoteSnapshot($row, $context);
 
         $provider = $this->providerFor($row);
         $requestId = 'req-' . $deliveryOrderId . '-' . bin2hex(random_bytes(4));
@@ -248,6 +325,11 @@ class DeliveryService
             $this->orders->transitionStatus($deliveryOrderId, DeliveryOrder::STATUS_EXCEPTION, null, 'system', 'quote_empty');
             return ['ok' => false, 'error' => t('delivery.quote_failed')];
         }
+
+        foreach ($quotes as &$q) {
+            $q['snapshot_json'] = $snapshot;
+        }
+        unset($q);
 
         $this->orders->saveQuotes(
             $deliveryOrderId,
@@ -410,6 +492,9 @@ class DeliveryService
             'paid_amount' => $amount,
             'paid_at' => $now,
         ]);
+        if (!empty($row['quote_id'])) {
+            $this->orders->markQuotePaidSnapshot((int) $row['quote_id']);
+        }
         $this->orders->logEvent($deliveryOrderId, (int) $row['buyer_user_id'], 'buyer', 'payment_confirmed', null, DeliveryOrder::STATUS_PAID, [
             'amount' => $amount,
         ]);
@@ -510,9 +595,7 @@ class DeliveryService
         }
 
         $shipment = $row['shipment'];
-        $hasShipment = !empty($shipment['dimensions_unknown'])
-            || ((float) ($shipment['weight_value'] ?? 0) > 0);
-        if (!$hasShipment) {
+        if (!$this->shipmentComplete($shipment)) {
             return;
         }
 
@@ -520,16 +603,99 @@ class DeliveryService
             'data_completeness_status' => 'complete',
         ]);
 
-        if ($row['status'] === DeliveryOrder::STATUS_DATA_COLLECTION) {
-            $this->orders->transitionStatus(
-                $deliveryOrderId,
-                DeliveryOrder::STATUS_DATA_COMPLETE,
-                null,
-                'system',
-                'data_complete'
-            );
+        if (in_array($row['status'], [
+            DeliveryOrder::STATUS_DATA_COLLECTION,
+            DeliveryOrder::STATUS_DATA_COMPLETE,
+        ], true)) {
+            if ($row['status'] === DeliveryOrder::STATUS_DATA_COLLECTION) {
+                $this->orders->transitionStatus(
+                    $deliveryOrderId,
+                    DeliveryOrder::STATUS_DATA_COMPLETE,
+                    null,
+                    'system',
+                    'data_complete'
+                );
+            }
             $this->requestQuotes($deliveryOrderId);
         }
+    }
+
+    /** @param array<string, mixed>|null $shipment */
+    private function shipmentComplete(?array $shipment): bool
+    {
+        if (!$shipment) {
+            return false;
+        }
+        if (!empty($shipment['dimensions_unknown']) && !empty($shipment['packaging_id'])) {
+            return true;
+        }
+        $gross = (float) ($shipment['gross_weight'] ?? $shipment['weight_value'] ?? 0);
+        return $gross > 0;
+    }
+
+    private function shouldInvalidateQuotes(array $row): bool
+    {
+        return in_array($row['status'] ?? '', [
+            DeliveryOrder::STATUS_QUOTE_RECEIVED,
+            DeliveryOrder::STATUS_READY_FOR_PAYMENT,
+            DeliveryOrder::STATUS_PAYMENT_PENDING,
+        ], true);
+    }
+
+    private function resetOrderAfterQuoteInvalidation(int $deliveryOrderId): void
+    {
+        $row = $this->orders->findWithDetails($deliveryOrderId);
+        if (!$row) {
+            return;
+        }
+
+        $status = DeliveryOrder::STATUS_DATA_COLLECTION;
+        $completeness = 'pending';
+        if ($row['sender'] && $row['recipient'] && $this->shipmentComplete($row['shipment'])) {
+            $status = DeliveryOrder::STATUS_DATA_COMPLETE;
+            $completeness = 'complete';
+        }
+
+        $this->orders->updateFields($deliveryOrderId, [
+            'status' => $status,
+            'data_completeness_status' => $completeness,
+        ]);
+    }
+
+    /** @param array<string, mixed>|null $recipient */
+    private function recipientFingerprint(?array $recipient): ?string
+    {
+        if (!$recipient) {
+            return null;
+        }
+        $parts = [
+            $recipient['delivery_mode'] ?? '',
+            $recipient['city'] ?? '',
+            $recipient['street'] ?? '',
+            $recipient['building'] ?? '',
+            $recipient['apartment'] ?? '',
+            $recipient['postal_code'] ?? '',
+            $recipient['pvz_code'] ?? '',
+        ];
+        return hash('sha256', implode('|', $parts));
+    }
+
+    /** @param array<string, mixed> $row */
+    private function buildQuoteSnapshot(array $row, array $context): array
+    {
+        return [
+            'delivery_order_id' => (int) $row['id'],
+            'order_number' => $row['order_number'],
+            'origin' => $row['sender'],
+            'destination' => $row['recipient'],
+            'shipment' => $row['shipment'],
+            'route' => [
+                'from_city' => $row['sender']['city'] ?? null,
+                'to_city' => $row['recipient']['city'] ?? null,
+            ],
+            'requested_at' => date('c'),
+            'context_hash' => hash('sha256', json_encode($context, JSON_UNESCAPED_UNICODE)),
+        ];
     }
 
     private function buildAvrPackage(int $deliveryOrderId): void
@@ -591,6 +757,8 @@ class DeliveryService
         return in_array($status, [
             DeliveryOrder::STATUS_DATA_COLLECTION,
             DeliveryOrder::STATUS_DATA_COMPLETE,
+            DeliveryOrder::STATUS_QUOTE_RECEIVED,
+            DeliveryOrder::STATUS_READY_FOR_PAYMENT,
         ], true);
     }
 

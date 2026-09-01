@@ -8,6 +8,7 @@ use App\Models\DeliveryOrder;
 use App\Models\Notification;
 use App\Models\Order;
 use App\Services\Delivery\DeliveryService;
+use App\Services\Delivery\PackagingRecommendationService;
 
 class DeliveryController extends Controller
 {
@@ -36,6 +37,17 @@ class DeliveryController extends Controller
 
         $p2pOrder = (new Order())->findWithDetails((int) $delivery['order_id']);
         $packagings = (new DeliveryOrder())->packagingsForProvider((int) $delivery['logistics_provider_id']);
+        $shipment = $delivery['shipment'] ?? null;
+        $packRecommendation = null;
+        if ($isSeller && $shipment) {
+            $packRecommendation = (new PackagingRecommendationService())->recommend(
+                $packagings,
+                isset($shipment['item_weight']) ? (float) $shipment['item_weight'] : null,
+                isset($shipment['item_length']) ? (float) $shipment['item_length'] : null,
+                isset($shipment['item_width']) ? (float) $shipment['item_width'] : null,
+                isset($shipment['item_height']) ? (float) $shipment['item_height'] : null,
+            );
+        }
         $n = new Notification();
 
         $this->view('delivery/show', [
@@ -44,6 +56,7 @@ class DeliveryController extends Controller
             'delivery' => $delivery,
             'p2pOrder' => $p2pOrder,
             'packagings' => $packagings,
+            'packRecommendation' => $packRecommendation,
             'isBuyer' => $isBuyer,
             'isSeller' => $isSeller,
             'isAdmin' => $isAdmin,

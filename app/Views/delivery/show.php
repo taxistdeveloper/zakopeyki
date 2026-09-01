@@ -13,7 +13,13 @@ $tracking = $d['tracking'] ?? [];
 
 $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm';
 $btn = 'inline-flex items-center justify-center w-full font-display font-bold py-3 rounded-2xl text-xs uppercase tracking-wider transition';
-$canEditData = in_array($status, [DeliveryOrder::STATUS_DATA_COLLECTION, DeliveryOrder::STATUS_DATA_COMPLETE], true);
+$canEditData = in_array($status, [
+    DeliveryOrder::STATUS_DATA_COLLECTION,
+    DeliveryOrder::STATUS_DATA_COMPLETE,
+    DeliveryOrder::STATUS_QUOTE_RECEIVED,
+    DeliveryOrder::STATUS_READY_FOR_PAYMENT,
+], true);
+$packRecommendation = $packRecommendation ?? null;
 $canSelectQuote = $status === DeliveryOrder::STATUS_QUOTE_RECEIVED;
 $canPay = $status === DeliveryOrder::STATUS_READY_FOR_PAYMENT && $selectedQuote;
 $payAmount = $selectedQuote ? number_format((int) $selectedQuote['total_amount'], 0, '', ' ') . ' ₸' : '';
@@ -68,21 +74,37 @@ $payAmount = $selectedQuote ? number_format((int) $selectedQuote['total_amount']
             </div>
             <div class="border-t border-black/[0.06] dark:border-white/10 pt-4 space-y-3">
                 <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider"><?= htmlspecialchars(t('delivery.shipment_title')) ?></p>
+                <p class="text-xs text-gray-500"><?= htmlspecialchars(t('delivery.item_dims_hint')) ?></p>
                 <label class="flex items-center gap-2 text-sm">
                     <input type="checkbox" name="dimensions_unknown" value="1" <?= !empty($shipment['dimensions_unknown']) ? 'checked' : '' ?> class="rounded border-gray-300">
                     <?= htmlspecialchars(t('delivery.dimensions_unknown')) ?>
                 </label>
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <input type="number" step="0.001" min="0" name="weight_value" value="<?= htmlspecialchars((string) ($shipment['weight_value'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('delivery.weight_kg')) ?>" class="<?= $input ?>">
-                    <input type="number" step="0.1" min="0" name="length_value" value="<?= htmlspecialchars((string) ($shipment['length_value'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('delivery.length_cm')) ?>" class="<?= $input ?>">
-                    <input type="number" step="0.1" min="0" name="width_value" value="<?= htmlspecialchars((string) ($shipment['width_value'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('delivery.width_cm')) ?>" class="<?= $input ?>">
-                    <input type="number" step="0.1" min="0" name="height_value" value="<?= htmlspecialchars((string) ($shipment['height_value'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('delivery.height_cm')) ?>" class="<?= $input ?>">
+                    <input type="number" step="0.001" min="0" name="item_weight" value="<?= htmlspecialchars((string) ($shipment['item_weight'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('delivery.item_weight_kg')) ?>" class="<?= $input ?>">
+                    <input type="number" step="0.1" min="0" name="item_length" value="<?= htmlspecialchars((string) ($shipment['item_length'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('delivery.item_length_cm')) ?>" class="<?= $input ?>">
+                    <input type="number" step="0.1" min="0" name="item_width" value="<?= htmlspecialchars((string) ($shipment['item_width'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('delivery.item_width_cm')) ?>" class="<?= $input ?>">
+                    <input type="number" step="0.1" min="0" name="item_height" value="<?= htmlspecialchars((string) ($shipment['item_height'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('delivery.item_height_cm')) ?>" class="<?= $input ?>">
                 </div>
+                <input type="number" step="0.001" min="0" name="packaging_weight" value="<?= htmlspecialchars((string) ($shipment['packaging_weight'] ?? '0.15')) ?>" placeholder="<?= htmlspecialchars(t('delivery.packaging_weight_kg')) ?>" class="<?= $input ?>">
+                <?php if ($packRecommendation && !empty($packRecommendation['recommended'])): ?>
+                    <div class="rounded-2xl bg-brand-50/80 dark:bg-brand-950/20 border border-brand-200/60 dark:border-brand-500/25 px-4 py-3 text-sm">
+                        <p class="font-semibold text-brand-800 dark:text-brand-200">
+                            <?= htmlspecialchars(t('delivery.recommend_pack', ['name' => $packRecommendation['recommended']['name']])) ?>
+                        </p>
+                        <p class="text-xs text-brand-700/80 dark:text-brand-300/80 mt-1">
+                            <?= htmlspecialchars($packRecommendation['recommended']['fit_reason'] ?? '') ?>
+                        </p>
+                    </div>
+                <?php elseif ($packRecommendation && !empty($packRecommendation['none_fit'])): ?>
+                    <div class="rounded-2xl bg-amber-50/80 dark:bg-amber-950/20 border border-amber-200/60 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
+                        <?= htmlspecialchars(t('delivery.no_pack_fits')) ?>
+                    </div>
+                <?php endif; ?>
                 <select name="packaging_id" class="<?= $input ?>">
                     <option value=""><?= htmlspecialchars(t('delivery.packaging_none')) ?></option>
                     <?php foreach ($packagings as $pack): ?>
                         <option value="<?= (int) $pack['id'] ?>" <?= (int) ($shipment['packaging_id'] ?? 0) === (int) $pack['id'] ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($pack['name']) ?>
+                            <?= htmlspecialchars($pack['name']) ?> (<?= htmlspecialchars($pack['code']) ?> — <?= (float) $pack['max_weight_kg'] ?> кг)
                         </option>
                     <?php endforeach; ?>
                 </select>
@@ -90,6 +112,10 @@ $payAmount = $selectedQuote ? number_format((int) $selectedQuote['total_amount']
                 <label class="flex items-center gap-2 text-sm">
                     <input type="checkbox" name="is_fragile" value="1" <?= !empty($shipment['is_fragile']) ? 'checked' : '' ?> class="rounded border-gray-300">
                     <?= htmlspecialchars(t('delivery.fragile')) ?>
+                </label>
+                <label class="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="is_irregular" value="1" <?= !empty($shipment['is_irregular']) ? 'checked' : '' ?> class="rounded border-gray-300">
+                    <?= htmlspecialchars(t('delivery.irregular')) ?>
                 </label>
             </div>
             <button type="submit" class="<?= $btn ?> bg-ink-900 hover:bg-ink-800 text-white"><?= htmlspecialchars(t('delivery.save_sender')) ?></button>
