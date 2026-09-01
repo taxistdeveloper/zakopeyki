@@ -57,6 +57,7 @@ class Router
         $exempt = [
             '/payments/freedompay/result',
             '/webhooks/cloudflare/stream',
+            '/webhooks/delivery/status',
         ];
         return in_array($path, $exempt, true);
     }

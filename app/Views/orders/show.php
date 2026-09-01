@@ -21,6 +21,7 @@ if (!empty($order['dispute_evidence'])) {
     }
 }
 $returnEvents = $returnEvents ?? [];
+$deliveryOrder = $deliveryOrder ?? null;
 $myReview = $myReview ?? null;
 $counterpartReview = $counterpartReview ?? null;
 
@@ -166,11 +167,18 @@ $btn = 'inline-flex items-center justify-center w-full font-display font-bold py
     </div>
 
     <div class="space-y-4">
+        <?php if (!empty($deliveryOrder) && empty($isDigital)): ?>
+            <a href="<?= ProductHelper::url('/delivery/' . (int) $deliveryOrder['id']) ?>" class="<?= $btn ?> bg-brand-600 hover:bg-brand-500 text-white">
+                <?= htmlspecialchars(t('delivery.open_module')) ?>
+            </a>
+            <p class="text-xs text-gray-500 text-center -mt-2"><?= htmlspecialchars(t('delivery.open_module_hint')) ?></p>
+        <?php endif; ?>
+
         <?php if (!empty($isDigital) && !empty($isBuyer)): ?>
             <a href="<?= ProductHelper::url('/digital/' . (int) $order['product_id'] . '/watch') ?>" class="<?= $btn ?> bg-violet-700 hover:bg-violet-600 text-white"><?= htmlspecialchars(t('digital.open_player')) ?></a>
         <?php endif; ?>
 
-        <?php if (!empty($isSeller) && $status === 'escrowed' && empty($isDigital)): ?>
+        <?php if (!empty($isSeller) && $status === 'escrowed' && empty($isDigital) && empty($deliveryOrder)): ?>
             <form method="post" action="<?= ProductHelper::url('/orders/' . (int) $order['id'] . '/ship') ?>" class="bg-white/90 dark:bg-white/[0.04] rounded-[24px] border border-black/[0.06] dark:border-white/10 p-5 space-y-3 shadow-soft">
                 <h3 class="font-display font-bold text-ink-900 dark:text-white"><?= htmlspecialchars(t('escrow.ship_title')) ?></h3>
                 <p class="text-xs text-gray-500"><?= htmlspecialchars(t('escrow.ship_hint')) ?></p>

@@ -286,6 +286,7 @@ class Payment extends Model
                 }
                 if ($dealMode !== 'direct') {
                     (new \App\Services\Digital\DigitalAccessService())->grantFromPaidOrder((int) $item['order_id']);
+                    \App\Services\Delivery\DeliveryService::bootstrapForPaidOrder((int) $item['order_id']);
                 }
             }
 

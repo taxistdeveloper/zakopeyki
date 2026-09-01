@@ -412,6 +412,7 @@ class Order extends Model
 
             if (!$isDirect) {
                 (new \App\Services\Digital\DigitalAccessService())->grantFromPaidOrder($orderId);
+                \App\Services\Delivery\DeliveryService::bootstrapForPaidOrder($orderId);
             }
 
             return ['ok' => true, 'order_id' => $orderId, 'deal_mode' => $dealMode];
@@ -663,6 +664,7 @@ class Order extends Model
                     ])
                 );
                 (new \App\Services\Digital\DigitalAccessService())->grantFromPaidOrder((int) $row['order_id']);
+                \App\Services\Delivery\DeliveryService::bootstrapForPaidOrder((int) $row['order_id']);
             }
 
             return [

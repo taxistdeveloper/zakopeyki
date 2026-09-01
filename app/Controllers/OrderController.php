@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Controller;
 use App\Helpers\ActivityLogger;
+use App\Models\DeliveryOrder;
 use App\Models\Notification;
 use App\Models\Order;
 use App\Models\OrderReturnEvent;
@@ -70,10 +71,12 @@ class OrderController extends Controller
         }
 
         $n = new Notification();
+        $deliveryOrder = (new DeliveryOrder())->findByP2pOrderId($orderId);
         $this->view('orders/show', [
             'title' => t('escrow.deal_title', ['id' => $orderId]),
             'currentNav' => 'orders',
             'order' => $order,
+            'deliveryOrder' => $deliveryOrder,
             'returnEvents' => (new OrderReturnEvent())->forOrder($orderId),
             'isBuyer' => $isBuyer,
             'isSeller' => $isSeller,

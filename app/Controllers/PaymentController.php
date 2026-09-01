@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Controller;
 use App\Helpers\ActivityLogger;
+use App\Models\DeliveryPayment;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Services\FreedomPay\Client as FreedomPayClient;
@@ -51,6 +52,11 @@ class PaymentController extends Controller
                 'pg_status' => 'error',
                 'pg_description' => 'Missing order id',
             ]));
+            return;
+        }
+
+        if (DeliveryPayment::isDeliveryPgOrderId($pgOrderId)) {
+            $this->handleDeliveryFreedomPayResult($fp, $scriptName, $pgOrderId, $pgPaymentId, $pgAmount, $pgResult, $canReject);
             return;
         }
 
@@ -124,6 +130,17 @@ class PaymentController extends Controller
     public function freedomPaySuccess(): void
     {
         Auth::requireLogin();
+        $params = FreedomPayClient::requestParams();
+        $pgOrderId = (string) ($params['pg_order_id'] ?? '');
+        if ($pgOrderId !== '' && DeliveryPayment::isDeliveryPgOrderId($pgOrderId)) {
+            $payment = (new DeliveryPayment())->findByPgOrderId($pgOrderId);
+            if ($payment && (int) ($payment['buyer_user_id'] ?? 0) === Auth::id()) {
+                $_SESSION['flash'] = t('delivery.payment_success');
+                $this->redirect('/delivery/' . (int) $payment['delivery_order_id']);
+                return;
+            }
+        }
+
         $orderId = $this->resolveOrderIdFromReturn();
         if ($orderId > 0) {
             $order = (new Order())->find($orderId);
@@ -155,6 +172,21 @@ class PaymentController extends Controller
     public function freedomPayFailure(): void
     {
         Auth::requireLogin();
+        $params = FreedomPayClient::requestParams();
+        $pgOrderId = (string) ($params['pg_order_id'] ?? '');
+        if ($pgOrderId !== '' && DeliveryPayment::isDeliveryPgOrderId($pgOrderId)) {
+            $payment = (new DeliveryPayment())->findByPgOrderId($pgOrderId);
+            if ($payment) {
+                (new DeliveryPayment())->failFromGateway(
+                    $pgOrderId,
+                    !empty($params['pg_payment_id']) ? (string) $params['pg_payment_id'] : null
+                );
+                $_SESSION['error'] = t('delivery.payment_failed');
+                $this->redirect('/delivery/' . (int) $payment['delivery_order_id']);
+                return;
+            }
+        }
+
         $orderId = $this->resolveOrderIdFromReturn();
         $_SESSION['checkout_error'] = t('checkout.payment_failed');
 
@@ -189,7 +221,11 @@ class PaymentController extends Controller
     {
         $params = FreedomPayClient::requestParams();
         if (!empty($params['pg_order_id'])) {
-            $payment = (new Payment())->findByPgOrderId((string) $params['pg_order_id']);
+            $pgOrderId = (string) $params['pg_order_id'];
+            if (DeliveryPayment::isDeliveryPgOrderId($pgOrderId)) {
+                return 0;
+            }
+            $payment = (new Payment())->findByPgOrderId($pgOrderId);
             if ($payment) {
                 return (int) $payment['order_id'];
             }
@@ -198,6 +234,56 @@ class PaymentController extends Controller
             return (int) $params['pg_param1'];
         }
         return 0;
+    }
+
+    private function handleDeliveryFreedomPayResult(
+        FreedomPayClient $fp,
+        string $scriptName,
+        string $pgOrderId,
+        string $pgPaymentId,
+        string $pgAmount,
+        int $pgResult,
+        bool $canReject
+    ): void {
+        $payments = new DeliveryPayment();
+
+        if ($pgResult === 1) {
+            $done = $payments->completeFromGateway($pgOrderId, $pgPaymentId, $pgAmount);
+            if ($done['ok']) {
+                ActivityLogger::info(
+                    'payment.freedompay.delivery',
+                    'Delivery payment OK #' . ($done['delivery_order_id'] ?? ''),
+                    'delivery_order',
+                    $done['delivery_order_id'] ?? null,
+                    ['pg_order_id' => $pgOrderId]
+                );
+                $this->xmlOut($fp->xmlResponse($scriptName, [
+                    'pg_status' => 'ok',
+                    'pg_description' => 'Delivery paid',
+                ]));
+                return;
+            }
+
+            if ($canReject) {
+                $this->xmlOut($fp->xmlResponse($scriptName, [
+                    'pg_status' => 'rejected',
+                    'pg_description' => (string) ($done['error'] ?? 'Cannot accept payment'),
+                ]));
+                return;
+            }
+
+            $this->xmlOut($fp->xmlResponse($scriptName, [
+                'pg_status' => 'error',
+                'pg_description' => (string) ($done['error'] ?? 'Processing error'),
+            ]));
+            return;
+        }
+
+        $payments->failFromGateway($pgOrderId, $pgPaymentId !== '' ? $pgPaymentId : null);
+        $this->xmlOut($fp->xmlResponse($scriptName, [
+            'pg_status' => 'ok',
+            'pg_description' => 'Failure recorded',
+        ]));
     }
 
     private function xmlOut(string $xml): void
