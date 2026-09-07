@@ -1,4 +1,5 @@
 config/google.php
 config/mail.php
 config/freedompay.php
+config/cdek.php
 storage/

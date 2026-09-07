@@ -343,15 +343,32 @@ class DeliveryOrder extends Model
 
     private function seedDefaults(): void
     {
-        $stmt = $this->db->query("SELECT id FROM logistics_providers WHERE code = 'stub' LIMIT 1");
+        $this->seedProviderCatalog('stub', 'Тестовая логистика', [
+            ['courier_std', 'Курьер стандарт', 'courier'],
+            ['pvz_std', 'ПВЗ стандарт', 'pvz'],
+            ['express', 'Экспресс', 'courier'],
+        ]);
+        $this->seedProviderCatalog('cdek', 'СДЭК', [
+            ['cdek_courier', 'СДЭК до двери', 'courier'],
+            ['cdek_pvz', 'СДЭК ПВЗ', 'pvz'],
+        ]);
+    }
+
+    /**
+     * @param list<array{0: string, 1: string, 2: string}> $services
+     */
+    private function seedProviderCatalog(string $code, string $name, array $services): void
+    {
+        $stmt = $this->db->prepare('SELECT id FROM logistics_providers WHERE code = ? LIMIT 1');
+        $stmt->execute([$code]);
         $row = $stmt->fetch();
         if ($row) {
             $providerId = (int) $row['id'];
         } else {
             $ins = $this->db->prepare(
-                "INSERT INTO logistics_providers (code, name, is_active) VALUES ('stub', 'Тестовая логистика', 1)"
+                'INSERT INTO logistics_providers (code, name, is_active) VALUES (?, ?, 1)'
             );
-            $ins->execute();
+            $ins->execute([$code, $name]);
             $providerId = (int) $this->db->lastInsertId();
         }
 
@@ -377,11 +394,6 @@ class DeliveryOrder extends Model
             $ins->execute([$providerId, $p[0], $p[1], $p[2], $p[3], $p[4], $p[5], $p[6], $p[7]]);
         }
 
-        $services = [
-            ['courier_std', 'Курьер стандарт', 'courier'],
-            ['pvz_std', 'ПВЗ стандарт', 'pvz'],
-            ['express', 'Экспресс', 'courier'],
-        ];
         foreach ($services as $s) {
             $check = $this->db->prepare(
                 'SELECT id FROM delivery_services WHERE logistics_provider_id = ? AND service_code = ? LIMIT 1'
@@ -403,6 +415,70 @@ class DeliveryOrder extends Model
         $stmt = $this->db->query("SELECT id FROM logistics_providers WHERE code = 'stub' AND is_active = 1 LIMIT 1");
         $row = $stmt->fetch();
         return $row ? (int) $row['id'] : 1;
+    }
+
+    public function providerIdByCode(string $code): ?int
+    {
+        $stmt = $this->db->prepare(
+            'SELECT id FROM logistics_providers WHERE code = ? AND is_active = 1 LIMIT 1'
+        );
+        $stmt->execute([$code]);
+        $row = $stmt->fetch();
+        return $row ? (int) $row['id'] : null;
+    }
+
+    /** @param array<string, mixed> $order p2p orders row */
+    public function resolveProviderIdForOrder(array $order): int
+    {
+        if (($order['delivery_method'] ?? '') === 'cdek') {
+            $id = $this->providerIdByCode('cdek');
+            if ($id !== null) {
+                return $id;
+            }
+        }
+        return $this->defaultProviderId();
+    }
+
+    public function findByOrderNumber(string $orderNumber): ?array
+    {
+        $stmt = $this->db->prepare('SELECT * FROM delivery_orders WHERE order_number = ? LIMIT 1');
+        $stmt->execute([$orderNumber]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
+    public function findByLogisticsOrderId(string $logisticsOrderId): ?array
+    {
+        $stmt = $this->db->prepare('SELECT * FROM delivery_orders WHERE logistics_order_id = ? LIMIT 1');
+        $stmt->execute([$logisticsOrderId]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
+    public function logApiCall(
+        ?int $deliveryOrderId,
+        ?int $providerId,
+        string $endpoint,
+        int $responseCode,
+        ?string $requestHash = null,
+        ?string $responseHash = null,
+        ?string $errorMessage = null
+    ): void {
+        $stmt = $this->db->prepare(
+            'INSERT INTO delivery_api_logs
+             (delivery_order_id, logistics_provider_id, direction, endpoint, request_hash, response_code, response_hash, error_message)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        );
+        $stmt->execute([
+            $deliveryOrderId,
+            $providerId,
+            'out',
+            mb_substr($endpoint, 0, 200),
+            $requestHash,
+            $responseCode > 0 ? $responseCode : null,
+            $responseHash,
+            $errorMessage !== null ? mb_substr($errorMessage, 0, 255) : null,
+        ]);
     }
 
     public function findByP2pOrderId(int $orderId): ?array
@@ -550,7 +626,7 @@ class DeliveryOrder extends Model
             return (int) $existing['id'];
         }
 
-        $providerId = $this->defaultProviderId();
+        $providerId = $this->resolveProviderIdForOrder($order);
         $orderNumber = 'DO-' . date('Y') . '-' . strtoupper(bin2hex(random_bytes(4)));
 
         $stmt = $this->db->prepare(

@@ -1,0 +1,36 @@
+<?php
+
+/**
+ * СДЭК API v2 — скопируйте в config/cdek.php.
+ *
+ * Документация: https://apidoc.cdek.ru/#tag/common/Vvedenie
+ * Тестовый стенд: https://api.edu.cdek.ru/v2
+ *
+ * Account / Secure password:
+ *   - тест: публичные ключи из раздела «Авторизация» на apidoc.cdek.ru
+ *     (они периодически обновляются; при invalid_client возьмите свежие из доки)
+ *   - бой: ключи из ЛК интегратора СДЭК + api_url = https://api.cdek.ru/v2
+ *
+ * Env: CDEK_ACCOUNT, CDEK_SECURE_PASSWORD, CDEK_API_URL, CDEK_TEST_MODE
+ *
+ * Пример тестовых ключей из документации (проверьте актуальность на портале):
+ *   account = EMscd6r9JnFiQ3bLoyjJY6eM78JrJceI
+ *   secure  = PjLZkKBHEiLK3YsjtNrt3TGNG0ahs3kG
+ */
+return [
+    'account' => getenv('CDEK_ACCOUNT') ?: 'EMscd6r9JnFiQ3bLoyjJY6eM78JrJceI',
+    'secure_password' => getenv('CDEK_SECURE_PASSWORD') ?: 'PjLZkKBHEiLK3YsjtNrt3TGNG0ahs3kG',
+    'api_url' => getenv('CDEK_API_URL') ?: 'https://api.edu.cdek.ru/v2',
+    'test_mode' => (int) (getenv('CDEK_TEST_MODE') !== false && getenv('CDEK_TEST_MODE') !== ''
+        ? getenv('CDEK_TEST_MODE')
+        : 1),
+    // Код валюты калькулятора СДЭК: 1=RUB, 2=KZT, 3=USD, 4=EUR
+    'currency' => (int) (getenv('CDEK_CURRENCY') ?: 2),
+    'currency_label' => 'KZT',
+    // Тип заказа: 1 = ИМ (интернет-магазин), 2 = доставка
+    'order_type' => 1,
+    'lang' => 'rus',
+    'default_country' => 'KZ',
+    // Кэш OAuth-токена (файл). Пустой = storage/cdek_token.json
+    'token_cache_path' => getenv('CDEK_TOKEN_CACHE') ?: '',
+];

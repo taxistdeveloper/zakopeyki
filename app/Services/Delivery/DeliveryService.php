@@ -63,6 +63,7 @@ class DeliveryService
     {
         $code = $deliveryOrder['logistics_code'] ?? 'stub';
         return match ($code) {
+            'cdek' => new CdekLogisticsProvider(),
             default => new StubLogisticsProvider(),
         };
     }
@@ -528,7 +529,19 @@ class DeliveryService
         }
 
         $avr = $this->avrPayload($deliveryOrderId);
-        $result = $this->providerFor($row)->createOrder($avr);
+        try {
+            $result = $this->providerFor($row)->createOrder($avr);
+        } catch (\Throwable $e) {
+            $this->orders->transitionStatus(
+                $deliveryOrderId,
+                DeliveryOrder::STATUS_EXCEPTION,
+                null,
+                'system',
+                'logistics_create_failed',
+                ['error' => $e->getMessage()]
+            );
+            return ['ok' => false, 'error' => $e->getMessage()];
+        }
 
         $this->orders->updateFields($deliveryOrderId, [
             'logistics_order_id' => $result['logistics_order_id'],
@@ -553,8 +566,24 @@ class DeliveryService
     /** @return array{ok: bool, error?: string} */
     public function handleLogisticsWebhook(array $payload): array
     {
-        $provider = new StubLogisticsProvider();
+        $hint = (string) ($payload['provider'] ?? '');
+        if ($hint === '' && (!empty($payload['type']) || !empty($payload['uuid']))) {
+            $hint = 'cdek';
+        }
+
+        $provider = match ($hint) {
+            'cdek' => new CdekLogisticsProvider(null, $this->orders),
+            default => new StubLogisticsProvider(),
+        };
+
+        // Сначала пробуем выбранный провайдер, затем fallback stub/cdek
         $parsed = $provider->handleStatusWebhook($payload);
+        if (!$parsed && $hint !== 'cdek') {
+            $parsed = (new CdekLogisticsProvider(null, $this->orders))->handleStatusWebhook($payload);
+        }
+        if (!$parsed && $hint === 'cdek') {
+            $parsed = (new StubLogisticsProvider())->handleStatusWebhook($payload);
+        }
         if (!$parsed) {
             return ['ok' => false, 'error' => 'invalid_payload'];
         }
@@ -570,6 +599,7 @@ class DeliveryService
             'SHIPMENT_RECEIVED' => DeliveryOrder::STATUS_SHIPMENT_RECEIVED,
             'IN_TRANSIT' => DeliveryOrder::STATUS_IN_TRANSIT,
             'DELIVERED' => DeliveryOrder::STATUS_DELIVERED,
+            'EXCEPTION' => DeliveryOrder::STATUS_EXCEPTION,
         ];
         $newStatus = $statusMap[$parsed['status']] ?? null;
 
