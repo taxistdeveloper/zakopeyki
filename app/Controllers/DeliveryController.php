@@ -48,6 +48,8 @@ class DeliveryController extends Controller
                 isset($shipment['item_height']) ? (float) $shipment['item_height'] : null,
             );
         }
+        $missingForQuotes = (new DeliveryService())->missingForQuotes($delivery);
+
         $n = new Notification();
 
         $this->view('delivery/show', [
@@ -57,6 +59,7 @@ class DeliveryController extends Controller
             'p2pOrder' => $p2pOrder,
             'packagings' => $packagings,
             'packRecommendation' => $packRecommendation,
+            'missingForQuotes' => $missingForQuotes,
             'isBuyer' => $isBuyer,
             'isSeller' => $isSeller,
             'isAdmin' => $isAdmin,

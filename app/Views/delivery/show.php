@@ -23,6 +23,7 @@ $packRecommendation = $packRecommendation ?? null;
 $canSelectQuote = $status === DeliveryOrder::STATUS_QUOTE_RECEIVED;
 $canPay = $status === DeliveryOrder::STATUS_READY_FOR_PAYMENT && $selectedQuote;
 $payAmount = $selectedQuote ? number_format((int) $selectedQuote['total_amount'], 0, '', ' ') . ' ₸' : '';
+$missingForQuotes = $missingForQuotes ?? [];
 ?>
 <section class="max-w-2xl mx-auto space-y-5 fade-up pb-8">
     <div class="flex flex-wrap items-start justify-between gap-3">
@@ -43,6 +44,20 @@ $payAmount = $selectedQuote ? number_format((int) $selectedQuote['total_amount']
     <?php endif; ?>
     <?php if (!empty($error)): ?>
         <div class="bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border border-red-100 dark:border-red-900/40 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars($error) ?></div>
+    <?php endif; ?>
+
+    <?php if ($missingForQuotes !== [] && in_array($status, [
+        DeliveryOrder::STATUS_DATA_COLLECTION,
+        DeliveryOrder::STATUS_DATA_COMPLETE,
+    ], true)): ?>
+        <div class="rounded-2xl border border-amber-200/80 dark:border-amber-800/40 bg-amber-50/80 dark:bg-amber-950/20 px-4 py-3 text-sm text-amber-950 dark:text-amber-100 space-y-2">
+            <p class="font-semibold"><?= htmlspecialchars(t('delivery.missing_title')) ?></p>
+            <ul class="list-disc pl-5 space-y-1 text-amber-900/90 dark:text-amber-100/90">
+                <?php foreach ($missingForQuotes as $key): ?>
+                    <li><?= htmlspecialchars(t('delivery.missing_' . $key)) ?></li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
     <?php endif; ?>
 
     <div class="rounded-2xl border border-blue-200/80 dark:border-blue-800/40 bg-blue-50/80 dark:bg-blue-950/20 px-4 py-3 text-sm text-blue-900 dark:text-blue-200">
@@ -125,6 +140,14 @@ $payAmount = $selectedQuote ? number_format((int) $selectedQuote['total_amount']
             <h3 class="font-display font-bold text-ink-900 dark:text-white mb-2"><?= htmlspecialchars(t('delivery.sender_title')) ?></h3>
             <p><?= htmlspecialchars($sender['name']) ?> · <?= htmlspecialchars($sender['phone']) ?></p>
             <p class="text-gray-500"><?= htmlspecialchars(trim(($sender['city'] ?? '') . ', ' . ($sender['street'] ?? '') . ' ' . ($sender['building'] ?? ''), ', ')) ?></p>
+            <?php
+            $gw = (float) ($shipment['gross_weight'] ?? $shipment['weight_value'] ?? 0);
+            if ($gw > 0):
+            ?>
+                <p class="text-xs text-gray-500"><?= htmlspecialchars(t('delivery.shipment_title')) ?>: <?= htmlspecialchars(rtrim(rtrim(number_format($gw, 3, '.', ''), '0'), '.')) ?> кг</p>
+            <?php else: ?>
+                <p class="text-xs text-amber-700 dark:text-amber-300"><?= htmlspecialchars(t('delivery.missing_shipment')) ?></p>
+            <?php endif; ?>
         </div>
     <?php endif; ?>
 

@@ -221,6 +221,26 @@ class DeliveryService
         return ['ok' => true];
     }
 
+    /**
+     * Что ещё нужно до расчёта тарифа.
+     * @param array<string, mixed> $row findWithDetails
+     * @return list<string> ключи: sender|shipment|recipient
+     */
+    public function missingForQuotes(array $row): array
+    {
+        $missing = [];
+        if (empty($row['sender'])) {
+            $missing[] = 'sender';
+        }
+        if (!$this->shipmentComplete($row['shipment'] ?? null)) {
+            $missing[] = 'shipment';
+        }
+        if (empty($row['recipient'])) {
+            $missing[] = 'recipient';
+        }
+        return $missing;
+    }
+
     /** @return array{ok: bool, error?: string} */
     public function saveBuyerData(int $deliveryOrderId, int $actorId, array $input): array
     {
