@@ -8,18 +8,13 @@
  *
  * Account / Secure password:
  *   - тест: публичные ключи из раздела «Авторизация» на apidoc.cdek.ru
- *     (они периодически обновляются; при invalid_client возьмите свежие из доки)
  *   - бой: ключи из ЛК интегратора СДЭК + api_url = https://api.cdek.ru/v2
  *
  * Env: CDEK_ACCOUNT, CDEK_SECURE_PASSWORD, CDEK_API_URL, CDEK_TEST_MODE
- *
- * Пример тестовых ключей из документации (проверьте актуальность на портале):
- *   account = EMscd6r9JnFiQ3bLoyjJY6eM78JrJceI
- *   secure  = PjLZkKBHEiLK3YsjtNrt3TGNG0ahs3kG
  */
 return [
-    'account' => getenv('CDEK_ACCOUNT') ?: 'EMscd6r9JnFiQ3bLoyjJY6eM78JrJceI',
-    'secure_password' => getenv('CDEK_SECURE_PASSWORD') ?: 'PjLZkKBHEiLK3YsjtNrt3TGNG0ahs3kG',
+    'account' => getenv('CDEK_ACCOUNT') ?: 'wqGwiQx0gg8mLtiEKsUinjVSICCjtTEP',
+    'secure_password' => getenv('CDEK_SECURE_PASSWORD') ?: 'RmAmgvSgSl1yirlz9QupbzOJVqhCxcP5',
     'api_url' => getenv('CDEK_API_URL') ?: 'https://api.edu.cdek.ru/v2',
     'test_mode' => (int) (getenv('CDEK_TEST_MODE') !== false && getenv('CDEK_TEST_MODE') !== ''
         ? getenv('CDEK_TEST_MODE')

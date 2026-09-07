@@ -44,9 +44,15 @@ if (!$auth['ok']) {
 }
 
 $from = $client->findCityCode('Алматы', 'KZ');
-$to = $client->findCityCode('Астана', 'KZ');
-$out['checks']['city_almaty'] = $from ? ('OK code=' . $from['code']) : 'FAIL';
-$out['checks']['city_astana'] = $to ? ('OK code=' . $to['code']) : 'FAIL';
+$to = $client->findCityCode('Шымкент', 'KZ');
+if ($to === null) {
+    $to = $client->findCityCode('Астана', 'KZ');
+}
+if ($to === null) {
+    $to = $client->findCityCode('Нур-Султан', 'KZ');
+}
+$out['checks']['city_from'] = $from ? ('OK ' . $from['city'] . ' code=' . $from['code']) : 'FAIL Алматы';
+$out['checks']['city_to'] = $to ? ('OK ' . $to['city'] . ' code=' . $to['code']) : 'FAIL';
 if (!$from || !$to) {
     $out['status'] = 'ERROR';
     echo json_encode($out, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . PHP_EOL;

@@ -249,10 +249,96 @@ class Client
         }
 
         $country = strtoupper(trim((string) ($countryCode ?: ($this->config['default_country'] ?? 'KZ'))));
+        $aliases = $this->cityAliases($city);
+
+        foreach ($aliases as $candidate) {
+            $found = $this->lookupCityOnce($candidate, $country);
+            if ($found !== null) {
+                return $found;
+            }
+        }
+
+        // Fallback: известный код (edu API не находит «Астана» по короткому имени)
+        $known = $this->knownCityCodes();
+        $key = mb_strtolower($city);
+        if (isset($known[$key])) {
+            $byCode = $this->lookupCityByCode($known[$key]);
+            if ($byCode !== null) {
+                return $byCode;
+            }
+            return [
+                'code' => $known[$key],
+                'city' => $city,
+                'country_code' => $country,
+            ];
+        }
+
+        return null;
+    }
+
+    /** @return list<string> */
+    private function cityAliases(string $city): array
+    {
+        $key = mb_strtolower(trim($city));
+        $map = [
+            'астана' => ['Астана (Нур-Султан)', 'Астана', 'Нур-Султан', 'Нурсултан', 'Astana'],
+            'нур-султан' => ['Астана (Нур-Султан)', 'Нур-Султан', 'Астана', 'Нурсултан'],
+            'нурсултан' => ['Астана (Нур-Султан)', 'Нурсултан', 'Нур-Султан', 'Астана'],
+            'алматы' => ['Алматы', 'Алма-Ата', 'Almaty'],
+            'алма-ата' => ['Алматы', 'Алма-Ата'],
+            'шымкент' => ['Шымкент', 'Чимкент'],
+            'чимкент' => ['Шымкент', 'Чимкент'],
+        ];
+
+        $list = $map[$key] ?? [$city];
+        if (!in_array($city, $list, true)) {
+            array_unshift($list, $city);
+        }
+        return array_values(array_unique($list));
+    }
+
+    /** @return array<string, int> */
+    private function knownCityCodes(): array
+    {
+        return [
+            'астана' => 4961,
+            'нур-султан' => 4961,
+            'нурсултан' => 4961,
+            'астана (нур-султан)' => 4961,
+            'алматы' => 4756,
+            'алма-ата' => 4756,
+            'шымкент' => 12787,
+            'чимкент' => 12787,
+            'караганда' => 7669,
+        ];
+    }
+
+    /** @return array{code: int, city: string, country_code: string}|null */
+    private function lookupCityByCode(int $code): ?array
+    {
+        $res = $this->get('/location/cities', ['code' => $code]);
+        if (!$res['ok'] || !is_array($res['data'] ?? null)) {
+            return null;
+        }
+        $list = $res['data'];
+        $row = isset($list['code']) ? $list : ($list[0] ?? null);
+        if (!is_array($row) || empty($row['code'])) {
+            return null;
+        }
+        return [
+            'code' => (int) $row['code'],
+            'city' => (string) ($row['city'] ?? ''),
+            'country_code' => (string) ($row['country_code'] ?? ''),
+        ];
+    }
+
+    /** @return array{code: int, city: string, country_code: string}|null */
+    private function lookupCityOnce(string $city, string $country): ?array
+    {
         $res = $this->get('/location/cities', [
             'city' => $city,
             'country_codes' => $country,
-            'size' => 5,
+            'size' => 10,
         ]);
 
         if (!$res['ok'] || !is_array($res['data'] ?? null)) {
@@ -260,7 +346,9 @@ class Client
         }
 
         $list = $res['data'];
-        // Ответ — массив городов
+        if ($list === []) {
+            return null;
+        }
         if (isset($list['code'])) {
             $list = [$list];
         }
@@ -276,7 +364,7 @@ class Client
                 $best = $row;
                 break;
             }
-            if ($best === null && str_contains($name, $needle)) {
+            if ($best === null && (str_contains($name, $needle) || str_contains($needle, $name))) {
                 $best = $row;
             }
             if ($best === null) {
