@@ -278,8 +278,8 @@ class DeliveryOrder extends Model
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
         );
 
-        $this->seedDefaults();
         $this->ensureUpgradeColumns();
+        $this->seedDefaults();
         self::$ensured = true;
     }
 
