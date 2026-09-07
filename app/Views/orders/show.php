@@ -1,6 +1,7 @@
 <?php
 use App\Helpers\IconHelper;
 use App\Helpers\ProductHelper;
+use App\Models\DeliveryOrder;
 use App\Services\EscrowService;
 use App\Services\ReturnService;
 
@@ -39,6 +40,42 @@ if (in_array($status, ['refunded', 'cancelled', 'partial_refunded'], true)) {
 }
 if ($stepIndex === false) {
     $stepIndex = 0;
+}
+
+$deliveryStatus = (string) ($deliveryOrder['status'] ?? '');
+$deliveryCta = t('delivery.open_module');
+$deliveryHint = t('delivery.open_module_hint');
+if ($deliveryOrder && $deliveryStatus !== '') {
+    if (in_array($deliveryStatus, [
+        DeliveryOrder::STATUS_READY_FOR_PAYMENT,
+        DeliveryOrder::STATUS_PAYMENT_PENDING,
+    ], true)) {
+        $deliveryCta = t('delivery.open_module_pay');
+        $deliveryHint = t('delivery.open_module_pay_hint');
+    } elseif (in_array($deliveryStatus, [
+        DeliveryOrder::STATUS_QUOTE_RECEIVED,
+        DeliveryOrder::STATUS_QUOTE_REQUESTED,
+        DeliveryOrder::STATUS_DATA_COMPLETE,
+    ], true)) {
+        $deliveryCta = t('delivery.open_module_continue');
+        $deliveryHint = t('delivery.open_module_continue_hint');
+    } elseif (in_array($deliveryStatus, [
+        DeliveryOrder::STATUS_PAID,
+        DeliveryOrder::STATUS_ORDER_CREATED,
+        DeliveryOrder::STATUS_ACCEPTED,
+        DeliveryOrder::STATUS_SHIPMENT_RECEIVED,
+        DeliveryOrder::STATUS_IN_TRANSIT,
+        DeliveryOrder::STATUS_DELIVERED,
+    ], true)) {
+        $deliveryCta = t('delivery.open_module_track');
+        $deliveryHint = t('delivery.open_module_track_hint');
+    } elseif ($deliveryStatus === DeliveryOrder::STATUS_EXCEPTION) {
+        $deliveryCta = t('delivery.open_module_exception');
+        $deliveryHint = t('delivery.open_module_exception_hint');
+    } elseif ($deliveryStatus === DeliveryOrder::STATUS_DATA_COLLECTION) {
+        $deliveryCta = t('delivery.open_module_continue');
+        $deliveryHint = t('delivery.open_module_hint');
+    }
 }
 
 $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm';
@@ -105,6 +142,12 @@ $btn = 'inline-flex items-center justify-center w-full font-display font-bold py
                 <span class="text-gray-400"><?= htmlspecialchars(t('escrow.delivery')) ?></span>
                 <span class="font-semibold text-ink-800 dark:text-gray-200"><?= htmlspecialchars(EscrowService::deliveryLabel($order['delivery_method'] ?? 'kazpost')) ?></span>
             </div>
+            <?php if (!empty($deliveryOrder)): ?>
+                <div class="flex justify-between gap-3">
+                    <span class="text-gray-400"><?= htmlspecialchars(t('delivery.module_status')) ?></span>
+                    <span class="font-semibold text-ink-800 dark:text-gray-200 text-right"><?= htmlspecialchars(DeliveryOrder::statusLabel($deliveryStatus)) ?></span>
+                </div>
+            <?php endif; ?>
             <?php if (!empty($order['tracking_number'])): ?>
                 <div class="flex justify-between gap-3">
                     <span class="text-gray-400"><?= htmlspecialchars(t('escrow.tracking')) ?></span>
@@ -169,9 +212,9 @@ $btn = 'inline-flex items-center justify-center w-full font-display font-bold py
     <div class="space-y-4">
         <?php if (!empty($deliveryOrder) && empty($isDigital)): ?>
             <a href="<?= ProductHelper::url('/delivery/' . (int) $deliveryOrder['id']) ?>" class="<?= $btn ?> bg-brand-600 hover:bg-brand-500 text-white">
-                <?= htmlspecialchars(t('delivery.open_module')) ?>
+                <?= htmlspecialchars($deliveryCta) ?>
             </a>
-            <p class="text-xs text-gray-500 text-center -mt-2"><?= htmlspecialchars(t('delivery.open_module_hint')) ?></p>
+            <p class="text-xs text-gray-500 text-center -mt-2"><?= htmlspecialchars($deliveryHint) ?></p>
         <?php endif; ?>
 
         <?php if (!empty($isDigital) && !empty($isBuyer)): ?>
