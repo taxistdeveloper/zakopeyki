@@ -123,6 +123,9 @@ $btn = 'inline-flex items-center justify-center w-full font-display font-bold py
                     · <?= htmlspecialchars(t('escrow.seller')) ?>: <?= htmlspecialchars($order['seller_name']) ?>
                 </p>
                 <p class="font-display text-xl font-extrabold text-brand-600 mt-2"><?= htmlspecialchars($amount) ?></p>
+                <?php if ((int) ($order['quantity'] ?? 1) > 1): ?>
+                    <p class="text-xs text-gray-400 mt-1"><?= htmlspecialchars(t('checkout.qty_short', ['n' => (int) $order['quantity']])) ?></p>
+                <?php endif; ?>
             </div>
         </div>
 

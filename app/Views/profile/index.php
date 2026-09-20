@@ -954,7 +954,15 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                             <label class="block text-xs font-bold mb-1" id="lot-price-label"><?= htmlspecialchars(t('profile.price_kzt')) ?></label>
                             <input type="text" name="price" id="lot-price" <?= in_array($currentType, $noPriceTypes, true) ? '' : 'required' ?> class="<?= $input ?>" value="<?= htmlspecialchars((string) ($editing['price'] ?? '')) ?>">
                         </div>
-                        <div id="lot-location-wrap" class="<?= in_array($currentType, $noPriceTypes, true) ? 'col-span-2' : '' ?>">
+                        <div id="lot-quantity-wrap" class="<?= in_array($currentType, ProductHelper::INVENTORY_TYPES, true) ? '' : 'hidden' ?>">
+                            <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.quantity')) ?></label>
+                            <input type="number" name="quantity" id="lot-quantity" min="1" step="1" inputmode="numeric" class="<?= $input ?>"
+                                   value="<?= htmlspecialchars((string) max(1, (int) ($editing['quantity'] ?? 1))) ?>"
+                                   <?= in_array($currentType, ProductHelper::INVENTORY_TYPES, true) ? 'required' : 'disabled' ?>>
+                            <p id="lot-quantity-error" class="hidden text-[11px] text-red-600 mt-1"><?= htmlspecialchars(t('flash.quantity_invalid')) ?></p>
+                            <p class="text-[11px] text-gray-400 mt-1"><?= htmlspecialchars(t('profile.quantity_hint')) ?></p>
+                        </div>
+                        <div id="lot-location-wrap" class="col-span-2">
                             <label class="block text-xs font-bold mb-1" id="lot-location-label"><?= htmlspecialchars($currentType === 'gig' ? t('gigs.field_address') : t('profile.location')) ?></label>
                             <input type="text" name="location" class="<?= $input ?>" value="<?= htmlspecialchars($editing['location'] ?? 'Караганда') ?>">
                         </div>
@@ -1062,6 +1070,9 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                         const typeSelect = document.getElementById('lot-type');
                         const priceWrap = document.getElementById('lot-price-wrap');
                         const priceInput = document.getElementById('lot-price');
+                        const qtyWrap = document.getElementById('lot-quantity-wrap');
+                        const qtyInput = document.getElementById('lot-quantity');
+                        const qtyError = document.getElementById('lot-quantity-error');
                         const locationWrap = document.getElementById('lot-location-wrap');
                         const exchangeWrap = document.getElementById('lot-exchange-wrap');
                         const exchangeInput = document.getElementById('lot-exchange-for');
@@ -1358,7 +1369,16 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                             priceWrap.classList.toggle('hidden', hide);
                             priceInput.required = !hide;
                             if (hide) priceInput.value = '';
-                            if (locationWrap) locationWrap.classList.toggle('col-span-2', hide);
+                            const showQty = ['used', 'new'].indexOf(type) !== -1;
+                            if (qtyWrap) qtyWrap.classList.toggle('hidden', !showQty);
+                            if (qtyInput) {
+                                qtyInput.disabled = !showQty;
+                                qtyInput.required = showQty;
+                                if (!showQty) {
+                                    qtyInput.value = '1';
+                                    if (qtyError) qtyError.classList.add('hidden');
+                                }
+                            }
                             if (priceLabel) {
                                 if (type === 'auction') priceLabel.textContent = priceLabelAuction;
                                 else if (type === 'gig') priceLabel.textContent = priceLabelGig;
@@ -1465,6 +1485,34 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                         syncPriceField();
                         syncCategoryField();
                         restoreGigPath();
+
+                        function qtyValid() {
+                            if (!qtyInput || qtyInput.disabled) return true;
+                            const raw = String(qtyInput.value || '').trim();
+                            return /^[1-9]\d{0,5}$/.test(raw);
+                        }
+                        function showQtyError() {
+                            if (qtyError) qtyError.classList.toggle('hidden', qtyValid());
+                        }
+                        if (qtyInput) {
+                            qtyInput.addEventListener('input', showQtyError);
+                            qtyInput.addEventListener('blur', function () {
+                                if (!qtyValid()) {
+                                    qtyInput.value = '1';
+                                    showQtyError();
+                                }
+                            });
+                        }
+                        const lotForm = document.getElementById('lot-create-form');
+                        if (lotForm) {
+                            lotForm.addEventListener('submit', function (e) {
+                                if (!qtyValid()) {
+                                    e.preventDefault();
+                                    showQtyError();
+                                    qtyInput.focus();
+                                }
+                            });
+                        }
                     })();
                     </script>
                     <div id="lot-photos-section">
@@ -1745,7 +1793,23 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                                     </div>
                                     <div class="min-w-0">
                                         <div class="text-sm font-semibold truncate"><?= htmlspecialchars($p['title']) ?></div>
-                                        <div class="text-[10px] text-gray-400 mt-0.5"><?= ProductHelper::label($p['type']) ?><?= in_array($p['type'], ProductHelper::PRODUCT_TYPES_WITH_CATEGORY, true) && !empty($p['category']) ? ' · ' . htmlspecialchars($p['category']) : '' ?> · <?= htmlspecialchars($p['status']) ?></div>
+                                        <div class="text-[10px] text-gray-400 mt-0.5">
+                                            <?= ProductHelper::label($p['type']) ?>
+                                            <?php if (in_array($p['type'], ProductHelper::PRODUCT_TYPES_WITH_CATEGORY, true) && !empty($p['category'])): ?>
+                                                · <?= htmlspecialchars($p['category']) ?>
+                                            <?php endif; ?>
+                                            <?php
+                                            $lotStatus = (string) ($p['status'] ?? 'active');
+                                            $lotStatusLabel = t('profile.status_' . $lotStatus);
+                                            if ($lotStatusLabel === 'profile.status_' . $lotStatus) {
+                                                $lotStatusLabel = $lotStatus;
+                                            }
+                                            ?>
+                                            · <?= htmlspecialchars($lotStatusLabel) ?>
+                                            <?php if (ProductHelper::tracksInventory($p)): ?>
+                                                · <?= htmlspecialchars(t('product.in_stock_n', ['n' => (int) ($p['quantity'] ?? 1)])) ?>
+                                            <?php endif; ?>
+                                        </div>
                                     </div>
                                 </a>
                                 <div class="flex items-center justify-between sm:justify-end gap-3 flex-shrink-0">

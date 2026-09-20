@@ -2217,12 +2217,12 @@ function url(string $path = ''): string
             'seller.buyer_reviews', 'seller.all_reviews', 'seller.no_reviews', 'seller.no_bio',
             'seller.follow_error', 'seller.follow_self', 'seller.copy_link', 'seller.link_copied', 'seller.menu',
             'card.favorite', 'card.unfavorite', 'card.add_cart', 'card.in_cart',
-            'card.add_cart', 'card.in_cart',
             'home.story_link_copied',
             'home.story_create_draft_saved', 'home.story_create_need_content', 'home.story_create_need_photo',
             'header.city', 'header.city_choose', 'header.city_detect', 'header.city_detecting', 'header.city_denied',
             'chat.title', 'chat.start_hint', 'chat.send_failed', 'chat.start_failed',
             'product.close_photo', 'product.prev_photo', 'product.next_photo', 'product.zoom',
+            'product.qty_only',
         ])) ?>;
     </script>
     <script src="<?= url('public/assets/js/app.js') ?>?v=<?= (int) (@filemtime(__DIR__ . '/../../../public/assets/js/app.js') ?: time()) ?>"></script>

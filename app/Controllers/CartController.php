@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Lang;
+use App\Helpers\ProductHelper;
 use App\Models\Notification;
 use App\Services\Cart;
 
@@ -23,7 +24,7 @@ class CartController extends Controller
         $items = Cart::items();
         $total = 0;
         foreach ($items as $item) {
-            $total += (int) ($item['price'] ?? 0);
+            $total += (int) ($item['line_total'] ?? ProductHelper::lineAmount($item, (int) ($item['cart_qty'] ?? 1)));
         }
 
         $this->view('cart/index', [
@@ -72,6 +73,24 @@ class CartController extends Controller
         }
 
         $_SESSION['flash'] = Lang::get('cart.cleared');
+        $this->redirect('/cart');
+    }
+
+    public function qty(string $id): void
+    {
+        $productId = (int) $id;
+        $qty = (int) ($_POST['quantity'] ?? $_POST['qty'] ?? 1);
+        $result = Cart::setQty($productId, $qty);
+
+        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
+            $this->json($result, $result['ok'] ? 200 : 422);
+        }
+
+        if (!empty($result['notice'])) {
+            $_SESSION['flash'] = $result['notice'];
+        } elseif (!$result['ok']) {
+            $_SESSION['error'] = $result['error'] ?? Lang::get('cart.error');
+        }
         $this->redirect('/cart');
     }
 }

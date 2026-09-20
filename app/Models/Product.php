@@ -64,12 +64,14 @@ class Product extends Model
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
             );
 
+            $this->ensureColumn('quantity', 'ALTER TABLE products ADD COLUMN quantity INT UNSIGNED NOT NULL DEFAULT 1 AFTER price');
+
             $statusCol = $this->db->query("SHOW COLUMNS FROM products LIKE 'status'")->fetch();
             $type = strtolower((string) ($statusCol['Type'] ?? ''));
-            if ($type !== '' && !str_contains($type, "'reserved'")) {
+            if ($type !== '' && (!str_contains($type, "'reserved'") || !str_contains($type, "'out_of_stock'"))) {
                 $this->db->exec(
                     "ALTER TABLE products
-                     MODIFY status ENUM('active','sold','reserved','archived')
+                     MODIFY status ENUM('active','sold','reserved','archived','out_of_stock')
                      NOT NULL DEFAULT 'active'"
                 );
             }
@@ -264,11 +266,11 @@ class Product extends Model
     {
         $stmt = $this->db->prepare(
             'INSERT INTO products (
-                user_id, type, category, title, description, price, exchange_for, price_label,
+                user_id, type, category, title, description, price, quantity, exchange_for, price_label,
                 current_bid, bid_step, auction_kind, auction_reserve, auction_buy_now, auction_min_price, auction_step_interval,
                 auction_start_at, auction_end_at, anti_snipe_seconds, auto_extend_seconds,
                 inactivity_timeout_seconds, location, whatsapp, image, images, status
-             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
 
         $type = $data['type'];
@@ -298,6 +300,8 @@ class Product extends Model
             $kind = 'english';
         }
         $now = date('Y-m-d H:i:s');
+        $quantity = max(1, (int) ($data['quantity'] ?? 1));
+        $status = $quantity > 0 ? 'active' : 'out_of_stock';
 
         $stmt->execute([
             $data['user_id'],
@@ -306,6 +310,7 @@ class Product extends Model
             $data['title'],
             $data['description'],
             $price,
+            $quantity,
             $exchangeFor,
             $priceLabel,
             $currentBid,
@@ -324,7 +329,7 @@ class Product extends Model
             $data['whatsapp'] ?? null,
             $cover,
             $images,
-            'active',
+            $status,
         ]);
 
         return (int) $this->db->lastInsertId();
@@ -333,7 +338,7 @@ class Product extends Model
     public function updateProduct(int $id, array $data): bool
     {
         $stmt = $this->db->prepare(
-            'UPDATE products SET type=?, category=?, title=?, description=?, price=?, exchange_for=?, price_label=?,
+            'UPDATE products SET type=?, category=?, title=?, description=?, price=?, quantity=?, exchange_for=?, price_label=?,
              bid_step=?, auction_kind=?, auction_reserve=?, auction_buy_now=?, auction_min_price=?, auction_step_interval=?,
              auction_end_at=?, anti_snipe_seconds=?, auto_extend_seconds=?, inactivity_timeout_seconds=?,
              location=?, whatsapp=?, image=?, images=?, status=? WHERE id=?'
@@ -363,12 +368,19 @@ class Product extends Model
             $kind = 'english';
         }
 
+        $quantity = max(1, (int) ($data['quantity'] ?? 1));
+        $status = (string) ($data['status'] ?? 'active');
+        if (\App\Helpers\ProductHelper::tracksInventory(['type' => $type])) {
+            $status = $quantity > 0 ? 'active' : 'out_of_stock';
+        }
+
         return $stmt->execute([
             $type,
             $data['category'] ?? 'Разное',
             $data['title'],
             $data['description'],
             $price,
+            $quantity,
             $exchangeFor,
             $priceLabel,
             $isAuction ? max(1, (int) ($data['bid_step'] ?? 1000)) : (int) ($data['bid_step'] ?? 1000),
@@ -385,7 +397,7 @@ class Product extends Model
             $data['whatsapp'] ?? null,
             $cover,
             $images,
-            $data['status'] ?? 'active',
+            $status,
             $id,
         ]);
     }

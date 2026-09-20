@@ -493,6 +493,16 @@ class ProfileController extends Controller
 
         $category = ProductHelper::normalizeCategory($_POST['category'] ?? null, $type);
 
+        $quantity = 1;
+        if (ProductHelper::tracksInventory(['type' => $type])) {
+            $parsedQty = ProductHelper::parseStockQuantity($_POST['quantity'] ?? 1);
+            if (!$parsedQty['ok']) {
+                $_SESSION['error'] = $parsedQty['error'] ?? t('flash.quantity_invalid');
+                $this->redirect($lotsFailUrl);
+            }
+            $quantity = $parsedQty['value'];
+        }
+
         $dbUser = (new User())->find(Auth::id());
         $shippingSvc = new ListingShippingService();
         $shipResult = $shippingSvc->validateAndBuild(Auth::id(), $type, $_POST, $dbUser);
@@ -514,6 +524,7 @@ class ProfileController extends Controller
             'whatsapp' => $whatsapp['value'],
             'image' => $resolved['cover'],
             'images' => $resolved['images'],
+            'quantity' => $quantity,
         ], $auction['fields']));
 
         if (!empty($shipResult['data'])) {
@@ -729,6 +740,16 @@ class ProfileController extends Controller
 
         $category = ProductHelper::normalizeCategory($_POST['category'] ?? ($product['category'] ?? null), $type);
 
+        $quantity = max(1, (int) ($product['quantity'] ?? 1));
+        if (ProductHelper::tracksInventory(['type' => $type])) {
+            $parsedQty = ProductHelper::parseStockQuantity($_POST['quantity'] ?? $quantity);
+            if (!$parsedQty['ok']) {
+                $_SESSION['error'] = $parsedQty['error'] ?? t('flash.quantity_invalid');
+                $this->redirect($editUrl);
+            }
+            $quantity = $parsedQty['value'];
+        }
+
         $dbUser = (new User())->find(Auth::id());
         $shippingSvc = new ListingShippingService();
         $shipResult = $shippingSvc->validateAndBuild(Auth::id(), $type, $_POST, $dbUser);
@@ -749,6 +770,7 @@ class ProfileController extends Controller
             'whatsapp' => $whatsapp['value'],
             'image' => $resolved['cover'],
             'images' => $resolved['images'],
+            'quantity' => $quantity,
             'status' => $product['status'] ?? 'active',
         ], $auction['fields']));
 

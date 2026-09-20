@@ -8,7 +8,7 @@ $canDisputes = !empty($canDisputes);
 $isAdmin = !empty($isAdmin);
 $counts = $counts ?? [];
 $items = $items ?? [];
-$hasNav = $canTickets || $canAi || $isAdmin;
+$hasNav = true;
 $recentErrors = (int) ($recentErrors ?? 0);
 $stubMode = !empty($stubMode);
 ?>
@@ -174,8 +174,27 @@ $stubMode = !empty($stubMode);
             </div>
         </a>
         <?php endif; ?>
+        <a href="<?= ProductHelper::url('/admin/library') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 <?= ($canTickets || $canAi) ? 'border-t border-brand-100 dark:border-brand-900/30' : '' ?> hover:bg-indigo-50/40 dark:hover:bg-white/[0.03] transition">
+            <div class="min-w-0">
+                <h3 class="font-display font-bold text-indigo-800 dark:text-indigo-300"><?= htmlspecialchars(t('admin.library')) ?></h3>
+                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.library_hint')) ?></p>
+            </div>
+            <span class="text-xs font-bold text-indigo-600"><?= (int) ($libraryCount ?? 0) ?> →</span>
+        </a>
+        <a href="<?= ProductHelper::url('/admin/tasks') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 border-t border-brand-100 dark:border-brand-900/30 hover:bg-sky-50/40 dark:hover:bg-white/[0.03] transition">
+            <div class="min-w-0">
+                <h3 class="font-display font-bold text-sky-800 dark:text-sky-300"><?= htmlspecialchars(t('admin.tasks')) ?></h3>
+                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.tasks_hint')) ?></p>
+            </div>
+            <div class="flex items-center gap-2">
+                <?php if (!empty($openTasks)): ?>
+                    <span class="min-w-[1.25rem] h-5 px-1.5 rounded-full bg-sky-500 text-white text-[10px] font-bold flex items-center justify-center"><?= (int) $openTasks > 99 ? '99+' : (int) $openTasks ?></span>
+                <?php endif; ?>
+                <span class="text-xs font-bold text-sky-600"><?= (int) ($openTasks ?? 0) ?> →</span>
+            </div>
+        </a>
         <?php if ($isAdmin): ?>
-        <a href="<?= ProductHelper::url('/admin/users') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 <?= ($canTickets || $canAi) ? 'border-t border-brand-100 dark:border-brand-900/30' : '' ?> hover:bg-brand-50/40 dark:hover:bg-white/[0.03] transition">
+        <a href="<?= ProductHelper::url('/admin/users') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 border-t border-brand-100 dark:border-brand-900/30 hover:bg-brand-50/40 dark:hover:bg-white/[0.03] transition">
             <div class="min-w-0">
                 <h3 class="font-display font-bold text-ink-800 dark:text-gray-200"><?= htmlspecialchars(t('admin.users')) ?></h3>
                 <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.users_hint')) ?></p>

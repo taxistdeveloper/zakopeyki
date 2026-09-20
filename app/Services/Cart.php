@@ -11,37 +11,69 @@ class Cart
 {
     private const SESSION_KEY = 'cart';
 
-    /** @return list<int> */
-    public static function ids(): array
+    /** @return array<int, int> productId => qty */
+    public static function map(): array
     {
-        $ids = $_SESSION[self::SESSION_KEY] ?? [];
-        if (!is_array($ids)) {
+        $raw = $_SESSION[self::SESSION_KEY] ?? [];
+        if (!is_array($raw)) {
             return [];
         }
 
-        $clean = [];
-        foreach ($ids as $id) {
-            $id = (int) $id;
-            if ($id > 0 && !in_array($id, $clean, true)) {
-                $clean[] = $id;
+        $out = [];
+        $isList = array_is_list($raw);
+        foreach ($raw as $key => $val) {
+            if ($isList) {
+                $id = (int) $val;
+                $qty = 1;
+            } else {
+                $id = (int) $key;
+                $qty = (int) $val;
+            }
+            if ($id > 0) {
+                $out[$id] = max(1, $qty);
             }
         }
 
-        return $clean;
+        return $out;
+    }
+
+    /** @param array<int, int> $map */
+    private static function save(array $map): void
+    {
+        $clean = [];
+        foreach ($map as $id => $qty) {
+            $id = (int) $id;
+            $qty = (int) $qty;
+            if ($id > 0 && $qty > 0) {
+                $clean[$id] = $qty;
+            }
+        }
+        $_SESSION[self::SESSION_KEY] = $clean;
+    }
+
+    /** @return list<int> */
+    public static function ids(): array
+    {
+        return array_keys(self::map());
     }
 
     public static function count(): int
     {
-        return count(self::ids());
+        return array_sum(self::map());
+    }
+
+    public static function qty(int $productId): int
+    {
+        return self::map()[$productId] ?? 0;
     }
 
     public static function has(int $productId): bool
     {
-        return in_array($productId, self::ids(), true);
+        return isset(self::map()[$productId]);
     }
 
-    /** @return array{ok: bool, in_cart: bool, count: int, error?: string} */
-    public static function add(int $productId): array
+    /** @return array{ok: bool, in_cart: bool, count: int, qty?: int, available?: int, notice?: string, error?: string} */
+    public static function add(int $productId, int $qty = 1): array
     {
         $product = (new Product())->find($productId);
         if (!$product) {
@@ -56,25 +88,63 @@ class Cart
             return self::result(false, false, Lang::get('cart.error_own'));
         }
 
-        if (self::has($productId)) {
-            return self::result(true, true);
+        $available = ProductHelper::availableQuantity($product);
+        $qty = max(1, $qty);
+        $notice = null;
+        if ($qty > $available) {
+            $qty = $available;
+            $notice = t('product.qty_only', ['n' => $available]);
+        }
+        if ($qty < 1) {
+            return self::result(false, false, Lang::get('cart.error_not_purchasable'));
         }
 
-        $ids = self::ids();
-        $ids[] = $productId;
-        $_SESSION[self::SESSION_KEY] = $ids;
+        $map = self::map();
+        $map[$productId] = $qty;
+        self::save($map);
 
-        return self::result(true, true);
+        $out = self::result(true, true);
+        $out['qty'] = $qty;
+        $out['available'] = $available;
+        if ($notice !== null) {
+            $out['notice'] = $notice;
+        }
+
+        return $out;
+    }
+
+    /** @return array{ok: bool, in_cart: bool, count: int, qty?: int, available?: int, line_total?: int, total?: int, notice?: string, error?: string} */
+    public static function setQty(int $productId, int $qty): array
+    {
+        if ($qty <= 0) {
+            return self::remove($productId);
+        }
+
+        $result = self::add($productId, $qty);
+        if ($result['ok']) {
+            $items = self::items();
+            $total = 0;
+            $lineTotal = 0;
+            foreach ($items as $item) {
+                $line = (int) ($item['line_total'] ?? 0);
+                $total += $line;
+                if ((int) ($item['id'] ?? 0) === $productId) {
+                    $lineTotal = $line;
+                }
+            }
+            $result['line_total'] = $lineTotal;
+            $result['total'] = $total;
+        }
+
+        return $result;
     }
 
     /** @return array{ok: bool, in_cart: bool, count: int, error?: string} */
     public static function remove(int $productId): array
     {
-        $ids = array_values(array_filter(
-            self::ids(),
-            static fn (int $id): bool => $id !== $productId
-        ));
-        $_SESSION[self::SESSION_KEY] = $ids;
+        $map = self::map();
+        unset($map[$productId]);
+        self::save($map);
 
         return self::result(true, false);
     }
@@ -86,7 +156,7 @@ class Cart
             return self::remove($productId);
         }
 
-        return self::add($productId);
+        return self::add($productId, 1);
     }
 
     public static function clear(): void
@@ -101,11 +171,12 @@ class Cart
      */
     public static function items(): array
     {
-        $ids = self::ids();
-        if ($ids === []) {
+        $map = self::map();
+        if ($map === []) {
             return [];
         }
 
+        $ids = array_keys($map);
         $rows = (new Product())->findWithSellersByIds($ids);
         $byId = [];
         foreach ($rows as $row) {
@@ -115,7 +186,7 @@ class Cart
         $items = [];
         $kept = [];
         $uid = Auth::check() ? (int) Auth::id() : 0;
-        foreach ($ids as $id) {
+        foreach ($map as $id => $qty) {
             $row = $byId[$id] ?? null;
             if (!$row || !ProductHelper::isPurchasable($row)) {
                 continue;
@@ -123,12 +194,16 @@ class Cart
             if ($uid > 0 && (int) ($row['user_id'] ?? 0) === $uid) {
                 continue;
             }
+            $available = ProductHelper::availableQuantity($row);
+            $qty = max(1, min((int) $qty, $available));
+            $row['cart_qty'] = $qty;
+            $row['line_total'] = ProductHelper::lineAmount($row, $qty);
             $items[] = $row;
-            $kept[] = $id;
+            $kept[$id] = $qty;
         }
 
-        if ($kept !== $ids) {
-            $_SESSION[self::SESSION_KEY] = $kept;
+        if ($kept !== $map) {
+            self::save($kept);
         }
 
         return $items;

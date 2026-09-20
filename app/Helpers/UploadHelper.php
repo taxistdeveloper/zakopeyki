@@ -19,6 +19,26 @@ class UploadHelper
         'webm' => ['video/webm'],
     ];
 
+    /** @var array<string, list<string>> */
+    private const DOCUMENT_MIME = [
+        'pdf' => ['application/pdf'],
+        'docx' => [
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/zip',
+            'application/x-zip-compressed',
+            'application/octet-stream',
+        ],
+        'xlsx' => [
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/zip',
+            'application/x-zip-compressed',
+            'application/octet-stream',
+        ],
+    ];
+
+    public const LIBRARY_EXT = ['pdf', 'docx', 'xlsx', 'png', 'jpg', 'jpeg'];
+    public const MAX_STAFF_FILE_BYTES = 15728640; // 15 MB
+
     /**
      * Validate uploaded file by extension whitelist and real MIME / image contents.
      * @param list<string> $allowedExt
@@ -36,7 +56,8 @@ class UploadHelper
 
         $allowedMimes = array_merge(
             self::IMAGE_MIME[$ext] ?? [],
-            self::VIDEO_MIME[$ext] ?? []
+            self::VIDEO_MIME[$ext] ?? [],
+            self::DOCUMENT_MIME[$ext] ?? []
         );
         if ($allowedMimes === []) {
             return false;
@@ -58,7 +79,89 @@ class UploadHelper
             return true;
         }
 
+        if (isset(self::DOCUMENT_MIME[$ext])) {
+            if ($ext === 'pdf') {
+                return $mimeOk || self::hasMagic($tmpPath, '%PDF');
+            }
+            // docx/xlsx are ZIP containers
+            return $mimeOk || self::hasMagic($tmpPath, "PK\x03\x04");
+        }
+
         return $mimeOk;
+    }
+
+    /**
+     * Store an uploaded staff file (library / ops tasks).
+     *
+     * @param array{name?:string,tmp_name?:string,error?:int,size?:int} $file
+     * @param list<string> $allowedExt
+     * @return array{ok:true,stored:string,original:string,mime:?string,size:int}|array{ok:false,error:string}
+     */
+    public static function storeStaffFile(array $file, string $dir, array $allowedExt = self::LIBRARY_EXT, int $maxBytes = self::MAX_STAFF_FILE_BYTES): array
+    {
+        $error = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
+        if ($error === UPLOAD_ERR_NO_FILE) {
+            return ['ok' => false, 'error' => 'empty'];
+        }
+        if ($error !== UPLOAD_ERR_OK) {
+            return ['ok' => false, 'error' => 'upload'];
+        }
+
+        $tmp = (string) ($file['tmp_name'] ?? '');
+        $original = (string) ($file['name'] ?? '');
+        $size = (int) ($file['size'] ?? 0);
+        if ($tmp === '' || $original === '' || $size <= 0) {
+            return ['ok' => false, 'error' => 'upload'];
+        }
+        if ($size > $maxBytes) {
+            return ['ok' => false, 'error' => 'size'];
+        }
+        if (!self::isAllowedUpload($tmp, $original, $allowedExt)) {
+            return ['ok' => false, 'error' => 'type'];
+        }
+
+        if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
+            return ['ok' => false, 'error' => 'save'];
+        }
+
+        $ext = self::normalizeExt($original);
+        $stored = 'f_' . date('YmdHis') . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
+        $dest = rtrim($dir, '/\\') . DIRECTORY_SEPARATOR . $stored;
+        if (!@move_uploaded_file($tmp, $dest)) {
+            return ['ok' => false, 'error' => 'save'];
+        }
+
+        return [
+            'ok' => true,
+            'stored' => $stored,
+            'original' => self::safeOriginalName($original),
+            'mime' => self::detectMime($dest),
+            'size' => (int) filesize($dest),
+        ];
+    }
+
+    public static function safeOriginalName(string $name): string
+    {
+        $base = basename(str_replace(["\0", '\\'], '', $name));
+        $base = preg_replace('/[^\p{L}\p{N}._ ()\-\[\]]+/u', '_', $base) ?? 'file';
+        $base = trim($base, '._ ');
+        if ($base === '' || $base === '.' || $base === '..') {
+            $base = 'file';
+        }
+
+        return mb_substr($base, 0, 180);
+    }
+
+    private static function hasMagic(string $path, string $magic): bool
+    {
+        $fh = @fopen($path, 'rb');
+        if ($fh === false) {
+            return false;
+        }
+        $head = fread($fh, strlen($magic));
+        fclose($fh);
+
+        return is_string($head) && $head === $magic;
     }
 
     public static function detectMime(string $path): ?string

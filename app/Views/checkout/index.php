@@ -8,7 +8,8 @@ $items = $items ?? (isset($item) ? [$item] : []);
 $total = (int) ($total ?? 0);
 if ($total <= 0) {
     foreach ($items as $row) {
-        $total += (int) ($row['price'] ?? 0);
+        $qty = max(1, (int) ($row['buy_qty'] ?? $row['cart_qty'] ?? 1));
+        $total += ProductHelper::lineAmount($row, $qty);
     }
 }
 $dealMode = ($dealMode ?? 'escrow') === 'direct' ? 'direct' : 'escrow';
@@ -51,7 +52,6 @@ $canCard = $fpConfigured || $simPayments;
         <div class="border-b border-black/[0.05] dark:border-white/10 divide-y divide-black/[0.05] dark:divide-white/10">
             <?php foreach ($items as $row):
                 $imageUrl = ProductHelper::imageUrl($row);
-                $rowPrice = ProductHelper::formatPrice($row);
             ?>
                 <div class="flex gap-4 p-5">
                     <div class="w-20 h-20 rounded-2xl overflow-hidden bg-gradient-to-br from-ink-100 via-brand-50 to-accent-50 dark:from-white/10 dark:via-brand-900/20 dark:to-transparent flex-shrink-0 flex items-center justify-center">
@@ -64,7 +64,14 @@ $canCard = $fpConfigured || $simPayments;
                     <div class="min-w-0 flex-1">
                         <h2 class="font-semibold text-ink-900 dark:text-white text-sm leading-snug line-clamp-2"><?= htmlspecialchars($row['title']) ?></h2>
                         <p class="text-xs text-gray-400 mt-1"><?= htmlspecialchars($row['seller_name'] ?? '') ?> · <?= htmlspecialchars($row['location'] ?? '') ?></p>
-                        <p class="font-display text-xl font-extrabold text-brand-600 mt-2"><?= htmlspecialchars($rowPrice) ?></p>
+                        <?php
+                        $rowQty = max(1, (int) ($row['buy_qty'] ?? $row['cart_qty'] ?? 1));
+                        $rowLine = ProductHelper::lineAmount($row, $rowQty);
+                        ?>
+                        <?php if ($rowQty > 1): ?>
+                            <p class="text-xs text-gray-500 mt-1"><?= htmlspecialchars(t('checkout.qty_line', ['n' => $rowQty, 'price' => number_format((int) ($row['price'] ?? 0), 0, '', ' ')])) ?></p>
+                        <?php endif; ?>
+                        <p class="font-display text-xl font-extrabold text-brand-600 mt-2"><?= number_format($rowLine, 0, '', ' ') ?> ₸</p>
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -72,6 +79,9 @@ $canCard = $fpConfigured || $simPayments;
 
         <form method="post" action="<?= $checkoutPayUrl ?>" class="p-5 sm:p-6 space-y-5">
             <?= csrf_field() ?>
+            <?php if (!$fromCart): ?>
+                <input type="hidden" name="quantity" value="<?= (int) ($item['buy_qty'] ?? 1) ?>">
+            <?php endif; ?>
             <?php if ($isDirectDeal): ?>
                 <input type="hidden" name="deal_mode" value="direct">
             <?php endif; ?>

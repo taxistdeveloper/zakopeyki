@@ -501,6 +501,24 @@ class User extends Model
         return (int) $this->db->query("SELECT COUNT(*) FROM users WHERE role = 'admin'")->fetchColumn();
     }
 
+    /** @return list<array{id:int,name:string,email:string,role:string}> */
+    public function listStaff(): array
+    {
+        $rows = $this->db->query(
+            "SELECT id, name, email, role FROM users WHERE role IN ('admin', 'manager') ORDER BY role ASC, name ASC"
+        )->fetchAll();
+        $out = [];
+        foreach ($rows as $r) {
+            $out[] = [
+                'id' => (int) $r['id'],
+                'name' => (string) $r['name'],
+                'email' => (string) $r['email'],
+                'role' => (string) $r['role'],
+            ];
+        }
+        return $out;
+    }
+
     /** Users registered on or after the given datetime (Y-m-d H:i:s or relative via SQL). */
     public function countRegisteredSince(string $sinceSql = 'CURDATE()'): int
     {

@@ -58,6 +58,15 @@ class CheckoutController extends Controller
             return;
         }
 
+        $available = ProductHelper::availableQuantity($product);
+        $qty = ProductHelper::clampBuyQuantity($_GET['qty'] ?? 1, $available);
+        if ($qty < 1) {
+            $_SESSION['flash'] = t('checkout.unavailable');
+            $this->redirect('/product/' . $productId);
+            return;
+        }
+        $product['buy_qty'] = $qty;
+
         $n = new Notification();
         $walletBalance = (new Wallet())->balance(Auth::id());
         $dealMode = $this->resolveDealMode((string) ($_GET['deal'] ?? 'escrow'), $product);
@@ -68,7 +77,7 @@ class CheckoutController extends Controller
             'item' => $product,
             'fromCart' => false,
             'dealMode' => $dealMode,
-            'total' => (int) ($product['price'] ?? 0),
+            'total' => ProductHelper::lineAmount($product, $qty),
             'walletBalance' => $walletBalance,
             'notifications' => $n->forUser(Auth::id()),
             'unread' => $n->unreadCount(Auth::id()),
@@ -94,7 +103,7 @@ class CheckoutController extends Controller
 
         $total = 0;
         foreach ($items as $item) {
-            $total += (int) ($item['price'] ?? 0);
+            $total += (int) ($item['line_total'] ?? ProductHelper::lineAmount($item, (int) ($item['cart_qty'] ?? 1)));
         }
 
         $n = new Notification();
@@ -136,17 +145,22 @@ class CheckoutController extends Controller
             $dealMode = 'escrow';
         }
 
-        $result = (new Order())->createEscrow($productId, Auth::id(), $method, $delivery, $dealMode);
+        $qty = max(1, (int) ($_POST['quantity'] ?? 1));
+        $result = (new Order())->createEscrow($productId, Auth::id(), $method, $delivery, $dealMode, $qty);
 
         if (!$result['ok']) {
             ActivityLogger::warning('order.pay', $result['error'] ?? 'Ошибка оплаты', 'product', $productId, [
                 'method' => $method,
             ]);
             $_SESSION['checkout_error'] = $result['error'] ?? t('checkout.payment_failed');
-            $redirect = '/checkout/' . $productId;
-            if ($dealMode === 'direct') {
-                $redirect .= '?deal=direct';
+            $qs = [];
+            if ($qty > 1) {
+                $qs['qty'] = $qty;
             }
+            if ($dealMode === 'direct') {
+                $qs['deal'] = 'direct';
+            }
+            $redirect = '/checkout/' . $productId . ($qs ? ('?' . http_build_query($qs)) : '');
             $this->redirect($redirect);
             return;
         }

@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Core\Model;
 use App\Helpers\ProductHelper;
 use App\Services\EscrowService;
+use App\Services\StockService;
 
 class Order extends Model
 {
@@ -104,6 +105,9 @@ class Order extends Model
             'refund_amount' => 'INT UNSIGNED DEFAULT NULL',
             'deal_mode' => "VARCHAR(16) NOT NULL DEFAULT 'escrow'",
             'arbitration_fee' => 'INT UNSIGNED NOT NULL DEFAULT 0',
+            'quantity' => 'INT UNSIGNED NOT NULL DEFAULT 1',
+            'stock_held' => 'TINYINT(1) NOT NULL DEFAULT 0',
+            'stock_restored' => 'TINYINT(1) NOT NULL DEFAULT 0',
         ]);
 
         // Старый ENUM paid → escrowed semantics
@@ -285,7 +289,8 @@ class Order extends Model
         int $buyerId,
         string $paymentMethod,
         string $deliveryMethod,
-        string $dealMode = 'escrow'
+        string $dealMode = 'escrow',
+        int $quantity = 1
     ): array {
         $dealMode = $dealMode === 'direct' ? 'direct' : 'escrow';
         $product = (new Product())->find($productId);
@@ -301,8 +306,15 @@ class Order extends Model
             return ['ok' => false, 'error' => t('checkout.not_for_sale')];
         }
 
-        $amount = (int) $product['price'];
-        if ($amount <= 0) {
+        $available = ProductHelper::availableQuantity($product);
+        $quantity = max(1, $quantity);
+        if ($quantity > $available) {
+            return ['ok' => false, 'error' => t('product.qty_only', ['n' => $available])];
+        }
+
+        $unitPrice = (int) $product['price'];
+        $amount = ProductHelper::lineAmount($product, $quantity);
+        if ($unitPrice <= 0 || $amount <= 0) {
             return ['ok' => false, 'error' => t('checkout.invalid_price')];
         }
         $arbitrationFee = $dealMode === 'escrow' ? EscrowService::arbitrationFee($amount) : 0;
@@ -333,7 +345,8 @@ class Order extends Model
                 $fp,
                 $dealMode,
                 $arbitrationFee,
-                $chargeTotal
+                $chargeTotal,
+                $quantity
             );
         }
 
@@ -345,12 +358,17 @@ class Order extends Model
         try {
             $this->db->beginTransaction();
 
-            $lock = $this->db->prepare('SELECT id, status FROM products WHERE id = ? FOR UPDATE');
+            $lock = $this->db->prepare('SELECT id, status, quantity, type FROM products WHERE id = ? FOR UPDATE');
             $lock->execute([$productId]);
             $locked = $lock->fetch();
             if (!$locked || $locked['status'] !== 'active') {
                 $this->db->rollBack();
                 return ['ok' => false, 'error' => t('checkout.unavailable')];
+            }
+            $lockedQty = ProductHelper::availableQuantity($locked);
+            if ($quantity > $lockedQty) {
+                $this->db->rollBack();
+                return ['ok' => false, 'error' => t('product.qty_only', ['n' => $lockedQty])];
             }
 
             $sellerId = (int) $product['user_id'];
@@ -359,15 +377,16 @@ class Order extends Model
 
             $stmt = $this->db->prepare(
                 'INSERT INTO orders (
-                    product_id, buyer_id, seller_id, amount, payment_method, delivery_method,
+                    product_id, buyer_id, seller_id, amount, quantity, payment_method, delivery_method,
                     status, escrow_hold, deal_mode, arbitration_fee, paid_at, released_at, confirmed_at
-                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
             );
             $stmt->execute([
                 $productId,
                 $buyerId,
                 $sellerId,
                 $amount,
+                $quantity,
                 $method,
                 $delivery,
                 $isDirect ? 'completed' : 'escrowed',
@@ -394,10 +413,11 @@ class Order extends Model
                 return ['ok' => false, 'error' => $pay['error'] ?? t('checkout.payment_failed')];
             }
 
-            if (!ProductHelper::isDigitalListing($product)) {
-                $sold = $this->db->prepare("UPDATE products SET status = 'sold' WHERE id = ? AND status = 'active'");
-                $sold->execute([$productId]);
+            if (!StockService::applyOnOrder($this->db, $product, $quantity, false)) {
+                $this->db->rollBack();
+                return ['ok' => false, 'error' => t('checkout.unavailable')];
             }
+            $this->markStockHeld($orderId, $product);
 
             $this->db->commit();
 
@@ -439,12 +459,14 @@ class Order extends Model
         \App\Services\FreedomPay\Client $fp,
         string $dealMode = 'escrow',
         int $arbitrationFee = 0,
-        int $chargeTotal = 0
+        int $chargeTotal = 0,
+        int $quantity = 1
     ): array {
         if ($chargeTotal <= 0) {
             $chargeTotal = EscrowService::buyerChargeTotal($amount, $dealMode);
             $arbitrationFee = $dealMode === 'escrow' ? EscrowService::arbitrationFee($amount) : 0;
         }
+        $quantity = max(1, $quantity);
         $productId = (int) $product['id'];
         $buyer = (new User())->find($buyerId);
         $paymentModel = new Payment();
@@ -471,25 +493,31 @@ class Order extends Model
         try {
             $this->db->beginTransaction();
 
-            $lock = $this->db->prepare('SELECT id, status FROM products WHERE id = ? FOR UPDATE');
+            $lock = $this->db->prepare('SELECT id, status, quantity, type FROM products WHERE id = ? FOR UPDATE');
             $lock->execute([$productId]);
             $locked = $lock->fetch();
             if (!$locked || $locked['status'] !== 'active') {
                 $this->db->rollBack();
                 return ['ok' => false, 'error' => t('checkout.unavailable')];
             }
+            $lockedQty = ProductHelper::availableQuantity($locked);
+            if ($quantity > $lockedQty) {
+                $this->db->rollBack();
+                return ['ok' => false, 'error' => t('product.qty_only', ['n' => $lockedQty])];
+            }
 
             $stmt = $this->db->prepare(
                 'INSERT INTO orders (
-                    product_id, buyer_id, seller_id, amount, payment_method, delivery_method,
+                    product_id, buyer_id, seller_id, amount, quantity, payment_method, delivery_method,
                     status, escrow_hold, deal_mode, arbitration_fee, paid_at
-                 ) VALUES (?, ?, ?, ?, \'card\', ?, \'awaiting_payment\', \'pending\', ?, ?, NULL)'
+                 ) VALUES (?, ?, ?, ?, ?, \'card\', ?, \'awaiting_payment\', \'pending\', ?, ?, NULL)'
             );
             $stmt->execute([
                 $productId,
                 $buyerId,
                 (int) $product['user_id'],
                 $amount,
+                $quantity,
                 $delivery,
                 $dealMode === 'direct' ? 'direct' : 'escrow',
                 $arbitrationFee,
@@ -505,15 +533,14 @@ class Order extends Model
                 'delivery_method' => $delivery,
                 'payment_method' => 'card',
                 'pg_payment_id' => !empty($init['payment_id']) ? (string) $init['payment_id'] : null,
-                'meta' => json_encode(['deal_mode' => $dealMode === 'direct' ? 'direct' : 'escrow'], JSON_UNESCAPED_UNICODE),
+                'meta' => json_encode(['deal_mode' => $dealMode === 'direct' ? 'direct' : 'escrow', 'quantity' => $quantity], JSON_UNESCAPED_UNICODE),
             ]);
 
-            $reserve = $this->db->prepare(
-                "UPDATE products SET status = 'reserved' WHERE id = ? AND status = 'active'"
-            );
-            if (!ProductHelper::isDigitalListing($product)) {
-                $reserve->execute([$productId]);
+            if (!StockService::applyOnOrder($this->db, $product, $quantity, true)) {
+                $this->db->rollBack();
+                return ['ok' => false, 'error' => t('checkout.unavailable')];
             }
+            $this->markStockHeld($orderId, $product);
 
             $this->db->commit();
         } catch (\Throwable $e) {
@@ -543,7 +570,8 @@ class Order extends Model
         }
 
         if (count($products) === 1) {
-            return $this->createEscrow((int) $products[0]['id'], $buyerId, $paymentMethod, $deliveryMethod);
+            $qty = max(1, (int) ($products[0]['cart_qty'] ?? 1));
+            return $this->createEscrow((int) $products[0]['id'], $buyerId, $paymentMethod, $deliveryMethod, 'escrow', $qty);
         }
 
         $validated = [];
@@ -559,10 +587,17 @@ class Order extends Model
             if (!ProductHelper::isPurchasable($product)) {
                 return ['ok' => false, 'error' => t('checkout.not_for_sale')];
             }
-            $amount = (int) ($product['price'] ?? 0);
+            $qty = max(1, (int) ($product['cart_qty'] ?? 1));
+            $available = ProductHelper::availableQuantity($product);
+            if ($qty > $available) {
+                return ['ok' => false, 'error' => t('product.qty_only', ['n' => $available])];
+            }
+            $amount = ProductHelper::lineAmount($product, $qty);
             if ($amount <= 0) {
                 return ['ok' => false, 'error' => t('checkout.invalid_price')];
             }
+            $product['cart_qty'] = $qty;
+            $product['line_amount'] = $amount;
             $validated[] = $product;
             $total += $amount;
         }
@@ -598,29 +633,36 @@ class Order extends Model
 
             foreach ($validated as $product) {
                 $productId = (int) $product['id'];
-                $amount = (int) $product['price'];
+                $qty = max(1, (int) ($product['cart_qty'] ?? 1));
+                $amount = (int) ($product['line_amount'] ?? ProductHelper::lineAmount($product, $qty));
                 $itemFee = EscrowService::arbitrationFee($amount);
                 $itemCharge = $amount + $itemFee;
 
-                $lock = $this->db->prepare('SELECT id, status FROM products WHERE id = ? FOR UPDATE');
+                $lock = $this->db->prepare('SELECT id, status, quantity, type FROM products WHERE id = ? FOR UPDATE');
                 $lock->execute([$productId]);
                 $locked = $lock->fetch();
                 if (!$locked || $locked['status'] !== 'active') {
                     $this->db->rollBack();
                     return ['ok' => false, 'error' => t('checkout.unavailable')];
                 }
+                $lockedQty = ProductHelper::availableQuantity($locked);
+                if ($qty > $lockedQty) {
+                    $this->db->rollBack();
+                    return ['ok' => false, 'error' => t('product.qty_only', ['n' => $lockedQty])];
+                }
 
                 $stmt = $this->db->prepare(
                     'INSERT INTO orders (
-                        product_id, buyer_id, seller_id, amount, payment_method, delivery_method,
+                        product_id, buyer_id, seller_id, amount, quantity, payment_method, delivery_method,
                         status, escrow_hold, deal_mode, arbitration_fee, paid_at
-                     ) VALUES (?, ?, ?, ?, ?, ?, \'escrowed\', \'holding\', \'escrow\', ?, NOW())'
+                     ) VALUES (?, ?, ?, ?, ?, ?, ?, \'escrowed\', \'holding\', \'escrow\', ?, NOW())'
                 );
                 $stmt->execute([
                     $productId,
                     $buyerId,
                     (int) $product['user_id'],
                     $amount,
+                    $qty,
                     $method,
                     ProductHelper::isDigitalListing($product) ? 'digital' : $delivery,
                     $itemFee,
@@ -638,10 +680,11 @@ class Order extends Model
                     return ['ok' => false, 'error' => $pay['error'] ?? t('checkout.payment_failed')];
                 }
 
-                $sold = $this->db->prepare("UPDATE products SET status = 'sold' WHERE id = ? AND status = 'active'");
-                if (!ProductHelper::isDigitalListing($product)) {
-                    $sold->execute([$productId]);
+                if (!StockService::applyOnOrder($this->db, $product, $qty, false)) {
+                    $this->db->rollBack();
+                    return ['ok' => false, 'error' => t('checkout.unavailable')];
                 }
+                $this->markStockHeld($orderId, $product);
 
                 $notify[] = [
                     'seller_id' => (int) $product['user_id'],
@@ -732,28 +775,35 @@ class Order extends Model
 
             foreach ($products as $product) {
                 $productId = (int) $product['id'];
-                $amount = (int) $product['price'];
+                $qty = max(1, (int) ($product['cart_qty'] ?? 1));
+                $amount = (int) ($product['line_amount'] ?? ProductHelper::lineAmount($product, $qty));
                 $itemFee = EscrowService::arbitrationFee($amount);
 
-                $lock = $this->db->prepare('SELECT id, status FROM products WHERE id = ? FOR UPDATE');
+                $lock = $this->db->prepare('SELECT id, status, quantity, type FROM products WHERE id = ? FOR UPDATE');
                 $lock->execute([$productId]);
                 $locked = $lock->fetch();
                 if (!$locked || $locked['status'] !== 'active') {
                     $this->db->rollBack();
                     return ['ok' => false, 'error' => t('checkout.unavailable')];
                 }
+                $lockedQty = ProductHelper::availableQuantity($locked);
+                if ($qty > $lockedQty) {
+                    $this->db->rollBack();
+                    return ['ok' => false, 'error' => t('product.qty_only', ['n' => $lockedQty])];
+                }
 
                 $stmt = $this->db->prepare(
                     'INSERT INTO orders (
-                        product_id, buyer_id, seller_id, amount, payment_method, delivery_method,
+                        product_id, buyer_id, seller_id, amount, quantity, payment_method, delivery_method,
                         status, escrow_hold, deal_mode, arbitration_fee, paid_at
-                     ) VALUES (?, ?, ?, ?, \'card\', ?, \'awaiting_payment\', \'pending\', \'escrow\', ?, NULL)'
+                     ) VALUES (?, ?, ?, ?, ?, \'card\', ?, \'awaiting_payment\', \'pending\', \'escrow\', ?, NULL)'
                 );
                 $stmt->execute([
                     $productId,
                     $buyerId,
                     (int) $product['user_id'],
                     $amount,
+                    $qty,
                     ProductHelper::isDigitalListing($product) ? 'digital' : $delivery,
                     $itemFee,
                 ]);
@@ -765,14 +815,14 @@ class Order extends Model
                     'amount' => $amount + $itemFee,
                     'seller_id' => (int) $product['user_id'],
                     'title' => (string) ($product['title'] ?? ''),
+                    'quantity' => $qty,
                 ];
 
-                $reserve = $this->db->prepare(
-                    "UPDATE products SET status = 'reserved' WHERE id = ? AND status = 'active'"
-                );
-                if (!ProductHelper::isDigitalListing($product)) {
-                    $reserve->execute([$productId]);
+                if (!StockService::applyOnOrder($this->db, $product, $qty, true)) {
+                    $this->db->rollBack();
+                    return ['ok' => false, 'error' => t('checkout.unavailable')];
                 }
+                $this->markStockHeld($orderId, $product);
             }
 
             $paymentModel->createPending([
@@ -807,5 +857,15 @@ class Order extends Model
     public function createPaid(int $productId, int $buyerId, string $paymentMethod): array
     {
         return $this->createEscrow($productId, $buyerId, $paymentMethod, 'kazpost');
+    }
+
+    /** @param array<string, mixed> $product */
+    private function markStockHeld(int $orderId, array $product): void
+    {
+        if ($orderId <= 0 || ProductHelper::isDigitalListing($product) || !ProductHelper::tracksInventory($product)) {
+            return;
+        }
+        $stmt = $this->db->prepare('UPDATE orders SET stock_held = 1 WHERE id = ?');
+        $stmt->execute([$orderId]);
     }
 }

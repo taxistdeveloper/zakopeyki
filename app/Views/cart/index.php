@@ -63,7 +63,16 @@ $buyUrl = $firstItem
                                     <a href="<?= $showUrl ?>" class="hover:text-brand-600 transition"><?= htmlspecialchars($item['title']) ?></a>
                                 </h2>
                                 <p class="text-xs text-gray-400 mt-1 truncate"><?= htmlspecialchars($item['seller_name'] ?? '') ?> · <?= htmlspecialchars($item['location'] ?? '') ?></p>
-                                <p class="font-display text-lg font-extrabold text-brand-600 mt-2"><?= htmlspecialchars($price) ?></p>
+                                <?php
+                                $cartQty = max(1, (int) ($item['cart_qty'] ?? 1));
+                                $unitPrice = (int) ($item['price'] ?? 0);
+                                $lineTotal = (int) ($item['line_total'] ?? ($unitPrice * $cartQty));
+                                $available = ProductHelper::availableQuantity($item);
+                                ?>
+                                <p class="font-display text-lg font-extrabold text-brand-600 mt-2" data-cart-line-total><?= number_format($lineTotal, 0, '', ' ') ?> ₸</p>
+                                <?php if (ProductHelper::tracksInventory($item)): ?>
+                                    <p class="text-[12px] text-gray-400 mt-0.5"><?= htmlspecialchars(t('product.in_stock_count', ['n' => $available])) ?></p>
+                                <?php endif; ?>
                             </div>
                             <form method="post" action="<?= ProductHelper::url('/cart/' . (int) $item['id'] . '/remove') ?>" class="flex-shrink-0">
                                 <?= csrf_field() ?>
@@ -72,7 +81,16 @@ $buyUrl = $firstItem
                                 </button>
                             </form>
                         </div>
-                        <div class="mt-auto">
+                        <div class="mt-auto flex flex-wrap items-center gap-3">
+                            <?php if (ProductHelper::tracksInventory($item) && $available > 0): ?>
+                            <div class="inline-flex items-center rounded-xl border border-black/[0.1] dark:border-white/15 overflow-hidden bg-white dark:bg-white/5"
+                                 data-qty-box data-max="<?= (int) $available ?>" data-price="<?= (int) $unitPrice ?>" data-cart-id="<?= (int) $item['id'] ?>">
+                                <button type="button" data-qty-minus class="w-10 h-10 flex items-center justify-center text-lg font-semibold hover:bg-black/[0.04] dark:hover:bg-white/10" aria-label="−">−</button>
+                                <input type="number" inputmode="numeric" min="1" max="<?= (int) $available ?>" step="1" value="<?= (int) $cartQty ?>" data-qty-input
+                                       class="w-12 h-10 text-center bg-transparent border-x border-black/[0.08] dark:border-white/10 text-sm font-semibold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
+                                <button type="button" data-qty-plus class="w-10 h-10 flex items-center justify-center text-lg font-semibold hover:bg-black/[0.04] dark:hover:bg-white/10" aria-label="+">+</button>
+                            </div>
+                            <?php endif; ?>
                             <a href="<?= $showUrl ?>" class="inline-flex items-center justify-center border border-black/[0.08] dark:border-white/10 hover:bg-black/[0.03] dark:hover:bg-white/5 font-semibold py-2.5 px-4 rounded-xl text-[10px] uppercase tracking-wider transition text-ink-700 dark:text-gray-300">
                                 <?= htmlspecialchars(t('card.more')) ?>
                             </a>
@@ -85,7 +103,7 @@ $buyUrl = $firstItem
         <div class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 shadow-soft p-5 flex flex-wrap items-center justify-between gap-3">
             <div>
                 <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400"><?= htmlspecialchars(t('cart.total')) ?></p>
-                <p class="font-display text-2xl font-extrabold text-ink-900 dark:text-white mt-0.5"><?= number_format($total, 0, '', ' ') ?> ₸</p>
+                <p class="font-display text-2xl font-extrabold text-ink-900 dark:text-white mt-0.5" data-cart-grand-total><?= number_format($total, 0, '', ' ') ?> ₸</p>
                 <p class="text-xs text-gray-400 mt-1"><?= htmlspecialchars(t('cart.checkout_hint')) ?></p>
             </div>
             <?php if ($buyUrl): ?>

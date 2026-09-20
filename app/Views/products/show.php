@@ -85,6 +85,9 @@ if ($showProductCategory && $catParent) {
 if (!empty($item['location'])) {
     $chars[] = [t('product.city'), $item['location']];
 }
+if (ProductHelper::tracksInventory($item)) {
+    $chars[] = [t('product.qty_label'), (string) max(0, (int) ($item['quantity'] ?? 1))];
+}
 if ($type === 'exchange' && !empty($item['exchange_for'])) {
     $chars[] = [t('product.exchange_for'), $item['exchange_for']];
 }
@@ -249,7 +252,13 @@ $waBtnClass = 'w-full inline-flex items-center justify-center gap-2 h-12 px-4 ro
         <div class="p-3.5 rounded-2xl bg-white dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10">
             <div class="font-display text-[1.65rem] sm:text-2xl font-extrabold tracking-tight <?= $priceClass ?>"><?= htmlspecialchars($price) ?></div>
             <?php if ($purchasable): ?>
-                <p class="mt-1 text-[13px] font-semibold text-emerald-600 dark:text-emerald-400"><?= htmlspecialchars(t('product.in_stock')) ?></p>
+                <?php if (ProductHelper::tracksInventory($item)): ?>
+                    <p class="mt-1 text-[13px] font-semibold text-emerald-600 dark:text-emerald-400"><?= htmlspecialchars(t('product.in_stock_count', ['n' => ProductHelper::availableQuantity($item)])) ?></p>
+                <?php else: ?>
+                    <p class="mt-1 text-[13px] font-semibold text-emerald-600 dark:text-emerald-400"><?= htmlspecialchars(t('product.in_stock')) ?></p>
+                <?php endif; ?>
+            <?php elseif (ProductHelper::tracksInventory($item) && (int) ($item['quantity'] ?? 0) < 1): ?>
+                <p class="mt-1 text-[13px] font-semibold text-gray-500"><?= htmlspecialchars(t('product.out_of_stock')) ?></p>
             <?php endif; ?>
             <?php
             $viewCount = (int) ($item['view_count'] ?? 0);
@@ -421,8 +430,28 @@ $waBtnClass = 'w-full inline-flex items-center justify-center gap-2 h-12 px-4 ro
         </script>
     <?php endif; ?>
 
-    <?php if ($purchasable && !$isOwnProduct): ?>
+    <?php if ($purchasable && !$isOwnProduct):
+        $stockQty = ProductHelper::availableQuantity($item);
+        $unitPrice = (int) ($item['price'] ?? 0);
+        $showQtyPicker = ProductHelper::tracksInventory($item) && $stockQty >= 1;
+    ?>
         <div class="space-y-2.5">
+            <?php if ($showQtyPicker): ?>
+            <div class="flex flex-wrap items-center gap-3" data-qty-box data-max="<?= (int) $stockQty ?>" data-price="<?= (int) $unitPrice ?>">
+                <span class="text-[13px] font-semibold text-ink-700 dark:text-gray-300"><?= htmlspecialchars(t('product.qty_label')) ?></span>
+                <div class="inline-flex items-center rounded-xl border border-black/[0.1] dark:border-white/15 overflow-hidden bg-white dark:bg-white/5">
+                    <button type="button" data-qty-minus class="w-11 h-11 flex items-center justify-center text-lg font-semibold text-ink-700 dark:text-gray-200 hover:bg-black/[0.04] dark:hover:bg-white/10" aria-label="−">−</button>
+                    <input type="number" inputmode="numeric" min="1" max="<?= (int) $stockQty ?>" step="1" value="1" data-qty-input
+                           class="w-14 h-11 text-center bg-transparent border-x border-black/[0.08] dark:border-white/10 text-sm font-semibold text-ink-900 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                           aria-label="<?= htmlspecialchars(t('product.qty_label')) ?>">
+                    <button type="button" data-qty-plus class="w-11 h-11 flex items-center justify-center text-lg font-semibold text-ink-700 dark:text-gray-200 hover:bg-black/[0.04] dark:hover:bg-white/10" aria-label="+">+</button>
+                </div>
+                <span class="text-sm font-display font-bold text-brand-600" data-qty-total><?= number_format($unitPrice, 0, '', ' ') ?> ₸</span>
+            </div>
+            <p data-qty-notice class="hidden text-[13px] font-semibold text-amber-700 dark:text-amber-300"></p>
+            <?php else: ?>
+            <input type="hidden" data-qty-input value="1">
+            <?php endif; ?>
             <div class="grid grid-cols-2 gap-2.5">
                 <?php if ($showBuyChoice): ?>
                 <button type="button"
@@ -432,18 +461,19 @@ $waBtnClass = 'w-full inline-flex items-center justify-center gap-2 h-12 px-4 ro
                         data-checkout-url="<?= htmlspecialchars($checkoutUrl) ?>"
                         data-title="<?= htmlspecialchars($item['title']) ?>"
                         data-auth="<?= Auth::check() ? '1' : '0' ?>"
-                        data-login-url="<?= htmlspecialchars(ProductHelper::url('/login')) ?>">
+                        data-login-url="<?= htmlspecialchars(ProductHelper::url('/login')) ?>"
+                        data-qty-sync="1">
                     <?= $cartIconSvg ?>
                     <?= htmlspecialchars($buyText) ?>
                 </button>
                 <?php else: ?>
-                <a href="<?= $buyUrl ?>" class="inline-flex items-center justify-center gap-2 h-12 px-3 rounded-xl bg-accent-500 hover:bg-accent-400 text-white font-semibold text-[13px] sm:text-sm transition">
+                <a href="<?= $buyUrl ?>" data-qty-sync="1" class="inline-flex items-center justify-center gap-2 h-12 px-3 rounded-xl bg-accent-500 hover:bg-accent-400 text-white font-semibold text-[13px] sm:text-sm transition">
                     <?= $cartIconSvg ?>
                     <?= htmlspecialchars($buyText) ?>
                 </a>
                 <?php endif; ?>
                 <button type="button"
-                        class="cart-btn inline-flex items-center justify-center gap-2 h-12 px-3 rounded-xl border-2 border-accent-500 text-accent-600 dark:text-accent-400 bg-white dark:bg-transparent hover:bg-accent-50 dark:hover:bg-accent-500/10 font-semibold text-[13px] sm:text-sm transition disabled:opacity-40 disabled:pointer-events-none <?= $inCart ? 'is-in-cart bg-accent-50 dark:bg-accent-500/10' : '' ?>"
+                        class="cart-btn cart-btn-set-qty inline-flex items-center justify-center gap-2 h-12 px-3 rounded-xl border-2 border-accent-500 text-accent-600 dark:text-accent-400 bg-white dark:bg-transparent hover:bg-accent-50 dark:hover:bg-accent-500/10 font-semibold text-[13px] sm:text-sm transition disabled:opacity-40 disabled:pointer-events-none <?= $inCart ? 'is-in-cart bg-accent-50 dark:bg-accent-500/10' : '' ?>"
                         data-product-id="<?= (int) $item['id'] ?>"
                         data-in-cart="<?= $inCart ? '1' : '0' ?>"
                         <?= $isOwnProduct ? 'disabled' : '' ?>

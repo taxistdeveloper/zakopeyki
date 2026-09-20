@@ -3849,6 +3849,160 @@ document.addEventListener('click', function (e) {
         });
 });
 
+function formatTenge(n) {
+    const v = Math.max(0, parseInt(n, 10) || 0);
+    return v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' ₸';
+}
+
+function qtyNoticeText(max) {
+    const tpl = window.__i18n?.['product.qty_only'] || 'Доступно только :n шт.';
+    return tpl.replace(':n', String(max));
+}
+
+function readQty(box) {
+    const input = box.querySelector('[data-qty-input]');
+    const max = Math.max(1, parseInt(box.getAttribute('data-max') || '1', 10) || 1);
+    let n = parseInt(input && input.value ? input.value : '1', 10);
+    if (!Number.isFinite(n) || n < 1) n = 1;
+    return { input: input, max: max, value: n };
+}
+
+function setQty(box, next, notify) {
+    const state = readQty(box);
+    const max = state.max;
+    let n = parseInt(next, 10);
+    let clamped = false;
+    if (!Number.isFinite(n) || n < 1) n = 1;
+    if (n > max) {
+        n = max;
+        clamped = true;
+    }
+    if (state.input) {
+        state.input.value = String(n);
+        state.input.setAttribute('aria-valuenow', String(n));
+    }
+    const price = parseInt(box.getAttribute('data-price') || '0', 10) || 0;
+    const totalEl = box.querySelector('[data-qty-total]') || document.querySelector('[data-qty-total]');
+    if (totalEl && price > 0) {
+        totalEl.textContent = formatTenge(price * n);
+    }
+    const notice = box.parentElement && box.parentElement.querySelector('[data-qty-notice]');
+    if (notice) {
+        if (clamped && notify) {
+            notice.textContent = qtyNoticeText(max);
+            notice.classList.remove('hidden');
+        } else if (!clamped) {
+            notice.classList.add('hidden');
+        }
+    }
+    return n;
+}
+
+function syncCheckoutQty(qty) {
+    document.querySelectorAll('[data-buy-open]').forEach(function (btn) {
+        const base = btn.getAttribute('data-checkout-url') || '';
+        if (!base) return;
+        btn.setAttribute('data-checkout-qty', String(qty));
+    });
+    document.querySelectorAll('a[data-qty-sync]').forEach(function (a) {
+        try {
+            const url = new URL(a.href, window.location.origin);
+            if (qty > 1) url.searchParams.set('qty', String(qty));
+            else url.searchParams.delete('qty');
+            a.href = url.pathname + url.search + url.hash;
+        } catch (e) { /* ignore */ }
+    });
+}
+
+function postCartQty(productId, qty) {
+    const base = window.__cartToggleBase || '/cart/';
+    const body = new URLSearchParams();
+    body.set('quantity', String(qty));
+    return fetch(base + productId + '/qty', {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        credentials: 'same-origin',
+        body: body
+    }).then(function (r) { return r.json(); });
+}
+
+document.addEventListener('click', function (e) {
+    const minus = e.target.closest('[data-qty-minus]');
+    const plus = e.target.closest('[data-qty-plus]');
+    if (!minus && !plus) return;
+    const box = e.target.closest('[data-qty-box]');
+    if (!box) return;
+    e.preventDefault();
+    const state = readQty(box);
+    const next = plus ? state.value + 1 : state.value - 1;
+    const qty = setQty(box, next, true);
+    syncCheckoutQty(qty);
+    const cartId = box.getAttribute('data-cart-id');
+    if (cartId) {
+        postCartQty(cartId, qty).then(function (data) {
+            if (!data || !data.ok) {
+                if (data && data.error) alert(data.error);
+                return;
+            }
+            if (data.notice) {
+                const notice = box.parentElement && box.parentElement.querySelector('[data-qty-notice]');
+                if (notice) {
+                    notice.textContent = data.notice;
+                    notice.classList.remove('hidden');
+                } else {
+                    alert(data.notice);
+                }
+                if (data.qty) setQty(box, data.qty, false);
+            }
+            if (typeof updateCartBadges === 'function') updateCartBadges(data.count);
+            const article = box.closest('[data-cart-item]');
+            if (article && data.line_total != null) {
+                const line = article.querySelector('[data-cart-line-total]');
+                if (line) line.textContent = formatTenge(data.line_total);
+            }
+            const grand = document.querySelector('[data-cart-grand-total]');
+            if (grand && data.total != null) grand.textContent = formatTenge(data.total);
+        }).catch(function () {});
+    }
+});
+
+document.addEventListener('input', function (e) {
+    const field = e.target.closest('[data-qty-input]');
+    if (!field) return;
+    const box = field.closest('[data-qty-box]');
+    if (!box) return;
+    const qty = setQty(box, field.value, true);
+    syncCheckoutQty(qty);
+});
+
+document.addEventListener('change', function (e) {
+    const input = e.target.closest('[data-qty-input]');
+    if (!input) return;
+    const box = input.closest('[data-qty-box]');
+    if (!box) return;
+    const qty = setQty(box, input.value, true);
+    syncCheckoutQty(qty);
+    const cartId = box.getAttribute('data-cart-id');
+    if (cartId) {
+        postCartQty(cartId, qty).then(function (data) {
+            if (!data || !data.ok) return;
+            if (data.notice) alert(data.notice);
+            if (typeof updateCartBadges === 'function') updateCartBadges(data.count);
+            const article = box.closest('[data-cart-item]');
+            if (article && data.line_total != null) {
+                const line = article.querySelector('[data-cart-line-total]');
+                if (line) line.textContent = formatTenge(data.line_total);
+            }
+            const grand = document.querySelector('[data-cart-grand-total]');
+            if (grand && data.total != null) grand.textContent = formatTenge(data.total);
+        }).catch(function () {});
+    }
+});
+
 /* ===== Cart ===== */
 function updateCartBadges(count) {
     const n = Math.max(0, parseInt(count, 10) || 0);
@@ -3916,17 +4070,24 @@ document.addEventListener('click', function (e) {
     btn.dataset.busy = '1';
     btn.classList.add('opacity-60');
 
-    fetch(base + productId + '/toggle', {
-        method: 'POST',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-        credentials: 'same-origin'
-    })
-        .then(function (r) { return r.json(); })
+    const useQty = btn.classList.contains('cart-btn-set-qty');
+    const qtyBox = document.querySelector('[data-qty-box]');
+    const qty = qtyBox ? readQty(qtyBox).value : 1;
+    const req = useQty
+        ? postCartQty(productId, qty)
+        : fetch(base + productId + '/toggle', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin'
+        }).then(function (r) { return r.json(); });
+
+    req
         .then(function (data) {
             if (!data) return;
             if (data.ok) {
                 setCartButtonState(btn, data.in_cart);
                 updateCartBadges(data.count);
+                if (data.notice) alert(data.notice);
             } else if (data.error) {
                 alert(data.error);
             }
@@ -4790,10 +4951,24 @@ document.addEventListener('keydown', function (e) {
     let state = { productId: "", checkoutUrl: "", auth: true, loginUrl: "" };
     let lastFocus = null;
 
+    function withQty(url, qty) {
+        if (!url) return url;
+        try {
+            const u = new URL(url, window.location.origin);
+            if (qty > 1) u.searchParams.set('qty', String(qty));
+            else u.searchParams.delete('qty');
+            return u.pathname + u.search + u.hash;
+        } catch (e) {
+            return url;
+        }
+    }
+
     function openModal(opts) {
+        const qtyBox = document.querySelector('[data-qty-box]');
+        const qty = qtyBox ? readQty(qtyBox).value : 1;
         state = {
             productId: opts.productId || "",
-            checkoutUrl: opts.checkoutUrl || "",
+            checkoutUrl: withQty(opts.checkoutUrl || "", qty),
             auth: opts.auth !== false,
             loginUrl: opts.loginUrl || ""
         };

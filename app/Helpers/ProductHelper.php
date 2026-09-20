@@ -364,6 +364,81 @@ class ProductHelper
     /** Типы объявлений, которые можно оплатить на платформе. */
     public const PURCHASABLE_TYPES = ['used', 'new', 'gig'];
 
+    /** Физический товар со складским остатком. */
+    public const INVENTORY_TYPES = ['used', 'new'];
+
+    public static function tracksInventory(array $item): bool
+    {
+        return in_array((string) ($item['type'] ?? ''), self::INVENTORY_TYPES, true);
+    }
+
+    public static function availableQuantity(array $item): int
+    {
+        if (($item['status'] ?? 'active') !== 'active') {
+            return 0;
+        }
+        if (!self::tracksInventory($item)) {
+            return 1;
+        }
+
+        return max(0, (int) ($item['quantity'] ?? 1));
+    }
+
+    /**
+     * @return array{ok: bool, value: int, error?: string}
+     */
+    public static function parseStockQuantity(mixed $raw): array
+    {
+        if ($raw === null || $raw === '') {
+            return ['ok' => true, 'value' => 1];
+        }
+        if (is_int($raw) || is_float($raw)) {
+            if ((int) $raw != $raw || (int) $raw < 1) {
+                return ['ok' => false, 'value' => 1, 'error' => t('flash.quantity_invalid')];
+            }
+            $n = (int) $raw;
+            if ($n > 999999) {
+                return ['ok' => false, 'value' => 1, 'error' => t('flash.quantity_invalid')];
+            }
+
+            return ['ok' => true, 'value' => $n];
+        }
+
+        $raw = trim((string) $raw);
+        if ($raw === '') {
+            return ['ok' => true, 'value' => 1];
+        }
+        if (!preg_match('/^[1-9]\d{0,5}$/', $raw)) {
+            return ['ok' => false, 'value' => 1, 'error' => t('flash.quantity_invalid')];
+        }
+
+        return ['ok' => true, 'value' => (int) $raw];
+    }
+
+    public static function clampBuyQuantity(mixed $raw, int $available): int
+    {
+        if ($available < 1) {
+            return 0;
+        }
+        if (is_string($raw) && !preg_match('/^[1-9]\d*$/', trim($raw))) {
+            return 1;
+        }
+        $n = (int) $raw;
+        if ($n < 1) {
+            $n = 1;
+        }
+        if ($n > $available) {
+            $n = $available;
+        }
+
+        return $n;
+    }
+
+    public static function lineAmount(array $item, int $qty = 1): int
+    {
+        return (int) ($item['price'] ?? 0) * max(1, $qty);
+    }
+
     /** Цифровой контент: не снимается с витрины после каждой продажи. */
     public static function isDigitalListing(array $item): bool
     {
@@ -386,7 +461,14 @@ class ProductHelper
         if (!in_array($item['type'] ?? '', self::PURCHASABLE_TYPES, true)) {
             return false;
         }
-        return (int) ($item['price'] ?? 0) > 0;
+        if ((int) ($item['price'] ?? 0) <= 0) {
+            return false;
+        }
+        if (self::tracksInventory($item) && self::availableQuantity($item) < 1) {
+            return false;
+        }
+
+        return true;
     }
 
     /** Покупка напрямую у продавца (без эскроу) — для физических товаров и услуг. */
@@ -396,15 +478,24 @@ class ProductHelper
             && (int) ($item['price'] ?? 0) > 0;
     }
 
-    public static function checkoutUrl(int|string $productId): string
+    public static function checkoutUrl(int|string $productId, int $qty = 1): string
     {
-        return self::url('/checkout/' . (int) $productId);
+        $url = self::url('/checkout/' . (int) $productId);
+        if ($qty > 1) {
+            $url .= '?qty=' . $qty;
+        }
+
+        return $url;
     }
 
-    public static function checkoutUrlWithDeal(int|string $productId, string $deal = 'escrow'): string
+    public static function checkoutUrlWithDeal(int|string $productId, string $deal = 'escrow', int $qty = 1): string
     {
-        $url = self::checkoutUrl($productId);
-        return $deal === 'direct' ? $url . '?deal=direct' : $url;
+        $url = self::checkoutUrl($productId, $qty);
+        if ($deal !== 'direct') {
+            return $url;
+        }
+
+        return $url . (str_contains($url, '?') ? '&' : '?') . 'deal=direct';
     }
 
     public static function cartCheckoutUrl(): string

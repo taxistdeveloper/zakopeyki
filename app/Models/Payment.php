@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use App\Core\Model;
-use App\Helpers\ProductHelper;
+use App\Services\StockService;
 
 class Payment extends Model
 {
@@ -246,13 +246,8 @@ class Payment extends Model
                     'paid_at' => $now,
                 ]);
 
-                $sold = $this->db->prepare(
-                    "UPDATE products SET status = 'sold' WHERE id = ? AND status IN ('active', 'reserved')"
-                );
                 $productRow = (new Product())->find((int) $item['product_id']);
-                if (!$productRow || !ProductHelper::isDigitalListing($productRow)) {
-                    $sold->execute([(int) $item['product_id']]);
-                }
+                StockService::markPaid($this->db, $productRow);
             }
 
             $updPay = $this->db->prepare(
@@ -345,15 +340,17 @@ class Payment extends Model
 
             $orderModel = new Order();
             foreach ($cartItems as $item) {
-                $orderModel->updateFields((int) $item['order_id'], [
+                $oid = (int) $item['order_id'];
+                $orderRow = $orderModel->find($oid) ?: [
+                    'id' => $oid,
+                    'product_id' => (int) ($item['product_id'] ?? 0),
+                    'quantity' => (int) ($item['quantity'] ?? 1),
+                ];
+                $orderModel->updateFields($oid, [
                     'status' => 'cancelled',
                     'escrow_hold' => 'none',
                 ]);
-
-                $release = $this->db->prepare(
-                    "UPDATE products SET status = 'active' WHERE id = ? AND status = 'reserved'"
-                );
-                $release->execute([(int) $item['product_id']]);
+                StockService::restoreForOrder($this->db, $orderRow);
             }
 
             $this->db->commit();
@@ -395,6 +392,7 @@ class Payment extends Model
                 'amount' => (int) ($row['amount'] ?? 0),
                 'seller_id' => (int) ($row['seller_id'] ?? 0),
                 'title' => (string) ($row['title'] ?? ''),
+                'quantity' => max(1, (int) ($row['quantity'] ?? 1)),
             ];
         }
 

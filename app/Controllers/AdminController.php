@@ -46,6 +46,14 @@ class AdminController extends Controller
         $canAi = Auth::can('ai_chats');
         $canDisputes = Auth::can('disputes');
         $isAdmin = Auth::isAdmin();
+        $libraryCount = 0;
+        $openTasks = 0;
+        try {
+            $libraryCount = (new \App\Models\Library())->countDocuments();
+            $openTasks = (new \App\Models\OpsTask())->countOpen();
+        } catch (\Throwable) {
+            // tables may not exist yet
+        }
 
         $items = $canProducts ? $productModel->all('created_at DESC') : [];
         $counts = $canProducts ? $productModel->countByType() : [];
@@ -118,6 +126,8 @@ class AdminController extends Controller
             'canAi' => $canAi,
             'canDisputes' => $canDisputes,
             'isAdmin' => $isAdmin,
+            'libraryCount' => $libraryCount,
+            'openTasks' => $openTasks,
             'types' => ProductHelper::TYPES,
             'notifications' => $notifications,
             'unread' => $unread,

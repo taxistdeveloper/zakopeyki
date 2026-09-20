@@ -1,6 +1,8 @@
 <?php
 
 use App\Controllers\AdminController;
+use App\Controllers\AdminLibraryController;
+use App\Controllers\AdminTaskController;
 use App\Controllers\AiAssistantController;
 use App\Controllers\AuctionController;
 use App\Controllers\AuthController;
@@ -113,6 +115,7 @@ $router->post('/favorites/{id}/toggle', [FavoriteController::class, 'toggle']);
 $router->get('/cart', [CartController::class, 'index']);
 $router->post('/cart/clear', [CartController::class, 'clear']);
 $router->post('/cart/{id}/toggle', [CartController::class, 'toggle']);
+$router->post('/cart/{id}/qty', [CartController::class, 'qty']);
 $router->post('/cart/{id}/remove', [CartController::class, 'remove']);
 $router->post('/ai/chat', [AiAssistantController::class, 'chat']);
 $router->get('/ai/chat/messages', [AiAssistantController::class, 'messages']);
@@ -201,6 +204,28 @@ $router->post('/digital/studio/{id}/sessions/{sessionId}/end', [DigitalControlle
 $router->post('/webhooks/cloudflare/stream', [DigitalController::class, 'webhook']);
 
 $router->get('/admin', [AdminController::class, 'index']);
+$router->get('/admin/library', [AdminLibraryController::class, 'index']);
+$router->post('/admin/library/categories', [AdminLibraryController::class, 'categoryCreate']);
+$router->post('/admin/library/categories/{id}/update', [AdminLibraryController::class, 'categoryUpdate']);
+$router->post('/admin/library/categories/{id}/delete', [AdminLibraryController::class, 'categoryDelete']);
+$router->get('/admin/library/new', [AdminLibraryController::class, 'createForm']);
+$router->post('/admin/library', [AdminLibraryController::class, 'store']);
+$router->get('/admin/library/files/{id}', [AdminLibraryController::class, 'download']);
+$router->post('/admin/library/files/{id}/delete', [AdminLibraryController::class, 'deleteFile']);
+$router->get('/admin/library/{id}', [AdminLibraryController::class, 'show']);
+$router->get('/admin/library/{id}/edit', [AdminLibraryController::class, 'editForm']);
+$router->post('/admin/library/{id}/update', [AdminLibraryController::class, 'update']);
+$router->post('/admin/library/{id}/delete', [AdminLibraryController::class, 'destroy']);
+$router->get('/admin/tasks', [AdminTaskController::class, 'index']);
+$router->get('/admin/tasks/new', [AdminTaskController::class, 'createForm']);
+$router->post('/admin/tasks', [AdminTaskController::class, 'store']);
+$router->get('/admin/tasks/files/{id}', [AdminTaskController::class, 'download']);
+$router->get('/admin/tasks/{id}', [AdminTaskController::class, 'show']);
+$router->get('/admin/tasks/{id}/edit', [AdminTaskController::class, 'editForm']);
+$router->post('/admin/tasks/{id}/update', [AdminTaskController::class, 'update']);
+$router->post('/admin/tasks/{id}/status', [AdminTaskController::class, 'updateStatus']);
+$router->post('/admin/tasks/{id}/comment', [AdminTaskController::class, 'comment']);
+$router->post('/admin/tasks/{id}/delete', [AdminTaskController::class, 'destroy']);
 $router->get('/admin/logs', [AdminController::class, 'logs']);
 $router->get('/admin/aml', [AdminController::class, 'aml']);
 $router->get('/admin/business', [AdminController::class, 'businessRequests']);
