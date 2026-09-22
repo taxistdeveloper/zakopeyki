@@ -141,7 +141,7 @@ $overdue = static function (array $task): bool {
                     </thead>
                     <tbody class="divide-y divide-black/[0.04] dark:divide-white/5">
                         <?php foreach ($tasks as $task): ?>
-                            <tr class="hover:bg-sky-50/40 dark:hover:bg-white/[0.03] <?= $overdue($task) ? 'bg-red-50/50 dark:bg-red-950/20' : '' ?>">
+                            <tr class="js-row-link cursor-pointer hover:bg-sky-50/40 dark:hover:bg-white/[0.03] <?= $overdue($task) ? 'bg-red-50/50 dark:bg-red-950/20' : '' ?>" data-href="<?= ProductHelper::url('/admin/tasks/' . (int) $task['id']) ?>">
                                 <td class="px-4 py-3.5">
                                     <a href="<?= ProductHelper::url('/admin/tasks/' . (int) $task['id']) ?>" class="font-semibold text-ink-800 dark:text-gray-200 hover:text-brand-600">
                                         <?= htmlspecialchars((string) $task['title']) ?>
@@ -200,6 +200,24 @@ $overdue = static function (array $task): bool {
         </div>
     <?php endif; ?>
 </section>
+<script>
+(function () {
+    document.querySelectorAll('.js-row-link').forEach(function (row) {
+        row.addEventListener('click', function (e) {
+            // Ignore clicks on links, buttons, form controls or text selections
+            if (e.target.closest('a, button, input, select, textarea, label')) return;
+            if (window.getSelection && String(window.getSelection())) return;
+            const href = row.getAttribute('data-href');
+            if (!href) return;
+            if (e.metaKey || e.ctrlKey) {
+                window.open(href, '_blank');
+            } else {
+                window.location.href = href;
+            }
+        });
+    });
+})();
+</script>
 <?php if ($viewMode === 'kanban'): ?>
 <script>
 (function () {

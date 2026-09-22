@@ -314,7 +314,7 @@ $stubMode = !empty($stubMode);
                 </thead>
                 <tbody class="divide-y divide-black/[0.04] dark:divide-white/5">
                     <?php foreach ($items as $item): ?>
-                        <tr class="hover:bg-brand-50/40 dark:hover:bg-white/[0.03] transition">
+                        <tr class="js-row-link cursor-pointer hover:bg-brand-50/40 dark:hover:bg-white/[0.03] transition" data-href="<?= ProductHelper::url('/product/' . $item['id']) ?>">
                             <td class="px-4 py-3.5 text-gray-400"><?= (int) $item['id'] ?></td>
                             <td class="px-4 py-3.5 font-semibold max-w-[220px] truncate text-ink-800 dark:text-gray-200"><?= htmlspecialchars($item['title']) ?></td>
                             <td class="px-4 py-3.5"><?= ProductHelper::label($item['type']) ?></td>
@@ -345,3 +345,21 @@ $stubMode = !empty($stubMode);
         </div>
     <?php endif; ?>
 </section>
+<script>
+(function () {
+    document.querySelectorAll('.js-row-link').forEach(function (row) {
+        row.addEventListener('click', function (e) {
+            // Ignore clicks on links, buttons, form controls or text selections
+            if (e.target.closest('a, button, input, select, textarea, label')) return;
+            if (window.getSelection && String(window.getSelection())) return;
+            const href = row.getAttribute('data-href');
+            if (!href) return;
+            if (e.metaKey || e.ctrlKey) {
+                window.open(href, '_blank');
+            } else {
+                window.location.href = href;
+            }
+        });
+    });
+})();
+</script>
