@@ -3,32 +3,46 @@
 namespace App\Services\Cdek;
 
 /**
- * HTTP-клиент СДЭК API v2 (OAuth2 client_credentials).
+ * HTTP-клиент СДЭК API v2.
+ *
+ * Только транспортный слой:
+ * - HTTP (curl);
+ * - Authorization через CdekAuthService;
+ * - timeout / один retry на 401;
+ * - JSON encode/decode;
+ * - correlation / request ID;
+ * - маппинг ошибок через CdekErrorMapper.
+ *
+ * НЕ содержит marketplace-логики (quotes, payment, FSM).
+ *
  * @see https://apidoc.cdek.ru/#tag/common/Vvedenie
+ * @see openapi_api_v2_integration.json
  */
 class Client
 {
     private array $config;
-    private ?string $accessToken = null;
-    private int $tokenExpiresAt = 0;
+    private CdekAuthService $auth;
+    private CdekErrorMapper $errorMapper;
     private ?string $lastError = null;
     private ?string $lastCurlError = null;
+    private ?string $lastRequestId = null;
 
-    public function __construct(?array $config = null)
+    public function __construct(?array $config = null, ?CdekAuthService $auth = null, ?CdekErrorMapper $errorMapper = null)
     {
         if ($config !== null) {
             $this->config = $config;
-            return;
+        } else {
+            $path = dirname(__DIR__, 3) . '/config/cdek.php';
+            $this->config = is_file($path) ? (require $path) : [];
         }
 
-        $path = dirname(__DIR__, 3) . '/config/cdek.php';
-        $this->config = is_file($path) ? (require $path) : [];
+        $this->auth = $auth ?? CdekAuthService::fromConfig($this->config);
+        $this->errorMapper = $errorMapper ?? new CdekErrorMapper();
     }
 
     public function isConfigured(): bool
     {
-        return trim((string) ($this->config['account'] ?? '')) !== ''
-            && trim((string) ($this->config['secure_password'] ?? '')) !== '';
+        return $this->auth->isConfigured();
     }
 
     public function config(): array
@@ -46,107 +60,73 @@ class Client
         return $this->lastCurlError;
     }
 
+    public function lastRequestId(): ?string
+    {
+        return $this->lastRequestId;
+    }
+
     public function isTestMode(): bool
     {
-        return (int) ($this->config['test_mode'] ?? 1) === 1;
+        return $this->auth->isTestMode();
+    }
+
+    public function auth(): CdekAuthService
+    {
+        return $this->auth;
     }
 
     /**
-     * @return array{ok: bool, token?: string, error?: string, raw?: array}
+     * @return array{ok: bool, token?: string, error?: string, source?: string}
      */
     public function authorize(bool $force = false): array
     {
-        $this->lastError = null;
-
-        if (!$this->isConfigured()) {
-            $this->lastError = 'CDEK is not configured';
-            return ['ok' => false, 'error' => $this->lastError];
+        $result = $this->auth->getAccessToken($force);
+        if (!$result['ok']) {
+            $this->lastError = $result['error'] ?? 'auth failed';
+            $this->lastCurlError = $this->auth->lastCurlError();
         }
-
-        if (!$force && $this->accessToken !== null && time() < $this->tokenExpiresAt) {
-            return ['ok' => true, 'token' => $this->accessToken];
-        }
-
-        $cached = $this->readTokenCache();
-        if (!$force && $cached !== null) {
-            $this->accessToken = $cached['access_token'];
-            $this->tokenExpiresAt = $cached['expires_at'];
-            return ['ok' => true, 'token' => $this->accessToken];
-        }
-
-        $base = $this->baseUrl();
-        $fields = [
-            'grant_type' => 'client_credentials',
-            'client_id' => (string) $this->config['account'],
-            'client_secret' => (string) $this->config['secure_password'],
-        ];
-        $encoded = http_build_query($fields);
-
-        // Официальный путь: /oauth/token?parameters + body x-www-form-urlencoded
-        $endpoints = [
-            $base . '/oauth/token?parameters',
-            $base . '/oauth/token',
-            $base . '/oauth/token?' . $encoded,
-        ];
-
-        $http = null;
-        foreach ($endpoints as $endpoint) {
-            $attempt = $this->rawRequest(
-                'POST',
-                $endpoint,
-                str_contains($endpoint, $encoded) ? '' : $encoded,
-                ['Content-Type: application/x-www-form-urlencoded', 'Accept: application/json'],
-                false
-            );
-            if ($attempt === null) {
-                continue;
-            }
-            $decoded = json_decode($attempt[1], true);
-            $http = $attempt;
-            if (is_array($decoded) && !empty($decoded['access_token'])) {
-                break;
-            }
-        }
-
-        if ($http === null) {
-            $curlHint = '';
-            if ($this->lastCurlError) {
-                $curlHint = ' (' . $this->lastCurlError . ')';
-            }
-            $this->lastError = 'CDEK oauth request failed' . $curlHint;
-            return ['ok' => false, 'error' => $this->lastError];
-        }
-
-        [$code, $body] = $http;
-        $json = json_decode($body, true);
-        if (!is_array($json) || empty($json['access_token'])) {
-            $hint = '';
-            if (is_array($json) && ($json['error'] ?? '') === 'invalid_client') {
-                $hint = ' — проверьте Account/Secure в config/cdek.php (тестовые ключи на apidoc.cdek.ru обновляются)';
-            }
-            $this->lastError = 'CDEK oauth failed HTTP ' . $code . $hint;
-            return ['ok' => false, 'error' => $this->lastError, 'raw' => is_array($json) ? $json : ['body' => mb_substr($body, 0, 400)]];
-        }
-
-        $ttl = max(60, (int) ($json['expires_in'] ?? 3600));
-        $this->accessToken = (string) $json['access_token'];
-        $this->tokenExpiresAt = time() + $ttl - 60;
-        $this->writeTokenCache($this->accessToken, $this->tokenExpiresAt);
-
-        return ['ok' => true, 'token' => $this->accessToken, 'raw' => $json];
+        return $result;
     }
 
     /**
      * @param array<string, mixed>|null $jsonBody
      * @param array<string, scalar|null>|null $query
-     * @return array{ok: bool, code: int, data?: mixed, error?: string, body?: string}
+     * @param list<string> $extraHeaders raw header lines (без Authorization)
+     * @return array{
+     *   ok: bool,
+     *   code: int,
+     *   data?: mixed,
+     *   error?: string,
+     *   error_mapped?: array,
+     *   body?: string,
+     *   request_id: string,
+     *   duration_ms: int
+     * }
      */
-    public function request(string $method, string $path, ?array $jsonBody = null, ?array $query = null): array
+    public function request(
+        string $method,
+        string $path,
+        ?array $jsonBody = null,
+        ?array $query = null,
+        array $extraHeaders = []
+    ): array
     {
         $this->lastError = null;
+        $requestId = bin2hex(random_bytes(8));
+        $this->lastRequestId = $requestId;
+        $started = hrtime(true);
+
         $auth = $this->authorize();
         if (!$auth['ok']) {
-            return ['ok' => false, 'code' => 0, 'error' => $auth['error'] ?? 'auth failed'];
+            $mapped = $this->errorMapper->mapLocal(CdekErrorMapper::INTERNAL_AUTH, (string) ($auth['error'] ?? 'auth failed'));
+            return [
+                'ok' => false,
+                'code' => 0,
+                'error' => $mapped['message'],
+                'error_mapped' => $mapped,
+                'request_id' => $requestId,
+                'duration_ms' => $this->elapsedMs($started),
+            ];
         }
 
         $url = $this->baseUrl() . '/' . ltrim($path, '/');
@@ -163,10 +143,20 @@ class Client
             }
         }
 
+        $token = (string) $auth['token'];
         $headers = [
             'Accept: application/json',
-            'Authorization: Bearer ' . $this->accessToken,
+            'Authorization: Bearer ' . $token,
+            'X-Request-ID: ' . $requestId,
         ];
+        foreach ($extraHeaders as $h) {
+            $h = trim((string) $h);
+            // Не даём перезаписать Authorization извне (защита от утечки/подмены).
+            if ($h === '' || stripos($h, 'Authorization:') === 0) {
+                continue;
+            }
+            $headers[] = $h;
+        }
         $payload = null;
         if ($jsonBody !== null) {
             $headers[] = 'Content-Type: application/json';
@@ -176,19 +166,35 @@ class Client
         $http = $this->rawRequest(strtoupper($method), $url, $payload, $headers, true);
         if ($http === null) {
             $this->lastError = 'CDEK request failed: ' . $path;
-            return ['ok' => false, 'code' => 0, 'error' => $this->lastError];
+            $mapped = $this->errorMapper->mapLocal(CdekErrorMapper::INTERNAL_HTTP, $this->lastError);
+            return [
+                'ok' => false,
+                'code' => 0,
+                'error' => $this->lastError,
+                'error_mapped' => $mapped,
+                'request_id' => $requestId,
+                'duration_ms' => $this->elapsedMs($started),
+            ];
         }
 
         [$code, $body] = $http;
 
-        // Один повтор при протухшем токене
+        // Один повтор при протухшем токене (race между воркерами / Redis TTL).
         if ($code === 401) {
             $auth = $this->authorize(true);
             if ($auth['ok']) {
                 $headers = [
                     'Accept: application/json',
-                    'Authorization: Bearer ' . $this->accessToken,
+                    'Authorization: Bearer ' . $auth['token'],
+                    'X-Request-ID: ' . $requestId,
                 ];
+                foreach ($extraHeaders as $h) {
+                    $h = trim((string) $h);
+                    if ($h === '' || stripos($h, 'Authorization:') === 0) {
+                        continue;
+                    }
+                    $headers[] = $h;
+                }
                 if ($jsonBody !== null) {
                     $headers[] = 'Content-Type: application/json';
                 }
@@ -201,14 +207,17 @@ class Client
 
         $data = json_decode($body, true);
         if ($code >= 400) {
-            $msg = $this->extractErrorMessage(is_array($data) ? $data : [], $code);
-            $this->lastError = $msg;
+            $mapped = $this->errorMapper->map(is_array($data) ? $data : null, $code);
+            $this->lastError = $mapped['message'];
             return [
                 'ok' => false,
                 'code' => $code,
-                'error' => $msg,
+                'error' => $mapped['message'],
+                'error_mapped' => $mapped,
                 'data' => is_array($data) ? $data : null,
                 'body' => mb_substr($body, 0, 800),
+                'request_id' => $requestId,
+                'duration_ms' => $this->elapsedMs($started),
             ];
         }
 
@@ -217,11 +226,13 @@ class Client
             'code' => $code,
             'data' => $data,
             'body' => $body,
+            'request_id' => $requestId,
+            'duration_ms' => $this->elapsedMs($started),
         ];
     }
 
     /**
-     * @return array{ok: bool, code: int, data?: mixed, error?: string}
+     * @return array{ok: bool, code: int, data?: mixed, error?: string, request_id?: string, duration_ms?: int}
      */
     public function get(string $path, ?array $query = null): array
     {
@@ -230,11 +241,12 @@ class Client
 
     /**
      * @param array<string, mixed> $body
-     * @return array{ok: bool, code: int, data?: mixed, error?: string}
+     * @param list<string> $extraHeaders
+     * @return array{ok: bool, code: int, data?: mixed, error?: string, request_id?: string, duration_ms?: int}
      */
-    public function post(string $path, array $body): array
+    public function post(string $path, array $body, array $extraHeaders = []): array
     {
-        return $this->request('POST', $path, $body);
+        return $this->request('POST', $path, $body, null, $extraHeaders);
     }
 
     /**
@@ -258,7 +270,6 @@ class Client
             }
         }
 
-        // Fallback: известный код (edu API не находит «Астана» по короткому имени)
         $known = $this->knownCityCodes();
         $key = mb_strtolower($city);
         if (isset($known[$key])) {
@@ -388,75 +399,9 @@ class Client
         return rtrim((string) ($this->config['api_url'] ?? 'https://api.edu.cdek.ru/v2'), '/');
     }
 
-    private function tokenCachePath(): string
+    private function elapsedMs(int $startedHrtime): int
     {
-        $custom = trim((string) ($this->config['token_cache_path'] ?? ''));
-        if ($custom !== '') {
-            return $custom;
-        }
-        $dir = dirname(__DIR__, 3) . '/storage';
-        if (!is_dir($dir)) {
-            @mkdir($dir, 0775, true);
-        }
-        return $dir . '/cdek_token.json';
-    }
-
-    /** @return array{access_token: string, expires_at: int}|null */
-    private function readTokenCache(): ?array
-    {
-        $path = $this->tokenCachePath();
-        if (!is_file($path)) {
-            return null;
-        }
-        $raw = @file_get_contents($path);
-        if (!is_string($raw) || $raw === '') {
-            return null;
-        }
-        $data = json_decode($raw, true);
-        if (!is_array($data) || empty($data['access_token']) || empty($data['expires_at'])) {
-            return null;
-        }
-        if (time() >= (int) $data['expires_at']) {
-            return null;
-        }
-        return [
-            'access_token' => (string) $data['access_token'],
-            'expires_at' => (int) $data['expires_at'],
-        ];
-    }
-
-    private function writeTokenCache(string $token, int $expiresAt): void
-    {
-        $path = $this->tokenCachePath();
-        $dir = dirname($path);
-        if (!is_dir($dir)) {
-            @mkdir($dir, 0775, true);
-        }
-        @file_put_contents($path, json_encode([
-            'access_token' => $token,
-            'expires_at' => $expiresAt,
-        ], JSON_UNESCAPED_UNICODE));
-    }
-
-    /** @param array<string, mixed> $data */
-    private function extractErrorMessage(array $data, int $httpCode): string
-    {
-        if (!empty($data['error_description'])) {
-            return (string) $data['error_description'];
-        }
-        if (!empty($data['message'])) {
-            return (string) $data['message'];
-        }
-        if (!empty($data['errors']) && is_array($data['errors'])) {
-            $first = $data['errors'][0] ?? null;
-            if (is_array($first) && !empty($first['message'])) {
-                return (string) $first['message'];
-            }
-        }
-        if (!empty($data['requests'][0]['errors'][0]['message'])) {
-            return (string) $data['requests'][0]['errors'][0]['message'];
-        }
-        return 'CDEK HTTP ' . $httpCode;
+        return (int) round((hrtime(true) - $startedHrtime) / 1e6);
     }
 
     /**
@@ -486,7 +431,6 @@ class Client
             $opts[CURLOPT_POSTFIELDS] = $body ?? '';
         }
 
-        // MAMP/Windows иногда без CA bundle — пробуем системный, иначе ослабляем только в test_mode
         $ca = ini_get('curl.cainfo') ?: ini_get('openssl.cafile');
         if (is_string($ca) && $ca !== '' && is_file($ca)) {
             $opts[CURLOPT_CAINFO] = $ca;

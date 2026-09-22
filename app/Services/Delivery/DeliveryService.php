@@ -9,6 +9,7 @@ use App\Models\Notification;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
+use App\Services\Cdek\CdekDeliveryPointsSyncService;
 use App\Services\FreedomPay\Client as FreedomPayClient;
 
 class DeliveryService
@@ -211,10 +212,14 @@ class DeliveryService
             'origin_address_id' => $senderId,
         ]);
 
+        // Любое сохранение seller shipping → shipping_version++ (старые quotes невалидны по version).
+        $newVersion = $this->orders->bumpShippingVersion($deliveryOrderId);
+
         $this->orders->logEvent($deliveryOrderId, $actorId, 'seller', 'sender_saved', null, null, [
             'packaging_price' => $packagingPrice,
             'recommended_packaging_id' => $recommendedId,
             'gross_weight' => $grossWeight,
+            'shipping_version' => $newVersion,
         ]);
 
         $this->syncDataCompleteness($deliveryOrderId);
@@ -269,8 +274,34 @@ class DeliveryService
         if ($mode === 'courier' && trim((string) ($input['street'] ?? '')) === '') {
             return ['ok' => false, 'error' => t('delivery.address_required')];
         }
-        if ($mode === 'pvz' && trim((string) ($input['pvz_code'] ?? '')) === '') {
-            return ['ok' => false, 'error' => t('delivery.pvz_required')];
+
+        $pvzCode = trim((string) ($input['pvz_code'] ?? ''));
+        $pvzName = trim((string) ($input['pvz_name'] ?? '')) ?: null;
+        if ($mode === 'pvz') {
+            if ($pvzCode === '') {
+                return ['ok' => false, 'error' => t('delivery.pvz_required')];
+            }
+
+            $weightKg = null;
+            if (!empty($row['shipment']['billed_gross_weight'])) {
+                $weightKg = (float) $row['shipment']['billed_gross_weight'];
+            } elseif (!empty($row['shipment']['gross_weight'])) {
+                $weightKg = (float) $row['shipment']['gross_weight'];
+            }
+
+            $dir = new CdekDeliveryPointsSyncService();
+            $validated = $dir->validateCode($pvzCode, $city, $weightKg);
+            if (!$validated['ok']) {
+                return ['ok' => false, 'error' => $validated['error'] ?? t('delivery.pvz_not_found')];
+            }
+
+            $point = $validated['point'];
+            // Канонические значения из справочника — не доверяем frontend name/city для PVZ.
+            $pvzCode = (string) $point['code'];
+            $pvzName = (string) ($point['name'] ?? $point['address'] ?? $pvzCode);
+            if (!empty($point['city'])) {
+                $city = (string) $point['city'];
+            }
         }
 
         $oldFingerprint = $this->recipientFingerprint($row['recipient'] ?? null);
@@ -285,8 +316,8 @@ class DeliveryService
             'building' => trim((string) ($input['building'] ?? '')) ?: null,
             'apartment' => trim((string) ($input['apartment'] ?? '')) ?: null,
             'postal_code' => trim((string) ($input['postal_code'] ?? '')) ?: null,
-            'pvz_code' => trim((string) ($input['pvz_code'] ?? '')) ?: null,
-            'pvz_name' => trim((string) ($input['pvz_name'] ?? '')) ?: null,
+            'pvz_code' => $mode === 'pvz' ? $pvzCode : null,
+            'pvz_name' => $mode === 'pvz' ? $pvzName : null,
             'notes' => trim((string) ($input['notes'] ?? '')) ?: null,
         ];
 
@@ -341,6 +372,7 @@ class DeliveryService
             'recipient' => $row['recipient'],
             'shipment' => $row['shipment'],
             'packaging_price' => $packagingPrice,
+            'shipping_version' => (int) ($row['shipping_version'] ?? 1),
         ];
         $snapshot = $this->buildQuoteSnapshot($row, $context);
 
@@ -353,27 +385,39 @@ class DeliveryService
             return ['ok' => false, 'error' => t('delivery.quote_failed')];
         }
 
-        foreach ($quotes as &$q) {
-            $q['snapshot_json'] = $snapshot;
-        }
-        unset($q);
+        $reused = !empty($quotes[0]['reused']);
 
-        $this->orders->saveQuotes(
-            $deliveryOrderId,
-            (int) $row['logistics_provider_id'],
-            $requestId,
-            $quotes
-        );
+        if (!$reused) {
+            foreach ($quotes as &$q) {
+                // Не затираем CDEK meta из provider — мержим с AVR snapshot.
+                $providerSnap = is_array($q['snapshot_json'] ?? null) ? $q['snapshot_json'] : [];
+                $q['snapshot_json'] = array_merge($providerSnap, $snapshot);
+                $q['shipping_version'] = (int) ($row['shipping_version'] ?? 1);
+            }
+            unset($q);
+
+            $this->orders->saveQuotes(
+                $deliveryOrderId,
+                (int) $row['logistics_provider_id'],
+                $requestId,
+                $quotes
+            );
+        }
+
         $this->orders->transitionStatus(
             $deliveryOrderId,
             DeliveryOrder::STATUS_QUOTE_RECEIVED,
             null,
             'system',
-            'quote_received',
-            ['count' => count($quotes)]
+            $reused ? 'quote_reused' : 'quote_received',
+            [
+                'count' => count($quotes),
+                'reused' => $reused,
+                'request_hash' => $quotes[0]['request_payload_hash'] ?? null,
+            ]
         );
 
-        return ['ok' => true];
+        return ['ok' => true, 'reused' => $reused];
     }
 
     /** @return array{ok: bool, error?: string} */
@@ -439,17 +483,44 @@ class DeliveryService
             return ['ok' => false, 'error' => t('delivery.quote_expired')];
         }
 
-        $amount = (int) $quote['total_amount'];
+        // Final recalculation: цена только из нашего quote после сверки с провайдером.
+        $guard = new ShippingQuoteGuard($this->orders);
+        $revalidated = $guard->revalidateForPayment(
+            $row,
+            fn(int $id): array => $this->requestQuotes($id),
+            $this->providerFor($row)
+        );
+        if (!$revalidated['ok']) {
+            $this->orders->logEvent($deliveryOrderId, $actorId, 'buyer', 'payment_blocked_recalc', null, null, [
+                'reason' => $revalidated['reason'] ?? null,
+                'old_amount' => $revalidated['old_amount'] ?? null,
+                'new_amount' => $revalidated['new_amount'] ?? null,
+            ]);
+            return [
+                'ok' => false,
+                'error' => $revalidated['error'] ?? t('delivery.payment_failed'),
+                'reason' => $revalidated['reason'] ?? null,
+                'old_amount' => $revalidated['old_amount'] ?? null,
+                'new_amount' => $revalidated['new_amount'] ?? null,
+            ];
+        }
+
+        $amount = (int) ($revalidated['amount'] ?? 0);
         if ($amount <= 0) {
             return ['ok' => false, 'error' => t('delivery.invalid_amount')];
         }
+
+        // Перечитываем quote после возможного touch.
+        $row = $this->orders->findWithDetails($deliveryOrderId);
+        $quote = $row['selected_quote'] ?? $quote;
 
         $pending = (new DeliveryPayment())->findPendingForOrder($deliveryOrderId);
         if ($pending) {
             return ['ok' => false, 'error' => t('delivery.payment_pending')];
         }
 
-        $idempotencyKey = 'del-pay-' . $deliveryOrderId . '-' . (int) $quote['id'];
+        // Idempotency: quote+amount — повтор после fail с той же суммой не ломает unique key.
+        $idempotencyKey = 'del-pay-' . $deliveryOrderId . '-' . (int) $quote['id'] . '-' . $amount;
         $pgOrderId = 'zk-del-' . $deliveryOrderId . '-' . bin2hex(random_bytes(4));
 
         $fp = new FreedomPayClient();
@@ -548,6 +619,16 @@ class DeliveryService
             return ['ok' => false, 'error' => t('delivery.bad_status')];
         }
 
+        // Защита от race: два payment-callback не должны параллельно дергать create.
+        // Для CDEK доп. lock внутри CdekOrderService; здесь — локальный pre-check после re-read.
+        $row = $this->orders->findWithDetails($deliveryOrderId);
+        if (!$row) {
+            return ['ok' => false, 'error' => t('delivery.not_found')];
+        }
+        if (!empty($row['logistics_order_id'])) {
+            return ['ok' => true];
+        }
+
         $avr = $this->avrPayload($deliveryOrderId);
         try {
             $result = $this->providerFor($row)->createOrder($avr);
@@ -583,27 +664,34 @@ class DeliveryService
         return ['ok' => true];
     }
 
-    /** @return array{ok: bool, error?: string} */
-    public function handleLogisticsWebhook(array $payload): array
-    {
+    /**
+     * @param array<string, mixed> $payload
+     * @param array<string, string> $headers
+     * @param array<string, mixed> $query
+     * @return array{ok: bool, error?: string, duplicate?: bool, delivery_order_id?: int, status?: string|null}
+     */
+    public function handleLogisticsWebhook(
+        array $payload,
+        array $headers = [],
+        array $query = [],
+        string $rawBody = ''
+    ): array {
         $hint = (string) ($payload['provider'] ?? '');
         if ($hint === '' && (!empty($payload['type']) || !empty($payload['uuid']))) {
             $hint = 'cdek';
         }
 
-        $provider = match ($hint) {
-            'cdek' => new CdekLogisticsProvider(null, $this->orders),
-            default => new StubLogisticsProvider(),
-        };
+        if ($hint === 'cdek') {
+            $cdek = new \App\Services\Cdek\CdekWebhookService(null, null, $this->orders);
+            $auth = $cdek->authorize($headers, $query);
+            if (!$auth['ok']) {
+                return ['ok' => false, 'error' => $auth['error'] ?? 'unauthorized'];
+            }
+            return $cdek->handle($payload, $rawBody);
+        }
 
-        // Сначала пробуем выбранный провайдер, затем fallback stub/cdek
+        $provider = new StubLogisticsProvider();
         $parsed = $provider->handleStatusWebhook($payload);
-        if (!$parsed && $hint !== 'cdek') {
-            $parsed = (new CdekLogisticsProvider(null, $this->orders))->handleStatusWebhook($payload);
-        }
-        if (!$parsed && $hint === 'cdek') {
-            $parsed = (new StubLogisticsProvider())->handleStatusWebhook($payload);
-        }
         if (!$parsed) {
             return ['ok' => false, 'error' => 'invalid_payload'];
         }
@@ -742,6 +830,8 @@ class DeliveryService
         return [
             'delivery_order_id' => (int) $row['id'],
             'order_number' => $row['order_number'],
+            'shipping_version' => (int) ($row['shipping_version'] ?? 1),
+            'listing_shipping_version' => (int) ($row['listing_shipping_version'] ?? 1),
             'origin' => $row['sender'],
             'destination' => $row['recipient'],
             'shipment' => $row['shipment'],

@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Core\Auth;
 use App\Core\Controller;
+use App\Models\CdekDeliveryPoint;
 use App\Models\DeliveryOrder;
 use App\Models\Notification;
 use App\Models\Order;
@@ -132,17 +133,63 @@ class DeliveryController extends Controller
     }
 
     /**
-     * Webhook статусов от логистики (подпись — в следующей итерации интеграции).
+     * Локальный справочник ПВЗ (не прямой прокси в CDEK).
+     * GET /delivery/cdek/points?city=&city_code=&q=&type=
+     */
+    public function cdekPoints(): void
+    {
+        Auth::requireLogin();
+
+        $points = new CdekDeliveryPoint();
+        $rows = $points->search([
+            'city' => trim((string) ($_GET['city'] ?? '')),
+            'city_code' => (int) ($_GET['city_code'] ?? 0) ?: null,
+            'q' => trim((string) ($_GET['q'] ?? '')),
+            'type' => trim((string) ($_GET['type'] ?? '')),
+            'country_code' => strtoupper(trim((string) ($_GET['country_code'] ?? 'KZ'))) ?: 'KZ',
+            'limit' => (int) ($_GET['limit'] ?? 30),
+            'offset' => (int) ($_GET['offset'] ?? 0),
+        ]);
+
+        $public = array_map(static fn(array $r): array => CdekDeliveryPoint::toPublic($r), $rows);
+
+        $this->json([
+            'ok' => true,
+            'points' => $public,
+            'count' => count($public),
+            'directory_total' => $points->countActive('KZ'),
+        ]);
+    }
+
+    /**
+     * Webhook статусов от логистики (CDEK: shared token + idempotent event_hash).
      */
     public function logisticsWebhook(): void
     {
         $raw = file_get_contents('php://input') ?: '';
         $payload = json_decode($raw, true);
         if (!is_array($payload)) {
-            $payload = $_POST;
+            $payload = is_array($_POST) ? $_POST : [];
         }
 
-        $result = (new DeliveryService())->handleLogisticsWebhook($payload);
-        $this->json($result, $result['ok'] ? 200 : 422);
+        $headers = [];
+        foreach ($_SERVER as $key => $value) {
+            if (str_starts_with($key, 'HTTP_') && is_scalar($value)) {
+                $name = strtolower(str_replace('_', '-', substr($key, 5)));
+                $headers[$name] = (string) $value;
+            }
+        }
+        // Apache/CGI иногда отдаёт без HTTP_ префикса для кастомных.
+        if (isset($_SERVER['HTTP_X_CDEK_WEBHOOK_TOKEN'])) {
+            $headers['x-cdek-webhook-token'] = (string) $_SERVER['HTTP_X_CDEK_WEBHOOK_TOKEN'];
+        }
+
+        $result = (new DeliveryService())->handleLogisticsWebhook($payload, $headers, $_GET, $raw);
+        $code = 200;
+        if (empty($result['ok'])) {
+            $err = (string) ($result['error'] ?? '');
+            $code = in_array($err, ['unauthorized', 'webhook_token_not_configured'], true) ? 401 : 422;
+        }
+        $this->json($result, $code);
     }
 }

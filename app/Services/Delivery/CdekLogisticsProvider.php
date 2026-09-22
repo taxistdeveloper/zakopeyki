@@ -3,23 +3,47 @@
 namespace App\Services\Delivery;
 
 use App\Models\DeliveryOrder;
+use App\Services\Cdek\CdekCalculatorRequestBuilder;
+use App\Services\Cdek\CdekCalculatorResponseMapper;
+use App\Services\Cdek\CdekErrorMapper;
+use App\Services\Cdek\CdekOrderService;
+use App\Services\Cdek\CdekQuoteReuseService;
 use App\Services\Cdek\Client as CdekClient;
 
 /**
  * Провайдер доставки СДЭК (API v2).
+ *
+ * Marketplace-адаптер: переводит delivery context ↔ CDEK через
+ * CdekCalculatorRequestBuilder / CdekCalculatorResponseMapper.
+ * HTTP остаётся в Cdek\Client.
+ *
  * @see https://apidoc.cdek.ru/#tag/common/Vvedenie
+ * @see openapi_api_v2_integration.json
  */
 class CdekLogisticsProvider implements LogisticsProviderInterface
 {
-    private const TARIFF_VERSION = 'cdek-v2';
-
     private CdekClient $client;
-    private ?DeliveryOrder $orders;
+    /** @var DeliveryOrder|object|null */
+    private ?object $orders;
+    private CdekCalculatorRequestBuilder $requestBuilder;
+    private CdekCalculatorResponseMapper $responseMapper;
+    private CdekErrorMapper $errorMapper;
+    private CdekOrderService $orderService;
 
-    public function __construct(?CdekClient $client = null, ?DeliveryOrder $orders = null)
-    {
+    public function __construct(
+        ?CdekClient $client = null,
+        ?object $orders = null,
+        ?CdekCalculatorRequestBuilder $requestBuilder = null,
+        ?CdekCalculatorResponseMapper $responseMapper = null,
+        ?CdekErrorMapper $errorMapper = null,
+        ?CdekOrderService $orderService = null
+    ) {
         $this->client = $client ?? new CdekClient();
         $this->orders = $orders;
+        $this->errorMapper = $errorMapper ?? new CdekErrorMapper();
+        $this->requestBuilder = $requestBuilder ?? new CdekCalculatorRequestBuilder($this->errorMapper);
+        $this->responseMapper = $responseMapper ?? new CdekCalculatorResponseMapper($this->errorMapper);
+        $this->orderService = $orderService ?? new CdekOrderService($this->client, null, $this->errorMapper);
     }
 
     public function isConfigured(): bool
@@ -40,169 +64,151 @@ class CdekLogisticsProvider implements LogisticsProviderInterface
 
         $fromCity = trim((string) ($sender['city'] ?? ''));
         $toCity = trim((string) ($recipient['city'] ?? ''));
-        if ($fromCity === '' || $toCity === '') {
-            $this->logApi($deliveryOrderId, '/calculator/tarifflist', 0, null, 'missing city');
-            return [];
-        }
+        $hasShipmentPoint = trim((string) ($sender['shipment_point'] ?? $sender['pvz_code'] ?? '')) !== '';
+        $mode = (string) ($recipient['delivery_mode'] ?? 'courier');
+        $hasDeliveryPoint = in_array($mode, ['pvz', 'pickup_point'], true)
+            && trim((string) ($recipient['pvz_code'] ?? $recipient['delivery_point'] ?? '')) !== '';
 
-        $from = $this->client->findCityCode($fromCity, $sender['country'] ?? null);
-        $to = $this->client->findCityCode($toCity, $recipient['country'] ?? null);
-        if ($from === null || $to === null) {
-            $this->logApi(
-                $deliveryOrderId,
-                '/location/cities',
-                0,
-                null,
-                'city not found: ' . ($from === null ? $fromCity : $toCity)
-            );
-            return [];
+        // Города нужны только если origin/destination идут через location, а не point.
+        $from = null;
+        $to = null;
+        if (!$hasShipmentPoint) {
+            if ($fromCity === '') {
+                $this->logApi($deliveryOrderId, '/calculator/tarifflist', 0, null, 'missing origin city', null, null);
+                return [];
+            }
+            $from = $this->client->findCityCode($fromCity, $sender['country'] ?? null);
+            if ($from === null) {
+                $this->logApi($deliveryOrderId, '/location/cities', 0, null, 'city not found: ' . $fromCity, null, null);
+                return [];
+            }
         }
-
-        $weightKg = (float) ($shipment['billed_gross_weight']
-            ?? $shipment['gross_weight']
-            ?? $shipment['weight_value']
-            ?? 1);
-        if ($weightKg <= 0) {
-            $weightKg = 1.0;
+        if (!$hasDeliveryPoint) {
+            if ($toCity === '') {
+                $this->logApi($deliveryOrderId, '/calculator/tarifflist', 0, null, 'missing destination city', null, null);
+                return [];
+            }
+            $to = $this->client->findCityCode($toCity, $recipient['country'] ?? null);
+            if ($to === null) {
+                $this->logApi($deliveryOrderId, '/location/cities', 0, null, 'city not found: ' . $toCity, null, null);
+                return [];
+            }
         }
-
-        $length = (int) max(1, round((float) ($shipment['billed_length'] ?? $shipment['package_length'] ?? $shipment['length_value'] ?? 20)));
-        $width = (int) max(1, round((float) ($shipment['billed_width'] ?? $shipment['package_width'] ?? $shipment['width_value'] ?? 20)));
-        $height = (int) max(1, round((float) ($shipment['billed_height'] ?? $shipment['package_height'] ?? $shipment['height_value'] ?? 10)));
 
         $cfg = $this->client->config();
-        $payload = [
-            'type' => (int) ($cfg['order_type'] ?? 1),
-            'currency' => (int) ($cfg['currency'] ?? 2),
-            'lang' => (string) ($cfg['lang'] ?? 'rus'),
-            'from_location' => ['code' => $from['code']],
-            'to_location' => ['code' => $to['code']],
-            'packages' => [[
-                'weight' => (int) max(1, round($weightKg * 1000)),
-                'length' => $length,
-                'width' => $width,
-                'height' => $height,
-            ]],
-        ];
+        $built = $this->requestBuilder->buildFromDeliveryContext(
+            $sender,
+            $recipient,
+            $shipment,
+            [
+                'type' => (int) ($cfg['order_type'] ?? 1),
+                'currency' => (int) ($cfg['currency'] ?? 2),
+                'lang' => (string) ($cfg['lang'] ?? 'rus'),
+            ],
+            [
+                'from_city_code' => $from['code'] ?? null,
+                'to_city_code' => $to['code'] ?? null,
+            ]
+        );
+
+        if (!$built['ok']) {
+            $err = $built['error']['message'] ?? 'calculator request build failed';
+            $this->logApi($deliveryOrderId, '/calculator/tarifflist', 0, null, $err, null, null);
+            return [];
+        }
+
+        $payload = $built['payload'];
+        $requestHash = $built['request_hash'];
+        $routeHash = (string) ($built['route_hash'] ?? '');
+        $packageHash = (string) ($built['package_hash'] ?? '');
+        $shippingVersion = (int) ($context['shipping_version'] ?? 0);
+
+        // §21: reuse свежего quote с тем же request_hash + shipping_version.
+        if ($deliveryOrderId > 0 && $requestHash !== '' && $shippingVersion > 0 && $this->orders !== null) {
+            $cachedRows = $this->orders->findReusableQuotes($deliveryOrderId, $requestHash, $shippingVersion);
+            $reuse = (new CdekQuoteReuseService())->tryReuse(
+                $cachedRows,
+                $requestHash,
+                $shippingVersion,
+                $routeHash !== '' ? $routeHash : null,
+                $packageHash !== '' ? $packageHash : null
+            );
+            if ($reuse['ok'] && !empty($reuse['quotes'])) {
+                $this->logApi(
+                    $deliveryOrderId,
+                    '/calculator/tarifflist',
+                    200,
+                    $requestHash,
+                    null,
+                    'reuse:' . count($reuse['quotes']),
+                    'local-reuse',
+                    0
+                );
+                return $reuse['quotes'];
+            }
+        }
 
         $res = $this->client->post('/calculator/tarifflist', $payload);
         $this->logApi(
             $deliveryOrderId,
             '/calculator/tarifflist',
             (int) ($res['code'] ?? 0),
-            hash('sha256', json_encode($payload, JSON_UNESCAPED_UNICODE)),
+            $requestHash,
             $res['ok'] ? null : ($res['error'] ?? 'tarifflist failed'),
-            $res['ok'] ? hash('sha256', (string) ($res['body'] ?? '')) : null
+            $res['ok'] ? hash('sha256', (string) ($res['body'] ?? '')) : null,
+            $res['request_id'] ?? null,
+            $res['duration_ms'] ?? null
         );
 
         if (!$res['ok']) {
             return [];
         }
 
-        $tariffs = $res['data']['tariff_codes'] ?? [];
-        if (!is_array($tariffs) || $tariffs === []) {
-            return [];
-        }
-
-        $mode = (string) ($recipient['delivery_mode'] ?? 'courier');
         $packagingAmount = (int) ($context['packaging_price'] ?? 0);
         $handling = !empty($shipment['is_irregular']) ? 500 : 0;
         $fragile = !empty($shipment['is_fragile']) ? 300 : 0;
-        $requestHash = hash('sha256', json_encode($payload, JSON_UNESCAPED_UNICODE));
-        $validUntil = date('Y-m-d H:i:s', strtotime('+2 hours'));
-        $currencyLabel = (string) ($cfg['currency_label'] ?? 'KZT');
 
-        $quotes = [];
-        foreach ($tariffs as $tariff) {
-            if (!is_array($tariff) || empty($tariff['tariff_code'])) {
-                continue;
-            }
-            $deliveryMode = (int) ($tariff['delivery_mode'] ?? 0);
-            if (!$this->modeMatches($mode, $deliveryMode)) {
-                continue;
-            }
+        $weightKg = $shipment['billed_gross_weight']
+            ?? $shipment['gross_weight']
+            ?? $shipment['weight_value']
+            ?? null;
 
-            $base = (int) max(0, round((float) ($tariff['delivery_sum'] ?? 0)));
-            $total = $base + $packagingAmount + $handling + $fragile;
-            $code = 'cdek_' . (int) $tariff['tariff_code'];
-            $name = trim((string) ($tariff['tariff_name'] ?? ('СДЭК #' . $tariff['tariff_code'])));
-            if ($name === '') {
-                $name = 'СДЭК #' . $tariff['tariff_code'];
-            }
-
-            $meta = [
-                'cdek_tariff_code' => (int) $tariff['tariff_code'],
-                'cdek_delivery_mode' => $deliveryMode,
-                'from_city_code' => $from['code'],
-                'to_city_code' => $to['code'],
-                'delivery_sum' => $tariff['delivery_sum'] ?? null,
-            ];
-
-            $quotes[] = [
-                'service_code' => $code,
-                'service_name' => $name,
-                'tariff_version' => self::TARIFF_VERSION,
-                'base_amount' => $base,
+        $mapped = $this->responseMapper->map(
+            is_array($res['data'] ?? null) ? $res['data'] : null,
+            [
                 'packaging_amount' => $packagingAmount,
                 'handling_amount' => $handling,
-                'extra_services_amount' => $fragile,
-                'discount_amount' => 0,
-                'total_amount' => $total,
-                'currency' => $currencyLabel,
-                'billable_weight' => $weightKg,
-                'billable_weight_method' => 'cdek_package_kg',
-                'calculation_method' => 'cdek_tarifflist_v2',
-                'eta_days_min' => isset($tariff['period_min']) ? (int) $tariff['period_min'] : (isset($tariff['calendar_min']) ? (int) $tariff['calendar_min'] : null),
-                'eta_days_max' => isset($tariff['period_max']) ? (int) $tariff['period_max'] : (isset($tariff['calendar_max']) ? (int) $tariff['calendar_max'] : null),
-                'valid_until' => $validUntil,
-                'request_payload_hash' => $requestHash,
-                'response_hash' => hash('sha256', $code . $total . json_encode($meta)),
-                'snapshot_json' => $meta,
-            ];
+                'fragile_amount' => $fragile,
+                'currency_label' => (string) ($cfg['currency_label'] ?? 'KZT'),
+                'request_hash' => $requestHash,
+                'route_hash' => $routeHash,
+                'package_hash' => $packageHash,
+                'quote_ttl_seconds' => 7200,
+                'delivery_mode_filter' => $mode,
+                'billable_weight_kg' => $weightKg,
+                'meta' => [
+                    'from_city_code' => $from['code'] ?? null,
+                    'to_city_code' => $to['code'] ?? null,
+                    'cdek_request_id' => $res['request_id'] ?? null,
+                ],
+            ]
+        );
+
+        if (!$mapped['ok']) {
+            $this->logApi(
+                $deliveryOrderId,
+                '/calculator/tarifflist',
+                (int) ($res['code'] ?? 200),
+                $requestHash,
+                $mapped['error']['message'] ?? 'mapper failed',
+                null,
+                $res['request_id'] ?? null
+            );
+            return [];
         }
 
-        // Если фильтр по режиму ничего не дал — вернём топ тарифов без фильтра (тестовая отладка)
-        if ($quotes === [] && $tariffs !== []) {
-            foreach (array_slice($tariffs, 0, 5) as $tariff) {
-                if (!is_array($tariff) || empty($tariff['tariff_code'])) {
-                    continue;
-                }
-                $base = (int) max(0, round((float) ($tariff['delivery_sum'] ?? 0)));
-                $total = $base + $packagingAmount + $handling + $fragile;
-                $code = 'cdek_' . (int) $tariff['tariff_code'];
-                $quotes[] = [
-                    'service_code' => $code,
-                    'service_name' => (string) ($tariff['tariff_name'] ?? $code),
-                    'tariff_version' => self::TARIFF_VERSION,
-                    'base_amount' => $base,
-                    'packaging_amount' => $packagingAmount,
-                    'handling_amount' => $handling,
-                    'extra_services_amount' => $fragile,
-                    'discount_amount' => 0,
-                    'total_amount' => $total,
-                    'currency' => $currencyLabel,
-                    'billable_weight' => $weightKg,
-                    'billable_weight_method' => 'cdek_package_kg',
-                    'calculation_method' => 'cdek_tarifflist_v2_unfiltered',
-                    'eta_days_min' => isset($tariff['period_min']) ? (int) $tariff['period_min'] : null,
-                    'eta_days_max' => isset($tariff['period_max']) ? (int) $tariff['period_max'] : null,
-                    'valid_until' => $validUntil,
-                    'request_payload_hash' => $requestHash,
-                    'response_hash' => hash('sha256', $code . $total),
-                    'snapshot_json' => [
-                        'cdek_tariff_code' => (int) $tariff['tariff_code'],
-                        'cdek_delivery_mode' => (int) ($tariff['delivery_mode'] ?? 0),
-                        'from_city_code' => $from['code'],
-                        'to_city_code' => $to['code'],
-                        'unfiltered' => true,
-                    ],
-                ];
-            }
-        }
-
-        usort($quotes, static fn(array $a, array $b): int => $a['total_amount'] <=> $b['total_amount']);
-
-        return array_slice($quotes, 0, 8);
+        // Unfiltered fallback удалён: нельзя предлагать door-тариф для PVZ (и наоборот).
+        return $mapped['quotes'];
     }
 
     public function createOrder(array $context): array
@@ -212,115 +218,65 @@ class CdekLogisticsProvider implements LogisticsProviderInterface
         }
 
         $deliveryOrderId = (int) ($context['delivery_order_id'] ?? 0);
-        $sender = $context['sender'] ?? [];
-        $recipient = $context['recipient'] ?? [];
-        $shipment = $context['shipment'] ?? [];
-        $service = $context['service'] ?? [];
-        $orderNumber = (string) ($context['order_number'] ?? ('DO-' . $deliveryOrderId));
-
-        $tariffCode = $this->parseTariffCode((string) ($service['service_code'] ?? ''));
-        if ($tariffCode === null) {
-            throw new \RuntimeException('CDEK tariff_code missing in selected quote');
-        }
-
-        $fromCity = $this->client->findCityCode((string) ($sender['city'] ?? ''), $sender['country'] ?? null);
-        $toCity = $this->client->findCityCode((string) ($recipient['city'] ?? ''), $recipient['country'] ?? null);
-        if ($fromCity === null || $toCity === null) {
-            throw new \RuntimeException('CDEK city resolve failed for order create');
-        }
-
-        $weightKg = (float) ($shipment['billed_gross_weight'] ?? $shipment['gross_weight'] ?? $shipment['weight_value'] ?? 1);
-        if ($weightKg <= 0) {
-            $weightKg = 1.0;
-        }
-        $length = (int) max(1, round((float) ($shipment['billed_length'] ?? $shipment['package_length'] ?? 20)));
-        $width = (int) max(1, round((float) ($shipment['billed_width'] ?? $shipment['package_width'] ?? 20)));
-        $height = (int) max(1, round((float) ($shipment['billed_height'] ?? $shipment['package_height'] ?? 10)));
-
-        $cfg = $this->client->config();
-        $payload = [
-            'type' => (int) ($cfg['order_type'] ?? 1),
-            'number' => $orderNumber,
-            'tariff_code' => $tariffCode,
-            'comment' => 'Zakapeiku delivery #' . $deliveryOrderId,
-            'sender' => [
-                'name' => (string) ($sender['name'] ?? 'Sender'),
-                'phones' => [['number' => $this->normalizePhone((string) ($sender['phone'] ?? ''))]],
-            ],
-            'recipient' => [
-                'name' => (string) ($recipient['name'] ?? 'Recipient'),
-                'phones' => [['number' => $this->normalizePhone((string) ($recipient['phone'] ?? ''))]],
-            ],
-            'from_location' => [
-                'code' => $fromCity['code'],
-                'address' => $this->formatAddress($sender),
-            ],
-            'to_location' => [
-                'code' => $toCity['code'],
-                'address' => $this->formatAddress($recipient),
-            ],
-            'packages' => [[
-                'number' => '1',
-                'weight' => (int) max(1, round($weightKg * 1000)),
-                'length' => $length,
-                'width' => $width,
-                'height' => $height,
-                'items' => [[
-                    'name' => mb_substr((string) ($shipment['product_title'] ?? 'Товар'), 0, 255),
-                    'ware_key' => 'item-' . $deliveryOrderId,
-                    'payment' => ['value' => 0],
-                    'cost' => 0,
-                    'weight' => (int) max(1, round($weightKg * 1000)),
-                    'amount' => 1,
-                ]],
-            ]],
-        ];
-
-        if (!empty($sender['email'])) {
-            $payload['sender']['email'] = (string) $sender['email'];
-        }
-        if (!empty($recipient['email'])) {
-            $payload['recipient']['email'] = (string) $recipient['email'];
-        }
+        $sender = is_array($context['sender'] ?? null) ? $context['sender'] : [];
+        $recipient = is_array($context['recipient'] ?? null) ? $context['recipient'] : [];
 
         $mode = (string) ($recipient['delivery_mode'] ?? 'courier');
-        $pvz = trim((string) ($recipient['pvz_code'] ?? ''));
-        if (in_array($mode, ['pvz', 'pickup_point'], true) && $pvz !== '') {
-            $payload['delivery_point'] = $pvz;
-            unset($payload['to_location']['address']);
+        $hasDeliveryPoint = in_array($mode, ['pvz', 'pickup_point'], true)
+            && trim((string) ($recipient['pvz_code'] ?? $recipient['delivery_point'] ?? '')) !== '';
+        $hasShipmentPoint = trim((string) ($sender['shipment_point'] ?? '')) !== '';
+
+        $fromCityCode = null;
+        $toCityCode = null;
+
+        if (!$hasShipmentPoint) {
+            $fromCity = $this->client->findCityCode((string) ($sender['city'] ?? ''), $sender['country'] ?? null);
+            if ($fromCity === null) {
+                throw new \RuntimeException('CDEK city resolve failed for sender');
+            }
+            $fromCityCode = (int) $fromCity['code'];
         }
 
-        $res = $this->client->post('/orders', $payload);
+        if (!$hasDeliveryPoint) {
+            $toCity = $this->client->findCityCode((string) ($recipient['city'] ?? ''), $recipient['country'] ?? null);
+            if ($toCity === null) {
+                throw new \RuntimeException('CDEK city resolve failed for recipient');
+            }
+            $toCityCode = (int) $toCity['code'];
+        }
+
+        $cfg = $this->client->config();
+        $result = $this->orderService->create($context, [
+            'from_city_code' => $fromCityCode,
+            'to_city_code' => $toCityCode,
+            'type' => (int) ($cfg['order_type'] ?? 1),
+            'existing_uuid' => $context['identifiers']['logistics_order_id'] ?? null,
+        ]);
+
         $this->logApi(
             $deliveryOrderId,
             '/orders',
-            (int) ($res['code'] ?? 0),
-            hash('sha256', json_encode($payload, JSON_UNESCAPED_UNICODE)),
-            $res['ok'] ? null : ($res['error'] ?? 'order create failed'),
-            $res['ok'] ? hash('sha256', (string) ($res['body'] ?? '')) : null
+            $result['ok'] ? 202 : 0,
+            $result['payload_hash'] ?? null,
+            $result['ok'] ? null : ($result['error'] ?? 'order create failed'),
+            null,
+            $result['request_id'] ?? null
         );
 
-        if (!$res['ok']) {
-            throw new \RuntimeException($res['error'] ?? 'CDEK order create failed');
-        }
-
-        $entity = $res['data']['entity'] ?? [];
-        $uuid = (string) ($entity['uuid'] ?? '');
-        $cdekNumber = isset($entity['cdek_number']) ? (string) $entity['cdek_number'] : null;
-
-        if ($uuid === '') {
-            throw new \RuntimeException('CDEK order response without uuid');
+        if (!$result['ok']) {
+            $msg = $result['error_mapped']['message'] ?? ($result['error'] ?? 'CDEK order create failed');
+            throw new \RuntimeException($msg);
         }
 
         return [
-            'logistics_order_id' => $uuid,
-            'tracking_number' => $cdekNumber,
+            'logistics_order_id' => (string) $result['logistics_order_id'],
+            'tracking_number' => $result['tracking_number'] ?? null,
+            'already_existed' => !empty($result['already_existed']),
         ];
     }
 
     public function handleStatusWebhook(array $payload): ?array
     {
-        // Формат СДЭК ORDER_STATUS
         $type = (string) ($payload['type'] ?? '');
         $attrs = $payload['attributes'] ?? ($payload['payload'] ?? []);
         if (!is_array($attrs)) {
@@ -333,7 +289,8 @@ class CdekLogisticsProvider implements LogisticsProviderInterface
 
         $statusCode = (string) ($attrs['code'] ?? $attrs['status_code'] ?? $payload['status'] ?? '');
         $ourNumber = (string) ($attrs['number'] ?? $payload['number'] ?? '');
-        $uuid = (string) ($payload['uuid'] ?? $attrs['uuid'] ?? '');
+        // ORDER_STATUS: payload.uuid = event uuid; attributes.uuid = CDEK order uuid.
+        $orderUuid = (string) ($attrs['uuid'] ?? $attrs['order_uuid'] ?? '');
         $cdekNumber = (string) ($attrs['cdek_number'] ?? $payload['cdek_number'] ?? '');
 
         $mapped = $this->mapCdekStatus($statusCode);
@@ -341,23 +298,27 @@ class CdekLogisticsProvider implements LogisticsProviderInterface
             return null;
         }
 
+        $orders = $this->orders ?? new DeliveryOrder();
         $deliveryOrderId = 0;
-        if ($ourNumber !== '' && preg_match('/DO-/i', $ourNumber)) {
-            $orders = $this->orders ?? new DeliveryOrder();
+
+        // Resolve только по im_number / CDEK uuid / tracking — НЕ по payload.delivery_order_id (IDOR).
+        if ($ourNumber !== '') {
             $found = $orders->findByOrderNumber($ourNumber);
             if ($found) {
                 $deliveryOrderId = (int) $found['id'];
             }
         }
-        if ($deliveryOrderId <= 0 && $uuid !== '') {
-            $orders = $this->orders ?? new DeliveryOrder();
-            $found = $orders->findByLogisticsOrderId($uuid);
+        if ($deliveryOrderId <= 0 && $orderUuid !== '') {
+            $found = $orders->findByLogisticsOrderId($orderUuid);
             if ($found) {
                 $deliveryOrderId = (int) $found['id'];
             }
         }
-        if ($deliveryOrderId <= 0 && !empty($payload['delivery_order_id'])) {
-            $deliveryOrderId = (int) $payload['delivery_order_id'];
+        if ($deliveryOrderId <= 0 && $cdekNumber !== '') {
+            $found = $orders->findByTrackingNumber($cdekNumber);
+            if ($found) {
+                $deliveryOrderId = (int) $found['id'];
+            }
         }
 
         if ($deliveryOrderId <= 0) {
@@ -373,62 +334,22 @@ class CdekLogisticsProvider implements LogisticsProviderInterface
         ];
     }
 
-    private function modeMatches(string $ourMode, int $cdekMode): bool
-    {
-        // 1 door-door, 2 door-warehouse, 3 warehouse-door, 4 warehouse-warehouse, 6/7 postamat
-        if (in_array($ourMode, ['pvz', 'pickup_point'], true)) {
-            return in_array($cdekMode, [2, 4, 6, 7], true);
-        }
-        // courier / default — до двери
-        return in_array($cdekMode, [1, 3], true);
-    }
-
-    private function parseTariffCode(string $serviceCode): ?int
-    {
-        if (preg_match('/^cdek_(\d+)$/i', $serviceCode, $m)) {
-            return (int) $m[1];
-        }
-        if (ctype_digit($serviceCode)) {
-            return (int) $serviceCode;
-        }
-        return null;
-    }
-
-    /** @param array<string, mixed> $addr */
-    private function formatAddress(array $addr): string
-    {
-        $parts = array_filter([
-            trim((string) ($addr['street'] ?? '')),
-            trim((string) ($addr['building'] ?? '')),
-            trim((string) ($addr['apartment'] ?? '')),
-        ], static fn($v) => $v !== '');
-        $line = implode(', ', $parts);
-        return $line !== '' ? $line : (string) ($addr['city'] ?? '');
-    }
-
-    private function normalizePhone(string $phone): string
-    {
-        $digits = preg_replace('/\D+/', '', $phone) ?: '';
-        if ($digits === '') {
-            return '+70000000000';
-        }
-        if ($digits[0] !== '+' && !str_starts_with($phone, '+')) {
-            return '+' . $digits;
-        }
-        return str_starts_with($phone, '+') ? ('+' . $digits) : $digits;
-    }
-
     private function mapCdekStatus(string $code): ?string
     {
         $code = strtoupper(trim($code));
         return match ($code) {
-            'ACCEPTED', 'CREATED', 'RECEIVED_AT_SHIPMENT_WAREHOUSE', 'READY_FOR_SHIPMENT_IN_SENDER_CITY' => 'ACCEPTED',
+            'ACCEPTED', 'CREATED', 'RECEIVED_AT_SHIPMENT_WAREHOUSE',
+            'READY_FOR_SHIPMENT_IN_SENDER_CITY', 'READY_FOR_SHIPMENT_IN_TRANSIT_CITY',
+            'PASSED_TO_CARRIER_AT_SENDER_CITY' => 'ACCEPTED',
             'TAKEN_BY_TRANSPORTER_FROM_SENDER_CITY', 'SENT_TO_RECIPIENT_CITY',
-            'ACCEPTED_AT_RECIPIENT_CITY_WAREHOUSE', 'TAKEN_BY_COURIER',
-            'RECEIVED_AT_SENDER_WAREHOUSE' => 'IN_TRANSIT',
-            'DELIVERED' => 'DELIVERED',
-            'NOT_DELIVERED', 'INVALID' => 'EXCEPTION',
-            default => $code !== '' ? null : null,
+            'ACCEPTED_AT_RECIPIENT_CITY_WAREHOUSE', 'ACCEPTED_AT_TRANSIT_WAREHOUSE',
+            'TAKEN_BY_COURIER', 'RECEIVED_AT_SENDER_WAREHOUSE',
+            'RETURNED_TO_SENDER_CITY' => 'IN_TRANSIT',
+            'READY_FOR_PICKUP', 'ACCEPTED_AT_PICK_UP_POINT',
+            'POSTOMAT_POSTED', 'POSTOMAT_SEIZED' => 'READY_FOR_PICKUP',
+            'DELIVERED', 'POSTOMAT_RECEIVED' => 'DELIVERED',
+            'NOT_DELIVERED', 'INVALID', 'REMOVED_FROM_PICKUP_POINT' => 'EXCEPTION',
+            default => null,
         };
     }
 
@@ -438,11 +359,21 @@ class CdekLogisticsProvider implements LogisticsProviderInterface
         int $responseCode,
         ?string $requestHash,
         ?string $error,
-        ?string $responseHash = null
+        ?string $responseHash = null,
+        ?string $requestId = null,
+        ?int $durationMs = null
     ): void {
         try {
             $orders = $this->orders ?? new DeliveryOrder();
             $providerId = $orders->providerIdByCode('cdek');
+            $msg = $error;
+            if ($requestId !== null && $requestId !== '') {
+                $suffix = ' rid=' . $requestId;
+                if ($durationMs !== null) {
+                    $suffix .= ' ' . $durationMs . 'ms';
+                }
+                $msg = ($msg !== null && $msg !== '' ? $msg . ' |' : '') . $suffix;
+            }
             $orders->logApiCall(
                 $deliveryOrderId > 0 ? $deliveryOrderId : null,
                 $providerId,
@@ -450,7 +381,7 @@ class CdekLogisticsProvider implements LogisticsProviderInterface
                 $responseCode,
                 $requestHash,
                 $responseHash,
-                $error
+                $msg
             );
         } catch (\Throwable $e) {
             // logging must not break quotes/orders

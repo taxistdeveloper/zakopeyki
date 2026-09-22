@@ -26,6 +26,12 @@ return [
     'order_type' => 1,
     'lang' => 'rus',
     'default_country' => 'KZ',
-    // Кэш OAuth-токена (файл). Пустой = storage/cdek_token.json
+    // Кэш OAuth-токена: Redis (REDIS_HOST) предпочтителен; файл — fallback.
+    // Пустой token_cache_path = storage/cdek_token.json
     'token_cache_path' => getenv('CDEK_TOKEN_CACHE') ?: '',
+    'redis_token_key' => getenv('CDEK_REDIS_TOKEN_KEY') ?: 'cdek:oauth:access_token',
+    // Shared secret для входящих webhook (?token= или заголовок X-Cdek-Webhook-Token).
+    // В test_mode без token — endpoint открыт; в prod token обязателен.
+    // Env: CDEK_WEBHOOK_TOKEN
+    'webhook_token' => getenv('CDEK_WEBHOOK_TOKEN') ?: '',
 ];

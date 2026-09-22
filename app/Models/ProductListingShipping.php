@@ -61,13 +61,34 @@ class ProductListingShipping extends Model
                 irregular_reason VARCHAR(64) DEFAULT NULL,
                 is_fragile TINYINT(1) NOT NULL DEFAULT 0,
                 shipping_ready TINYINT(1) NOT NULL DEFAULT 0,
+                shipping_version INT UNSIGNED NOT NULL DEFAULT 1,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 INDEX idx_fulfillment (fulfillment_mode)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
         );
 
+        $this->ensureColumn(
+            'shipping_version',
+            'INT UNSIGNED NOT NULL DEFAULT 1 AFTER shipping_ready'
+        );
+
         self::$ensured = true;
+    }
+
+    private function ensureColumn(string $name, string $definition): void
+    {
+        try {
+            $rows = $this->db->query('SHOW COLUMNS FROM product_listing_shipping')->fetchAll();
+            foreach ($rows as $row) {
+                if (strtolower((string) $row['Field']) === strtolower($name)) {
+                    return;
+                }
+            }
+            $this->db->exec("ALTER TABLE product_listing_shipping ADD COLUMN {$name} {$definition}");
+        } catch (\Throwable $e) {
+            // ignore
+        }
     }
 
     public function findByProductId(int $productId): ?array
@@ -78,11 +99,21 @@ class ProductListingShipping extends Model
         return $row ?: null;
     }
 
+    /**
+     * Upsert с инкрементом shipping_version при изменении shipping-полей.
+     * Pickup-only / пустой shipping_ready=0 — версию всё равно можно хранить.
+     */
     public function upsert(int $productId, array $data): void
     {
         $existing = $this->findByProductId($productId);
         if ($existing) {
+            $bump = $this->shippingFingerprint($existing) !== $this->shippingFingerprint(array_merge($existing, $data));
+            $version = (int) ($existing['shipping_version'] ?? 1);
+            if ($bump) {
+                $version++;
+            }
             $vals = $this->rowValues($data);
+            $vals[] = $version;
             $vals[] = $productId;
             $stmt = $this->db->prepare(
                 'UPDATE product_listing_shipping SET
@@ -95,7 +126,8 @@ class ProductListingShipping extends Model
                     item_weight = ?, packaging_weight = ?, gross_weight = ?,
                     item_length = ?, item_width = ?, item_height = ?,
                     package_length = ?, package_width = ?, package_height = ?,
-                    is_irregular = ?, irregular_reason = ?, is_fragile = ?, shipping_ready = ?
+                    is_irregular = ?, irregular_reason = ?, is_fragile = ?, shipping_ready = ?,
+                    shipping_version = ?
                  WHERE product_id = ?'
             );
             $stmt->execute($vals);
@@ -104,6 +136,7 @@ class ProductListingShipping extends Model
 
         $vals = [$productId];
         $vals = array_merge($vals, $this->rowValues($data));
+        $vals[] = 1; // shipping_version
         $stmt = $this->db->prepare(
             'INSERT INTO product_listing_shipping (
                 product_id, fulfillment_mode, param_mode, use_default_ship_from,
@@ -113,10 +146,31 @@ class ProductListingShipping extends Model
                 item_weight, packaging_weight, gross_weight,
                 item_length, item_width, item_height,
                 package_length, package_width, package_height,
-                is_irregular, irregular_reason, is_fragile, shipping_ready
-             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                is_irregular, irregular_reason, is_fragile, shipping_ready, shipping_version
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute($vals);
+    }
+
+    /** @param array<string, mixed> $row */
+    private function shippingFingerprint(array $row): string
+    {
+        $keys = [
+            'fulfillment_mode', 'param_mode', 'use_default_ship_from',
+            'ship_country', 'ship_region', 'ship_city', 'ship_street',
+            'ship_building', 'ship_apartment', 'ship_postal_code',
+            'ship_contact_name', 'ship_phone',
+            'packaging_id', 'gross_weight',
+            'item_weight', 'packaging_weight',
+            'item_length', 'item_width', 'item_height',
+            'package_length', 'package_width', 'package_height',
+            'is_irregular', 'irregular_reason', 'is_fragile', 'shipping_ready',
+        ];
+        $parts = [];
+        foreach ($keys as $k) {
+            $parts[] = $k . '=' . (string) ($row[$k] ?? '');
+        }
+        return hash('sha256', implode('|', $parts));
     }
 
     /** @return array<int, mixed> */

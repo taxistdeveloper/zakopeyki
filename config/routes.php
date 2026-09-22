@@ -61,6 +61,7 @@ $router->post('/payments/freedompay/result', [PaymentController::class, 'freedom
 $router->get('/payments/freedompay/success', [PaymentController::class, 'freedomPaySuccess']);
 $router->get('/payments/freedompay/failure', [PaymentController::class, 'freedomPayFailure']);
 $router->get('/delivery/order/{orderId}', [DeliveryController::class, 'byOrder']);
+$router->get('/delivery/cdek/points', [DeliveryController::class, 'cdekPoints']);
 $router->get('/delivery/{id}', [DeliveryController::class, 'show']);
 $router->post('/delivery/{id}/sender', [DeliveryController::class, 'saveSender']);
 $router->post('/delivery/{id}/recipient', [DeliveryController::class, 'saveRecipient']);

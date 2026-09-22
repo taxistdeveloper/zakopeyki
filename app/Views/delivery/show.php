@@ -163,15 +163,60 @@ $missingForQuotes = $missingForQuotes ?? [];
                     <option value="courier" <?= ($recipient['delivery_mode'] ?? 'courier') === 'courier' ? 'selected' : '' ?>><?= htmlspecialchars(t('delivery.mode_courier')) ?></option>
                     <option value="pvz" <?= ($recipient['delivery_mode'] ?? '') === 'pvz' ? 'selected' : '' ?>><?= htmlspecialchars(t('delivery.mode_pvz')) ?></option>
                 </select>
-                <input type="text" name="city" required value="<?= htmlspecialchars($recipient['city'] ?? '') ?>" placeholder="<?= htmlspecialchars(t('delivery.city')) ?>" class="<?= $input ?>">
+                <input type="text" name="city" id="delivery-recipient-city" required value="<?= htmlspecialchars($recipient['city'] ?? '') ?>" placeholder="<?= htmlspecialchars(t('delivery.city')) ?>" class="<?= $input ?>">
                 <input type="text" name="street" value="<?= htmlspecialchars($recipient['street'] ?? '') ?>" placeholder="<?= htmlspecialchars(t('delivery.street')) ?>" class="<?= $input ?>">
                 <input type="text" name="building" value="<?= htmlspecialchars($recipient['building'] ?? '') ?>" placeholder="<?= htmlspecialchars(t('delivery.building')) ?>" class="<?= $input ?>">
                 <input type="text" name="apartment" value="<?= htmlspecialchars($recipient['apartment'] ?? '') ?>" placeholder="<?= htmlspecialchars(t('delivery.apartment')) ?>" class="<?= $input ?>">
-                <input type="text" name="pvz_code" value="<?= htmlspecialchars($recipient['pvz_code'] ?? '') ?>" placeholder="<?= htmlspecialchars(t('delivery.pvz_code')) ?>" class="<?= $input ?>">
-                <input type="text" name="pvz_name" value="<?= htmlspecialchars($recipient['pvz_name'] ?? '') ?>" placeholder="<?= htmlspecialchars(t('delivery.pvz_name')) ?>" class="<?= $input ?>">
+                <div class="sm:col-span-2 space-y-2" data-cdek-pvz-picker>
+                    <input type="text" name="pvz_code" id="delivery-pvz-code" list="cdek-pvz-datalist" value="<?= htmlspecialchars($recipient['pvz_code'] ?? '') ?>" placeholder="<?= htmlspecialchars(t('delivery.pvz_code')) ?>" class="<?= $input ?>" autocomplete="off">
+                    <input type="text" name="pvz_name" id="delivery-pvz-name" value="<?= htmlspecialchars($recipient['pvz_name'] ?? '') ?>" placeholder="<?= htmlspecialchars(t('delivery.pvz_name')) ?>" class="<?= $input ?>" readonly>
+                    <datalist id="cdek-pvz-datalist"></datalist>
+                    <p class="text-xs text-gray-500"><?= htmlspecialchars(t('delivery.pvz_directory_hint')) ?></p>
+                </div>
             </div>
             <button type="submit" class="<?= $btn ?> bg-brand-600 hover:bg-brand-500 text-white"><?= htmlspecialchars(t('delivery.save_recipient')) ?></button>
         </form>
+        <script>
+        (function () {
+            var cityInput = document.getElementById('delivery-recipient-city');
+            var codeInput = document.getElementById('delivery-pvz-code');
+            var nameInput = document.getElementById('delivery-pvz-name');
+            var list = document.getElementById('cdek-pvz-datalist');
+            if (!cityInput || !codeInput || !list) return;
+            var timer = null;
+            var pointsUrl = <?= json_encode(ProductHelper::url('/delivery/cdek/points'), JSON_UNESCAPED_SLASHES) ?>;
+            function loadPoints() {
+                var city = (cityInput.value || '').trim();
+                var q = (codeInput.value || '').trim();
+                var url = pointsUrl + '?limit=40&city=' + encodeURIComponent(city) + '&q=' + encodeURIComponent(q);
+                fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        if (!data || !data.points) return;
+                        list.innerHTML = '';
+                        data.points.forEach(function (p) {
+                            var opt = document.createElement('option');
+                            opt.value = p.code;
+                            opt.label = (p.address || p.name || p.code) + (p.city ? (' — ' + p.city) : '');
+                            list.appendChild(opt);
+                        });
+                        var match = data.points.find(function (p) { return p.code === codeInput.value; });
+                        if (match && nameInput) {
+                            nameInput.value = match.name || match.address || match.code;
+                        }
+                    })
+                    .catch(function () {});
+            }
+            function schedule() {
+                clearTimeout(timer);
+                timer = setTimeout(loadPoints, 300);
+            }
+            cityInput.addEventListener('input', schedule);
+            codeInput.addEventListener('input', schedule);
+            codeInput.addEventListener('change', loadPoints);
+            if ((codeInput.value || cityInput.value)) loadPoints();
+        })();
+        </script>
     <?php elseif ($recipient): ?>
         <div class="bg-white/90 dark:bg-white/[0.04] rounded-[24px] border border-black/[0.06] dark:border-white/10 p-5 shadow-soft text-sm space-y-1">
             <h3 class="font-display font-bold text-ink-900 dark:text-white mb-2"><?= htmlspecialchars(t('delivery.recipient_title')) ?></h3>

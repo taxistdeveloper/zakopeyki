@@ -288,9 +288,12 @@ class ListingShippingService
         $orders->updateFields($deliveryOrderId, [
             'sender_id' => $sellerId,
             'data_completeness_status' => 'seller_prefilled',
+            'shipping_version' => (int) ($shipping['shipping_version'] ?? 1),
+            'listing_shipping_version' => (int) ($shipping['shipping_version'] ?? 1),
         ]);
         $orders->logEvent($deliveryOrderId, $sellerId, 'system', 'prefilled_from_listing', null, null, [
             'product_id' => $productId,
+            'shipping_version' => (int) ($shipping['shipping_version'] ?? 1),
         ]);
     }
 

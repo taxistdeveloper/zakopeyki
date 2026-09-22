@@ -313,6 +313,13 @@ class DeliveryOrder extends Model
             'handling_amount' => 'INT UNSIGNED NOT NULL DEFAULT 0',
             'snapshot_json' => 'LONGTEXT DEFAULT NULL',
             'calculation_method' => 'VARCHAR(64) DEFAULT NULL',
+            'shipping_version' => 'INT UNSIGNED DEFAULT NULL',
+            'route_hash' => 'CHAR(64) DEFAULT NULL',
+            'package_hash' => 'CHAR(64) DEFAULT NULL',
+        ]);
+        $this->ensureTableColumns('delivery_orders', [
+            'shipping_version' => 'INT UNSIGNED NOT NULL DEFAULT 1',
+            'listing_shipping_version' => 'INT UNSIGNED NOT NULL DEFAULT 1',
         ]);
     }
 
@@ -455,6 +462,58 @@ class DeliveryOrder extends Model
         return $row ?: null;
     }
 
+    /**
+     * Поиск по номеру накладной CDEK из delivery_tracking.
+     */
+    public function findByTrackingNumber(string $trackingNumber): ?array
+    {
+        $trackingNumber = trim($trackingNumber);
+        if ($trackingNumber === '') {
+            return null;
+        }
+        $stmt = $this->db->prepare(
+            'SELECT d.* FROM delivery_orders d
+             INNER JOIN delivery_tracking t ON t.delivery_order_id = d.id
+             WHERE t.tracking_number = ?
+             ORDER BY t.id DESC
+             LIMIT 1'
+        );
+        $stmt->execute([$trackingNumber]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
+    /**
+     * Открытые CDEK-доставки с uuid для reconciliation cron.
+     *
+     * @param list<string>|null $statuses
+     * @return list<array<string, mixed>>
+     */
+    public function findCdekOpenForReconciliation(int $limit = 50, ?array $statuses = null): array
+    {
+        $limit = max(1, min(200, $limit));
+        $statuses = $statuses ?? [
+            self::STATUS_PAID,
+            self::STATUS_ORDER_CREATED,
+            self::STATUS_ACCEPTED,
+            self::STATUS_SHIPMENT_RECEIVED,
+            self::STATUS_IN_TRANSIT,
+            self::STATUS_EXCEPTION,
+        ];
+        $placeholders = implode(',', array_fill(0, count($statuses), '?'));
+        $sql = "SELECT d.*
+                FROM delivery_orders d
+                INNER JOIN logistics_providers lp ON lp.id = d.logistics_provider_id AND lp.code = 'cdek'
+                WHERE d.logistics_order_id IS NOT NULL
+                  AND d.logistics_order_id != ''
+                  AND d.status IN ($placeholders)
+                ORDER BY d.updated_at ASC, d.id ASC
+                LIMIT {$limit}";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(array_values($statuses));
+        return $stmt->fetchAll() ?: [];
+    }
+
     public function logApiCall(
         ?int $deliveryOrderId,
         ?int $providerId,
@@ -493,7 +552,7 @@ class DeliveryOrder extends Model
     {
         $stmt = $this->db->prepare(
             'SELECT d.*, lp.name AS logistics_name, lp.code AS logistics_code,
-                    p.title AS product_title, p.type AS product_type
+                    p.title AS product_title, p.type AS product_type, o.product_id AS product_id
              FROM delivery_orders d
              JOIN logistics_providers lp ON lp.id = d.logistics_provider_id
              JOIN orders o ON o.id = d.order_id
@@ -569,6 +628,34 @@ class DeliveryOrder extends Model
         $this->logEvent($deliveryOrderId, null, 'system', 'quotes_invalidated', null, null, [
             'reason' => $reason,
         ]);
+    }
+
+    /**
+     * Активные непросроченные quotes с тем же request_hash + shipping_version (reuse).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function findReusableQuotes(
+        int $deliveryOrderId,
+        string $requestHash,
+        int $shippingVersion
+    ): array {
+        $requestHash = trim($requestHash);
+        if ($requestHash === '' || $shippingVersion <= 0 || $deliveryOrderId <= 0) {
+            return [];
+        }
+
+        $stmt = $this->db->prepare(
+            "SELECT * FROM delivery_quotes
+             WHERE delivery_order_id = ?
+               AND request_payload_hash = ?
+               AND shipping_version = ?
+               AND COALESCE(quote_status, 'active') = 'active'
+               AND valid_until > NOW()
+             ORDER BY total_amount ASC, id ASC"
+        );
+        $stmt->execute([$deliveryOrderId, $requestHash, $shippingVersion]);
+        return $stmt->fetchAll() ?: [];
     }
 
     public function selectedQuoteFor(int $deliveryOrderId): ?array
@@ -798,10 +885,10 @@ class DeliveryOrder extends Model
                 delivery_order_id, logistics_provider_id, request_id, tariff_id, tariff_version,
                 service_code, service_name, base_amount, packaging_amount, handling_amount,
                 extra_services_amount, discount_amount, total_amount, currency,
-                billable_weight, billable_weight_method, calculation_method,
+                billable_weight, billable_weight_method, calculation_method, shipping_version,
                 eta_days_min, eta_days_max, valid_until,
-                request_payload_hash, response_hash, snapshot_json, quote_status
-             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                request_payload_hash, route_hash, package_hash, response_hash, snapshot_json, quote_status
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
 
         foreach ($quotes as $q) {
@@ -823,15 +910,49 @@ class DeliveryOrder extends Model
                 $q['billable_weight'] ?? null,
                 $q['billable_weight_method'] ?? null,
                 $q['calculation_method'] ?? null,
+                isset($q['shipping_version']) ? (int) $q['shipping_version'] : null,
                 $q['eta_days_min'] ?? null,
                 $q['eta_days_max'] ?? null,
                 $q['valid_until'],
                 $q['request_payload_hash'] ?? null,
+                $q['route_hash'] ?? null,
+                $q['package_hash'] ?? null,
                 $q['response_hash'] ?? null,
                 !empty($q['snapshot_json']) ? (is_string($q['snapshot_json']) ? $q['snapshot_json'] : json_encode($q['snapshot_json'], JSON_UNESCAPED_UNICODE)) : null,
-                'active',
+                $q['quote_status'] ?? 'active',
             ]);
         }
+    }
+
+    /**
+     * После успешного final recalc: продлить TTL и обновить audit в snapshot.
+     *
+     * @param array<string, mixed> $freshQuote
+     */
+    public function touchQuoteAfterRecalc(int $quoteId, array $freshQuote): void
+    {
+        $validUntil = $freshQuote['valid_until'] ?? date('Y-m-d H:i:s', strtotime('+2 hours'));
+        $this->db->prepare(
+            'UPDATE delivery_quotes SET valid_until = ?, response_hash = COALESCE(?, response_hash) WHERE id = ?'
+        )->execute([
+            $validUntil,
+            $freshQuote['response_hash'] ?? null,
+            $quoteId,
+        ]);
+    }
+
+    /** Инкремент shipping_version заказа доставки (правки seller после bootstrap). */
+    public function bumpShippingVersion(int $deliveryOrderId): int
+    {
+        $this->db->prepare(
+            'UPDATE delivery_orders
+             SET shipping_version = shipping_version + 1, version = version + 1
+             WHERE id = ?'
+        )->execute([$deliveryOrderId]);
+
+        $stmt = $this->db->prepare('SELECT shipping_version FROM delivery_orders WHERE id = ? LIMIT 1');
+        $stmt->execute([$deliveryOrderId]);
+        return (int) ($stmt->fetchColumn() ?: 1);
     }
 
     public function selectQuote(int $deliveryOrderId, int $quoteId): ?array
