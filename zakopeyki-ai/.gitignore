@@ -1,0 +1,12 @@
+/vendor/
+/.env
+/.phpunit.cache/
+/storage/logs/*
+/storage/models/*
+/storage/datasets/*
+/storage/audit_exports/*
+!/storage/logs/.gitkeep
+!/storage/models/.gitkeep
+!/storage/datasets/.gitkeep
+!/storage/audit_exports/.gitkeep
+composer.phar

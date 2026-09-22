@@ -809,7 +809,7 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                                 <option value="<?= $key ?>" <?= $currentType === $key ? 'selected' : '' ?>><?= htmlspecialchars($label) ?></option>
                             <?php endforeach; ?>
                         </select>
-                        <div id="lot-type-cards" class="grid grid-cols-2 sm:grid-cols-4 gap-2<?= $editingGig ? ' pointer-events-none' : '' ?>" role="listbox" aria-label="<?= htmlspecialchars(t('profile.type')) ?>">
+                        <div id="lot-type-cards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2<?= $editingGig ? ' pointer-events-none' : '' ?>" role="listbox" aria-label="<?= htmlspecialchars(t('profile.type')) ?>">
                             <?php foreach ($types as $key => $label):
                                 $active = $currentType === $key;
                                 $palette = $typePalette[$key] ?? ['idle' => 'bg-brand-50 text-brand-600', 'on' => 'bg-brand-500 text-white', 'ring' => 'border-brand-400 bg-brand-50'];
