@@ -25,13 +25,7 @@ $myInitial = AvatarHelper::initial($me);
 
         <div class="live-setup-scroll">
             <div class="live-setup-profile">
-                <div class="live-setup-avatar">
-                    <?php if ($myAvatar): ?>
-                        <img src="<?= htmlspecialchars($myAvatar) ?>" alt="">
-                    <?php else: ?>
-                        <span><?= htmlspecialchars($myInitial) ?></span>
-                    <?php endif; ?>
-                </div>
+                <?= AvatarHelper::html($me, 'w-12 h-12', 'text-base') ?>
                 <div class="live-setup-profile-meta min-w-0 flex-1">
                     <div class="live-setup-name-row">
                         <span id="live-setup-host-name" class="live-setup-name"><?= htmlspecialchars($myName) ?></span>

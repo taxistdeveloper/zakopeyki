@@ -2056,15 +2056,63 @@ function url(string $path = ''): string
             letter-spacing: 0.04em;
             opacity: 0.92;
         }
-        /* Рамка только на аватарке проверенного бизнеса */
+        /* ===== Аватар в золотой медали (буква / фото / лого) ===== */
+        .zk-medal-avatar {
+            position: relative;
+            display: inline-block;
+            aspect-ratio: 1;
+            vertical-align: middle;
+            filter: drop-shadow(0 2px 5px rgba(140, 95, 20, 0.32));
+        }
+        .zk-medal-avatar__face {
+            position: absolute;
+            inset: 21%;
+            border-radius: 50%;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(145deg, #f3df9a 0%, #d4af37 42%, #a67c1a 100%);
+            z-index: 0;
+        }
+        .zk-medal-avatar__letter {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-weight: 800;
+            line-height: 1;
+            color: #5a3a0c;
+            text-shadow: 0 1px 0 rgba(255, 236, 170, 0.55), 0 -1px 0 rgba(90, 55, 10, 0.25);
+            user-select: none;
+        }
+        .zk-medal-avatar__photo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .zk-medal-avatar__ring {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+            z-index: 1;
+            user-select: none;
+        }
+        /* Рамка бизнеса: лёгкий акцент поверх медали */
         .biz-avatar {
-            padding: 2.5px;
-            background: linear-gradient(135deg, #f8e59a 0%, #d4af37 42%, #7c3aed 100%);
-            box-shadow: 0 0 0 1px rgba(255, 248, 220, 0.7), 0 3px 10px rgba(124, 58, 237, 0.28);
+            display: inline-flex;
+            border-radius: 9999px;
+            padding: 0;
+            background: transparent;
+            box-shadow: none;
+        }
+        .biz-avatar .zk-medal-avatar {
+            filter: drop-shadow(0 2px 6px rgba(124, 58, 237, 0.28)) drop-shadow(0 2px 5px rgba(140, 95, 20, 0.28));
         }
         .dark .biz-avatar {
-            background: linear-gradient(135deg, #f0d56a 0%, #c9a227 40%, #a78bfa 100%);
-            box-shadow: 0 0 0 1px rgba(167, 139, 250, 0.4), 0 3px 12px rgba(124, 58, 237, 0.4);
+            background: transparent;
+            box-shadow: none;
         }
     </style>
 </head>
@@ -2171,6 +2219,8 @@ function url(string $path = ''): string
         window.__aiAvatarUrl2x = <?= js_encode(url('public/assets/img/zak-avatar@2x.png')) ?>;
         window.__aiIconThumbsUp = <?= js_encode(\App\Helpers\IconHelper::svg('thumbs-up', 'w-4 h-4')) ?>;
         window.__aiIconThumbsDown = <?= js_encode(\App\Helpers\IconHelper::svg('thumbs-down', 'w-4 h-4')) ?>;
+        window.__medalFrameUrl = <?= js_encode(\App\Helpers\AvatarHelper::frameUrl()) ?>;
+        window.__medalFrameUrl2x = <?= js_encode(\App\Helpers\AvatarHelper::frameUrl(true)) ?>;
         window.__chatStartUrl = <?= js_encode(url('/chat/start')) ?>;
         window.__chatBaseUrl = <?= js_encode(rtrim(url('/chat'), '/') . '/') ?>;
         window.__lang = <?= js_encode(\App\Core\Lang::current()) ?>;

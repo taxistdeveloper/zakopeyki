@@ -283,16 +283,17 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                 <form method="post" action="<?= ProductHelper::url('/profile/avatar') ?>" enctype="multipart/form-data" class="flex flex-col items-center gap-5 py-6">
                     <label class="relative group cursor-pointer">
                         <input type="file" name="avatar" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden" onchange="this.form.submit()">
-                        <div class="<?= $isBusinessAccount ? 'biz-avatar rounded-[2rem]' : '' ?>">
-                        <div class="w-40 h-40 rounded-[2rem] overflow-hidden <?= $isBusinessAccount ? '' : 'border-[3px] border-brand-400/60 ring-4 ring-brand-100/50 dark:ring-brand-500/10 ' ?>bg-brand-50 dark:bg-white/5 flex items-center justify-center shadow-lift">
-                            <?php if ($avatarUrl): ?>
-                                <img src="<?= htmlspecialchars($avatarUrl) ?>" alt="<?= htmlspecialchars(t('profile.photo_title')) ?>" class="w-full h-full object-cover">
-                            <?php else: ?>
-                                <span class="text-5xl font-display font-bold text-brand-500/70"><?= htmlspecialchars(AvatarHelper::initial($user)) ?></span>
-                            <?php endif; ?>
-                        </div>
-                        </div>
-                        <span class="absolute inset-0 rounded-[2rem] bg-ink-900/55 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold uppercase tracking-wide"><?= htmlspecialchars(t('profile.change')) ?></span>
+                        <span class="zk-medal-avatar w-40 h-40 block">
+                            <span class="zk-medal-avatar__face">
+                                <?php if ($avatarUrl): ?>
+                                    <img src="<?= htmlspecialchars($avatarUrl) ?>" alt="<?= htmlspecialchars(t('profile.photo_title')) ?>" class="zk-medal-avatar__photo">
+                                <?php else: ?>
+                                    <span class="zk-medal-avatar__letter text-5xl"><?= htmlspecialchars(AvatarHelper::initial($user)) ?></span>
+                                <?php endif; ?>
+                            </span>
+                            <img class="zk-medal-avatar__ring" src="<?= htmlspecialchars(AvatarHelper::frameUrl()) ?>" srcset="<?= htmlspecialchars(AvatarHelper::frameUrl(true)) ?> 2x" alt="">
+                        </span>
+                        <span class="absolute inset-[21%] rounded-full bg-ink-900/55 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold uppercase tracking-wide z-[2]"><?= htmlspecialchars(t('profile.change')) ?></span>
                     </label>
                     <p class="text-xs text-gray-400"><?= htmlspecialchars(t('profile.photo_formats')) ?></p>
                 </form>
@@ -711,7 +712,7 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                             ?>
                             <li class="px-5 py-3.5 flex items-center gap-3">
                                 <button type="button" class="seller-profile-trigger shrink-0" data-seller-id="<?= $refId ?>" aria-label="<?= htmlspecialchars($refName) ?>">
-                                    <img src="<?= htmlspecialchars(AvatarHelper::url($refUser)) ?>" alt="" class="w-10 h-10 rounded-xl object-cover">
+                                    <?= AvatarHelper::html($refUser, 'w-10 h-10', 'text-sm') ?>
                                 </button>
                                 <div class="min-w-0 flex-1">
                                     <button type="button" class="seller-profile-trigger text-left block w-full" data-seller-id="<?= $refId ?>">

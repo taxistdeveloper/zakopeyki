@@ -3362,17 +3362,21 @@ function renderSellerProfile(data) {
 
     const avatar = document.getElementById('seller-profile-avatar');
     if (avatar) {
-        avatar.innerHTML = '';
-        if (data.avatar_url) {
-            const img = document.createElement('img');
-            img.src = data.avatar_url;
-            img.alt = '';
-            img.className = 'w-full h-full object-cover';
-            avatar.appendChild(img);
-            avatar.classList.remove('font-black', 'text-white', 'text-2xl');
-        } else {
-            avatar.textContent = data.avatar_initial || '?';
-            avatar.classList.add('font-black', 'text-white', 'text-2xl');
+        const face = avatar.querySelector('.zk-medal-avatar__face');
+        if (face) {
+            face.innerHTML = '';
+            if (data.avatar_url) {
+                const img = document.createElement('img');
+                img.src = data.avatar_url;
+                img.alt = '';
+                img.className = 'zk-medal-avatar__photo';
+                face.appendChild(img);
+            } else {
+                const letter = document.createElement('span');
+                letter.className = 'zk-medal-avatar__letter text-2xl sm:text-3xl';
+                letter.textContent = data.avatar_initial || '?';
+                face.appendChild(letter);
+            }
         }
     }
 
@@ -3622,17 +3626,30 @@ function renderSellerReviewCard(r) {
 
     const head = document.createElement('div');
     head.className = 'flex items-center gap-2.5';
-    const av = document.createElement('div');
-    av.className = 'w-9 h-9 rounded-full overflow-hidden bg-[#7c3aed] text-white text-xs font-black flex items-center justify-center shrink-0';
+    const av = document.createElement('span');
+    av.className = 'zk-medal-avatar w-9 h-9 shrink-0';
+    av.setAttribute('aria-hidden', 'true');
+    const face = document.createElement('span');
+    face.className = 'zk-medal-avatar__face';
     if (r.author_avatar_url) {
         const img = document.createElement('img');
         img.src = r.author_avatar_url;
         img.alt = '';
-        img.className = 'w-full h-full object-cover';
-        av.appendChild(img);
+        img.className = 'zk-medal-avatar__photo';
+        face.appendChild(img);
     } else {
-        av.textContent = r.author_initial || '?';
+        const letter = document.createElement('span');
+        letter.className = 'zk-medal-avatar__letter text-xs';
+        letter.textContent = r.author_initial || '?';
+        face.appendChild(letter);
     }
+    const ring = document.createElement('img');
+    ring.className = 'zk-medal-avatar__ring';
+    ring.src = window.__medalFrameUrl || '';
+    if (window.__medalFrameUrl2x) ring.srcset = window.__medalFrameUrl2x + ' 2x';
+    ring.alt = '';
+    av.appendChild(face);
+    av.appendChild(ring);
     const meta = document.createElement('div');
     meta.className = 'min-w-0';
     meta.innerHTML = '<div class="text-sm font-semibold text-ink-900 dark:text-white truncate">' + sellerEsc(r.author_name || '') + '</div>'
