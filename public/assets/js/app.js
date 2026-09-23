@@ -4630,13 +4630,15 @@ function appendAiBot(text, products, suggestions, msgId, actions) {
         label.textContent = tJs('ai.csat_ask', 'Полезен ответ?');
         const up = document.createElement('button');
         up.type = 'button';
-        up.className = 'cursor-pointer hover:scale-110 transition';
-        up.textContent = '👍';
+        up.className = 'inline-flex items-center justify-center w-7 h-7 rounded-lg hover:bg-ink-900/5 dark:hover:bg-white/10 text-ink-700 dark:text-gray-300 cursor-pointer transition';
+        up.setAttribute('aria-label', tJs('ai.csat_yes', 'Да'));
+        up.innerHTML = window.__aiIconThumbsUp || '';
         up.addEventListener('click', function () { sendAiFeedback(msgId, 5, csat); });
         const down = document.createElement('button');
         down.type = 'button';
-        down.className = 'cursor-pointer hover:scale-110 transition';
-        down.textContent = '👎';
+        down.className = 'inline-flex items-center justify-center w-7 h-7 rounded-lg hover:bg-ink-900/5 dark:hover:bg-white/10 text-ink-700 dark:text-gray-300 cursor-pointer transition';
+        down.setAttribute('aria-label', tJs('ai.csat_no', 'Нет'));
+        down.innerHTML = window.__aiIconThumbsDown || '';
         down.addEventListener('click', function () { sendAiFeedback(msgId, 1, csat); });
         csat.appendChild(label);
         csat.appendChild(up);
@@ -4707,7 +4709,7 @@ function sendAiImage(file, message) {
     }
     aiChatBusy = true;
     var caption = message || 'Хочу продать этот товар';
-    appendAiUser(caption + ' 📷');
+    appendAiUser(caption);
     var typingId = appendAiTyping();
     var fd = new FormData();
     fd.append('image', file);

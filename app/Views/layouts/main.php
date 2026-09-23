@@ -2102,9 +2102,9 @@ function url(string $path = ''): string
         <div id="ai-assistant-panel" class="hidden pointer-events-auto w-[min(calc(100vw-1.5rem),380px)] h-[min(68vh,520px)] glass rounded-2xl shadow-lift border border-ink-900/10 dark:border-white/10 flex flex-col overflow-hidden" role="dialog" aria-label="<?= htmlspecialchars(t('ai.aria')) ?>" aria-hidden="true">
             <div class="px-4 py-3 border-b border-ink-900/10 dark:border-white/10 flex items-center justify-between shrink-0 bg-gradient-to-r from-[#1F4D3A]/12 via-[#C9A227]/08 to-transparent dark:from-[#1F4D3A]/35 dark:via-[#C9A227]/10">
                 <div class="flex items-center gap-3 min-w-0">
-                    <img src="<?= url('public/assets/img/uly-avatar.png') ?>" alt="" width="48" height="48"
+                    <img src="<?= url('public/assets/img/zak-avatar.png') ?>" alt="" width="48" height="48"
                          class="w-12 h-12 object-contain object-center shrink-0"
-                         srcset="<?= url('public/assets/img/uly-avatar@2x.png') ?> 2x">
+                         srcset="<?= url('public/assets/img/zak-avatar@2x.png') ?> 2x">
                     <div class="min-w-0">
                         <p class="font-display font-bold text-sm text-ink-900 dark:text-white truncate"><?= htmlspecialchars(t('ai.title')) ?></p>
                         <p class="text-[11px] text-ink-700/70 dark:text-gray-400 truncate" id="ai-status-text"><?= htmlspecialchars(t('ai.status_ai')) ?></p>
@@ -2116,7 +2116,7 @@ function url(string $path = ''): string
             <div id="ai-chat-suggestions" class="px-3 pb-2 flex flex-wrap gap-1.5 shrink-0"></div>
             <form id="ai-chat-form" class="p-3 border-t border-ink-900/10 dark:border-white/10 flex gap-2 shrink-0 items-center">
                 <input type="file" id="ai-chat-image" accept="image/jpeg,image/png,image/webp" class="hidden">
-                <button type="button" id="ai-chat-image-btn" class="shrink-0 w-10 h-10 rounded-xl border border-ink-900/10 dark:border-white/10 hover:bg-ink-900/5 dark:hover:bg-white/10 cursor-pointer text-ink-700 dark:text-gray-300" title="Фото товара" aria-label="Фото товара">📷</button>
+                <button type="button" id="ai-chat-image-btn" class="shrink-0 w-10 h-10 rounded-xl border border-ink-900/10 dark:border-white/10 hover:bg-ink-900/5 dark:hover:bg-white/10 cursor-pointer text-ink-700 dark:text-gray-300 inline-flex items-center justify-center" title="Фото товара" aria-label="Фото товара"><?= \App\Helpers\IconHelper::svg('camera', 'w-5 h-5') ?></button>
                 <input id="ai-chat-input" type="text" maxlength="500" placeholder="<?= htmlspecialchars(t('ai.placeholder')) ?>" autocomplete="off"
                     class="ui-input flex-1 min-w-0 rounded-xl border border-ink-900/10 dark:border-white/10 bg-white/80 dark:bg-ink-900/40 px-3 py-2.5 text-sm text-ink-900 dark:text-gray-100 placeholder:text-ink-700/40">
                 <button type="submit" class="shrink-0 rounded-xl bg-accent-500 hover:bg-accent-600 text-white font-display font-semibold text-sm px-3.5 py-2.5 transition cursor-pointer">
@@ -2127,9 +2127,9 @@ function url(string $path = ''): string
 
         <button type="button" id="ai-assistant-toggle" class="pointer-events-auto group flex flex-col items-center gap-1.5 cursor-pointer transition will-change-transform" aria-expanded="false" aria-controls="ai-assistant-panel" aria-label="<?= htmlspecialchars(t('ai.aria')) ?>">
             <span class="ai-fab-avatar relative block w-[6.5rem] h-[6.5rem] sm:w-28 sm:h-28">
-                <img src="<?= url('public/assets/img/uly-avatar.png') ?>" alt="" width="112" height="112"
+                <img src="<?= url('public/assets/img/zak-avatar.png') ?>" alt="" width="112" height="112"
                      class="w-full h-full object-contain object-center pointer-events-none select-none"
-                     srcset="<?= url('public/assets/img/uly-avatar@2x.png') ?> 2x">
+                     srcset="<?= url('public/assets/img/zak-avatar@2x.png') ?> 2x">
             </span>
             <span class="ai-fab-label font-display font-semibold text-[10px] sm:text-[11px] tracking-wide text-white bg-[#1F4D3A] px-2.5 py-1 rounded-full shadow-soft border border-[#C9A227]/35 whitespace-nowrap"><?= htmlspecialchars(t('ai.toggle')) ?></span>
         </button>
@@ -2167,8 +2167,10 @@ function url(string $path = ''): string
         window.__aiImageUrl = <?= js_encode(url('/ai/image')) ?>;
         window.__aiConfirmUrl = <?= js_encode(url('/ai/action/confirm')) ?>;
         window.__aiVoiceUrl = <?= js_encode(url('/ai/voice')) ?>;
-        window.__aiAvatarUrl = <?= js_encode(url('public/assets/img/uly-avatar.png')) ?>;
-        window.__aiAvatarUrl2x = <?= js_encode(url('public/assets/img/uly-avatar@2x.png')) ?>;
+        window.__aiAvatarUrl = <?= js_encode(url('public/assets/img/zak-avatar.png')) ?>;
+        window.__aiAvatarUrl2x = <?= js_encode(url('public/assets/img/zak-avatar@2x.png')) ?>;
+        window.__aiIconThumbsUp = <?= js_encode(\App\Helpers\IconHelper::svg('thumbs-up', 'w-4 h-4')) ?>;
+        window.__aiIconThumbsDown = <?= js_encode(\App\Helpers\IconHelper::svg('thumbs-down', 'w-4 h-4')) ?>;
         window.__chatStartUrl = <?= js_encode(url('/chat/start')) ?>;
         window.__chatBaseUrl = <?= js_encode(rtrim(url('/chat'), '/') . '/') ?>;
         window.__lang = <?= js_encode(\App\Core\Lang::current()) ?>;

@@ -199,9 +199,9 @@ final class AIOrchestrator
     private function replyGreeting(IntentResult $intent, array $memories = []): AiResponse
     {
         $msg = match ($intent->language) {
-            'kk' => 'Сәлеметсіз бе! Мен zakopeyki.kz AI-көмекшісімін. Тауар іздеуге, жариялауға немесе тапсырыс мәртебесін тексеруге көмектесемін.',
-            'en' => 'Hello! I am the zakopeyki.kz AI assistant. I can search listings, help you sell, and check your order status.',
-            default => 'Здравствуйте! Я AI-ассистент zakopeyki.kz. Помогу найти товар, оформить объявление или проверить статус заказа.',
+            'kk' => 'Сәлеметсіз бе! Мен ZAK — zakopeyki.kz AI-көмекшісімін. Тауар іздеуге, жариялауға немесе тапсырыс мәртебесін тексеруге көмектесемін.',
+            'en' => 'Hello! I am ZAK, the zakopeyki.kz AI assistant. I can search listings, help you sell, and check your order status.',
+            default => 'Здравствуйте! Я ZAK — AI-ассистент zakopeyki.kz. Помогу найти товар, оформить объявление или проверить статус заказа.',
         };
         if ($memories !== []) {
             $msg .= ' ' . match ($intent->language) {
