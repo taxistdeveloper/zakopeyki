@@ -1,8 +1,8 @@
 <?php use App\Helpers\ProductHelper; ?>
 <div class="w-full max-w-md">
     <div class="text-center mb-8">
-        <a href="<?= ProductHelper::url('/') ?>" class="inline-flex items-center justify-center rounded-2xl bg-ink-950 px-4 py-2.5 shadow-sm">
-            <img src="<?= ProductHelper::url('/public/assets/img/logo.png') ?>" alt="Zakopeyki" width="300" height="96" class="h-14 w-auto object-contain">
+        <a href="<?= ProductHelper::url('/') ?>" class="inline-flex items-center justify-center">
+            <img src="<?= ProductHelper::url('/public/assets/img/logo-light.png') ?>" alt="Zakopeyki" width="300" height="96" class="h-14 w-auto object-contain">
         </a>
         <p class="text-sm text-gray-500 mt-3"><?= htmlspecialchars(t('auth.two_factor_heading')) ?></p>
     </div>

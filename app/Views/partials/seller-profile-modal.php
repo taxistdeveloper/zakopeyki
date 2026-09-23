@@ -6,8 +6,9 @@
                 <span class="text-lg leading-none" aria-hidden="true">←</span>
                 <span class="hidden sm:inline"><?= htmlspecialchars(t('seller.back')) ?></span>
             </button>
-            <span class="inline-flex items-center rounded-md bg-ink-950 px-2 py-1">
-                <img src="<?= \App\Helpers\ProductHelper::url('/public/assets/img/logo.png') ?>" alt="Zakopeyki" width="160" height="51" class="h-7 w-auto object-contain">
+            <span class="inline-flex items-center">
+                <img src="<?= \App\Helpers\ProductHelper::url('/public/assets/img/logo-light.png') ?>" alt="Zakopeyki" width="160" height="51" class="h-7 w-auto object-contain dark:hidden">
+                <img src="<?= \App\Helpers\ProductHelper::url('/public/assets/img/logo-dark.png') ?>" alt="Zakopeyki" width="160" height="51" class="h-7 w-auto object-contain hidden dark:block">
             </span>
             <div class="relative">
                 <button type="button" id="seller-profile-menu" class="w-9 h-9 rounded-xl text-ink-500 hover:bg-ink-50 dark:hover:bg-white/10 transition flex items-center justify-center text-xl leading-none" aria-label="<?= htmlspecialchars(t('seller.menu')) ?>" aria-expanded="false" aria-haspopup="true">⋯</button>

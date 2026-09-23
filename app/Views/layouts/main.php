@@ -1099,14 +1099,15 @@ function url(string $path = ''): string
             padding: 4px 0;
         }
         .live-setup-logo {
+            display: inline-flex;
+            align-items: center;
+            line-height: 0;
+        }
+        .live-setup-logo img {
             display: block;
             height: 28px;
             width: auto;
-            padding: 5px 9px;
-            box-sizing: content-box;
-            border-radius: 8px;
             object-fit: contain;
-            background: #0b1220;
         }
         .live-setup-preview-btn {
             display: inline-flex;

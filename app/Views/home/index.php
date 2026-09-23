@@ -217,7 +217,7 @@ $changelog = $changelog ?? null;
 <!-- STORY VIEWER — Instagram web -->
 <div id="story-viewer" class="hidden fixed inset-0 z-[60] story-viewer-shell" onclick="if(event.target===this||event.target.classList.contains('story-stage'))closeStoryViewer()">
     <a href="<?= ProductHelper::url('/') ?>" class="story-brand" onclick="event.stopPropagation()">
-        <img src="<?= ProductHelper::url('/public/assets/img/logo.png') ?>" alt="Zakopeyki" width="140" height="45">
+        <img src="<?= ProductHelper::url('/public/assets/img/logo-dark.png') ?>" alt="Zakopeyki" width="160" height="51">
     </a>
     <button type="button" class="story-close-outer" onclick="closeStoryViewer()" aria-label="Close">✕</button>
     <div class="story-stage">
@@ -280,7 +280,7 @@ $changelog = $changelog ?? null;
 <!-- STREAM VIEWER — Live Shopping -->
 <div id="stream-viewer" class="hidden fixed inset-0 z-[70] story-viewer-shell" onclick="if(event.target===this||event.target.classList.contains('story-stage'))closeStreamViewer()">
     <a href="<?= ProductHelper::url('/') ?>" class="story-brand" onclick="event.stopPropagation()">
-        <img src="<?= ProductHelper::url('/public/assets/img/logo.png') ?>" alt="Zakopeyki" width="140" height="45">
+        <img src="<?= ProductHelper::url('/public/assets/img/logo-dark.png') ?>" alt="Zakopeyki" width="160" height="51">
     </a>
     <button type="button" class="story-close-outer" onclick="closeStreamViewer()" aria-label="Close">✕</button>
     <div class="story-stage">
