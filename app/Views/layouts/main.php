@@ -1100,10 +1100,13 @@ function url(string $path = ''): string
         }
         .live-setup-logo {
             display: block;
-            height: 28px;
+            height: 22px;
             width: auto;
-            border-radius: 6px;
+            padding: 5px 9px;
+            box-sizing: content-box;
+            border-radius: 8px;
             object-fit: contain;
+            background: #0b1220;
         }
         .live-setup-preview-btn {
             display: inline-flex;

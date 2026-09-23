@@ -16,7 +16,7 @@ $myInitial = AvatarHelper::initial($me);
             <button type="button" class="live-setup-back" onclick="closeStoryCreate()" aria-label="<?= htmlspecialchars(t('home.live_setup_back')) ?>">
                 <span aria-hidden="true">‹</span> <?= htmlspecialchars(t('home.live_setup_back')) ?>
             </button>
-            <img src="<?= ProductHelper::url('/public/assets/img/logo.jpg') ?>" alt="Zakopeyki" width="140" height="47" class="live-setup-logo">
+            <img src="<?= ProductHelper::url('/public/assets/img/logo.png') ?>" alt="Zakopeyki" width="140" height="45" class="live-setup-logo">
             <button type="button" class="live-setup-preview-btn" onclick="previewStoryCreate()">
                 <?= IconHelper::svg('eye', 'w-4 h-4') ?>
                 <?= htmlspecialchars(t('home.live_setup_preview')) ?>

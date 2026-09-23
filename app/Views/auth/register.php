@@ -17,8 +17,8 @@ $offerSections = [
 ?>
 <div class="w-full max-w-md">
     <div class="text-center mb-8">
-        <a href="<?= ProductHelper::url('/') ?>" class="inline-flex items-center justify-center">
-            <img src="<?= ProductHelper::url('/public/assets/img/logo.jpg') ?>" alt="Zakopeyki" width="280" height="93" class="h-14 w-auto rounded-xl object-contain">
+        <a href="<?= ProductHelper::url('/') ?>" class="inline-flex items-center justify-center rounded-2xl bg-ink-950 px-4 py-2.5 shadow-sm">
+            <img src="<?= ProductHelper::url('/public/assets/img/logo.png') ?>" alt="Zakopeyki" width="280" height="90" class="h-12 w-auto object-contain">
         </a>
         <p class="text-sm text-gray-500 mt-3"><?= htmlspecialchars(t('auth.register_heading')) ?></p>
     </div>
