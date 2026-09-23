@@ -21,7 +21,7 @@ $navIcon = static fn (string $name): string => IconHelper::svg($name, 'w-[18px] 
 <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-[272px] glass border-r border-black/[0.06] dark:border-white/10 flex flex-col h-full transition-transform duration-300 transform -translate-x-full lg:translate-x-0 shadow-soft">
     <div class="relative h-[72px] flex items-center justify-center px-5 border-b border-black/[0.06] dark:border-white/10">
         <a href="<?= ProductHelper::url('/') ?>" class="flex items-center flex-shrink-0 group rounded-xl bg-ink-950 px-2.5 py-1.5 shadow-sm transition hover:opacity-90">
-            <img src="<?= ProductHelper::url('/public/assets/img/logo.png') ?>" alt="Zakopeyki" width="200" height="64" class="h-9 w-auto object-contain">
+            <img src="<?= ProductHelper::url('/public/assets/img/logo.png') ?>" alt="Zakopeyki" width="220" height="70" class="h-11 w-auto object-contain">
         </a>
         <button onclick="toggleSidebar()" class="lg:hidden absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-xl text-gray-400 hover:bg-black/5 hover:text-ink-800">✕</button>
     </div>

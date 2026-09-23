@@ -154,14 +154,14 @@ function url(string $path = ''): string
             left: 16px;
             z-index: 5;
             display: block;
-            height: 28px;
+            height: 34px;
             width: auto;
             border-radius: 6px;
             text-decoration: none;
         }
         .story-brand img {
             display: block;
-            height: 28px;
+            height: 34px;
             width: auto;
             border-radius: 6px;
             object-fit: contain;
@@ -1100,7 +1100,7 @@ function url(string $path = ''): string
         }
         .live-setup-logo {
             display: block;
-            height: 22px;
+            height: 28px;
             width: auto;
             padding: 5px 9px;
             box-sizing: content-box;
@@ -2078,7 +2078,7 @@ function url(string $path = ''): string
         }
         .zk-medal-avatar__face {
             position: absolute;
-            inset: 11%;
+            inset: 7%;
             border-radius: 50%;
             overflow: hidden;
             display: flex;

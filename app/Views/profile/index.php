@@ -293,7 +293,7 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                             </span>
                             <img class="zk-medal-avatar__ring" src="<?= htmlspecialchars(AvatarHelper::frameUrl()) ?>" srcset="<?= htmlspecialchars(AvatarHelper::frameUrl(true)) ?> 2x" alt="">
                         </span>
-                        <span class="absolute inset-[11%] rounded-full bg-ink-900/55 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold uppercase tracking-wide z-[2]"><?= htmlspecialchars(t('profile.change')) ?></span>
+                        <span class="absolute inset-[7%] rounded-full bg-ink-900/55 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold uppercase tracking-wide z-[2]"><?= htmlspecialchars(t('profile.change')) ?></span>
                     </label>
                     <p class="text-xs text-gray-400"><?= htmlspecialchars(t('profile.photo_formats')) ?></p>
                 </form>
