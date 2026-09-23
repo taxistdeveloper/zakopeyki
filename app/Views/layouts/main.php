@@ -1828,7 +1828,7 @@ function url(string $path = ''): string
         }
         #ai-assistant-toggle .ai-fab-avatar {
             position: relative;
-            filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.28));
+            filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.35));
         }
         #ai-assistant-toggle .ai-fab-label {
             animation: aiFabLabel 3.2s ease-in-out infinite;
@@ -2126,8 +2126,8 @@ function url(string $path = ''): string
         </div>
 
         <button type="button" id="ai-assistant-toggle" class="pointer-events-auto group flex flex-col items-center gap-1.5 cursor-pointer transition will-change-transform" aria-expanded="false" aria-controls="ai-assistant-panel" aria-label="<?= htmlspecialchars(t('ai.aria')) ?>">
-            <span class="ai-fab-avatar relative block w-[5.25rem] h-[5.25rem] sm:w-[5.75rem] sm:h-[5.75rem]">
-                <img src="<?= url('public/assets/img/uly-avatar.png') ?>" alt="" width="92" height="92"
+            <span class="ai-fab-avatar relative block w-[6.5rem] h-[6.5rem] sm:w-28 sm:h-28">
+                <img src="<?= url('public/assets/img/uly-avatar.png') ?>" alt="" width="112" height="112"
                      class="w-full h-full object-contain object-center pointer-events-none select-none"
                      srcset="<?= url('public/assets/img/uly-avatar@2x.png') ?> 2x">
             </span>
