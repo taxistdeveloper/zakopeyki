@@ -4,7 +4,7 @@ return [
     'name' => 'zakopeyki.kz',
     // Путь подпапки. Переопределяется автоматически из SCRIPT_NAME в index.php.
     // Пишите только путь (/zakapeiku), НЕ http://localhost/...
-    'url' => '/zakapeiku',
+    'url' => '/zakopeyki',
     'timezone' => 'Asia/Almaty',
     // В проде: false. На локали можно true для подробных ошибок БД.
     'debug' => false,
