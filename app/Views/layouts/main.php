@@ -2078,7 +2078,7 @@ function url(string $path = ''): string
         }
         .zk-medal-avatar__face {
             position: absolute;
-            inset: 7%;
+            inset: 13%;
             border-radius: 50%;
             overflow: hidden;
             display: flex;
