@@ -4505,7 +4505,7 @@ function aiAvatarHtml(sizeClass) {
     if (!src) return '';
     const cls = sizeClass || 'w-8 h-8';
     const srcset = src2x ? ' srcset="' + src2x + ' 2x"' : '';
-    return '<img src="' + src + '"' + srcset + ' alt="" width="32" height="32" class="' + cls + ' rounded-full object-cover object-top shrink-0 bg-[#E8E6E1] ring-1 ring-[#C9A227]/40 mt-0.5">';
+    return '<img src="' + src + '"' + srcset + ' alt="" width="32" height="32" class="' + cls + ' object-contain object-center shrink-0 mt-0.5">';
 }
 
 function appendAiTyping() {
@@ -4539,7 +4539,7 @@ function appendAiBot(text, products, suggestions, msgId, actions) {
         av.alt = '';
         av.width = 32;
         av.height = 32;
-        av.className = 'w-8 h-8 rounded-full object-cover object-top shrink-0 bg-[#E8E6E1] ring-1 ring-[#C9A227]/40 mt-0.5';
+        av.className = 'w-8 h-8 object-contain object-center shrink-0 mt-0.5';
         wrap.appendChild(av);
     }
     const bubble = document.createElement('div');

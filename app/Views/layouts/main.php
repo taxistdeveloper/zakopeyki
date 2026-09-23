@@ -1828,19 +1828,7 @@ function url(string $path = ''): string
         }
         #ai-assistant-toggle .ai-fab-avatar {
             position: relative;
-        }
-        #ai-assistant-toggle .ai-fab-avatar::before,
-        #ai-assistant-toggle .ai-fab-avatar::after {
-            content: '';
-            position: absolute;
-            inset: -4px;
-            border-radius: 9999px;
-            border: 2px solid rgba(201, 162, 39, 0.45);
-            pointer-events: none;
-            animation: aiFabPulse 2.8s ease-out infinite;
-        }
-        #ai-assistant-toggle .ai-fab-avatar::after {
-            animation-delay: 1.4s;
+            filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.28));
         }
         #ai-assistant-toggle .ai-fab-label {
             animation: aiFabLabel 3.2s ease-in-out infinite;
@@ -1853,8 +1841,6 @@ function url(string $path = ''): string
             animation: none;
             transform: none;
         }
-        #ai-assistant-toggle[aria-expanded="true"] .ai-fab-avatar::before,
-        #ai-assistant-toggle[aria-expanded="true"] .ai-fab-avatar::after,
         #ai-assistant-toggle[aria-expanded="true"] .ai-fab-label {
             animation: none;
             opacity: 0.85;
@@ -1863,19 +1849,12 @@ function url(string $path = ''): string
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-6px); }
         }
-        @keyframes aiFabPulse {
-            0% { transform: scale(1); opacity: 0.55; }
-            70% { transform: scale(1.22); opacity: 0; }
-            100% { transform: scale(1.22); opacity: 0; }
-        }
         @keyframes aiFabLabel {
             0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(201, 162, 39, 0); }
             50% { opacity: 0.92; box-shadow: 0 0 12px 0 rgba(201, 162, 39, 0.35); }
         }
         @media (prefers-reduced-motion: reduce) {
             #ai-assistant-toggle,
-            #ai-assistant-toggle .ai-fab-avatar::before,
-            #ai-assistant-toggle .ai-fab-avatar::after,
             #ai-assistant-toggle .ai-fab-label {
                 animation: none !important;
             }
@@ -2124,7 +2103,7 @@ function url(string $path = ''): string
             <div class="px-4 py-3 border-b border-ink-900/10 dark:border-white/10 flex items-center justify-between shrink-0 bg-gradient-to-r from-[#1F4D3A]/12 via-[#C9A227]/08 to-transparent dark:from-[#1F4D3A]/35 dark:via-[#C9A227]/10">
                 <div class="flex items-center gap-3 min-w-0">
                     <img src="<?= url('public/assets/img/uly-avatar.png') ?>" alt="" width="48" height="48"
-                         class="w-12 h-12 rounded-full object-cover object-top shrink-0 ring-2 ring-[#C9A227]/45 bg-[#E8E6E1]"
+                         class="w-12 h-12 object-contain object-center shrink-0"
                          srcset="<?= url('public/assets/img/uly-avatar@2x.png') ?> 2x">
                     <div class="min-w-0">
                         <p class="font-display font-bold text-sm text-ink-900 dark:text-white truncate"><?= htmlspecialchars(t('ai.title')) ?></p>
@@ -2147,9 +2126,9 @@ function url(string $path = ''): string
         </div>
 
         <button type="button" id="ai-assistant-toggle" class="pointer-events-auto group flex flex-col items-center gap-1.5 cursor-pointer transition will-change-transform" aria-expanded="false" aria-controls="ai-assistant-panel" aria-label="<?= htmlspecialchars(t('ai.aria')) ?>">
-            <span class="ai-fab-avatar relative block w-[4.5rem] h-[4.5rem] sm:w-20 sm:h-20 rounded-full shadow-lift ring-2 ring-[#C9A227]/50 overflow-hidden bg-[#E8E6E1] border-[3px] border-white dark:border-ink-800">
-                <img src="<?= url('public/assets/img/uly-avatar.png') ?>" alt="" width="80" height="80"
-                     class="w-full h-full object-cover object-top"
+            <span class="ai-fab-avatar relative block w-[5.25rem] h-[5.25rem] sm:w-[5.75rem] sm:h-[5.75rem]">
+                <img src="<?= url('public/assets/img/uly-avatar.png') ?>" alt="" width="92" height="92"
+                     class="w-full h-full object-contain object-center pointer-events-none select-none"
                      srcset="<?= url('public/assets/img/uly-avatar@2x.png') ?> 2x">
             </span>
             <span class="ai-fab-label font-display font-semibold text-[10px] sm:text-[11px] tracking-wide text-white bg-[#1F4D3A] px-2.5 py-1 rounded-full shadow-soft border border-[#C9A227]/35 whitespace-nowrap"><?= htmlspecialchars(t('ai.toggle')) ?></span>
