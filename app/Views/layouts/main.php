@@ -43,6 +43,11 @@ function url(string $path = ''): string
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <?= \App\Core\Csrf::meta() ?>
     <title><?= htmlspecialchars($title ?? 'Zakopeyki') ?> — zakopeyki.kz</title>
+    <link rel="icon" href="<?= url('public/assets/img/favicon.svg') ?>" type="image/svg+xml">
+    <link rel="icon" href="<?= url('public/assets/img/favicon-32.png') ?>" type="image/png" sizes="32x32">
+    <link rel="icon" href="<?= url('public/assets/img/favicon-16.png') ?>" type="image/png" sizes="16x16">
+    <link rel="shortcut icon" href="<?= url('public/favicon.ico') ?>">
+    <link rel="apple-touch-icon" sizes="180x180" href="<?= url('public/assets/img/apple-touch-icon.png') ?>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">

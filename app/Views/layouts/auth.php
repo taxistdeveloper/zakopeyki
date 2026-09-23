@@ -35,6 +35,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <?= \App\Core\Csrf::meta() ?>
     <title><?= htmlspecialchars($title ?? 'Auth') ?> — zakopeyki.kz</title>
+    <link rel="icon" href="<?= \App\Helpers\ProductHelper::url('public/assets/img/favicon.svg') ?>" type="image/svg+xml">
+    <link rel="icon" href="<?= \App\Helpers\ProductHelper::url('public/assets/img/favicon-32.png') ?>" type="image/png" sizes="32x32">
+    <link rel="icon" href="<?= \App\Helpers\ProductHelper::url('public/assets/img/favicon-16.png') ?>" type="image/png" sizes="16x16">
+    <link rel="shortcut icon" href="<?= \App\Helpers\ProductHelper::url('public/favicon.ico') ?>">
+    <link rel="apple-touch-icon" sizes="180x180" href="<?= \App\Helpers\ProductHelper::url('public/assets/img/apple-touch-icon.png') ?>">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
