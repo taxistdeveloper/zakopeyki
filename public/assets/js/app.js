@@ -1,4 +1,4 @@
-﻿function csrfToken() {
+function csrfToken() {
     const meta = document.querySelector('meta[name="csrf-token"]');
     return (meta && meta.content) || window.__csrfToken || '';
 }
@@ -4168,6 +4168,21 @@ function initAiAssistant() {
         sendAiMessage(text);
     });
 
+    const imgInput = document.getElementById('ai-chat-image');
+    document.getElementById('ai-chat-image-btn')?.addEventListener('click', function () {
+        imgInput?.click();
+    });
+    imgInput?.addEventListener('change', function () {
+        const file = imgInput.files && imgInput.files[0];
+        if (!file) return;
+        const caption = (document.getElementById('ai-chat-input')?.value || '').trim()
+            || 'Хочу продать этот товар';
+        const input = document.getElementById('ai-chat-input');
+        if (input) input.value = '';
+        sendAiImage(file, caption);
+        imgInput.value = '';
+    });
+
     if (aiConversationId) {
         loadAiHistory();
     } else {
@@ -4199,10 +4214,18 @@ function sendAiMessage(text) {
 
     const body = {
         message: text,
-        guest_token: aiGuestToken
+        guest_token: aiGuestToken,
+        language: window.__lang || null,
+        context: (typeof window.__aiPageContext === 'object' && window.__aiPageContext) ? window.__aiPageContext : {}
     };
     if (window.__isLoggedIn) {
         body.user_id = true;
+    }
+
+    const streamUrl = window.__aiStreamUrl || '';
+    if (streamUrl && window.ReadableStream) {
+        sendAiMessageStream(body, typingId);
+        return;
     }
 
     fetch(window.__aiChatUrl || '/ai/chat', {
@@ -4218,53 +4241,158 @@ function sendAiMessage(text) {
         })
         .then(function (data) {
             removeAiTyping(typingId);
-
-            if (data && data.guest_token) {
-                aiGuestToken = data.guest_token;
-                localStorage.setItem('zk_ai_guest_token', aiGuestToken);
-            }
-            if (data && data.conversation_id) {
-                aiConversationId = String(data.conversation_id);
-                localStorage.setItem('zk_ai_conv_id', aiConversationId);
-            }
-            if (data && data.message_id) {
-                aiLastMessageId = Math.max(aiLastMessageId, parseInt(data.message_id, 10) || 0);
-            }
-            if (data && data.ai_message_id) {
-                aiLastMessageId = Math.max(aiLastMessageId, parseInt(data.ai_message_id, 10) || 0);
-            }
-            if (data && data.conversation_status) {
-                updateAiHeaderStatus(data.conversation_status);
-            }
-
-            if (!data || data.ok === false) {
-                appendAiBot(data?.reply || tJs('ai.error_reply', 'Не удалось получить ответ. Попробуйте ещё раз.'), [], []);
-                return;
-            }
-
-            if (data.pending) {
-                appendAiBot(tJs('ai.pending', 'AI готовит ответ…'), [], []);
-                startAiPolling();
-                return;
-            }
-
-            appendAiBot(
-                data.reply || '',
-                data.products || [],
-                data.suggestions || [],
-                data.ai_message_id || null
-            );
-
-            if (data.conversation_status === 'human_escalated') {
-                startAiPolling();
-            }
+            applyAiResponse(data);
         })
         .catch(function () {
             removeAiTyping(typingId);
-            appendAiBot(tJs('ai.error_network', 'Сеть недоступна. Проверьте соединение и повторите.'), [], []);
+            appendAiBot(tJs('ai.error_network', 'Сеть недоступна. Проверьте соединение и повторите.'), [], [], null, []);
         })
         .finally(function () {
             aiChatBusy = false;
+        });
+}
+
+function applyAiResponse(data) {
+    if (data && data.guest_token) {
+        aiGuestToken = data.guest_token;
+        localStorage.setItem('zk_ai_guest_token', aiGuestToken);
+    }
+    if (data && data.conversation_id) {
+        aiConversationId = String(data.conversation_id);
+        localStorage.setItem('zk_ai_conv_id', aiConversationId);
+    }
+    if (data && data.message_id) {
+        aiLastMessageId = Math.max(aiLastMessageId, parseInt(data.message_id, 10) || 0);
+    }
+    if (data && data.ai_message_id) {
+        aiLastMessageId = Math.max(aiLastMessageId, parseInt(data.ai_message_id, 10) || 0);
+    }
+    if (data && data.conversation_status) {
+        updateAiHeaderStatus(data.conversation_status);
+    }
+
+    if (!data || data.ok === false) {
+        appendAiBot(data?.reply || tJs('ai.error_reply', 'Не удалось получить ответ. Попробуйте ещё раз.'), [], [], null, []);
+        return;
+    }
+
+    if (data.pending) {
+        appendAiBot(tJs('ai.pending', 'AI готовит ответ…'), [], [], null, []);
+        startAiPolling();
+        return;
+    }
+
+    appendAiBot(
+        data.reply || '',
+        data.products || [],
+        data.suggestions || [],
+        data.ai_message_id || null,
+        data.actions || []
+    );
+
+    if (data.conversation_status === 'human_escalated') {
+        startAiPolling();
+    }
+}
+
+function sendAiMessageStream(body, typingId) {
+    fetch(window.__aiStreamUrl, {
+        method: 'POST',
+        headers: Object.assign({}, aiCsrfHeaders(), { 'Accept': 'text/event-stream' }),
+        credentials: 'same-origin',
+        body: JSON.stringify(body)
+    })
+        .then(function (res) {
+            if (!res.ok || !res.body) {
+                throw new Error('stream_fail');
+            }
+            removeAiTyping(typingId);
+            const box = aiMessagesEl();
+            const liveId = 'ai-live-' + Date.now();
+            if (box) {
+                const wrap = document.createElement('div');
+                wrap.className = 'flex justify-start items-start gap-2';
+                wrap.id = liveId + '-wrap';
+                const bubble = document.createElement('div');
+                bubble.className = 'ai-msg-bot max-w-[95%] px-3 py-2 space-y-2';
+                const p = document.createElement('p');
+                p.id = liveId;
+                p.className = 'text-[13px] leading-snug text-ink-900 dark:text-gray-100 whitespace-pre-wrap';
+                bubble.appendChild(p);
+                wrap.appendChild(bubble);
+                box.appendChild(wrap);
+            }
+
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let liveText = '';
+
+            function handleBlock(block) {
+                const lines = block.split('\n');
+                let event = 'message';
+                let dataLine = '';
+                lines.forEach(function (line) {
+                    if (line.indexOf('event:') === 0) event = line.slice(6).trim();
+                    if (line.indexOf('data:') === 0) dataLine += line.slice(5).trim();
+                });
+                if (!dataLine) return;
+                let payload = null;
+                try { payload = JSON.parse(dataLine); } catch (e) { return; }
+                if (event === 'meta') {
+                    if (payload.guest_token) {
+                        aiGuestToken = payload.guest_token;
+                        localStorage.setItem('zk_ai_guest_token', aiGuestToken);
+                    }
+                    if (payload.conversation_id) {
+                        aiConversationId = String(payload.conversation_id);
+                        localStorage.setItem('zk_ai_conv_id', aiConversationId);
+                    }
+                } else if (event === 'delta' && payload.text) {
+                    liveText += payload.text;
+                    const el = document.getElementById(liveId);
+                    if (el) el.textContent = liveText;
+                    const box2 = aiMessagesEl();
+                    if (box2) box2.scrollTop = box2.scrollHeight;
+                } else if (event === 'done') {
+                    document.getElementById(liveId + '-wrap')?.remove();
+                    applyAiResponse(payload);
+                } else if (event === 'error') {
+                    document.getElementById(liveId + '-wrap')?.remove();
+                    appendAiBot(payload.message || tJs('ai.error_reply', 'Ошибка'), [], [], null, []);
+                }
+            }
+
+            function pump() {
+                return reader.read().then(function (result) {
+                    if (result.done) {
+                        aiChatBusy = false;
+                        return;
+                    }
+                    buffer += decoder.decode(result.value, { stream: true });
+                    const parts = buffer.split('\n\n');
+                    buffer = parts.pop() || '';
+                    parts.forEach(handleBlock);
+                    return pump();
+                });
+            }
+            return pump();
+        })
+        .catch(function () {
+            removeAiTyping(typingId);
+            // fallback to non-stream
+            fetch(window.__aiChatUrl || '/ai/chat', {
+                method: 'POST',
+                headers: aiCsrfHeaders(),
+                credentials: 'same-origin',
+                body: JSON.stringify(body)
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (data) { applyAiResponse(data); })
+                .catch(function () {
+                    appendAiBot(tJs('ai.error_network', 'Сеть недоступна.'), [], [], null, []);
+                })
+                .finally(function () { aiChatBusy = false; });
         });
 }
 
@@ -4398,7 +4526,7 @@ function removeAiTyping(id) {
     document.getElementById(id)?.remove();
 }
 
-function appendAiBot(text, products, suggestions, msgId) {
+function appendAiBot(text, products, suggestions, msgId, actions) {
     const box = aiMessagesEl();
     if (!box) return;
 
@@ -4469,6 +4597,32 @@ function appendAiBot(text, products, suggestions, msgId) {
         bubble.appendChild(list);
     }
 
+    if (actions && actions.length) {
+        const actRow = document.createElement('div');
+        actRow.className = 'flex flex-wrap gap-1.5 pt-1';
+        actions.forEach(function (act) {
+            if (!act || !act.label) return;
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = act.type === 'confirm'
+                ? 'rounded-lg bg-accent-500 hover:bg-accent-600 text-white text-[11px] font-semibold px-2.5 py-1.5 cursor-pointer'
+                : 'rounded-lg border border-ink-900/15 dark:border-white/15 text-[11px] px-2.5 py-1.5 cursor-pointer';
+            btn.textContent = act.label;
+            if (act.type === 'confirm' && act.token) {
+                btn.addEventListener('click', function () {
+                    confirmAiAction(act.token, btn);
+                });
+            } else if (act.type === 'cancel') {
+                btn.addEventListener('click', function () {
+                    actRow.remove();
+                    appendAiBot('Ок, объявление не опубликовано. Черновик сохранён.', [], [], null, []);
+                });
+            }
+            actRow.appendChild(btn);
+        });
+        bubble.appendChild(actRow);
+    }
+
     if (msgId) {
         const csat = document.createElement('div');
         csat.className = 'flex items-center gap-2 pt-1 border-t border-ink-900/5 dark:border-white/5 text-[11px] text-ink-700/60 dark:text-gray-400';
@@ -4514,6 +4668,86 @@ function sendAiFeedback(msgId, rating, csatEl) {
             }
         })
         .catch(function () { /* ignore */ });
+}
+
+function confirmAiAction(token, btn) {
+    if (!token) return;
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '…';
+    }
+    fetch(window.__aiConfirmUrl || '/ai/action/confirm', {
+        method: 'POST',
+        headers: aiCsrfHeaders(),
+        credentials: 'same-origin',
+        body: JSON.stringify({ token: token })
+    })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (!data || !data.ok) {
+                appendAiBot((data && data.error) || 'Не удалось подтвердить действие.', [], [], null, []);
+                return;
+            }
+            var msg = data.message || 'Готово.';
+            if (data.url) {
+                msg += '\n' + data.url;
+            }
+            appendAiBot(msg, [], [], null, []);
+        })
+        .catch(function () {
+            appendAiBot(tJs('ai.error_network', 'Сеть недоступна.'), [], [], null, []);
+        });
+}
+
+function sendAiImage(file, message) {
+    if (!file || aiChatBusy) return;
+    if (!window.__isLoggedIn) {
+        appendAiBot('Войдите в аккаунт, чтобы анализировать фото.', [], [], null, []);
+        return;
+    }
+    aiChatBusy = true;
+    var caption = message || 'Хочу продать этот товар';
+    appendAiUser(caption + ' 📷');
+    var typingId = appendAiTyping();
+    var fd = new FormData();
+    fd.append('image', file);
+    fd.append('message', caption);
+    if (aiGuestToken) fd.append('guest_token', aiGuestToken);
+    if (window.__csrfToken) fd.append('_token', window.__csrfToken);
+
+    fetch(window.__aiImageUrl || '/ai/image', {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-TOKEN': window.__csrfToken || ''
+        },
+        credentials: 'same-origin',
+        body: fd
+    })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            removeAiTyping(typingId);
+            if (data && data.conversation_id) {
+                aiConversationId = String(data.conversation_id);
+                localStorage.setItem('zk_ai_conv_id', aiConversationId);
+            }
+            if (!data || data.ok === false) {
+                appendAiBot((data && (data.reply || data.error)) || 'Не удалось проанализировать фото.', [], [], null, []);
+                return;
+            }
+            appendAiBot(
+                data.reply || '',
+                data.products || [],
+                data.suggestions || [],
+                data.ai_message_id || null,
+                data.actions || []
+            );
+        })
+        .catch(function () {
+            removeAiTyping(typingId);
+            appendAiBot(tJs('ai.error_network', 'Сеть недоступна.'), [], [], null, []);
+        })
+        .finally(function () { aiChatBusy = false; });
 }
 
 function renderAiSuggestions(suggestions) {

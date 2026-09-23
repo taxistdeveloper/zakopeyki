@@ -189,6 +189,41 @@ class Order extends Model
         return $stmt->fetchAll();
     }
 
+    /**
+     * Последний незавершённый заказ пользователя (для AI «где моя посылка»).
+     */
+    public function findActiveForUser(int $userId): ?array
+    {
+        $this->ensureTable();
+        $stmt = $this->db->prepare(
+            "SELECT o.*
+             FROM orders o
+             WHERE (o.buyer_id = ? OR o.seller_id = ?)
+               AND o.status IN (
+                 'awaiting_payment','escrowed','shipped','delivered','disputed',
+                 'return_requested','return_shipping','return_delivered','arbitration'
+               )
+             ORDER BY o.updated_at DESC, o.created_at DESC
+             LIMIT 1"
+        );
+        try {
+            $stmt->execute([$userId, $userId]);
+        } catch (\Throwable) {
+            // без updated_at
+            $stmt = $this->db->prepare(
+                "SELECT o.*
+                 FROM orders o
+                 WHERE (o.buyer_id = ? OR o.seller_id = ?)
+                   AND o.status NOT IN ('completed','cancelled','refunded')
+                 ORDER BY o.created_at DESC
+                 LIMIT 1"
+            );
+            $stmt->execute([$userId, $userId]);
+        }
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
     public function countCompletedSales(int $sellerId): int
     {
         $this->ensureTable();

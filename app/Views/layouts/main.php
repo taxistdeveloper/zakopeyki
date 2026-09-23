@@ -2135,7 +2135,9 @@ function url(string $path = ''): string
             </div>
             <div id="ai-chat-messages" class="flex-1 overflow-y-auto p-3 space-y-3 text-sm select-text"></div>
             <div id="ai-chat-suggestions" class="px-3 pb-2 flex flex-wrap gap-1.5 shrink-0"></div>
-            <form id="ai-chat-form" class="p-3 border-t border-ink-900/10 dark:border-white/10 flex gap-2 shrink-0">
+            <form id="ai-chat-form" class="p-3 border-t border-ink-900/10 dark:border-white/10 flex gap-2 shrink-0 items-center">
+                <input type="file" id="ai-chat-image" accept="image/jpeg,image/png,image/webp" class="hidden">
+                <button type="button" id="ai-chat-image-btn" class="shrink-0 w-10 h-10 rounded-xl border border-ink-900/10 dark:border-white/10 hover:bg-ink-900/5 dark:hover:bg-white/10 cursor-pointer text-ink-700 dark:text-gray-300" title="Фото товара" aria-label="Фото товара">📷</button>
                 <input id="ai-chat-input" type="text" maxlength="500" placeholder="<?= htmlspecialchars(t('ai.placeholder')) ?>" autocomplete="off"
                     class="ui-input flex-1 min-w-0 rounded-xl border border-ink-900/10 dark:border-white/10 bg-white/80 dark:bg-ink-900/40 px-3 py-2.5 text-sm text-ink-900 dark:text-gray-100 placeholder:text-ink-700/40">
                 <button type="submit" class="shrink-0 rounded-xl bg-accent-500 hover:bg-accent-600 text-white font-display font-semibold text-sm px-3.5 py-2.5 transition cursor-pointer">
@@ -2180,8 +2182,12 @@ function url(string $path = ''): string
         window.__cartToggleBase = <?= js_encode(rtrim(url('/cart'), '/') . '/') ?>;
         window.__cartCount = <?= (int) (\App\Services\Cart::count()) ?>;
         window.__aiChatUrl = <?= js_encode(url('/ai/chat')) ?>;
+        window.__aiStreamUrl = <?= js_encode(url('/ai/chat/stream')) ?>;
         window.__aiMessagesUrl = <?= js_encode(url('/ai/chat/messages')) ?>;
         window.__aiFeedbackUrl = <?= js_encode(url('/ai/chat/feedback')) ?>;
+        window.__aiImageUrl = <?= js_encode(url('/ai/image')) ?>;
+        window.__aiConfirmUrl = <?= js_encode(url('/ai/action/confirm')) ?>;
+        window.__aiVoiceUrl = <?= js_encode(url('/ai/voice')) ?>;
         window.__aiAvatarUrl = <?= js_encode(url('public/assets/img/uly-avatar.png')) ?>;
         window.__aiAvatarUrl2x = <?= js_encode(url('public/assets/img/uly-avatar@2x.png')) ?>;
         window.__chatStartUrl = <?= js_encode(url('/chat/start')) ?>;

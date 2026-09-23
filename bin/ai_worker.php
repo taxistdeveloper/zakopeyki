@@ -57,7 +57,7 @@ if (function_exists('pcntl_async_signals')) {
 
 while (!$shouldStop) {
     try {
-        $job = $queue->pop('default');
+        $job = $queue->pop('vision') ?? $queue->pop('default');
 
         if ($job === null) {
             usleep(500000);

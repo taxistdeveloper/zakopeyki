@@ -4,16 +4,22 @@ namespace App\Services\AI;
 
 use App\Models\AiKnowledge;
 use App\Models\AiSupport;
+use App\Services\AI\Learning\LearningEventRecorder;
 
 class SelfLearningService
 {
     private AiSupport $support;
     private AiKnowledge $knowledge;
+    private LearningEventRecorder $events;
 
-    public function __construct(?AiSupport $support = null, ?AiKnowledge $knowledge = null)
-    {
+    public function __construct(
+        ?AiSupport $support = null,
+        ?AiKnowledge $knowledge = null,
+        ?LearningEventRecorder $events = null
+    ) {
         $this->support = $support ?? new AiSupport();
         $this->knowledge = $knowledge ?? new AiKnowledge();
+        $this->events = $events ?? new LearningEventRecorder($this->support->pdo());
     }
 
     /** @return list<array{user_query:string,operator_response:string}> */
@@ -121,22 +127,46 @@ class SelfLearningService
         ]);
     }
 
-    public function recordFeedback(int $messageId, int $rating, ?string $comment): void
-    {
+    public function recordFeedback(
+        int $messageId,
+        int $rating,
+        ?string $comment = null,
+        ?string $reason = null,
+        ?int $userId = null
+    ): void {
         $rating = max(1, min(5, $rating));
         $pdo = $this->support->pdo();
 
         $stmt = $pdo->prepare(
-            'INSERT INTO ai_feedback (message_id, rating, comment) VALUES (?, ?, ?)'
+            'INSERT INTO ai_feedback (message_id, rating, comment, reason, user_id) VALUES (?, ?, ?, ?, ?)'
         );
-        $stmt->execute([$messageId, $rating, $comment]);
-
-        if ($rating !== 5) {
-            return;
+        try {
+            $stmt->execute([$messageId, $rating, $comment, $reason, $userId]);
+        } catch (\Throwable $e) {
+            // Старая схема без reason/user_id
+            $fallback = $pdo->prepare(
+                'INSERT INTO ai_feedback (message_id, rating, comment) VALUES (?, ?, ?)'
+            );
+            $fallback->execute([$messageId, $rating, $comment]);
         }
 
         $aiMsg = $this->support->getMessageById($messageId);
-        if (!$aiMsg || $aiMsg['sender_type'] !== 'ai') {
+        $conversationId = $aiMsg ? (int) $aiMsg['conversation_id'] : null;
+
+        try {
+            $this->events->recordFeedback(
+                $messageId,
+                $rating,
+                $reason,
+                $comment,
+                $userId,
+                $conversationId
+            );
+        } catch (\Throwable $e) {
+            // learning queue optional
+        }
+
+        if ($rating < 5 || !$aiMsg || ($aiMsg['sender_type'] ?? '') !== 'ai') {
             return;
         }
 

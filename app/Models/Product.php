@@ -146,6 +146,101 @@ class Product extends Model
         return $stmt->fetchAll();
     }
 
+    /**
+     * Расширенный поиск для AI tools (реальные данные MySQL).
+     *
+     * @param array{
+     *   query?:?string,
+     *   type?:?string,
+     *   category?:?string,
+     *   min_price?:?int,
+     *   max_price?:?int,
+     *   location?:?string,
+     *   limit?:int
+     * } $filters
+     * @return list<array<string, mixed>>
+     */
+    public function searchAdvanced(array $filters): array
+    {
+        $limit = max(1, min(48, (int) ($filters['limit'] ?? 12)));
+        $sql = 'SELECT p.*, u.name AS seller_name, u.phone AS seller_phone,
+                       u.account_type AS seller_account_type, u.business_status AS seller_business_status,
+                       u.business_name AS seller_business_name, u.business_entity_type AS seller_business_entity_type
+                FROM products p
+                JOIN users u ON u.id = p.user_id
+                WHERE p.status = ?';
+        $params = ['active'];
+
+        $type = isset($filters['type']) && is_string($filters['type']) && $filters['type'] !== ''
+            ? $filters['type'] : null;
+        if ($type) {
+            $sql .= ' AND p.type = ?';
+            $params[] = $type;
+        } else {
+            $sql .= " AND p.type <> 'course'";
+        }
+
+        $query = isset($filters['query']) ? trim((string) $filters['query']) : '';
+        if ($query !== '') {
+            $sql .= ' AND (p.title LIKE ? OR p.description LIKE ? OR p.category LIKE ? OR p.exchange_for LIKE ?)';
+            $like = '%' . $query . '%';
+            array_push($params, $like, $like, $like, $like);
+        }
+
+        $category = isset($filters['category']) ? trim((string) $filters['category']) : '';
+        if ($category !== '') {
+            $sql .= ' AND (p.category = ? OR p.category LIKE ?)';
+            $params[] = $category;
+            $params[] = $category . ' / %';
+        }
+
+        if (isset($filters['min_price']) && $filters['min_price'] !== null && (int) $filters['min_price'] > 0) {
+            $sql .= ' AND p.price >= ?';
+            $params[] = (int) $filters['min_price'];
+        }
+        if (isset($filters['max_price']) && $filters['max_price'] !== null && (int) $filters['max_price'] > 0) {
+            $sql .= ' AND p.price <= ?';
+            $params[] = (int) $filters['max_price'];
+        }
+
+        $location = isset($filters['location']) ? trim((string) $filters['location']) : '';
+        if ($location !== '') {
+            $sql .= ' AND p.location LIKE ?';
+            $params[] = '%' . $location . '%';
+        }
+
+        $sql .= ' ORDER BY p.created_at DESC LIMIT ' . $limit;
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll() ?: [];
+
+        // Fallback: разбиваем query на слова (без рекурсии)
+        if ($rows === [] && empty($filters['_no_fallback']) && $query !== '' && str_contains($query, ' ')) {
+            $seen = [];
+            foreach (preg_split('/\s+/u', $query) ?: [] as $word) {
+                if (mb_strlen($word, 'UTF-8') < 3) {
+                    continue;
+                }
+                $part = $filters;
+                $part['query'] = $word;
+                $part['limit'] = $limit;
+                $part['_no_fallback'] = true;
+                foreach ($this->searchAdvanced($part) as $row) {
+                    $id = (int) $row['id'];
+                    if (!isset($seen[$id])) {
+                        $seen[$id] = true;
+                        $rows[] = $row;
+                    }
+                    if (count($rows) >= $limit) {
+                        break 2;
+                    }
+                }
+            }
+        }
+
+        return array_slice($rows, 0, $limit);
+    }
+
     public function findWithSeller(int $id): ?array
     {
         $stmt = $this->db->prepare(

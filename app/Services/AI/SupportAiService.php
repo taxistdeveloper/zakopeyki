@@ -140,9 +140,31 @@ class SupportAiService
         float $confidence,
         string $intent
     ): array {
+        // Legacy path: делегируем безопасному tool через оркестратор-совместимый вызов
         $orderId = null;
         if (preg_match('/#?\s*(\d{2,})/u', $messageText, $m)) {
             $orderId = (int) $m[1];
+        }
+
+        $userId = null;
+        try {
+            $conv = $this->support->getConversationById($conversationId);
+            $userId = isset($conv['user_id']) ? (int) $conv['user_id'] : null;
+        } catch (\Throwable) {
+        }
+
+        if ($userId === null || $userId <= 0) {
+            $responseText = 'Чтобы проверить статус заказа, войдите в аккаунт.';
+            $aiId = $this->support->addMessage($conversationId, 'ai', $responseText, $confidence);
+            return [
+                'action' => 'replied',
+                'response' => $responseText,
+                'confidence' => $confidence,
+                'intent' => $intent,
+                'products' => [],
+                'suggestions' => [['label' => 'Оператор', 'message' => 'оператор']],
+                'ai_message_id' => $aiId,
+            ];
         }
 
         if ($orderId) {
@@ -153,6 +175,21 @@ class SupportAiService
                 $stmt->execute([$orderId]);
                 $order = $stmt->fetch();
                 if ($order) {
+                    $isOwner = (int) $order['buyer_id'] === $userId || (int) $order['seller_id'] === $userId;
+                    if (!$isOwner && !\App\Core\Auth::isAdmin()) {
+                        $responseText = 'Нет доступа к этому заказу.';
+                        $aiId = $this->support->addMessage($conversationId, 'ai', $responseText, $confidence);
+                        return [
+                            'action' => 'replied',
+                            'response' => $responseText,
+                            'confidence' => $confidence,
+                            'intent' => $intent,
+                            'products' => [],
+                            'suggestions' => [],
+                            'ai_message_id' => $aiId,
+                        ];
+                    }
+
                     $status = (string) $order['status'];
                     $responseText = "Заказ #{$orderId}: текущий статус — «{$status}». "
                         . 'Подробности смотрите в разделе «Мои заказы». '

@@ -651,6 +651,121 @@ class AdminController extends Controller
         exit;
     }
 
+    public function aiDashboard(): void
+    {
+        Auth::requirePermission('ai_chats');
+        $hours = isset($_GET['hours']) ? (int) $_GET['hours'] : 24;
+        $metrics = (new \App\Services\AI\AiMetricsService())->dashboard($hours);
+        $candidates = (new \App\Services\AI\Learning\PromptOptimizer())->listCandidates();
+        $evalSummary = (new \App\Services\AI\Learning\EvaluationService())->summary(7);
+        $n = new Notification();
+        $uid = Auth::id();
+
+        $this->view('admin/ai-dashboard', [
+            'title' => 'AI Dashboard',
+            'currentNav' => 'admin',
+            'metrics' => $metrics,
+            'candidates' => $candidates,
+            'evalSummary' => $evalSummary,
+            'notifications' => $n->forUser($uid),
+            'unread' => $n->unreadCount($uid),
+            'search' => '',
+            'flash' => $_SESSION['flash'] ?? null,
+        ]);
+        unset($_SESSION['flash']);
+    }
+
+    public function aiPromptRollback(): void
+    {
+        Auth::requirePermission('ai_chats');
+        $version = trim((string) ($_POST['version'] ?? ''));
+        if ($version === '') {
+            $_SESSION['error'] = 'Укажите version';
+            $this->redirect('/admin/ai');
+        }
+
+        $pdo = \App\Core\Database::connect();
+        $promptId = (int) $pdo->query(
+            "SELECT id FROM ai_prompts WHERE slug = 'assistant_system' LIMIT 1"
+        )->fetchColumn();
+        if ($promptId <= 0) {
+            $_SESSION['error'] = 'Промпт не найден';
+            $this->redirect('/admin/ai');
+        }
+
+        $check = $pdo->prepare(
+            'SELECT id FROM ai_prompt_versions WHERE prompt_id = ? AND version = ? LIMIT 1'
+        );
+        $check->execute([$promptId, $version]);
+        if (!$check->fetch()) {
+            $_SESSION['error'] = 'Версия не найдена';
+            $this->redirect('/admin/ai');
+        }
+
+        $pdo->prepare(
+            "UPDATE ai_prompt_versions SET status = 'archived' WHERE prompt_id = ? AND status = 'active'"
+        )->execute([$promptId]);
+        $pdo->prepare(
+            "UPDATE ai_prompt_versions SET status = 'active' WHERE prompt_id = ? AND version = ?"
+        )->execute([$promptId, $version]);
+
+        $_SESSION['flash'] = 'Активный промпт: ' . $version;
+        $this->redirect('/admin/ai');
+    }
+
+    public function aiReindexKnowledge(): void
+    {
+        Auth::requirePermission('ai_chats');
+        try {
+            $stats = (new \App\Services\AI\RagEngine(
+                null,
+                new \App\Services\AI\Providers\OllamaProvider()
+            ))->reindexAll();
+            $_SESSION['flash'] = 'Индексация: docs=' . ($stats['documents'] ?? 0)
+                . ', chunks=' . ($stats['chunks'] ?? 0)
+                . ', embedded=' . ($stats['embedded'] ?? 0);
+        } catch (\Throwable $e) {
+            $_SESSION['error'] = 'Индексация не удалась. Проверьте Ollama.';
+        }
+        $this->redirect('/admin/ai');
+    }
+
+    public function aiProcessLearning(): void
+    {
+        Auth::requirePermission('ai_chats');
+        try {
+            $stats = (new \App\Services\AI\Learning\LearningPipeline())->processPending(100);
+            $msg = 'Learning: processed=' . ($stats['processed'] ?? 0)
+                . ', failed=' . ($stats['failed'] ?? 0)
+                . ', skipped=' . ($stats['skipped'] ?? 0);
+            if (!empty($stats['candidates'])) {
+                $msg .= '. Candidates: ' . implode(', ', $stats['candidates']);
+            }
+            $_SESSION['flash'] = $msg;
+        } catch (\Throwable $e) {
+            $_SESSION['error'] = 'Learning pipeline error';
+        }
+        $this->redirect('/admin/ai');
+    }
+
+    public function aiApprovePromptCandidate(): void
+    {
+        Auth::requirePermission('ai_chats');
+        $version = trim((string) ($_POST['version'] ?? ''));
+        if ($version === '') {
+            $_SESSION['error'] = 'Укажите version кандидата';
+            $this->redirect('/admin/ai');
+        }
+
+        $result = (new \App\Services\AI\Learning\PromptOptimizer())->approveCandidate($version);
+        if (empty($result['ok'])) {
+            $_SESSION['error'] = 'Не удалось активировать: ' . ($result['error'] ?? 'unknown');
+        } else {
+            $_SESSION['flash'] = 'Кандидат активирован: ' . $version;
+        }
+        $this->redirect('/admin/ai');
+    }
+
     public function users(): void
     {
         Auth::requireAdmin();
