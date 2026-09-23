@@ -6,7 +6,7 @@
                 <span class="text-lg leading-none" aria-hidden="true">←</span>
                 <span class="hidden sm:inline"><?= htmlspecialchars(t('seller.back')) ?></span>
             </button>
-            <span class="font-display font-extrabold text-sm tracking-tight text-ink-900 dark:text-white">za<span class="text-[#7c3aed]">kopeyki</span>.kz</span>
+            <img src="<?= \App\Helpers\ProductHelper::url('/public/assets/img/logo.jpg') ?>" alt="Zakopeyki" width="140" height="47" class="h-7 w-auto rounded-md object-contain">
             <div class="relative">
                 <button type="button" id="seller-profile-menu" class="w-9 h-9 rounded-xl text-ink-500 hover:bg-ink-50 dark:hover:bg-white/10 transition flex items-center justify-center text-xl leading-none" aria-label="<?= htmlspecialchars(t('seller.menu')) ?>" aria-expanded="false" aria-haspopup="true">⋯</button>
                 <div id="seller-profile-menu-dd" class="hidden absolute right-0 top-full mt-1 z-20 min-w-[11rem] rounded-xl border border-black/[0.08] dark:border-white/10 bg-white dark:bg-ink-900 shadow-lift py-1 text-sm">

@@ -1,9 +1,8 @@
 <?php use App\Helpers\ProductHelper; ?>
 <div class="w-full max-w-md">
     <div class="text-center mb-8">
-        <a href="<?= ProductHelper::url('/') ?>" class="inline-flex items-baseline gap-0.5">
-            <span class="font-display text-4xl font-extrabold text-brand-500">za</span>
-            <span class="font-display text-3xl font-bold text-ink-900">kopeyki<span class="text-brand-500"></span></span>
+        <a href="<?= ProductHelper::url('/') ?>" class="inline-flex items-center justify-center">
+            <img src="<?= ProductHelper::url('/public/assets/img/logo.jpg') ?>" alt="Zakopeyki" width="280" height="93" class="h-14 w-auto rounded-xl object-contain">
         </a>
         <p class="text-sm text-gray-500 mt-3"><?= htmlspecialchars(t('auth.reset_heading')) ?></p>
     </div>

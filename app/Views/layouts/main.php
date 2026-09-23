@@ -153,14 +153,19 @@ function url(string $path = ''): string
             top: 12px;
             left: 16px;
             z-index: 5;
-            font-family: Sora, system-ui, sans-serif;
-            font-weight: 800;
-            font-size: 16px;
-            color: #fafafa;
-            letter-spacing: -0.03em;
+            display: block;
+            height: 28px;
+            width: auto;
+            border-radius: 6px;
             text-decoration: none;
         }
-        .story-brand span { color: #F97316; }
+        .story-brand img {
+            display: block;
+            height: 28px;
+            width: auto;
+            border-radius: 6px;
+            object-fit: contain;
+        }
         .story-stage {
             display: flex;
             align-items: center;
@@ -1094,12 +1099,12 @@ function url(string $path = ''): string
             padding: 4px 0;
         }
         .live-setup-logo {
-            font-family: inherit;
-            font-weight: 800;
-            font-size: 14px;
-            letter-spacing: -0.02em;
+            display: block;
+            height: 28px;
+            width: auto;
+            border-radius: 6px;
+            object-fit: contain;
         }
-        .live-setup-logo span { color: #7c3aed; }
         .live-setup-preview-btn {
             display: inline-flex;
             align-items: center;
@@ -2062,7 +2067,11 @@ function url(string $path = ''): string
             display: inline-block;
             aspect-ratio: 1;
             vertical-align: middle;
-            filter: drop-shadow(0 2px 5px rgba(140, 95, 20, 0.32));
+            background: transparent;
+            border: 0;
+            box-shadow: none;
+            /* тень только по форме монеты, без квадратного ореола */
+            filter: drop-shadow(0 1px 2px rgba(120, 80, 15, 0.28));
         }
         .zk-medal-avatar__face {
             position: absolute;
@@ -2098,21 +2107,22 @@ function url(string $path = ''): string
             pointer-events: none;
             z-index: 1;
             user-select: none;
+            background: transparent;
         }
         /* Рамка бизнеса: лёгкий акцент поверх медали */
         .biz-avatar {
             display: inline-flex;
             border-radius: 9999px;
             padding: 0;
-            background: transparent;
-            box-shadow: none;
+            background: transparent !important;
+            box-shadow: none !important;
         }
         .biz-avatar .zk-medal-avatar {
-            filter: drop-shadow(0 2px 6px rgba(124, 58, 237, 0.28)) drop-shadow(0 2px 5px rgba(140, 95, 20, 0.28));
+            filter: drop-shadow(0 1px 3px rgba(124, 58, 237, 0.22)) drop-shadow(0 1px 2px rgba(120, 80, 15, 0.25));
         }
         .dark .biz-avatar {
-            background: transparent;
-            box-shadow: none;
+            background: transparent !important;
+            box-shadow: none !important;
         }
     </style>
 </head>

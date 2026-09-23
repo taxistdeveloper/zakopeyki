@@ -20,9 +20,8 @@ $navIcon = static fn (string $name): string => IconHelper::svg($name, 'w-[18px] 
 ?>
 <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-[272px] glass border-r border-black/[0.06] dark:border-white/10 flex flex-col h-full transition-transform duration-300 transform -translate-x-full lg:translate-x-0 shadow-soft">
     <div class="relative h-[72px] flex items-center justify-center px-5 border-b border-black/[0.06] dark:border-white/10">
-        <a href="<?= ProductHelper::url('/') ?>" class="flex items-baseline gap-0.5 flex-shrink-0 group">
-            <span class="font-display text-3xl font-extrabold tracking-tight text-brand-500 group-hover:text-brand-600 transition">za</span>
-            <span class="font-display text-2xl font-bold tracking-tight text-ink-900 dark:text-white">kopeyki<span class="text-brand-500"></span></span>
+        <a href="<?= ProductHelper::url('/') ?>" class="flex items-center flex-shrink-0 group">
+            <img src="<?= ProductHelper::url('/public/assets/img/logo.jpg') ?>" alt="Zakopeyki" width="200" height="67" class="h-10 w-auto rounded-lg object-contain transition group-hover:opacity-90">
         </a>
         <button onclick="toggleSidebar()" class="lg:hidden absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-xl text-gray-400 hover:bg-black/5 hover:text-ink-800">✕</button>
     </div>
