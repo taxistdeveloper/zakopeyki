@@ -265,23 +265,23 @@ final class DemoSeeder
         }
 
         $gigs = [
-            ['helper', 'Разгрузка газели', 'Нужно разгрузить газель со стройматериалами у дома на Юго-Востоке. 2–3 часа, есть тележка.', 'Караганда, Юго-Восток, ул. Ермекова 32', 12000],
-            ['buyer', 'Вынос дивана', 'Вынести старый угловой диван с 4 этажа без лифта и отнести к контейнерам.', 'Караганда, Майкудук, 3 мкр, д. 12', 8000],
-            ['neighbor', 'Раздача листовок', 'Раздать 500 листовок у ТРЦ City Mall в субботу с 12:00 до 16:00.', 'Караганда, пр. Бухар-жырау 49', 6000],
-            ['shop', 'Срочный курьер', 'Забрать коробку с сервисного центра и привезти в магазин на Бухар-жырау. Сегодня до 18:00.', 'Караганда, пр. Бухар-жырау 68', 4500],
-            ['fashion', 'Мытьё окон', 'Помыть окна в шоуруме (витрина + 6 окон). Моющие средства есть на месте.', 'Караганда, ул. Гоголя 38', 9000],
-            ['teacher', 'Поддерживающая уборка', 'Уборка двухкомнатной квартиры после гостей: полы, кухня, санузел.', 'Караганда, пр. Нуркена Абдирова 20', 10000],
-            ['master', 'Погрузка мебели', 'Погрузить шкаф и комод в газель. Шкаф разобран, комод целый.', 'Караганда, Пришахтинск, ул. Шахтёров 7', 7000],
-            ['seller', 'Прополка грядок', 'Прополоть 4 грядки на даче, около 3 часов работы.', 'Караганда, дачный массив Михайловка', 5000],
+            ['helper', 'Разгрузка газели', 'Нужно разгрузить газель со стройматериалами у дома на Юго-Востоке. 2–3 часа, есть тележка.', 'Караганда, Юго-Восток, ул. Ермекова 32', 12000, 'gig-unload'],
+            ['buyer', 'Вынос дивана', 'Вынести старый угловой диван с 4 этажа без лифта и отнести к контейнерам.', 'Караганда, Майкудук, 3 мкр, д. 12', 8000, 'gig-sofa'],
+            ['neighbor', 'Раздача листовок', 'Раздать 500 листовок у ТРЦ City Mall в субботу с 12:00 до 16:00.', 'Караганда, пр. Бухар-жырау 49', 6000, 'gig-flyers'],
+            ['shop', 'Срочный курьер', 'Забрать коробку с сервисного центра и привезти в магазин на Бухар-жырау. Сегодня до 18:00.', 'Караганда, пр. Бухар-жырау 68', 4500, 'gig-courier'],
+            ['fashion', 'Мытьё окон', 'Помыть окна в шоуруме (витрина + 6 окон). Моющие средства есть на месте.', 'Караганда, ул. Гоголя 38', 9000, 'gig-windows'],
+            ['teacher', 'Поддерживающая уборка', 'Уборка двухкомнатной квартиры после гостей: полы, кухня, санузел.', 'Караганда, пр. Нуркена Абдирова 20', 10000, 'gig-clean'],
+            ['master', 'Погрузка мебели', 'Погрузить шкаф и комод в газель. Шкаф разобран, комод целый.', 'Караганда, Пришахтинск, ул. Шахтёров 7', 7000, 'gig-furniture'],
+            ['seller', 'Прополка грядок', 'Прополоть 4 грядки на даче, около 3 часов работы.', 'Караганда, дачный массив Михайловка', 5000, 'gig-garden'],
         ];
 
         foreach ($gigs as $gig) {
-            [$ownerKey, $catName, $desc, $address, $price] = $gig;
+            [$ownerKey, $catName, $desc, $address, $price, $photoSlug] = $gig + [5 => null];
             $catId = $byName[$catName] ?? (int) ($leaf[0]['id'] ?? 0);
             if ($catId < 1) {
                 continue;
             }
-            $this->ensureGig($this->ids[$ownerKey], $catId, $catName, $desc, $address, $price);
+            $this->ensureGig($this->ids[$ownerKey], $catId, $catName, $desc, $address, $price, $photoSlug);
         }
     }
 
@@ -321,12 +321,12 @@ final class DemoSeeder
                 continue;
             }
             $active = $this->stories->byUser($uid);
-            if ($active !== []) {
-                continue;
-            }
             foreach ($stories as $story) {
                 [$caption, $color, $emoji, $slug] = $story;
                 $image = $this->storyImage($slug, $caption, $color);
+                if ($active !== []) {
+                    continue;
+                }
                 $this->stories->create([
                     'user_id' => $uid,
                     'caption' => $caption,
@@ -709,7 +709,7 @@ final class DemoSeeder
         $this->products->createBid($productId, $userId, $amount);
     }
 
-    private function ensureGig(int $customerId, int $categoryId, string $title, string $desc, string $address, int $price): void
+    private function ensureGig(int $customerId, int $categoryId, string $title, string $desc, string $address, int $price, ?string $photoSlug = null): void
     {
         $st = $this->db->prepare(
             'SELECT id FROM micro_tasks WHERE customer_id = ? AND description = ? LIMIT 1'
@@ -717,11 +717,11 @@ final class DemoSeeder
         $st->execute([$customerId, $desc]);
         $id = (int) $st->fetchColumn();
         $expires = date('Y-m-d H:i:s', strtotime('+5 days'));
-        $image = $this->productImage('gig-' . md5($desc), $title, 'gig', '🧰');
+        $image = $this->productImage($photoSlug ?: ('gig-' . md5($desc)), $title, 'gig', '🧰');
         if ($id > 0) {
             $this->db->prepare(
                 "UPDATE micro_tasks SET status = 'open', expires_at = ?, title = ?, category_id = ?,
-                 address = ?, initial_price = ?, image = COALESCE(image, ?)
+                 address = ?, initial_price = ?, image = ?
                  WHERE id = ?"
             )->execute([$expires, $title, $categoryId, $address, $price, $image, $id]);
             return;
@@ -847,9 +847,7 @@ final class DemoSeeder
     {
         $file = 'demo_' . preg_replace('/[^a-z0-9_-]+/i', '-', $slug) . '.png';
         $path = dirname(__DIR__) . '/public/uploads/products/' . $file;
-        if (!is_file($path)) {
-            $this->paintCard($path, 800, 600, $title, $emoji, $this->typeColor($type));
-        }
+        $this->writeDemoPhoto($path, $slug, 800, 600, $title, $emoji, $this->typeColor($type));
         return $file;
     }
 
@@ -857,9 +855,7 @@ final class DemoSeeder
     {
         $file = 'demo_story_' . preg_replace('/[^a-z0-9_-]+/i', '-', $slug) . '.png';
         $path = dirname(__DIR__) . '/public/uploads/stories/' . $file;
-        if (!is_file($path)) {
-            $this->paintCard($path, 720, 1280, $caption, '✨', $color);
-        }
+        $this->writeDemoPhoto($path, $slug, 720, 1280, $caption, '✨', $color);
         return $file;
     }
 
@@ -867,9 +863,7 @@ final class DemoSeeder
     {
         $file = 'demo_stream_' . preg_replace('/[^a-z0-9_-]+/i', '-', $slug) . '.png';
         $path = dirname(__DIR__) . '/public/uploads/streams/' . $file;
-        if (!is_file($path)) {
-            $this->paintCard($path, 720, 1280, $title, $emoji, $color);
-        }
+        $this->writeDemoPhoto($path, $slug, 720, 1280, $title, $emoji, $color);
         return $file;
     }
 
@@ -877,10 +871,190 @@ final class DemoSeeder
     {
         $file = 'demo_avatar_' . $login . '.png';
         $path = dirname(__DIR__) . '/public/uploads/avatars/' . $file;
-        if (!is_file($path)) {
+        if (!$this->fetchPhoto($path, $this->photoUrl($login), 256, 256)) {
             $this->paintAvatar($path, mb_strtoupper(mb_substr($name, 0, 1)), $color);
         }
         return $file;
+    }
+
+    private function writeDemoPhoto(string $path, string $slug, int $w, int $h, string $title, string $emoji, string $color): void
+    {
+        if ($this->fetchPhoto($path, $this->photoUrl($slug), $w, $h)) {
+            return;
+        }
+        if (!is_file($path)) {
+            $this->paintCard($path, $w, $h, $title, $emoji, $color);
+        }
+    }
+
+    private function photoUrl(string $slug): ?string
+    {
+        $id = $this->photoCatalog()[$slug] ?? null;
+        if ($id === null || $id === '') {
+            return null;
+        }
+        if (str_starts_with($id, 'http://') || str_starts_with($id, 'https://')) {
+            return $id;
+        }
+
+        return 'https://images.unsplash.com/' . $id . '?auto=format&fit=crop&w=1600&q=80';
+    }
+
+    /** @return array<string,string> Unsplash photo id or full URL */
+    private function photoCatalog(): array
+    {
+        return [
+            'iphone-15-128' => 'photo-1592899677977-9c10ca588bbd',
+            'galaxy-a55' => 'photo-1610945415295-d9bbf067e59c',
+            'sony-wh-1000xm5' => 'photo-1505740420928-5e560c06d30e',
+            'macbook-air-m2' => 'photo-1517336714731-489689fd1ca8',
+            'ps5-slim' => 'photo-1606144042614-b2417e99c4e3',
+            'xiaomi-vacuum' => 'photo-1558317374-067fb5f30001',
+            'ipad-10' => 'photo-1544244015-0df4b3ffc6b0',
+            'jbl-flip6' => 'photo-1608043152269-423dbba4e7e1',
+            'nike-dunk' => 'photo-1542291026-7eec264c27ff',
+            'plate-summer' => 'photo-1572804013309-59a88b7e92f1',
+            'man-coat' => 'photo-1591047139829-d91aecb6caea',
+            'bag-leather' => 'photo-1584917865442-de89df76afd3',
+            'iphone-13-used' => 'photo-1511707171634-5f897ff02aa9',
+            'trek-marlin' => 'photo-1532298229144-0ec0c57515c7',
+            'yamaha-f310' => 'photo-1510915361894-db8b60106cb1',
+            'lenovo-i5' => 'photo-1496181133206-80ce9b88a853',
+            'sofa-corner' => 'photo-1555041469-a586c61ea9bc',
+            'stroller' => 'photo-1522771739844-6a9f6d5f14af',
+            'canon-2000d' => 'photo-1516035069371-29a1b244cc32',
+            'scooter-pro2' => 'photo-1571068316344-75bc76f77890',
+            'iphone-12-lot' => 'photo-1510557880182-3d4d3cba35a5',
+            'ps4-lot' => 'photo-1493711662062-fa541adb3fc8',
+            'watch-lot' => 'photo-1523275335684-37898b6baf30',
+            'dutch-bike' => 'photo-1507035895480-2b3156c31fc8',
+            'tools-lot' => 'photo-1530124566582-a618bc2615dc',
+            'bag-lot' => 'photo-1590874103328-eac38a683ce7',
+            'free-books' => 'photo-1512820790803-83ca734da794',
+            'free-chair' => 'photo-1503602642458-232111445657',
+            'free-kids' => 'photo-1515488042361-ee00e0ddd4e4',
+            'ipad-exchange' => 'photo-1561154464-82e9adf32764',
+            'snowboard-exchange' => 'photo-1551524559-8af4e6624178',
+            'ps-exchange' => 'photo-1607853202273-797f1c22a38e',
+            'pc-repair' => 'photo-1518770660439-4636190af475',
+            'plumber' => 'photo-1585704032915-c3400ca199e7',
+            'math-tutor' => 'photo-1434030216411-0b793f4b4173',
+            'photo-session' => 'photo-1542038784456-1ea8e935640e',
+            'sofa-clean' => 'photo-1581578731548-c64695cc6952',
+            'excel-course' => 'photo-1551288049-bebda4e38f71',
+            'smm-course' => 'photo-1611162616475-46b635cb6868',
+            'english-course' => 'photo-1546410531-bb4caa6b424d',
+            'jbl-sold' => 'photo-1545127398-14699f92334b',
+            'xiaomi-g10-sold' => 'photo-1558317374-067fb5f30001',
+            'coat-sold' => 'photo-1591047139829-d91aecb6caea',
+            'laptop-clean-sold' => 'photo-1496181133206-80ce9b88a853',
+            'gig-unload' => 'photo-1600880292203-757bb62b4baf',
+            'gig-sofa' => 'photo-1555041469-a586c61ea9bc',
+            'gig-flyers' => 'photo-1557200134-90327ee9fafa',
+            'gig-courier' => 'photo-1616401784845-180882ba9ba8',
+            'gig-windows' => 'photo-1449844908441-88298767d258',
+            'gig-clean' => 'photo-1581578731548-c64695cc6952',
+            'gig-furniture' => 'photo-1556909114-f6e7ad7d3136',
+            'gig-garden' => 'photo-1416879595882-3373a0480b5b',
+            'live-techmarket' => 'photo-1511707171634-5f897ff02aa9',
+            'live-styleqazaq' => 'photo-1483985988355-763728e1935b',
+            'live-bike' => 'photo-1532298229144-0ec0c57515c7',
+            'live-repair' => 'photo-1518770660439-4636190af475',
+            'live-excel' => 'photo-1551288049-bebda4e38f71',
+            'demo_buyer' => 'photo-1494790108377-be9c29b29330',
+            'demo_seller' => 'photo-1507003211169-0a1dd7228f2d',
+            'demo_shop' => 'photo-1500648767791-00dcc994a43e',
+            'demo_fashion' => 'photo-1524504388940-b1c1722653e1',
+            'demo_master' => 'photo-1506794778202-cad84cf45f1d',
+            'demo_teacher' => 'photo-1573496359142-b8d87734a5a2',
+            'demo_bidder' => 'photo-1472099645785-5658abf4ff4e',
+            'demo_helper' => 'photo-1438761681033-6461ffad8d80',
+            'demo_neighbor' => 'photo-1463453091185-61582044d556',
+        ];
+    }
+
+    private function fetchPhoto(string $path, ?string $url, int $w, int $h): bool
+    {
+        if ($url === null || $url === '') {
+            return is_file($path);
+        }
+        if (is_file($path) && filesize($path) > 40_000 && !$this->looksLikePlaceholder($path)) {
+            return true;
+        }
+
+        $raw = $this->httpGet($url);
+        if ($raw === null) {
+            usleep(250_000);
+            $raw = $this->httpGet($url);
+        }
+        if ($raw === null) {
+            return is_file($path);
+        }
+        $src = @imagecreatefromstring($raw);
+        if (!$src) {
+            return is_file($path);
+        }
+
+        $srcW = imagesx($src);
+        $srcH = imagesy($src);
+        if ($srcW < 8 || $srcH < 8) {
+            imagedestroy($src);
+            return is_file($path);
+        }
+
+        $scale = max($w / $srcW, $h / $srcH);
+        $cropW = (int) round($w / $scale);
+        $cropH = (int) round($h / $scale);
+        $srcX = (int) max(0, ($srcW - $cropW) / 2);
+        $srcY = (int) max(0, ($srcH - $cropH) / 2);
+        $dst = imagecreatetruecolor($w, $h);
+        imagecopyresampled($dst, $src, 0, 0, $srcX, $srcY, $w, $h, $cropW, $cropH);
+        imagepng($dst, $path, 6);
+        imagedestroy($dst);
+        imagedestroy($src);
+
+        return is_file($path) && filesize($path) > 10_000;
+    }
+
+    private function looksLikePlaceholder(string $path): bool
+    {
+        $img = @imagecreatefrompng($path);
+        if (!$img) {
+            return false;
+        }
+        $w = imagesx($img);
+        $h = imagesy($img);
+        $c1 = imagecolorat($img, 8, 8);
+        $c2 = imagecolorat($img, max(0, $w - 9), max(0, $h - 9));
+        imagedestroy($img);
+        $same = abs((($c1 >> 16) & 255) - (($c2 >> 16) & 255)) < 12
+            && abs((($c1 >> 8) & 255) - (($c2 >> 8) & 255)) < 12
+            && abs(($c1 & 255) - ($c2 & 255)) < 12;
+
+        return $same && filesize($path) < 120_000;
+    }
+
+    private function httpGet(string $url): ?string
+    {
+        $ch = curl_init($url);
+        if ($ch === false) {
+            return null;
+        }
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_CONNECTTIMEOUT => 12,
+            CURLOPT_TIMEOUT => 25,
+            CURLOPT_USERAGENT => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) ZakopeykiDemoSeed/1.0',
+        ]);
+        $body = curl_exec($ch);
+        $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($code >= 200 && $code < 300 && is_string($body) && strlen($body) > 4000) {
+            return $body;
+        }
+
+        return null;
     }
 
     private function typeColor(string $type): string
