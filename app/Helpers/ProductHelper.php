@@ -12,7 +12,7 @@ class ProductHelper
         'auction' => 'Аукцион',
         'service' => 'Услуги',
         'exchange' => 'Бартер',
-        'free' => 'Отдам бесплатно',
+        'free' => 'Даром',
         'gig' => 'Биржа услуг',
         'course' => 'Курс',
     ];
