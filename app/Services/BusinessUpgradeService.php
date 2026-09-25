@@ -65,7 +65,7 @@ class BusinessUpgradeService
 
         $bin = preg_replace('/\D/', '', (string) ($data['bin'] ?? '')) ?? '';
         $aml = AMLService::make();
-        if (!$aml->validateBusinessTaxId($bin, $entity)) {
+        if (!AMLService::skipChecks() && !$aml->validateBusinessTaxId($bin, $entity)) {
             return ['ok' => false, 'error' => t('business.err_bin_format')];
         }
 

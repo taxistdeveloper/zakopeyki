@@ -63,13 +63,14 @@ $simPayments = (bool) ($GLOBALS['appConfig']['allow_simulated_payments'] ?? fals
             $walletIin = preg_replace('/\D/', '', (string) ($walletUser['iin'] ?? ''));
             $walletBin = preg_replace('/\D/', '', (string) ($walletUser['bin'] ?? ''));
             $walletHasId = $walletIsBiz ? strlen((string) $walletBin) === 12 : strlen((string) $walletIin) === 12;
-            $walletAmlBlocked = (($walletUser['aml_status'] ?? '') === \App\Services\AMLService::STATUS_BLOCKED);
+            $walletSkipAml = \App\Services\AMLService::skipChecks();
+            $walletAmlBlocked = !$walletSkipAml && (($walletUser['aml_status'] ?? '') === \App\Services\AMLService::STATUS_BLOCKED);
             ?>
-            <?php if ($walletAmlBlocked): ?>
+            <?php if (!$walletSkipAml && $walletAmlBlocked): ?>
                 <p class="text-xs font-semibold text-red-700 dark:text-red-300"><?= htmlspecialchars(t('flash.aml_blocked')) ?></p>
-            <?php elseif ($walletHasId): ?>
+            <?php elseif (!$walletSkipAml && $walletHasId): ?>
                 <p class="text-[11px] text-gray-400"><?= htmlspecialchars($walletIsBiz ? t('profile.bin_saved_hint') : t('profile.iin_saved_hint')) ?></p>
-            <?php else: ?>
+            <?php elseif (!$walletSkipAml): ?>
                 <label class="block text-xs font-bold"><?= htmlspecialchars($walletIsBiz ? t('profile.bin') : t('profile.iin')) ?></label>
                 <input type="text" name="<?= $walletIsBiz ? 'bin' : 'iin' ?>" inputmode="numeric" maxlength="12" required pattern="\d{12}" placeholder="000000000000" class="<?= $input ?>">
                 <p class="text-[11px] text-gray-400"><?= htmlspecialchars($walletIsBiz ? t('profile.bin_hint') : t('profile.iin_hint')) ?></p>

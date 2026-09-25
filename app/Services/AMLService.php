@@ -28,10 +28,33 @@ class AMLService
         return in_array((string) ($user['business_status'] ?? ''), ['pending', 'verified'], true);
     }
 
+    /** На localhost отключаем AML/ИИН/KYC целиком. */
+    public static function skipChecks(): bool
+    {
+        $cfg = $GLOBALS['appConfig']['skip_aml_checks'] ?? $GLOBALS['appConfig']['skip_aml_format_check'] ?? null;
+        if ($cfg === true) {
+            return true;
+        }
+        if ($cfg === false) {
+            return false;
+        }
+        $host = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
+
+        return str_contains($host, 'localhost') || str_contains($host, '127.0.0.1');
+    }
+
+    public static function skipFormatCheck(): bool
+    {
+        return self::skipChecks();
+    }
+
     public static function userListingStatus(?array $user): string
     {
         if ($user === null || $user === []) {
             return 'guest';
+        }
+        if (self::skipChecks()) {
+            return 'ok';
         }
         if (($user['aml_status'] ?? '') === self::STATUS_BLOCKED) {
             return 'blocked';
@@ -112,6 +135,10 @@ class AMLService
      */
     public function screenUser(int $userId, string $idInput, string $context = 'listing', ?string $entityType = null): array
     {
+        if (self::skipChecks()) {
+            return ['ok' => true];
+        }
+
         $this->ensureSchema();
         $users = new User();
         $user = $users->find($userId);
@@ -188,6 +215,9 @@ class AMLService
 
     public function isBlacklisted(string $iin): bool
     {
+        if (self::skipChecks()) {
+            return false;
+        }
         $clean = $this->normalizeIin($iin);
         if (!$this->hasValidChecksum($clean)) {
             throw new InvalidArgumentException('Некорректный формат ИИН/БИН: ' . $iin);
@@ -231,6 +261,9 @@ class AMLService
         if (strlen($id) !== 12 || !ctype_digit($id)) {
             return false;
         }
+        if (self::skipFormatCheck()) {
+            return true;
+        }
 
         $weights1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
         $controlSum = 0;
@@ -254,6 +287,9 @@ class AMLService
     public function validateIinFormat(string $iin): bool
     {
         $iin = $this->normalizeIin($iin);
+        if (self::skipFormatCheck()) {
+            return strlen($iin) === 12 && ctype_digit($iin);
+        }
         if (!$this->hasValidChecksum($iin)) {
             return false;
         }
@@ -279,6 +315,9 @@ class AMLService
     public function validateBinFormat(string $bin): bool
     {
         $bin = $this->normalizeIin($bin);
+        if (self::skipFormatCheck()) {
+            return strlen($bin) === 12 && ctype_digit($bin);
+        }
         if (!$this->hasValidChecksum($bin)) {
             return false;
         }

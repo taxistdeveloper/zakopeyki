@@ -806,7 +806,7 @@ class ProfileController extends Controller
             (int) $id
         );
         $_SESSION['flash'] = t('flash.lot_deleted');
-        $this->redirect('/profile?tab=lots');
+        $this->redirect('/profile?tab=lots#profile-published-lots');
     }
 
     public function enableCourseAuthor(): void

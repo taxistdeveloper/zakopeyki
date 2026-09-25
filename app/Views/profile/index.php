@@ -824,7 +824,8 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                 <form method="post" action="<?= $editingGig ? ProductHelper::url('/profile/gigs/' . (int) $editing['id'] . '/update') : ($editing ? ProductHelper::url('/profile/lots/' . $editing['id'] . '/update') : ProductHelper::url('/profile/store')) ?>" enctype="multipart/form-data" id="lot-create-form" class="space-y-4 mb-8 p-5 rounded-2xl border border-black/[0.06] dark:border-white/10 bg-brand-50/30 dark:bg-white/[0.03]">
                     <?= csrf_field() ?>
                     <?php
-                    $amlBlocked = (($user['aml_status'] ?? '') === \App\Services\AMLService::STATUS_BLOCKED);
+                    $skipAml = \App\Services\AMLService::skipChecks();
+                    $amlBlocked = !$skipAml && (($user['aml_status'] ?? '') === \App\Services\AMLService::STATUS_BLOCKED);
                     $isBizLot = \App\Services\AMLService::isBusinessUser($user);
                     $savedIin = preg_replace('/\D/', '', (string) ($user['iin'] ?? ''));
                     $savedBin = preg_replace('/\D/', '', (string) ($user['bin'] ?? ''));
@@ -973,7 +974,7 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                         <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.description')) ?></label>
                         <textarea name="description" rows="2" required class="ui-input w-full p-3 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm"><?= htmlspecialchars($editing['description'] ?? '') ?></textarea>
                     </div>
-                    <?php if (!$editing): ?>
+                    <?php if (!$editing && empty($skipAml)): ?>
                     <div id="lot-iin-wrap">
                         <label class="block text-xs font-bold mb-1"><?= htmlspecialchars($isBizLot ? t('profile.bin') : t('profile.iin')) ?> <span class="text-red-500">*</span></label>
                         <?php if ($hasSavedTaxId): ?>
@@ -1624,6 +1625,7 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                     const err = document.getElementById('lot-iin-error');
                     if (!form || !input) return;
 
+                    const skipFormat = <?= \App\Services\AMLService::skipFormatCheck() ? 'true' : 'false' ?>;
                     function weightsSum(iin, weights) {
                         let sum = 0;
                         for (let i = 0; i < 11; i++) sum += parseInt(iin[i], 10) * weights[i];
@@ -1631,12 +1633,14 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                     }
                     function hasChecksum(id) {
                         if (!/^\d{12}$/.test(id)) return false;
+                        if (skipFormat) return true;
                         let control = weightsSum(id, [1,2,3,4,5,6,7,8,9,10,11]) % 11;
                         if (control === 10) control = weightsSum(id, [3,4,5,6,7,8,9,10,11,1,2]) % 11;
                         return control < 10 && control === parseInt(id[11], 10);
                     }
                     function validIin(raw) {
                         const iin = String(raw || '').replace(/\D/g, '');
+                        if (skipFormat) return /^\d{12}$/.test(iin);
                         if (!hasChecksum(iin)) return false;
                         const century = parseInt(iin[6], 10);
                         const base = {1: 1800, 2: 1800, 3: 1900, 4: 1900, 5: 2000, 6: 2000}[century];
@@ -1649,6 +1653,7 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                     }
                     function validBin(raw) {
                         const bin = String(raw || '').replace(/\D/g, '');
+                        if (skipFormat) return /^\d{12}$/.test(bin);
                         if (!hasChecksum(bin)) return false;
                         const m = parseInt(bin.slice(2, 4), 10);
                         return m >= 1 && m <= 12 && ['4', '5', '6'].indexOf(bin[4]) !== -1;
@@ -1833,7 +1838,7 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                 <?php
                 $lotProducts = $products ?? [];
                 ?>
-                <h3 class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Опубликованные (<?= count($lotProducts) ?>)</h3>
+                <h3 id="profile-published-lots" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Опубликованные (<?= count($lotProducts) ?>)</h3>
                 <?php if (empty($lotProducts)): ?>
                     <p class="text-sm text-gray-400"><?= htmlspecialchars(t('profile.no_lots')) ?></p>
                 <?php else: ?>
@@ -1878,7 +1883,7 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                                         <a href="<?= ProductHelper::url('/profile?tab=lots&edit=' . $p['id']) ?>" class="px-2.5 py-1.5 rounded-xl text-[11px] font-bold border border-black/[0.08] dark:border-white/10 hover:border-brand-400/50 hover:bg-brand-50/60 dark:hover:bg-white/5 transition" title="Редактировать">
                                             Изменить
                                         </a>
-                                        <form method="post" action="<?= ProductHelper::url('/profile/lots/' . $p['id'] . '/delete') ?>" onsubmit="return confirm('Удалить объявление «<?= htmlspecialchars($p['title'], ENT_QUOTES) ?>»?');">
+                                        <form method="post" action="<?= ProductHelper::url('/profile/lots/' . $p['id'] . '/delete') ?>" onsubmit="return profileKeepLotsScroll(<?= json_encode('Удалить объявление «' . $p['title'] . '»?', JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>);">
                                             <button type="submit" class="px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-red-600 border border-red-200/80 dark:border-red-500/30 hover:bg-red-50 dark:hover:bg-red-500/10 transition" title="Удалить">
                                                 Удалить
                                             </button>
@@ -1889,6 +1894,45 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
+                <script>
+                function profileLotsScroller() {
+                    return document.querySelector('#main-container main');
+                }
+                function profileKeepLotsScroll(msg) {
+                    if (!confirm(msg)) return false;
+                    var scroller = profileLotsScroller();
+                    try { sessionStorage.setItem('profileLotsScroll', String(scroller ? scroller.scrollTop : window.scrollY)); } catch (e) {}
+                    return true;
+                }
+                (function () {
+                    var saved = null;
+                    try {
+                        saved = sessionStorage.getItem('profileLotsScroll');
+                        sessionStorage.removeItem('profileLotsScroll');
+                    } catch (e) {}
+                    var top = saved != null ? parseInt(saved, 10) : NaN;
+                    var hashDone = false;
+                    function apply() {
+                        var scroller = profileLotsScroller();
+                        if (!isNaN(top)) {
+                            if (scroller) scroller.scrollTop = top;
+                            else window.scrollTo(0, top);
+                            return;
+                        }
+                        if (hashDone || location.hash !== '#profile-published-lots') return;
+                        var el = document.getElementById('profile-published-lots');
+                        if (!el) return;
+                        hashDone = true;
+                        if (scroller) {
+                            scroller.scrollTop += el.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 16;
+                        } else {
+                            el.scrollIntoView({ block: 'start' });
+                        }
+                    }
+                    apply();
+                    requestAnimationFrame(function () { requestAnimationFrame(apply); });
+                })();
+                </script>
             <?php endif; ?>
         </div>
     </div>
