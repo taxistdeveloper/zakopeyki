@@ -1156,6 +1156,8 @@ return [
         'tab_business' => 'Бизнес',
         'tab_author' => 'Автор курсов',
         'tab_lots' => 'Лоты',
+        'tabs_prev' => 'Предыдущие разделы',
+        'tabs_next' => 'Следующие разделы',
         'subscriptions_hint' => 'На кого вы подписаны и кто подписан на вас',
         'subscriptions_following' => 'Я подписан',
         'subscriptions_followers' => 'На меня',

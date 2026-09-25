@@ -1156,6 +1156,8 @@ return [
         'tab_business' => 'Бизнес',
         'tab_author' => 'Курс авторы',
         'tab_lots' => 'Лоттар',
+        'tabs_prev' => 'Алдыңғы бөлімдер',
+        'tabs_next' => 'Келесі бөлімдер',
         'subscriptions_hint' => 'Кімге жазылғаныңыз және кім сізге жазылған',
         'subscriptions_following' => 'Мен жазылдым',
         'subscriptions_followers' => 'Маған',

@@ -79,20 +79,78 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
 
     <div class="bg-white/90 dark:bg-white/[0.04] rounded-[28px] border border-black/[0.06] dark:border-white/10 overflow-hidden shadow-soft backdrop-blur">
         <div class="p-3 sm:p-4 border-b border-black/[0.05] dark:border-white/10 bg-gradient-to-b from-brand-50/40 to-transparent dark:from-brand-500/5">
-            <div class="flex flex-wrap gap-1.5 p-1 rounded-2xl bg-black/[0.03] dark:bg-white/[0.04]">
-                <?php foreach ($tabs as $key => $meta):
-                    $active = $tab === $key;
-                ?>
-                    <a href="<?= ProductHelper::url('/profile?tab=' . $key) ?>"
-                       class="inline-flex items-center gap-2 px-3 py-2.5 text-xs sm:text-[13px] font-semibold whitespace-nowrap rounded-xl transition shrink-0
-                       <?= $active
-                           ? 'bg-white dark:bg-ink-800 text-ink-900 dark:text-white shadow-sm'
-                           : 'text-gray-500 hover:text-ink-800 dark:hover:text-gray-200' ?>">
-                        <span class="opacity-80"><?= IconHelper::svg($meta['icon'], 'w-3.5 h-3.5') ?></span>
-                        <span><?= $meta['label'] ?></span>
-                    </a>
-                <?php endforeach; ?>
+            <div class="relative">
+                <div id="profile-tabs-fade-l" class="pointer-events-none absolute inset-y-0 left-0 w-14 rounded-l-2xl bg-gradient-to-r from-white dark:from-ink-900 to-transparent opacity-0 transition-opacity z-[5]"></div>
+                <div id="profile-tabs-fade-r" class="pointer-events-none absolute inset-y-0 right-0 w-14 rounded-r-2xl bg-gradient-to-l from-white dark:from-ink-900 to-transparent opacity-0 transition-opacity z-[5]"></div>
+                <button type="button" id="profile-tabs-prev"
+                    class="hidden absolute left-0.5 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white dark:bg-ink-800 shadow-sm border border-black/[0.06] dark:border-white/10 items-center justify-center text-ink-700 dark:text-gray-200 hover:bg-ink-50 dark:hover:bg-white/10 transition"
+                    aria-label="<?= htmlspecialchars(t('profile.tabs_prev')) ?>">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                </button>
+                <nav id="profile-tabs" class="flex flex-nowrap gap-1.5 py-1 px-1 rounded-2xl bg-black/[0.03] dark:bg-white/[0.04] overflow-x-auto scrollbar-hide scroll-smooth snap-x touch-pan-x" aria-label="<?= htmlspecialchars(t('profile.title')) ?>">
+                    <?php foreach ($tabs as $key => $meta):
+                        $active = $tab === $key;
+                    ?>
+                        <a href="<?= ProductHelper::url('/profile?tab=' . $key) ?>"
+                           <?= $active ? 'aria-current="page" data-active="1"' : '' ?>
+                           class="inline-flex items-center gap-2 px-3 py-2.5 text-xs sm:text-[13px] font-semibold whitespace-nowrap rounded-xl transition shrink-0 snap-start
+                           <?= $active
+                               ? 'bg-white dark:bg-ink-800 text-ink-900 dark:text-white shadow-sm'
+                               : 'text-gray-500 hover:text-ink-800 dark:hover:text-gray-200' ?>">
+                            <span class="opacity-80"><?= IconHelper::svg($meta['icon'], 'w-3.5 h-3.5') ?></span>
+                            <span><?= $meta['label'] ?></span>
+                        </a>
+                    <?php endforeach; ?>
+                </nav>
+                <button type="button" id="profile-tabs-next"
+                    class="hidden absolute right-0.5 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white dark:bg-ink-800 shadow-sm border border-black/[0.06] dark:border-white/10 items-center justify-center text-ink-700 dark:text-gray-200 hover:bg-ink-50 dark:hover:bg-white/10 transition"
+                    aria-label="<?= htmlspecialchars(t('profile.tabs_next')) ?>">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </button>
             </div>
+            <script>
+            (function () {
+                var scroller = document.getElementById('profile-tabs');
+                var prev = document.getElementById('profile-tabs-prev');
+                var next = document.getElementById('profile-tabs-next');
+                var fadeL = document.getElementById('profile-tabs-fade-l');
+                var fadeR = document.getElementById('profile-tabs-fade-r');
+                if (!scroller || !prev || !next) return;
+
+                function update() {
+                    var max = scroller.scrollWidth - scroller.clientWidth;
+                    var canScroll = max > 4;
+                    var showPrev = canScroll && scroller.scrollLeft > 4;
+                    var showNext = canScroll && scroller.scrollLeft < max - 4;
+                    prev.style.display = showPrev ? 'flex' : 'none';
+                    next.style.display = showNext ? 'flex' : 'none';
+                    if (fadeL) fadeL.style.opacity = showPrev ? '1' : '0';
+                    if (fadeR) fadeR.style.opacity = showNext ? '1' : '0';
+                    scroller.style.paddingLeft = canScroll ? '2.25rem' : '0.25rem';
+                    scroller.style.paddingRight = canScroll ? '2.25rem' : '0.25rem';
+                }
+
+                function step() {
+                    return Math.max(180, Math.round(scroller.clientWidth * 0.7));
+                }
+
+                prev.addEventListener('click', function () {
+                    scroller.scrollBy({ left: -step(), behavior: 'smooth' });
+                });
+                next.addEventListener('click', function () {
+                    scroller.scrollBy({ left: step(), behavior: 'smooth' });
+                });
+                scroller.addEventListener('scroll', update, { passive: true });
+                window.addEventListener('resize', update);
+
+                var active = scroller.querySelector('[data-active="1"]');
+                if (active) {
+                    var left = active.offsetLeft - (scroller.clientWidth / 2) + (active.offsetWidth / 2);
+                    scroller.scrollLeft = Math.max(0, left);
+                }
+                update();
+            })();
+            </script>
         </div>
 
         <div class="p-5 sm:p-8">
