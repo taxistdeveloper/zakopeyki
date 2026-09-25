@@ -793,12 +793,12 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                     ?>
                     <?php
                     $typePalette = [
-                        'used' => ['idle' => 'bg-orange-50 text-orange-600 dark:bg-orange-500/15 dark:text-orange-300', 'on' => 'bg-orange-500 text-white', 'ring' => 'border-orange-400 bg-orange-50/80 dark:bg-orange-500/10'],
                         'new' => ['idle' => 'bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300', 'on' => 'bg-blue-600 text-white', 'ring' => 'border-blue-400 bg-blue-50/80 dark:bg-blue-500/10'],
+                        'used' => ['idle' => 'bg-orange-50 text-orange-600 dark:bg-orange-500/15 dark:text-orange-300', 'on' => 'bg-orange-500 text-white', 'ring' => 'border-orange-400 bg-orange-50/80 dark:bg-orange-500/10'],
                         'auction' => ['idle' => 'bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-300', 'on' => 'bg-red-500 text-white', 'ring' => 'border-red-400 bg-red-50/80 dark:bg-red-500/10'],
-                        'free' => ['idle' => 'bg-sky-50 text-sky-600 dark:bg-sky-500/15 dark:text-sky-300', 'on' => 'bg-sky-500 text-white', 'ring' => 'border-sky-400 bg-sky-50/80 dark:bg-sky-500/10'],
-                        'exchange' => ['idle' => 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300', 'on' => 'bg-indigo-500 text-white', 'ring' => 'border-indigo-400 bg-indigo-50/80 dark:bg-indigo-500/10'],
                         'service' => ['idle' => 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300', 'on' => 'bg-emerald-500 text-white', 'ring' => 'border-emerald-400 bg-emerald-50/80 dark:bg-emerald-500/10'],
+                        'exchange' => ['idle' => 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300', 'on' => 'bg-indigo-500 text-white', 'ring' => 'border-indigo-400 bg-indigo-50/80 dark:bg-indigo-500/10'],
+                        'free' => ['idle' => 'bg-sky-50 text-sky-600 dark:bg-sky-500/15 dark:text-sky-300', 'on' => 'bg-sky-500 text-white', 'ring' => 'border-sky-400 bg-sky-50/80 dark:bg-sky-500/10'],
                         'gig' => ['idle' => 'bg-teal-50 text-teal-600 dark:bg-teal-500/15 dark:text-teal-300', 'on' => 'bg-teal-600 text-white', 'ring' => 'border-teal-400 bg-teal-50/80 dark:bg-teal-500/10'],
                     ];
                     $selectTrigger = $input . ' flex items-center justify-between gap-2 text-left pr-3 cursor-pointer';

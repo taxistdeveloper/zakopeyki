@@ -7,12 +7,12 @@ use App\Core\Lang;
 class ProductHelper
 {
     public const TYPES = [
-        'used' => 'Товар Б/У',
         'new' => 'Новый товар',
+        'used' => 'Товар Б/У',
         'auction' => 'Аукцион',
-        'free' => 'Отдам бесплатно',
-        'exchange' => 'Бартер',
         'service' => 'Услуги',
+        'exchange' => 'Бартер',
+        'free' => 'Отдам бесплатно',
         'gig' => 'Биржа услуг',
         'course' => 'Курс',
     ];
