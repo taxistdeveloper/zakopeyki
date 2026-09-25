@@ -1,5 +1,9 @@
 USE zakapeiku;
 
+-- Полное демо-наполнение (аккаунты, товары, аукционы, сторис):
+--   php bin/seed_demo.php
+-- Пароль демо-аккаунтов: demo1234
+
 -- DEMO ONLY. Change passwords before any production use.
 -- Default password for seeded users: password
 INSERT INTO users (id, name, email, password, role, avatar, phone) VALUES

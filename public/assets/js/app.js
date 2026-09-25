@@ -969,6 +969,11 @@ function closeStreamViewer() {
         iframe.classList.add('hidden');
     }
     if (livePanel) livePanel.classList.add('hidden');
+    const demoCover = document.getElementById('stream-demo-cover');
+    if (demoCover) {
+        demoCover.classList.add('hidden');
+        demoCover.removeAttribute('src');
+    }
     showLiveUnmuteBtn(false);
     // зритель уходит — отключаем WebRTC; хост продолжает эфир
     if (!window.__myLiveId) {
@@ -1041,24 +1046,57 @@ function renderStreamReel() {
         }
     }
 
-    const isHost = stream.is_live && Number(stream.user_id) === Number(window.__currentUserId);
+    const isDemo = !!stream.is_demo;
+    const isHost = !isDemo && stream.is_live && Number(stream.user_id) === Number(window.__currentUserId);
     const hintEl = document.getElementById('stream-live-hint');
+    const demoCover = document.getElementById('stream-demo-cover');
+    if (demoCover) {
+        if (isDemo && stream.cover) {
+            demoCover.src = (window.__streamCoverBase || '') + stream.cover;
+            demoCover.classList.remove('hidden');
+        } else {
+            demoCover.classList.add('hidden');
+            demoCover.removeAttribute('src');
+        }
+    }
 
     if (stream.is_live) {
         livePanel.classList.remove('hidden');
         document.getElementById('stream-live-avatar').textContent = stream.author_avatar || '?';
         document.getElementById('stream-live-host').textContent = stream.author_name || window.__i18n?.['js.live_host'] || 'Эфир';
         frame?.classList.add('is-live-mode');
-        if (isHost) {
+        if (isDemo) {
+            if (endBtn) endBtn.classList.add('hidden');
+            if (hintEl) hintEl.classList.add('hidden');
+            document.getElementById('stream-live-avatar')?.classList.add('hidden');
+            document.getElementById('stream-live-host')?.classList.add('hidden');
+            livePanel.querySelector('.live-v2-live-badge')?.classList.add('hidden');
+            showLiveUnmuteBtn(false);
+            stopLiveCamera();
+            stopLiveRtc();
+            if (cam) cam.classList.add('hidden');
+        } else if (isHost) {
+            document.getElementById('stream-live-avatar')?.classList.remove('hidden');
+            document.getElementById('stream-live-host')?.classList.remove('hidden');
+            livePanel.querySelector('.live-v2-live-badge')?.classList.remove('hidden');
             if (endBtn) endBtn.classList.remove('hidden');
-            if (hintEl) hintEl.textContent = window.__i18n?.['js.stream_desc'] || 'Прямой эфир — не сохраняется';
+            if (hintEl) {
+                hintEl.classList.remove('hidden');
+                hintEl.textContent = window.__i18n?.['js.stream_desc'] || 'Прямой эфир — не сохраняется';
+            }
             showLiveUnmuteBtn(false);
             startLiveCameraPreview();
             cam.classList.remove('hidden');
             cam.muted = true;
         } else {
+            document.getElementById('stream-live-avatar')?.classList.remove('hidden');
+            document.getElementById('stream-live-host')?.classList.remove('hidden');
+            livePanel.querySelector('.live-v2-live-badge')?.classList.remove('hidden');
             if (endBtn) endBtn.classList.add('hidden');
-            if (hintEl) hintEl.textContent = window.__i18n?.['js.live_connecting'] || 'Подключение к эфиру…';
+            if (hintEl) {
+                hintEl.classList.remove('hidden');
+                hintEl.textContent = window.__i18n?.['js.live_connecting'] || 'Подключение к эфиру…';
+            }
             stopLiveCamera();
             startLiveViewerRtc(stream.id);
         }

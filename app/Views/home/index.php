@@ -115,9 +115,13 @@ $changelog = $changelog ?? null;
                     <button type="button" onclick="openStreamViewer(<?= (int) $si ?>)"
                         class="flex-shrink-0 w-[132px] sm:w-[150px] aspect-[9/16] rounded-[22px] overflow-hidden relative ring-2 ring-red-500/50 bg-black text-left group shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition duration-300">
                         <div class="absolute inset-0 bg-gradient-to-br from-red-600 via-orange-600 to-ink-900"></div>
+                        <?php if (!empty($st['cover'])): ?>
+                            <img src="<?= htmlspecialchars(ProductHelper::url('public/uploads/streams/' . basename((string) $st['cover']))) ?>" alt="" class="absolute inset-0 w-full h-full object-cover z-[4]">
+                        <?php else: ?>
                         <div class="absolute inset-0 flex items-center justify-center z-[5]">
                             <span class="text-4xl font-display font-bold text-white/90 drop-shadow"><?= htmlspecialchars(($st['author_avatar'] ?: mb_substr($st['author_name'] ?? 'L', 0, 1))) ?></span>
                         </div>
+                        <?php endif; ?>
                         <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-black/30 z-10"></div>
                         <span class="absolute top-2.5 left-2.5 text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md text-white z-20 bg-red-500 animate-pulse">● Live</span>
                         <div class="absolute bottom-2.5 left-2.5 right-2.5 text-white z-20">
@@ -317,6 +321,7 @@ $changelog = $changelog ?? null;
                     <div id="stream-live-avatar" class="live-v2-waiting-avatar"></div>
                     <p id="stream-live-host" class="font-display font-bold text-lg mt-3 drop-shadow"></p>
                     <p id="stream-live-hint" class="text-xs text-white/70 mt-2 max-w-[220px]"><?= htmlspecialchars(t('home.live_hint')) ?></p>
+                    <img id="stream-demo-cover" alt="" class="hidden absolute inset-0 w-full h-full object-cover z-[15]">
                     <video id="stream-live-cam" class="hidden absolute inset-0 w-full h-full object-cover z-[16]" playsinline webkit-playsinline autoplay></video>
                     <audio id="stream-live-audio" autoplay playsinline></audio>
                 </div>
@@ -538,6 +543,8 @@ $streamsForJs = array_map(static function ($s) {
         'author_name' => $s['author_name'] ?? '',
         'author_avatar' => $avatar,
         'is_live' => true,
+        'is_demo' => !empty($s['is_demo']),
+        'cover' => $s['cover'] ?? null,
     ];
 }, $streams);
 ?>

@@ -84,6 +84,7 @@ class Stream extends Model
             'featured_product_id' => 'INT UNSIGNED NULL AFTER last_heartbeat',
             'likes_count' => 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER featured_product_id',
             'live_setup' => 'MEDIUMTEXT NULL AFTER likes_count',
+            'is_demo' => 'TINYINT(1) NOT NULL DEFAULT 0 AFTER live_setup',
         ] as $col => $def) {
             $exists = $this->db->query("SHOW COLUMNS FROM streams LIKE '{$col}'")->fetch();
             if (!$exists) {
@@ -104,9 +105,29 @@ class Stream extends Model
         return is_array($decoded) ? $decoded : null;
     }
 
+    /** Демо-эфиры не гаснут без камеры: обновляем heartbeat, чтобы их не снял purge. */
+    public function keepDemoAlive(): void
+    {
+        $col = $this->db->query("SHOW COLUMNS FROM streams LIKE 'is_demo'")->fetch();
+        if (!$col) {
+            return;
+        }
+        $this->db->exec(
+            "UPDATE streams SET last_heartbeat = NOW()
+             WHERE is_demo = 1 AND is_live = 1"
+        );
+        $this->db->exec(
+            "UPDATE stream_viewers sv
+             INNER JOIN streams s ON s.id = sv.stream_id
+             SET sv.last_seen = NOW()
+             WHERE s.is_demo = 1 AND s.is_live = 1"
+        );
+    }
+
     /** Только живые стримы (без сохранённых видосов) */
     public function allActive(int $limit = 24): array
     {
+        $this->keepDemoAlive();
         $this->purgeStaleLive();
 
         $stmt = $this->db->prepare(
@@ -115,8 +136,11 @@ class Stream extends Model
              JOIN users u ON u.id = s.user_id
              WHERE s.is_live = 1
                AND (s.video_file IS NULL OR s.video_file = '')
-               AND s.last_heartbeat >= (NOW() - INTERVAL 45 SECOND)
-             ORDER BY s.created_at DESC
+               AND (
+                    s.last_heartbeat >= (NOW() - INTERVAL 45 SECOND)
+                    OR IFNULL(s.is_demo, 0) = 1
+               )
+             ORDER BY IFNULL(s.is_demo, 0) ASC, s.created_at DESC
              LIMIT ?"
         );
         $stmt->bindValue(1, $limit, \PDO::PARAM_INT);
@@ -127,8 +151,8 @@ class Stream extends Model
     public function create(array $data): int
     {
         $stmt = $this->db->prepare(
-            'INSERT INTO streams (user_id, title, description, video_url, video_file, cover, is_live, last_heartbeat, featured_product_id, live_setup)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO streams (user_id, title, description, video_url, video_file, cover, is_live, last_heartbeat, featured_product_id, live_setup, is_demo)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $isLive = !empty($data['is_live']);
         $setup = $data['live_setup'] ?? null;
@@ -146,16 +170,19 @@ class Stream extends Model
             $isLive ? date('Y-m-d H:i:s') : null,
             $data['featured_product_id'] ?? null,
             $setup,
+            !empty($data['is_demo']) ? 1 : 0,
         ]);
         return (int) $this->db->lastInsertId();
     }
 
     public function findActiveLiveByUser(int $userId): ?array
     {
+        $this->keepDemoAlive();
         $this->purgeStaleLive();
         $stmt = $this->db->prepare(
             'SELECT * FROM streams
              WHERE user_id = ? AND is_live = 1 AND video_file IS NULL
+               AND IFNULL(is_demo, 0) = 0
                AND last_heartbeat >= (NOW() - INTERVAL 45 SECOND)
              ORDER BY id DESC LIMIT 1'
         );
@@ -232,7 +259,8 @@ class Stream extends Model
     public function endAllLiveForUser(int $userId): void
     {
         $ids = $this->db->prepare(
-            'SELECT id, cover FROM streams WHERE user_id = ? AND is_live = 1 AND video_file IS NULL'
+            'SELECT id, cover FROM streams
+             WHERE user_id = ? AND is_live = 1 AND video_file IS NULL AND IFNULL(is_demo, 0) = 0'
         );
         $ids->execute([$userId]);
         foreach ($ids->fetchAll() as $row) {
@@ -241,7 +269,8 @@ class Stream extends Model
         }
 
         $stmt = $this->db->prepare(
-            'DELETE FROM streams WHERE user_id = ? AND is_live = 1 AND video_file IS NULL'
+            'DELETE FROM streams
+             WHERE user_id = ? AND is_live = 1 AND video_file IS NULL AND IFNULL(is_demo, 0) = 0'
         );
         $stmt->execute([$userId]);
     }
@@ -253,6 +282,7 @@ class Stream extends Model
             'SELECT id, cover FROM streams
              WHERE is_live = 1
                AND video_file IS NULL
+               AND IFNULL(is_demo, 0) = 0
                AND (last_heartbeat IS NULL OR last_heartbeat < (NOW() - INTERVAL 45 SECOND))'
         )->fetchAll();
 
@@ -265,6 +295,7 @@ class Stream extends Model
             'DELETE FROM streams
              WHERE is_live = 1
                AND video_file IS NULL
+               AND IFNULL(is_demo, 0) = 0
                AND (last_heartbeat IS NULL OR last_heartbeat < (NOW() - INTERVAL 45 SECOND))'
         );
     }
@@ -282,11 +313,15 @@ class Stream extends Model
 
     public function isLiveActive(int $streamId): bool
     {
+        $this->keepDemoAlive();
         $this->purgeStaleLive();
         $stmt = $this->db->prepare(
             'SELECT id FROM streams
              WHERE id = ? AND is_live = 1 AND video_file IS NULL
-               AND last_heartbeat >= (NOW() - INTERVAL 45 SECOND)
+               AND (
+                    last_heartbeat >= (NOW() - INTERVAL 45 SECOND)
+                    OR IFNULL(is_demo, 0) = 1
+               )
              LIMIT 1'
         );
         $stmt->execute([$streamId]);
