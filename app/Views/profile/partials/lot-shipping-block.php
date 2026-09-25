@@ -7,8 +7,15 @@ $packagings = $listingPackagings ?? [];
 $userShip = \App\Models\User::defaultShipFrom($user ?? null);
 $fulfillment = $ls['fulfillment_mode'] ?? ProductListingShipping::FULFILLMENT_DELIVERY;
 $paramMode = $ls['param_mode'] ?? ProductListingShipping::MODE_EXACT;
-$useDefault = ($ls['use_default_ship_from'] ?? 1) && ($userShip['ship_city'] ?? '') !== '';
+$hasDefaultAddress = trim((string) ($userShip['ship_city'] ?? '')) !== '';
+$useDefault = $hasDefaultAddress && (int) ($ls['use_default_ship_from'] ?? 1) === 1;
 $shipCity = $ls['ship_city'] ?? ($useDefault ? ($userShip['ship_city'] ?? '') : ($editing['location'] ?? ''));
+$defaultAddressLine = implode(', ', array_filter([
+    trim((string) ($userShip['ship_city'] ?? '')),
+    trim((string) ($userShip['ship_street'] ?? '')),
+    trim((string) ($userShip['ship_building'] ?? '')),
+    trim((string) ($userShip['ship_apartment'] ?? '')),
+], static fn ($part) => $part !== ''));
 ?>
 <div id="lot-shipping-wrap" class="hidden space-y-4 rounded-2xl border border-black/[0.08] dark:border-white/10 bg-white/80 dark:bg-white/[0.03] p-5">
     <div>
@@ -38,13 +45,23 @@ $shipCity = $ls['ship_city'] ?? ($useDefault ? ($userShip['ship_city'] ?? '') : 
 
     <div id="lot-ship-from-block" class="space-y-3">
         <p class="text-xs font-bold"><?= htmlspecialchars(t('listing_shipping.ship_from_title')) ?></p>
-        <label class="flex items-center gap-2 text-xs">
-            <input type="checkbox" name="use_default_ship_from" value="1" id="lot-use-default-ship" <?= $useDefault ? 'checked' : '' ?> class="rounded">
-            <?= htmlspecialchars(t('listing_shipping.use_default_address')) ?>
+        <label id="lot-use-default-wrap" class="flex items-start gap-2 text-xs <?= $hasDefaultAddress ? '' : 'hidden' ?>">
+            <input type="checkbox" name="use_default_ship_from" value="1" id="lot-use-default-ship" <?= $useDefault ? 'checked' : '' ?> class="rounded mt-0.5">
+            <span>
+                <?= htmlspecialchars(t('listing_shipping.use_default_address')) ?>
+                <?php if ($defaultAddressLine !== ''): ?>
+                    <span class="block text-[11px] font-normal text-gray-400 mt-0.5"><?= htmlspecialchars(t('listing_shipping.saved_address')) ?>: <?= htmlspecialchars($defaultAddressLine) ?></span>
+                <?php endif; ?>
+            </span>
         </label>
-        <label class="flex items-center gap-2 text-xs">
-            <input type="checkbox" name="save_default_ship_from" value="1" class="rounded">
-            <?= htmlspecialchars(t('listing_shipping.save_as_default')) ?>
+        <label id="lot-save-default-wrap" class="flex items-start gap-2 text-xs <?= $useDefault ? 'hidden' : '' ?>">
+            <input type="checkbox" name="save_default_ship_from" value="1" id="lot-save-default-ship" class="rounded mt-0.5">
+            <span>
+                <?= htmlspecialchars(t('listing_shipping.save_as_default')) ?>
+                <?php if (!$hasDefaultAddress): ?>
+                    <span class="block text-[11px] font-normal text-gray-400 mt-0.5"><?= htmlspecialchars(t('listing_shipping.default_address_hint')) ?></span>
+                <?php endif; ?>
+            </span>
         </label>
         <div id="lot-ship-from-fields" class="grid grid-cols-1 sm:grid-cols-2 gap-3 <?= $useDefault ? 'hidden' : '' ?>">
             <input type="text" name="ship_contact_name" value="<?= htmlspecialchars($ls['ship_contact_name'] ?? ($user['name'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('listing_shipping.contact_name')) ?>" class="<?= $input ?>">
@@ -150,6 +167,11 @@ $shipCity = $ls['ship_city'] ?? ($useDefault ? ($userShip['ship_city'] ?? '') : 
 
     document.getElementById('lot-use-default-ship')?.addEventListener('change', function () {
         document.getElementById('lot-ship-from-fields')?.classList.toggle('hidden', this.checked);
+        document.getElementById('lot-save-default-wrap')?.classList.toggle('hidden', this.checked);
+        if (this.checked) {
+            const saveCb = document.getElementById('lot-save-default-ship');
+            if (saveCb) saveCb.checked = false;
+        }
     });
 
     document.getElementById('lot-is-irregular')?.addEventListener('change', function () {
