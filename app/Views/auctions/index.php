@@ -1,5 +1,6 @@
 <?php
 use App\Core\Auth;
+use App\Core\View;
 use App\Helpers\ProductHelper;
 
 $kindTone = [
@@ -17,12 +18,7 @@ $kindTone = [
             </span>
             <span><?= htmlspecialchars(t('auctions.title')) ?></span>
         </h2>
-        <p class="text-sm text-gray-400 mt-1"><?= htmlspecialchars(t('auctions.subtitle')) ?></p>
-        <div class="mt-3 flex flex-wrap gap-2 text-[11px] text-gray-500">
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-300"><?= htmlspecialchars(t('auctions.kind_english')) ?></span>
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300"><?= htmlspecialchars(t('auctions.kind_dutch')) ?></span>
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300"><?= htmlspecialchars(t('auctions.kind_continuous')) ?></span>
-        </div>
+        <?php View::partial('partials/how-guide', ['guide' => 'auctions', 'part' => 'lead']); ?>
     </div>
     <?php if (empty($items)): ?>
         <div class="rounded-2xl border border-dashed border-black/10 dark:border-white/15 px-5 py-14 text-center text-sm text-gray-400">
@@ -159,3 +155,4 @@ $kindTone = [
         </script>
     <?php endif; ?>
 </section>
+<?php View::partial('partials/how-guide', ['guide' => 'auctions', 'part' => 'modal']); ?>
