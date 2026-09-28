@@ -1109,7 +1109,6 @@ function url(string $path = ''): string
             line-height: 0;
         }
         .live-setup-logo img {
-            display: block;
             height: 28px;
             width: auto;
             object-fit: contain;
@@ -1120,8 +1119,8 @@ function url(string $path = ''): string
             gap: 5px;
             font-size: 11px;
             font-weight: 700;
-            color: #6d28d9;
-            background: #f3e8ff;
+            color: #1D4ED8;
+            background: #DBEAFE;
             border: 0;
             border-radius: 999px;
             padding: 7px 10px;
@@ -1144,18 +1143,18 @@ function url(string $path = ''): string
             height: 48px;
             border-radius: 999px;
             overflow: hidden;
-            background: #ede9fe;
+            background: #DBEAFE;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: 800;
-            color: #6d28d9;
+            color: #1D4ED8;
             flex-shrink: 0;
         }
         .live-setup-avatar img { width: 100%; height: 100%; object-fit: cover; }
         .live-setup-name-row { display: flex; align-items: center; gap: 4px; }
         .live-setup-name { font-size: 14px; font-weight: 800; color: #111827; }
-        .live-setup-verified { color: #7c3aed; flex-shrink: 0; }
+        .live-setup-verified { color: #2563EB; flex-shrink: 0; }
         .live-setup-subs { font-size: 11px; color: #9ca3af; margin-top: 1px; }
         .live-setup-cover-btn {
             display: inline-flex;
@@ -1163,8 +1162,8 @@ function url(string $path = ''): string
             gap: 5px;
             font-size: 11px;
             font-weight: 700;
-            color: #6d28d9;
-            background: #f3e8ff;
+            color: #1D4ED8;
+            background: #DBEAFE;
             border-radius: 999px;
             padding: 8px 10px;
             cursor: pointer;
@@ -1227,7 +1226,7 @@ function url(string $path = ''): string
             font-size: 11px;
             font-weight: 700;
             color: #fff;
-            background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+            background: linear-gradient(135deg, #3B82F6, #1D4ED8);
             border: 0;
             border-radius: 12px;
             padding: 9px 11px;
@@ -1260,18 +1259,18 @@ function url(string $path = ''): string
         .live-setup-tag {
             font-size: 10px;
             font-weight: 700;
-            color: #7c3aed;
-            background: #f3e8ff;
+            color: #2563EB;
+            background: #DBEAFE;
             border-radius: 999px;
             padding: 3px 8px;
         }
-        .live-setup-tag.is-req { color: #fff; background: #7c3aed; }
+        .live-setup-tag.is-req { color: #fff; background: #2563EB; }
         .live-setup-card-hint { font-size: 12px; color: #9ca3af; margin-bottom: 10px; }
         .live-setup-dashed {
             width: 100%;
-            border: 1.5px dashed #c4b5fd;
-            background: #faf5ff;
-            color: #7c3aed;
+            border: 1.5px dashed #93C5FD;
+            background: #EFF6FF;
+            color: #2563EB;
             font-size: 13px;
             font-weight: 700;
             border-radius: 14px;
@@ -1297,7 +1296,7 @@ function url(string $path = ''): string
         }
         .live-setup-product-row .meta { min-width: 0; flex: 1; }
         .live-setup-product-row .title { font-size: 12px; font-weight: 700; line-height: 1.25; }
-        .live-setup-product-row .price { font-size: 13px; font-weight: 800; color: #7c3aed; margin-top: 2px; }
+        .live-setup-product-row .price { font-size: 13px; font-weight: 800; color: #2563EB; margin-top: 2px; }
         .live-setup-product-row .actions { display: flex; gap: 4px; flex-shrink: 0; }
         .live-setup-icon-btn {
             width: 30px;
@@ -1343,8 +1342,8 @@ function url(string $path = ''): string
             gap: 10px;
             padding: 10px;
             border-radius: 14px;
-            background: #faf5ff;
-            border: 1px solid #ede9fe;
+            background: #EFF6FF;
+            border: 1px solid #DBEAFE;
         }
         .live-setup-notify-icon {
             width: 36px;
@@ -1381,7 +1380,7 @@ function url(string $path = ''): string
             box-shadow: 0 1px 3px rgba(0,0,0,0.2);
             transition: transform .2s;
         }
-        .live-setup-toggle.is-on { background: #7c3aed; }
+        .live-setup-toggle.is-on { background: #2563EB; }
         .live-setup-toggle.is-on::after { transform: translateX(18px); }
         .live-setup-footer {
             padding: 12px 14px 18px;
@@ -1394,7 +1393,7 @@ function url(string $path = ''): string
             align-items: center;
             justify-content: center;
             gap: 8px;
-            background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+            background: linear-gradient(135deg, #3B82F6, #1D4ED8);
             color: #fff;
             font-size: 13px;
             font-weight: 800;
@@ -1404,7 +1403,7 @@ function url(string $path = ''): string
             border-radius: 16px;
             padding: 15px;
             cursor: pointer;
-            box-shadow: 0 8px 20px rgba(109, 40, 217, 0.28);
+            box-shadow: 0 8px 20px rgba(29, 78, 216, 0.28);
         }
         .live-setup-warn {
             text-align: center;
@@ -1419,8 +1418,8 @@ function url(string $path = ''): string
             margin-top: 6px;
         }
         .live-setup-give-card {
-            border: 1px solid #ede9fe;
-            background: #faf5ff;
+            border: 1px solid #DBEAFE;
+            background: #EFF6FF;
             border-radius: 14px;
             padding: 12px;
         }
@@ -1437,9 +1436,9 @@ function url(string $path = ''): string
             cursor: pointer;
         }
         .live-picker-item.is-selected {
-            border-color: #7c3aed;
-            background: #faf5ff;
-            box-shadow: 0 0 0 1px #7c3aed;
+            border-color: #2563EB;
+            background: #EFF6FF;
+            box-shadow: 0 0 0 1px #2563EB;
         }
         .live-picker-item .thumb {
             width: 44px;
@@ -1464,18 +1463,18 @@ function url(string $path = ''): string
             gap: 8px;
             width: 100%;
             min-height: 140px;
-            border: 1.5px dashed #c4b5fd;
-            background: #faf5ff;
+            border: 1.5px dashed #93C5FD;
+            background: #EFF6FF;
             border-radius: 16px;
             padding: 20px 16px;
             cursor: pointer;
             text-align: center;
         }
-        .story-create-upload-icon { color: #7c3aed; }
+        .story-create-upload-icon { color: #2563EB; }
         .story-create-upload-link {
             font-size: 14px;
             font-weight: 800;
-            color: #7c3aed;
+            color: #2563EB;
             text-decoration: underline;
             text-underline-offset: 3px;
         }
@@ -1493,7 +1492,8 @@ function url(string $path = ''): string
             max-height: 280px;
             background: #111;
         }
-        .story-create-media-preview img {
+        .story-create-media-preview img,
+        .story-create-media-preview video {
             width: 100%;
             height: 100%;
             object-fit: cover;
@@ -1524,13 +1524,13 @@ function url(string $path = ''): string
             padding: 0;
         }
         .story-create-emoji-btn:hover {
-            background: #faf5ff;
-            border-color: #c4b5fd;
+            background: #EFF6FF;
+            border-color: #93C5FD;
         }
         .story-create-emoji-btn.is-selected {
-            background: #faf5ff;
-            border-color: #7c3aed;
-            box-shadow: 0 0 0 1px #7c3aed;
+            background: #EFF6FF;
+            border-color: #2563EB;
+            box-shadow: 0 0 0 1px #2563EB;
             transform: scale(1.04);
         }
         .story-create-input {
@@ -1577,9 +1577,9 @@ function url(string $path = ''): string
             gap: 10px;
             padding: 12px;
             border-radius: 14px;
-            background: #faf5ff;
-            border: 1px solid #ede9fe;
-            color: #6d28d9;
+            background: #EFF6FF;
+            border: 1px solid #DBEAFE;
+            color: #1D4ED8;
             font-size: 12px;
             font-weight: 600;
             line-height: 1.4;
@@ -1607,9 +1607,9 @@ function url(string $path = ''): string
         }
         .dark .story-create-emoji-btn.is-selected,
         .dark .story-create-emoji-btn:hover {
-            background: rgba(124,58,237,0.18);
+            background: rgba(37,99,235,0.18);
         }
-        .dark .story-create-upload { background: rgba(124,58,237,0.12); }
+        .dark .story-create-upload { background: rgba(37,99,235,0.12); }
 
         .dark .live-setup-shell,
         .dark .live-setup-panel,
@@ -1626,7 +1626,7 @@ function url(string $path = ''): string
         .dark .live-setup-product-row,
         .dark .live-setup-select,
         .dark .live-picker-item { background: #1f2937; color: #f9fafb; border-color: rgba(255,255,255,0.1); }
-        .dark .live-setup-dashed { background: rgba(124,58,237,0.12); }
+        .dark .live-setup-dashed { background: rgba(37,99,235,0.12); }
         body.live-stream-open #stream-nav-prev,
         body.live-stream-open #stream-nav-next { opacity: 0.35; }
         body.live-stream-open #live-return-fab { display: none !important; }
@@ -2275,6 +2275,7 @@ function url(string $path = ''): string
             'card.favorite', 'card.unfavorite', 'card.add_cart', 'card.in_cart',
             'home.story_link_copied',
             'home.story_create_draft_saved', 'home.story_create_need_content', 'home.story_create_need_photo',
+            'home.story_create_video_long', 'home.story_create_video_wait', 'home.story_create_file_big', 'home.story_create_media_bad',
             'header.city', 'header.city_choose', 'header.city_detect', 'header.city_detecting', 'header.city_denied',
             'chat.title', 'chat.start_hint', 'chat.send_failed', 'chat.start_failed',
             'product.close_photo', 'product.prev_photo', 'product.next_photo', 'product.zoom',

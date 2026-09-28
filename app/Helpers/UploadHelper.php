@@ -15,8 +15,9 @@ class UploadHelper
 
     /** @var array<string, list<string>> */
     private const VIDEO_MIME = [
-        'mp4' => ['video/mp4'],
+        'mp4' => ['video/mp4', 'video/x-m4v', 'application/mp4'],
         'webm' => ['video/webm'],
+        'mov' => ['video/quicktime', 'video/mp4'],
     ];
 
     /** @var array<string, list<string>> */
@@ -77,6 +78,17 @@ class UploadHelper
                 return $gdMime !== '' && in_array($gdMime, $allowedMimes, true);
             }
             return true;
+        }
+
+        if (isset(self::VIDEO_MIME[$ext])) {
+            if ($mimeOk) {
+                return true;
+            }
+            if ($ext === 'webm') {
+                return self::hasMagic($tmpPath, "\x1A\x45\xDF\xA3");
+            }
+
+            return self::hasFtyp($tmpPath);
         }
 
         if (isset(self::DOCUMENT_MIME[$ext])) {
@@ -150,6 +162,18 @@ class UploadHelper
         }
 
         return mb_substr($base, 0, 180);
+    }
+
+    private static function hasFtyp(string $path): bool
+    {
+        $fh = @fopen($path, 'rb');
+        if ($fh === false) {
+            return false;
+        }
+        $head = fread($fh, 12);
+        fclose($fh);
+
+        return is_string($head) && strlen($head) >= 8 && substr($head, 4, 4) === 'ftyp';
     }
 
     private static function hasMagic(string $path, string $magic): bool

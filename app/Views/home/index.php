@@ -206,7 +206,7 @@ $changelog = $changelog ?? null;
         </div>
         <div class="p-4 sm:p-5 space-y-3">
             <p class="text-[12px] text-gray-500 dark:text-gray-400 leading-snug"><?= htmlspecialchars(t('home.live_preview_hint')) ?></p>
-            <button type="button" id="live-preview-confirm-btn" onclick="confirmStartLiveStream()" class="w-full bg-[#7c3aed] hover:bg-[#6d28d9] disabled:opacity-60 disabled:pointer-events-none text-white font-display font-bold py-3.5 rounded-2xl text-xs uppercase tracking-wider transition shadow-soft inline-flex items-center justify-center gap-2">
+            <button type="button" id="live-preview-confirm-btn" onclick="confirmStartLiveStream()" class="w-full bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-60 disabled:pointer-events-none text-white font-display font-bold py-3.5 rounded-2xl text-xs uppercase tracking-wider transition shadow-soft inline-flex items-center justify-center gap-2">
                 <?= IconHelper::svg('mic', 'w-4 h-4') ?>
                 <span class="live-btn-label"><?= htmlspecialchars(t('home.start_stream')) ?></span>
             </button>
@@ -230,6 +230,7 @@ $changelog = $changelog ?? null;
             <div class="absolute inset-0" id="story-slide">
                 <div id="story-bg" class="absolute inset-0 story-text-bg"></div>
                 <img id="story-image" src="" alt="" class="hidden absolute inset-0 w-full h-full object-cover">
+                <video id="story-video" class="hidden absolute inset-0 w-full h-full object-cover" playsinline preload="auto"></video>
                 <div class="absolute inset-0 story-vignette z-[1]"></div>
                 <div id="story-emoji" class="absolute inset-0 z-[2] flex flex-col items-center justify-center px-8 pointer-events-none">
                     <span id="story-emoji-icon" class="leading-none select-none"></span>

@@ -65,7 +65,7 @@ $myInitial = AvatarHelper::initial($me);
                         <span class="live-setup-tag is-req"><?= htmlspecialchars(t('home.live_setup_required')) ?></span>
                     </div>
                     <p class="live-setup-card-hint"><?= htmlspecialchars(t('home.story_create_media_hint')) ?></p>
-                    <input type="file" id="story-create-image" name="image" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden" onchange="onStoryCreateImageChange(event)">
+                    <input type="file" id="story-create-image" name="image" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov" class="hidden" onchange="onStoryCreateImageChange(event)">
                     <label id="story-create-upload-zone" for="story-create-image" class="story-create-upload">
                         <span class="story-create-upload-icon" aria-hidden="true">
                             <?= IconHelper::svg('upload', 'w-7 h-7') ?>
@@ -75,6 +75,7 @@ $myInitial = AvatarHelper::initial($me);
                     </label>
                     <div id="story-create-media-preview" class="hidden story-create-media-preview">
                         <img id="story-create-media-img" src="" alt="">
+                        <video id="story-create-media-video" class="hidden" muted playsinline loop preload="metadata"></video>
                         <button type="button" class="live-setup-cover-clear" onclick="clearStoryCreateImage()" aria-label="✕">✕</button>
                     </div>
                 </section>
@@ -151,7 +152,7 @@ $myInitial = AvatarHelper::initial($me);
                         </label>
                     </div>
                     <div class="live-setup-notify">
-                        <div class="live-setup-notify-icon text-[#7c3aed]" aria-hidden="true"><?= IconHelper::svg('bell', 'w-4 h-4') ?></div>
+                        <div class="live-setup-notify-icon text-[#2563EB]" aria-hidden="true"><?= IconHelper::svg('bell', 'w-4 h-4') ?></div>
                         <div class="min-w-0 flex-1">
                             <p class="live-setup-notify-title"><?= htmlspecialchars(t('home.story_create_notify')) ?></p>
                             <p class="live-setup-notify-sub"><?= htmlspecialchars(t('home.story_ttl')) ?></p>
@@ -182,6 +183,7 @@ $myInitial = AvatarHelper::initial($me);
         <div class="story-create-preview-frame" id="story-create-preview-frame">
             <div id="story-create-preview-bg" class="absolute inset-0"></div>
             <img id="story-create-preview-img" src="" alt="" class="hidden absolute inset-0 w-full h-full object-cover">
+            <video id="story-create-preview-video" class="hidden absolute inset-0 w-full h-full object-cover" muted playsinline preload="metadata"></video>
             <div class="absolute inset-0 flex flex-col items-end justify-end px-5 pb-6 text-left z-[1] bg-gradient-to-t from-black/55 via-transparent to-transparent">
                 <p id="story-create-preview-text" class="w-full text-white text-sm font-semibold drop-shadow leading-snug"></p>
             </div>

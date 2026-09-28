@@ -145,7 +145,7 @@ $myInitial = AvatarHelper::initial($me);
                     </label>
                 </div>
                 <div class="live-setup-notify">
-                    <div class="live-setup-notify-icon text-[#7c3aed]" aria-hidden="true"><?= IconHelper::svg('bell', 'w-4 h-4') ?></div>
+                    <div class="live-setup-notify-icon text-[#2563EB]" aria-hidden="true"><?= IconHelper::svg('bell', 'w-4 h-4') ?></div>
                     <div class="min-w-0 flex-1">
                         <p class="live-setup-notify-title"><?= htmlspecialchars(t('home.live_setup_notify')) ?></p>
                         <p class="live-setup-notify-sub"><?= htmlspecialchars(t('home.live_setup_notify_sub')) ?></p>
@@ -182,7 +182,7 @@ $myInitial = AvatarHelper::initial($me);
             <input type="number" id="live-picker-price-input" min="0" step="1" class="ui-input w-full border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 h-11 px-3 rounded-xl text-sm" placeholder="₸">
         </div>
         <div class="p-4 border-t border-black/[0.06] dark:border-white/10">
-            <button type="button" id="live-picker-confirm" onclick="confirmLiveProductPicker()" class="w-full bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-display font-bold py-3 rounded-2xl text-xs uppercase tracking-wider transition"><?= htmlspecialchars(t('home.live_setup_apply')) ?></button>
+            <button type="button" id="live-picker-confirm" onclick="confirmLiveProductPicker()" class="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-display font-bold py-3 rounded-2xl text-xs uppercase tracking-wider transition"><?= htmlspecialchars(t('home.live_setup_apply')) ?></button>
         </div>
     </div>
 </div>
@@ -203,7 +203,7 @@ $myInitial = AvatarHelper::initial($me);
                 <label class="block text-[12px] font-semibold mb-1.5"><?= htmlspecialchars(t('home.live_setup_giveaway_goal')) ?></label>
                 <input type="number" id="live-give-goal-input" min="50" max="5000" value="500" class="ui-input w-full border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 h-11 px-3 rounded-xl text-sm">
             </div>
-            <button type="button" onclick="confirmLiveGiveawayEditor()" class="w-full bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-display font-bold py-3 rounded-2xl text-xs uppercase tracking-wider transition"><?= htmlspecialchars(t('home.live_setup_apply')) ?></button>
+            <button type="button" onclick="confirmLiveGiveawayEditor()" class="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-display font-bold py-3 rounded-2xl text-xs uppercase tracking-wider transition"><?= htmlspecialchars(t('home.live_setup_apply')) ?></button>
             <button type="button" onclick="clearLiveGiveaway()" class="w-full text-[12px] font-semibold text-gray-400 py-1"><?= htmlspecialchars(t('home.live_setup_remove_giveaway')) ?></button>
         </div>
     </div>

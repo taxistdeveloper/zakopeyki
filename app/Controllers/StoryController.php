@@ -4,13 +4,18 @@ namespace App\Controllers;
 
 use App\Core\Auth;
 use App\Core\Controller;
+use App\Helpers\UploadHelper;
+use App\Helpers\VideoProbe;
 use App\Models\Follow;
 use App\Models\Story;
 
 class StoryController extends Controller
 {
-    private const ALLOWED_EXT = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
-    private const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+    private const IMAGE_EXT = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+    private const VIDEO_EXT = ['mp4', 'webm', 'mov'];
+    private const MAX_IMAGE = 5 * 1024 * 1024;
+    private const MAX_VIDEO = 50 * 1024 * 1024;
+    private const MAX_VIDEO_SECONDS = 60.5;
 
     public function store(): void
     {
@@ -22,10 +27,9 @@ class StoryController extends Controller
             $caption = mb_substr($caption, 0, 280);
         }
 
-        $image = $this->uploadImage();
+        $image = $this->uploadMedia();
 
-        if (!$image) {
-            $_SESSION['flash'] = 'Загрузите фото для истории';
+        if ($image === null) {
             $this->redirect('/');
         }
 
@@ -72,26 +76,56 @@ class StoryController extends Controller
         $this->redirect('/');
     }
 
-    private function uploadImage(): ?string
+    private function uploadMedia(): ?string
     {
-        if (empty($_FILES['image']['name']) || ($_FILES['image']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+        $file = $_FILES['image'] ?? null;
+        if (!is_array($file) || empty($file['name']) || (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+            $_SESSION['flash'] = t('home.story_create_need_photo');
             return null;
         }
 
-        $file = $_FILES['image'];
-        if (($file['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) {
+        $error = (int) ($file['error'] ?? UPLOAD_ERR_OK);
+        if ($error === UPLOAD_ERR_INI_SIZE || $error === UPLOAD_ERR_FORM_SIZE) {
+            $_SESSION['flash'] = t('home.story_create_file_big');
             return null;
         }
-        if (($file['size'] ?? 0) > self::MAX_SIZE) {
+        if ($error !== UPLOAD_ERR_OK) {
+            $_SESSION['flash'] = t('home.story_create_media_bad');
             return null;
         }
 
-        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        if (!in_array($ext, self::ALLOWED_EXT, true)) {
+        $original = (string) $file['name'];
+        $ext = strtolower(pathinfo($original, PATHINFO_EXTENSION));
+        $isVideo = in_array($ext, self::VIDEO_EXT, true);
+        $isImage = in_array($ext, self::IMAGE_EXT, true);
+        if (!$isVideo && !$isImage) {
+            $_SESSION['flash'] = t('home.story_create_media_bad');
             return null;
         }
-        if (!\App\Helpers\UploadHelper::isAllowedUpload((string) $file['tmp_name'], (string) $file['name'], self::ALLOWED_EXT)) {
+
+        $max = $isVideo ? self::MAX_VIDEO : self::MAX_IMAGE;
+        if ((int) ($file['size'] ?? 0) > $max) {
+            $_SESSION['flash'] = t('home.story_create_file_big');
             return null;
+        }
+
+        $tmp = (string) $file['tmp_name'];
+        $allowed = $isVideo ? self::VIDEO_EXT : self::IMAGE_EXT;
+        if (!UploadHelper::isAllowedUpload($tmp, $original, $allowed)) {
+            $_SESSION['flash'] = t('home.story_create_media_bad');
+            return null;
+        }
+
+        if ($isVideo) {
+            $seconds = VideoProbe::durationSeconds($tmp);
+            if ($seconds === null) {
+                $_SESSION['flash'] = t('home.story_create_media_bad');
+                return null;
+            }
+            if ($seconds > self::MAX_VIDEO_SECONDS) {
+                $_SESSION['flash'] = t('home.story_create_video_long');
+                return null;
+            }
         }
 
         $dir = __DIR__ . '/../../public/uploads/stories';
@@ -99,11 +133,12 @@ class StoryController extends Controller
             mkdir($dir, 0755, true);
         }
 
-        $ext = \App\Helpers\UploadHelper::normalizeExt((string) $file['name']);
+        $ext = UploadHelper::normalizeExt($original);
         $name = 'story_' . Auth::id() . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
         $dest = $dir . '/' . $name;
 
-        if (!move_uploaded_file($file['tmp_name'], $dest)) {
+        if (!move_uploaded_file($tmp, $dest)) {
+            $_SESSION['flash'] = t('home.story_create_media_bad');
             return null;
         }
 
