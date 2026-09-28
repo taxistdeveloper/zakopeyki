@@ -5,7 +5,6 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Controller;
 use App\Helpers\UploadHelper;
-use App\Helpers\VideoProbe;
 use App\Models\Follow;
 use App\Models\Story;
 
@@ -15,7 +14,6 @@ class StoryController extends Controller
     private const VIDEO_EXT = ['mp4', 'webm', 'mov'];
     private const MAX_IMAGE = 5 * 1024 * 1024;
     private const MAX_VIDEO = 50 * 1024 * 1024;
-    private const MAX_VIDEO_SECONDS = 60.5;
 
     public function store(): void
     {
@@ -114,18 +112,6 @@ class StoryController extends Controller
         if (!UploadHelper::isAllowedUpload($tmp, $original, $allowed)) {
             $_SESSION['flash'] = t('home.story_create_media_bad');
             return null;
-        }
-
-        if ($isVideo) {
-            $seconds = VideoProbe::durationSeconds($tmp);
-            if ($seconds === null) {
-                $_SESSION['flash'] = t('home.story_create_media_bad');
-                return null;
-            }
-            if ($seconds > self::MAX_VIDEO_SECONDS) {
-                $_SESSION['flash'] = t('home.story_create_video_long');
-                return null;
-            }
         }
 
         $dir = __DIR__ . '/../../public/uploads/stories';

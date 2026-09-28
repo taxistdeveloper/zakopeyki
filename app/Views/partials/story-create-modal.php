@@ -78,6 +78,7 @@ $myInitial = AvatarHelper::initial($me);
                         <video id="story-create-media-video" class="hidden" muted playsinline loop preload="metadata"></video>
                         <button type="button" class="live-setup-cover-clear" onclick="clearStoryCreateImage()" aria-label="✕">✕</button>
                     </div>
+                    <p id="story-create-video-trim" class="hidden live-setup-card-hint"><?= htmlspecialchars(t('home.story_create_video_trim')) ?></p>
                 </section>
 
                 <!-- Заголовок -->

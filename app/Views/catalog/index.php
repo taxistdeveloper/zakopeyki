@@ -22,7 +22,17 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
             <?php endif; ?>
             <span><?= htmlspecialchars($heading) ?></span>
         </h2>
-        <?php if ($type === 'service'): ?>
+        <?php if ($type === 'new'): ?>
+            <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2.5">
+                <p class="text-sm text-gray-500 dark:text-gray-400 max-w-2xl"><?= htmlspecialchars(t('catalog.new_lead')) ?></p>
+                <button type="button" id="new-how-open"
+                        class="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl border border-black/[0.1] dark:border-white/15 bg-white dark:bg-white/5 text-ink-800 dark:text-gray-200 text-xs font-semibold hover:border-brand-400/50 hover:text-brand-700 dark:hover:text-brand-300 transition shrink-0"
+                        aria-haspopup="dialog" aria-controls="new-how-modal" aria-expanded="false">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.2 2.4c-.7.3-1.2.8-1.2 1.6V14"/><path d="M12 17h.01"/></svg>
+                    <?= htmlspecialchars(t('catalog.how_use')) ?>
+                </button>
+            </div>
+        <?php elseif ($type === 'service'): ?>
             <p class="mt-2 text-sm text-gray-500 dark:text-gray-400 max-w-2xl"><?= htmlspecialchars(t('catalog.services_board_lead')) ?></p>
             <?php
             if (!Auth::check()) {
@@ -277,3 +287,80 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
         </div>
     <?php endif; ?>
 </section>
+
+<?php if ($type === 'new'): ?>
+<div id="new-how-modal" class="fixed inset-0 z-[110] hidden" aria-hidden="true">
+    <div class="absolute inset-0 bg-ink-900/55 backdrop-blur-sm" data-new-how-close></div>
+    <div class="relative z-10 flex min-h-full items-end sm:items-center justify-center p-0 sm:p-4" data-new-how-close>
+        <div role="dialog" aria-modal="true" aria-labelledby="new-how-title" id="new-how-panel"
+             class="w-full sm:max-w-xl max-h-[92vh] flex flex-col rounded-t-[28px] sm:rounded-[28px] bg-white dark:bg-ink-800 shadow-lift border border-white/60 dark:border-white/10 overflow-hidden">
+            <div class="flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b border-black/[0.06] dark:border-white/10 shrink-0">
+                <h2 id="new-how-title" class="font-display text-base sm:text-lg font-bold text-ink-900 dark:text-white"><?= htmlspecialchars(t('catalog.how_use')) ?></h2>
+                <button type="button" id="new-how-dismiss" data-new-how-close class="h-9 w-9 rounded-xl border border-black/10 dark:border-white/15 text-gray-500 hover:text-ink-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/5 transition shrink-0" aria-label="<?= htmlspecialchars(t('catalog.how_close')) ?>">&times;</button>
+            </div>
+            <div class="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-5">
+                <?php
+                $howSections = [
+                    'catalog.how_buyer' => 9,
+                    'catalog.how_seller' => 7,
+                ];
+                $stepPrefix = [
+                    'catalog.how_buyer' => 'catalog.new_buyer_',
+                    'catalog.how_seller' => 'catalog.new_seller_',
+                ];
+                foreach ($howSections as $titleKey => $count):
+                ?>
+                    <section>
+                        <h3 class="font-display font-bold text-sm text-ink-900 dark:text-white"><?= htmlspecialchars(t($titleKey)) ?></h3>
+                        <ol class="mt-2.5 space-y-2 text-sm text-ink-800 dark:text-gray-200 list-decimal pl-5">
+                            <?php for ($i = 1; $i <= $count; $i++): ?>
+                                <li class="pl-1 leading-snug"><?= htmlspecialchars(t($stepPrefix[$titleKey] . $i)) ?></li>
+                            <?php endfor; ?>
+                        </ol>
+                    </section>
+                <?php endforeach; ?>
+            </div>
+            <div class="shrink-0 border-t border-black/[0.06] dark:border-white/10 px-5 py-4">
+                <button type="button" data-new-how-close class="w-full bg-accent-500 hover:bg-accent-400 text-white font-display font-bold py-3.5 rounded-2xl text-xs uppercase tracking-wider transition"><?= htmlspecialchars(t('catalog.how_ok')) ?></button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    var modal = document.getElementById('new-how-modal');
+    var openBtn = document.getElementById('new-how-open');
+    if (!modal || !openBtn) return;
+
+    function openHow() {
+        modal.classList.remove('hidden');
+        modal.setAttribute('aria-hidden', 'false');
+        openBtn.setAttribute('aria-expanded', 'true');
+        document.body.style.overflow = 'hidden';
+        var closeBtn = document.getElementById('new-how-dismiss');
+        if (closeBtn) closeBtn.focus();
+    }
+
+    function closeHow() {
+        if (modal.classList.contains('hidden')) return;
+        modal.classList.add('hidden');
+        modal.setAttribute('aria-hidden', 'true');
+        openBtn.setAttribute('aria-expanded', 'false');
+        document.body.style.overflow = '';
+        openBtn.focus();
+    }
+
+    var panel = document.getElementById('new-how-panel');
+    if (panel) {
+        panel.addEventListener('click', function (e) { e.stopPropagation(); });
+    }
+    openBtn.addEventListener('click', openHow);
+    modal.querySelectorAll('[data-new-how-close]').forEach(function (el) {
+        el.addEventListener('click', closeHow);
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeHow();
+    });
+})();
+</script>
+<?php endif; ?>

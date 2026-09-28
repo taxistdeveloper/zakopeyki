@@ -151,6 +151,11 @@ function url(string $path = ''): string
         /* Instagram web stories */
         .story-viewer-shell {
             background: #262626;
+            overscroll-behavior: none;
+        }
+        #story-slide,
+        #stream-hold-zone {
+            touch-action: none;
         }
         .story-backdrop { display: none !important; }
         .story-brand {
@@ -227,11 +232,14 @@ function url(string $path = ''): string
         .story-nav-btn.is-hidden { visibility: hidden; pointer-events: none; }
         #story-nav-prev, #stream-nav-prev,
         #story-nav-next, #stream-nav-next {
-            position: static;
-            transform: none;
+            position: absolute;
+            right: 18px;
             left: auto;
-            right: auto;
+            z-index: 6;
+            transform: none;
         }
+        #story-nav-prev, #stream-nav-prev { top: calc(50% - 46px); }
+        #story-nav-next, #stream-nav-next { top: calc(50% + 10px); }
         .story-close-outer {
             position: absolute;
             top: 10px;

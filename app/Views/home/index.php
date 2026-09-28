@@ -225,7 +225,7 @@ $changelog = $changelog ?? null;
     </a>
     <button type="button" class="story-close-outer" onclick="closeStoryViewer()" aria-label="Close">✕</button>
     <div class="story-stage">
-        <button type="button" id="story-nav-prev" class="story-nav-btn" onclick="event.stopPropagation(); prevStory()" aria-label="Previous">‹</button>
+        <button type="button" id="story-nav-prev" class="story-nav-btn" onclick="event.stopPropagation(); prevStory()" aria-label="Previous">↑</button>
         <div class="story-frame" onclick="event.stopPropagation()">
             <div class="absolute inset-0" id="story-slide">
                 <div id="story-bg" class="absolute inset-0 story-text-bg"></div>
@@ -236,8 +236,6 @@ $changelog = $changelog ?? null;
                     <span id="story-emoji-icon" class="leading-none select-none"></span>
                     <p id="story-caption-center" class="hidden"></p>
                 </div>
-                <div class="absolute inset-y-0 left-0 w-[30%] z-10 cursor-pointer" onclick="event.stopPropagation(); prevStory()"></div>
-                <div class="absolute inset-y-0 right-0 w-[30%] z-10 cursor-pointer" onclick="event.stopPropagation(); nextStory()"></div>
             </div>
 
             <div class="absolute top-0 left-0 right-0 z-20 pt-3 px-3 pb-2 space-y-2 pointer-events-none">
@@ -278,7 +276,7 @@ $changelog = $changelog ?? null;
                 </div>
             </div>
         </div>
-        <button type="button" id="story-nav-next" class="story-nav-btn" onclick="event.stopPropagation(); nextStory()" aria-label="Next">›</button>
+        <button type="button" id="story-nav-next" class="story-nav-btn" onclick="event.stopPropagation(); nextStory()" aria-label="Next">↓</button>
     </div>
 </div>
 
@@ -289,7 +287,7 @@ $changelog = $changelog ?? null;
     </a>
     <button type="button" class="story-close-outer" onclick="closeStreamViewer()" aria-label="Close">✕</button>
     <div class="story-stage">
-        <button type="button" id="stream-nav-prev" class="story-nav-btn" onclick="event.stopPropagation(); prevStream()" aria-label="Previous">‹</button>
+        <button type="button" id="stream-nav-prev" class="story-nav-btn" onclick="event.stopPropagation(); prevStream()" aria-label="Previous">↑</button>
         <div class="story-frame live-shop-frame" onclick="event.stopPropagation()">
             <!-- legacy header (non-live / fallback) -->
             <div id="stream-classic-header" class="absolute top-0 left-0 right-0 z-30 pt-3 px-3 pb-2 space-y-2 pointer-events-none">
@@ -492,8 +490,6 @@ $changelog = $changelog ?? null;
                 </div>
             </div>
             <p id="stream-viewer-desc" class="absolute bottom-16 left-3 right-3 z-20 text-white text-sm font-semibold drop-shadow-md line-clamp-3"></p>
-            <div class="absolute inset-y-0 left-0 w-[18%] z-20" id="stream-tap-prev"></div>
-            <div class="absolute inset-y-0 right-0 w-[18%] z-20" id="stream-tap-next"></div>
             <div class="absolute inset-0 z-10" id="stream-hold-zone"></div>
             <div id="stream-delete-wrap" class="hidden absolute bottom-5 left-0 right-0 z-30 flex justify-center">
                 <form id="stream-delete-form" method="post" action="">
@@ -506,7 +502,7 @@ $changelog = $changelog ?? null;
                 </span>
             </div>
         </div>
-        <button type="button" id="stream-nav-next" class="story-nav-btn" onclick="event.stopPropagation(); nextStream()" aria-label="Next">›</button>
+        <button type="button" id="stream-nav-next" class="story-nav-btn" onclick="event.stopPropagation(); nextStream()" aria-label="Next">↓</button>
     </div>
 </div>
 
