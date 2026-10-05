@@ -72,6 +72,16 @@ class ProductListingShipping extends Model
             'shipping_version',
             'INT UNSIGNED NOT NULL DEFAULT 1 AFTER shipping_ready'
         );
+        $this->ensureColumn('origin_type', "VARCHAR(16) NOT NULL DEFAULT 'door'");
+        $this->ensureColumn('shipment_point', 'VARCHAR(64) DEFAULT NULL');
+        $this->ensureColumn('cdek_city_code', 'INT DEFAULT NULL');
+        $this->ensureColumn('ship_latitude', 'DECIMAL(10,7) DEFAULT NULL');
+        $this->ensureColumn('ship_longitude', 'DECIMAL(10,7) DEFAULT NULL');
+        $this->ensureColumn('cdek_ready', 'TINYINT(1) NOT NULL DEFAULT 0');
+        $this->ensureColumn('declared_value', 'INT UNSIGNED DEFAULT NULL');
+        $this->ensureColumn('declared_currency', "CHAR(3) NOT NULL DEFAULT 'KZT'");
+        $this->ensureColumn('package_count', 'TINYINT UNSIGNED NOT NULL DEFAULT 1');
+        $this->ensureColumn('shipment_description', 'VARCHAR(255) DEFAULT NULL');
 
         self::$ensured = true;
     }
@@ -121,12 +131,16 @@ class ProductListingShipping extends Model
                     ship_country = ?, ship_region = ?, ship_city = ?, ship_street = ?,
                     ship_building = ?, ship_apartment = ?, ship_postal_code = ?,
                     ship_contact_name = ?, ship_phone = ?,
+                    origin_type = ?, shipment_point = ?, cdek_city_code = ?,
+                    ship_latitude = ?, ship_longitude = ?,
                     packaging_id = ?, recommended_packaging_id = ?, packaging_name_snapshot = ?,
                     product_type_hint = ?,
                     item_weight = ?, packaging_weight = ?, gross_weight = ?,
                     item_length = ?, item_width = ?, item_height = ?,
                     package_length = ?, package_width = ?, package_height = ?,
+                    package_count = ?, shipment_description = ?,
                     is_irregular = ?, irregular_reason = ?, is_fragile = ?, shipping_ready = ?,
+                    cdek_ready = ?, declared_value = ?, declared_currency = ?,
                     shipping_version = ?
                  WHERE product_id = ?'
             );
@@ -142,12 +156,15 @@ class ProductListingShipping extends Model
                 product_id, fulfillment_mode, param_mode, use_default_ship_from,
                 ship_country, ship_region, ship_city, ship_street, ship_building, ship_apartment,
                 ship_postal_code, ship_contact_name, ship_phone,
+                origin_type, shipment_point, cdek_city_code, ship_latitude, ship_longitude,
                 packaging_id, recommended_packaging_id, packaging_name_snapshot, product_type_hint,
                 item_weight, packaging_weight, gross_weight,
                 item_length, item_width, item_height,
                 package_length, package_width, package_height,
-                is_irregular, irregular_reason, is_fragile, shipping_ready, shipping_version
-             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                package_count, shipment_description,
+                is_irregular, irregular_reason, is_fragile, shipping_ready,
+                cdek_ready, declared_value, declared_currency, shipping_version
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute($vals);
     }
@@ -160,11 +177,15 @@ class ProductListingShipping extends Model
             'ship_country', 'ship_region', 'ship_city', 'ship_street',
             'ship_building', 'ship_apartment', 'ship_postal_code',
             'ship_contact_name', 'ship_phone',
+            'origin_type', 'shipment_point', 'cdek_city_code',
+            'ship_latitude', 'ship_longitude',
             'packaging_id', 'gross_weight',
             'item_weight', 'packaging_weight',
             'item_length', 'item_width', 'item_height',
             'package_length', 'package_width', 'package_height',
+            'package_count', 'shipment_description',
             'is_irregular', 'irregular_reason', 'is_fragile', 'shipping_ready',
+            'cdek_ready', 'declared_value', 'declared_currency',
         ];
         $parts = [];
         foreach ($keys as $k) {
@@ -189,6 +210,11 @@ class ProductListingShipping extends Model
             $data['ship_postal_code'] ?? null,
             $data['ship_contact_name'] ?? null,
             $data['ship_phone'] ?? null,
+            $data['origin_type'] ?? 'door',
+            $data['shipment_point'] ?? null,
+            $data['cdek_city_code'] ?? null,
+            $data['ship_latitude'] ?? null,
+            $data['ship_longitude'] ?? null,
             $data['packaging_id'] ?? null,
             $data['recommended_packaging_id'] ?? null,
             $data['packaging_name_snapshot'] ?? null,
@@ -202,10 +228,15 @@ class ProductListingShipping extends Model
             $data['package_length'] ?? null,
             $data['package_width'] ?? null,
             $data['package_height'] ?? null,
+            max(1, (int) ($data['package_count'] ?? 1)),
+            $data['shipment_description'] ?? null,
             !empty($data['is_irregular']) ? 1 : 0,
             $data['irregular_reason'] ?? null,
             !empty($data['is_fragile']) ? 1 : 0,
             !empty($data['shipping_ready']) ? 1 : 0,
+            !empty($data['cdek_ready']) ? 1 : 0,
+            $data['declared_value'] ?? null,
+            $data['declared_currency'] ?? 'KZT',
         ];
     }
 }

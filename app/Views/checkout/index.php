@@ -102,19 +102,159 @@ $canCard = $fpConfigured || $simPayments;
 
             <?php if ($digitalOnly): ?>
                 <input type="hidden" name="delivery_method" value="digital">
-            <?php else: ?>
+            <?php else:
+                $deliveryMethods = $deliveryMethods ?? ['kazpost', 'cdek', 'courier', 'other'];
+                $cdekAvailable = !empty($cdekAvailable) || in_array('cdek', $deliveryMethods, true);
+                $pointBOld = $pointBOld ?? [];
+                $pointBErrors = $pointBErrors ?? null;
+                $oldMode = (string) ($pointBOld['delivery_mode'] ?? 'pvz');
+                $user = \App\Core\Auth::user();
+            ?>
             <div class="space-y-2">
                 <h3 class="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400"><?= htmlspecialchars(t('checkout.delivery')) ?></h3>
-                <?php
-                $deliveries = ['kazpost', 'cdek', 'courier', 'other'];
-                foreach ($deliveries as $i => $dm):
-                ?>
+                <?php foreach ($deliveryMethods as $i => $dm): ?>
                     <label class="flex items-center gap-3 p-3.5 rounded-2xl border border-black/[0.08] dark:border-white/10 cursor-pointer has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50/50 dark:has-[:checked]:bg-brand-500/10 transition">
-                        <input type="radio" name="delivery_method" value="<?= $dm ?>" <?= $i === 0 ? 'checked' : '' ?> class="accent-brand-600">
+                        <input type="radio" name="delivery_method" value="<?= htmlspecialchars($dm) ?>" <?= $i === 0 ? 'checked' : '' ?> class="accent-brand-600 checkout-delivery-radio" data-delivery="<?= htmlspecialchars($dm) ?>">
                         <span class="text-sm font-semibold text-ink-800 dark:text-gray-200"><?= htmlspecialchars(t('escrow.delivery_' . $dm)) ?></span>
                     </label>
                 <?php endforeach; ?>
             </div>
+
+            <?php if ($cdekAvailable): ?>
+            <div id="checkout-cdek-point-b" class="hidden space-y-3 rounded-2xl border border-brand-200/70 dark:border-brand-800/40 bg-brand-50/40 dark:bg-brand-950/20 p-4">
+                <div>
+                    <h3 class="text-sm font-bold text-ink-900 dark:text-white"><?= htmlspecialchars(t('checkout.cdek_block_title')) ?></h3>
+                    <p class="text-[11px] text-gray-500 mt-1"><?= htmlspecialchars(t('checkout.cdek_block_hint')) ?></p>
+                    <p class="text-[11px] text-amber-800 dark:text-amber-200 mt-1"><?= htmlspecialchars(t('checkout.cdek_required_hint')) ?></p>
+                    <p class="text-[11px] text-gray-500 mt-1"><?= htmlspecialchars(t('checkout.cdek_quote_after_pay')) ?></p>
+                </div>
+                <?php if (is_array($pointBErrors) && !empty($pointBErrors['missing_fields'])): ?>
+                    <div class="rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/50 px-3 py-2 text-xs text-red-800 dark:text-red-200">
+                        <?= htmlspecialchars(t('listing_shipping.missing_fields_hint')) ?>:
+                        <strong><?= htmlspecialchars(implode(', ', $pointBErrors['missing_fields'])) ?></strong>
+                    </div>
+                <?php endif; ?>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <label class="flex items-center gap-2 rounded-xl border border-black/[0.08] dark:border-white/10 px-3 py-2.5 cursor-pointer text-xs font-semibold">
+                        <input type="radio" name="delivery_mode" value="pvz" class="checkout-cdek-mode" <?= $oldMode !== 'courier' ? 'checked' : '' ?>>
+                        <?= htmlspecialchars(t('checkout.cdek_mode_pvz')) ?>
+                    </label>
+                    <label class="flex items-center gap-2 rounded-xl border border-black/[0.08] dark:border-white/10 px-3 py-2.5 cursor-pointer text-xs font-semibold">
+                        <input type="radio" name="delivery_mode" value="courier" class="checkout-cdek-mode" <?= $oldMode === 'courier' ? 'checked' : '' ?>>
+                        <?= htmlspecialchars(t('checkout.cdek_mode_door')) ?>
+                    </label>
+                </div>
+
+                <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400"><?= htmlspecialchars(t('checkout.cdek_recipient')) ?></p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <input type="text" name="name" value="<?= htmlspecialchars((string) ($pointBOld['name'] ?? $pointBOld['recipient_name'] ?? ($user['name'] ?? ''))) ?>" placeholder="<?= htmlspecialchars(t('delivery.name')) ?>" class="<?= $input ?? 'w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-2.5 text-sm' ?>" id="checkout-recipient-name">
+                    <input type="tel" name="phone" value="<?= htmlspecialchars((string) ($pointBOld['phone'] ?? $pointBOld['recipient_phone'] ?? ($user['phone'] ?? ''))) ?>" placeholder="<?= htmlspecialchars(t('delivery.phone')) ?>" class="<?= $input ?? 'w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-2.5 text-sm' ?>">
+                    <input type="text" name="city" id="checkout-recipient-city" value="<?= htmlspecialchars((string) ($pointBOld['city'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('delivery.city')) ?>" class="<?= $input ?? 'w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-2.5 text-sm' ?>">
+                    <input type="number" name="cdek_city_code" id="checkout-cdek-city-code" value="<?= htmlspecialchars((string) ($pointBOld['cdek_city_code'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('listing_shipping.cdek_city_code')) ?>" class="<?= $input ?? 'w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-2.5 text-sm' ?>" readonly>
+                    <input type="text" name="postal_code" value="<?= htmlspecialchars((string) ($pointBOld['postal_code'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('listing_shipping.postal_code')) ?>" class="<?= $input ?? 'w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-2.5 text-sm' ?> checkout-door-field">
+                    <input type="text" name="region" value="<?= htmlspecialchars((string) ($pointBOld['region'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('listing_shipping.region')) ?>" class="<?= $input ?? 'w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-2.5 text-sm' ?> checkout-door-field">
+                    <input type="text" name="street" value="<?= htmlspecialchars((string) ($pointBOld['street'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('delivery.street')) ?>" class="<?= $input ?? 'w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-2.5 text-sm' ?> sm:col-span-2 checkout-door-field">
+                    <input type="text" name="building" value="<?= htmlspecialchars((string) ($pointBOld['building'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('delivery.building')) ?>" class="<?= $input ?? 'w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-2.5 text-sm' ?> checkout-door-field">
+                    <input type="text" name="apartment" value="<?= htmlspecialchars((string) ($pointBOld['apartment'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('delivery.apartment')) ?>" class="<?= $input ?? 'w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-2.5 text-sm' ?> checkout-door-field">
+                </div>
+                <div id="checkout-pvz-wrap" class="space-y-2" data-cdek-pvz-picker>
+                    <input type="text" name="pvz_code" id="checkout-pvz-code" list="checkout-cdek-pvz-datalist" value="<?= htmlspecialchars((string) ($pointBOld['pvz_code'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('delivery.pvz_code')) ?>" class="<?= $input ?? 'w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-2.5 text-sm' ?>" autocomplete="off">
+                    <input type="text" name="pvz_name" id="checkout-pvz-name" value="<?= htmlspecialchars((string) ($pointBOld['pvz_name'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('delivery.pvz_name')) ?>" class="<?= $input ?? 'w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-2.5 text-sm' ?>" readonly>
+                    <datalist id="checkout-cdek-pvz-datalist"></datalist>
+                    <p class="text-[11px] text-gray-400"><?= htmlspecialchars(t('delivery.pvz_directory_hint')) ?></p>
+                </div>
+                <p class="text-[11px] text-gray-400" id="checkout-cdek-city-status"></p>
+                <input type="hidden" name="country" value="KZ">
+            </div>
+            <script>
+            (function () {
+                var block = document.getElementById('checkout-cdek-point-b');
+                if (!block) return;
+                var citiesUrl = <?= json_encode(\App\Helpers\ProductHelper::url('/delivery/cdek/cities'), JSON_UNESCAPED_SLASHES) ?>;
+                var pointsUrl = <?= json_encode(\App\Helpers\ProductHelper::url('/delivery/cdek/points'), JSON_UNESCAPED_SLASHES) ?>;
+                var cityTimer = null, pvzTimer = null;
+
+                function isCdekSelected() {
+                    var el = document.querySelector('.checkout-delivery-radio:checked');
+                    return el && el.value === 'cdek';
+                }
+                function isPvz() {
+                    return !!document.querySelector('.checkout-cdek-mode[value="pvz"]:checked');
+                }
+                function syncDelivery() {
+                    block.classList.toggle('hidden', !isCdekSelected());
+                    syncMode();
+                }
+                function syncMode() {
+                    var pvz = isPvz();
+                    document.getElementById('checkout-pvz-wrap')?.classList.toggle('hidden', !pvz);
+                    document.querySelectorAll('.checkout-door-field').forEach(function (el) {
+                        el.classList.toggle('hidden', pvz);
+                        if (pvz) el.removeAttribute('required');
+                    });
+                }
+                function resolveCity() {
+                    var city = (document.getElementById('checkout-recipient-city')?.value || '').trim();
+                    var codeInput = document.getElementById('checkout-cdek-city-code');
+                    var status = document.getElementById('checkout-cdek-city-status');
+                    if (!codeInput || city.length < 2) return;
+                    fetch(citiesUrl + '?city=' + encodeURIComponent(city) + '&country_code=KZ', {
+                        credentials: 'same-origin', headers: { 'Accept': 'application/json' }
+                    }).then(function (r) { return r.json(); }).then(function (data) {
+                        if (data && data.ok && data.code) {
+                            codeInput.value = data.code;
+                            if (status) status.textContent = (data.city || city) + ' → ' + data.code;
+                            loadPvz();
+                        } else if (status) {
+                            status.textContent = <?= json_encode(t('listing_shipping.cdek_city_not_found'), JSON_UNESCAPED_UNICODE) ?>;
+                        }
+                    }).catch(function () {});
+                }
+                function loadPvz() {
+                    var list = document.getElementById('checkout-cdek-pvz-datalist');
+                    var codeInput = document.getElementById('checkout-pvz-code');
+                    var nameInput = document.getElementById('checkout-pvz-name');
+                    if (!list || !codeInput || !isPvz()) return;
+                    var city = (document.getElementById('checkout-recipient-city')?.value || '').trim();
+                    var cityCode = (document.getElementById('checkout-cdek-city-code')?.value || '').trim();
+                    var q = (codeInput.value || '').trim();
+                    var url = pointsUrl + '?limit=40&type=PVZ&city=' + encodeURIComponent(city) + '&q=' + encodeURIComponent(q);
+                    if (cityCode) url += '&city_code=' + encodeURIComponent(cityCode);
+                    fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+                        .then(function (r) { return r.json(); })
+                        .then(function (data) {
+                            if (!data || !data.points) return;
+                            list.innerHTML = '';
+                            data.points.forEach(function (p) {
+                                var opt = document.createElement('option');
+                                opt.value = p.code;
+                                opt.label = (p.address || p.name || p.code) + (p.city ? (' — ' + p.city) : '');
+                                list.appendChild(opt);
+                            });
+                            var match = data.points.find(function (p) { return p.code === codeInput.value; });
+                            if (match && nameInput) nameInput.value = match.name || match.address || match.code;
+                        }).catch(function () {});
+                }
+                document.querySelectorAll('.checkout-delivery-radio').forEach(function (el) {
+                    el.addEventListener('change', syncDelivery);
+                });
+                document.querySelectorAll('.checkout-cdek-mode').forEach(function (el) {
+                    el.addEventListener('change', syncMode);
+                });
+                document.getElementById('checkout-recipient-city')?.addEventListener('input', function () {
+                    clearTimeout(cityTimer);
+                    cityTimer = setTimeout(resolveCity, 400);
+                });
+                document.getElementById('checkout-pvz-code')?.addEventListener('input', function () {
+                    clearTimeout(pvzTimer);
+                    pvzTimer = setTimeout(loadPvz, 300);
+                });
+                syncDelivery();
+                if ((document.getElementById('checkout-recipient-city')?.value || '').trim()) resolveCity();
+            })();
+            </script>
+            <?php endif; ?>
             <?php endif; ?>
 
             <div class="space-y-2">

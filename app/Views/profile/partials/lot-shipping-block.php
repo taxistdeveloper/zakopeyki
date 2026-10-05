@@ -1,4 +1,5 @@
 <?php
+use App\Helpers\ProductHelper;
 use App\Models\ProductListingShipping;
 use App\Services\Listing\ListingShippingService;
 
@@ -7,6 +8,7 @@ $packagings = $listingPackagings ?? [];
 $userShip = \App\Models\User::defaultShipFrom($user ?? null);
 $fulfillment = $ls['fulfillment_mode'] ?? ProductListingShipping::FULFILLMENT_DELIVERY;
 $paramMode = $ls['param_mode'] ?? ProductListingShipping::MODE_EXACT;
+$originType = $ls['origin_type'] ?? 'door';
 $hasDefaultAddress = trim((string) ($userShip['ship_city'] ?? '')) !== '';
 $useDefault = $hasDefaultAddress && (int) ($ls['use_default_ship_from'] ?? 1) === 1;
 $shipCity = $ls['ship_city'] ?? ($useDefault ? ($userShip['ship_city'] ?? '') : ($editing['location'] ?? ''));
@@ -16,12 +18,21 @@ $defaultAddressLine = implode(', ', array_filter([
     trim((string) ($userShip['ship_building'] ?? '')),
     trim((string) ($userShip['ship_apartment'] ?? '')),
 ], static fn ($part) => $part !== ''));
+$shippingErrors = $_SESSION['listing_shipping_errors'] ?? null;
+unset($_SESSION['listing_shipping_errors']);
 ?>
 <div id="lot-shipping-wrap" class="hidden space-y-4 rounded-2xl border border-black/[0.08] dark:border-white/10 bg-white/80 dark:bg-white/[0.03] p-5">
     <div>
         <h3 class="font-display font-bold text-ink-900 dark:text-white"><?= htmlspecialchars(t('listing_shipping.title')) ?></h3>
         <p class="text-xs text-gray-500 mt-1"><?= htmlspecialchars(t('listing_shipping.subtitle')) ?></p>
     </div>
+
+    <?php if (is_array($shippingErrors) && !empty($shippingErrors['missing_fields'])): ?>
+        <div class="rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/50 px-3 py-2 text-xs text-red-800 dark:text-red-200">
+            <?= htmlspecialchars(t('listing_shipping.missing_fields_hint')) ?>:
+            <strong><?= htmlspecialchars(implode(', ', $shippingErrors['missing_fields'])) ?></strong>
+        </div>
+    <?php endif; ?>
 
     <div class="rounded-xl bg-blue-50/80 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-800/40 px-3 py-2 text-xs text-blue-900 dark:text-blue-200">
         <?= htmlspecialchars(t('listing_shipping.no_quote_at_publish')) ?>
@@ -41,10 +52,12 @@ $defaultAddressLine = implode(', ', array_filter([
                 </label>
             <?php endforeach; ?>
         </div>
+        <p class="text-[11px] text-gray-400 mt-2"><?= htmlspecialchars(t('listing_shipping.cdek_when_delivery')) ?></p>
     </div>
 
     <div id="lot-ship-from-block" class="space-y-3">
         <p class="text-xs font-bold"><?= htmlspecialchars(t('listing_shipping.ship_from_title')) ?></p>
+        <p class="text-[11px] text-gray-500"><?= htmlspecialchars(t('listing_shipping.point_a_hint')) ?></p>
         <label id="lot-use-default-wrap" class="flex items-start gap-2 text-xs <?= $hasDefaultAddress ? '' : 'hidden' ?>">
             <input type="checkbox" name="use_default_ship_from" value="1" id="lot-use-default-ship" <?= $useDefault ? 'checked' : '' ?> class="rounded mt-0.5">
             <span>
@@ -52,6 +65,7 @@ $defaultAddressLine = implode(', ', array_filter([
                 <?php if ($defaultAddressLine !== ''): ?>
                     <span class="block text-[11px] font-normal text-gray-400 mt-0.5"><?= htmlspecialchars(t('listing_shipping.saved_address')) ?>: <?= htmlspecialchars($defaultAddressLine) ?></span>
                 <?php endif; ?>
+                <span class="block text-[11px] font-normal text-amber-700/80 dark:text-amber-300/80 mt-0.5"><?= htmlspecialchars(t('listing_shipping.snapshot_note')) ?></span>
             </span>
         </label>
         <label id="lot-save-default-wrap" class="flex items-start gap-2 text-xs <?= $useDefault ? 'hidden' : '' ?>">
@@ -66,11 +80,38 @@ $defaultAddressLine = implode(', ', array_filter([
         <div id="lot-ship-from-fields" class="grid grid-cols-1 sm:grid-cols-2 gap-3 <?= $useDefault ? 'hidden' : '' ?>">
             <input type="text" name="ship_contact_name" value="<?= htmlspecialchars($ls['ship_contact_name'] ?? ($user['name'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('listing_shipping.contact_name')) ?>" class="<?= $input ?>">
             <input type="tel" name="ship_phone" value="<?= htmlspecialchars($ls['ship_phone'] ?? ($user['phone'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('listing_shipping.phone')) ?>" class="<?= $input ?>">
-            <input type="text" name="ship_city" value="<?= htmlspecialchars($shipCity) ?>" placeholder="<?= htmlspecialchars(t('listing_shipping.city')) ?>" class="<?= $input ?>">
+            <input type="text" name="ship_country" value="<?= htmlspecialchars($ls['ship_country'] ?? ($userShip['ship_country'] ?? 'KZ')) ?>" placeholder="<?= htmlspecialchars(t('listing_shipping.country')) ?>" class="<?= $input ?>">
+            <input type="text" name="ship_city" id="lot-ship-city" value="<?= htmlspecialchars($shipCity) ?>" placeholder="<?= htmlspecialchars(t('listing_shipping.city')) ?>" class="<?= $input ?>">
             <input type="text" name="ship_region" value="<?= htmlspecialchars($ls['ship_region'] ?? ($userShip['ship_region'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('listing_shipping.region')) ?>" class="<?= $input ?>">
+            <input type="text" name="ship_postal_code" value="<?= htmlspecialchars($ls['ship_postal_code'] ?? ($userShip['ship_postal_code'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('listing_shipping.postal_code')) ?>" class="<?= $input ?>">
             <input type="text" name="ship_street" value="<?= htmlspecialchars($ls['ship_street'] ?? ($userShip['ship_street'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('listing_shipping.street')) ?>" class="<?= $input ?> sm:col-span-2">
             <input type="text" name="ship_building" value="<?= htmlspecialchars($ls['ship_building'] ?? ($userShip['ship_building'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('listing_shipping.building')) ?>" class="<?= $input ?>">
             <input type="text" name="ship_apartment" value="<?= htmlspecialchars($ls['ship_apartment'] ?? ($userShip['ship_apartment'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('listing_shipping.apartment')) ?>" class="<?= $input ?>">
+        </div>
+
+        <div id="lot-cdek-origin-block" class="space-y-3 rounded-xl border border-black/[0.06] dark:border-white/10 p-3">
+            <p class="text-xs font-bold"><?= htmlspecialchars(t('listing_shipping.cdek_origin_title')) ?></p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <label class="flex items-center gap-2 rounded-xl border border-black/[0.08] dark:border-white/10 px-3 py-2.5 cursor-pointer text-xs font-semibold">
+                    <input type="radio" name="origin_type" value="door" class="lot-origin-type" <?= $originType !== 'pvz' ? 'checked' : '' ?>>
+                    <?= htmlspecialchars(t('listing_shipping.origin_door')) ?>
+                </label>
+                <label class="flex items-center gap-2 rounded-xl border border-black/[0.08] dark:border-white/10 px-3 py-2.5 cursor-pointer text-xs font-semibold">
+                    <input type="radio" name="origin_type" value="pvz" class="lot-origin-type" <?= $originType === 'pvz' ? 'checked' : '' ?>>
+                    <?= htmlspecialchars(t('listing_shipping.origin_pvz')) ?>
+                </label>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <input type="number" name="cdek_city_code" id="lot-cdek-city-code" value="<?= htmlspecialchars((string) ($ls['cdek_city_code'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('listing_shipping.cdek_city_code')) ?>" class="<?= $input ?>" readonly>
+                    <p class="text-[11px] text-gray-400 mt-1" id="lot-cdek-city-status"><?= htmlspecialchars(t('listing_shipping.cdek_city_auto')) ?></p>
+                </div>
+                <div id="lot-shipment-point-wrap" class="<?= $originType === 'pvz' ? '' : 'hidden' ?>" data-cdek-pvz-picker>
+                    <input type="text" name="shipment_point" id="lot-shipment-point" list="lot-cdek-pvz-datalist" value="<?= htmlspecialchars((string) ($ls['shipment_point'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('listing_shipping.shipment_point')) ?>" class="<?= $input ?>" autocomplete="off">
+                    <datalist id="lot-cdek-pvz-datalist"></datalist>
+                    <p class="text-[11px] text-gray-400 mt-1"><?= htmlspecialchars(t('listing_shipping.shipment_point_hint')) ?></p>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -124,6 +165,10 @@ $defaultAddressLine = implode(', ', array_filter([
                 <input type="checkbox" name="auto_packaging_weight" value="1" id="lot-auto-pack-weight" class="rounded">
                 <?= htmlspecialchars(t('listing_shipping.auto_packaging_weight')) ?>
             </label>
+            <input type="number" min="1" max="20" name="package_count" value="<?= htmlspecialchars((string) ($ls['package_count'] ?? '1')) ?>" placeholder="<?= htmlspecialchars(t('listing_shipping.package_count')) ?>" class="<?= $input ?>">
+            <input type="number" min="0" name="declared_value" value="<?= htmlspecialchars((string) ($ls['declared_value'] ?? ($editing['price'] ?? ''))) ?>" placeholder="<?= htmlspecialchars(t('listing_shipping.declared_value')) ?>" class="<?= $input ?>">
+            <input type="text" name="shipment_description" value="<?= htmlspecialchars((string) ($ls['shipment_description'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('listing_shipping.shipment_description')) ?>" class="<?= $input ?> sm:col-span-2">
+            <input type="hidden" name="declared_currency" value="<?= htmlspecialchars((string) ($ls['declared_currency'] ?? 'KZT')) ?>">
         </div>
 
         <div class="flex flex-wrap gap-3 text-xs">
@@ -142,19 +187,88 @@ $defaultAddressLine = implode(', ', array_filter([
     const wrap = document.getElementById('lot-shipping-wrap');
     const typeSelect = document.getElementById('lot-type');
     const physical = <?= json_encode(array_merge(\App\Services\Listing\ListingShippingService::PHYSICAL_TYPES, \App\Services\Listing\ListingShippingService::OPTIONAL_TYPES)) ?>;
+    const citiesUrl = <?= json_encode(ProductHelper::url('/delivery/cdek/cities'), JSON_UNESCAPED_SLASHES) ?>;
+    const pointsUrl = <?= json_encode(ProductHelper::url('/delivery/cdek/points'), JSON_UNESCAPED_SLASHES) ?>;
+
+    function isPickupOnly() {
+        return !!document.querySelector('input.lot-fulfillment-radio[value="pickup"]:checked');
+    }
 
     function syncVisibility() {
         if (!wrap || !typeSelect) return;
         const t = typeSelect.value;
         const show = physical.includes(t);
         wrap.classList.toggle('hidden', !show);
-        const delivery = document.querySelector('input.lot-fulfillment-radio[value="delivery"]');
         const shipBlock = document.getElementById('lot-shipment-block');
-        const pickupOnly = document.querySelector('input.lot-fulfillment-radio[value="pickup"]:checked');
-        if (shipBlock) shipBlock.classList.toggle('hidden', !!pickupOnly);
+        const cdekOrigin = document.getElementById('lot-cdek-origin-block');
+        const pickupOnly = isPickupOnly();
+        if (shipBlock) shipBlock.classList.toggle('hidden', pickupOnly);
+        if (cdekOrigin) cdekOrigin.classList.toggle('hidden', pickupOnly);
+        document.getElementById('lot-ship-from-block')?.classList.toggle('opacity-60', pickupOnly);
+    }
+
+    function syncOriginType() {
+        const pvz = document.querySelector('input.lot-origin-type[value="pvz"]:checked');
+        document.getElementById('lot-shipment-point-wrap')?.classList.toggle('hidden', !pvz);
+    }
+
+    let cityTimer = null;
+    function resolveCity() {
+        const city = (document.getElementById('lot-ship-city')?.value || '').trim();
+        const codeInput = document.getElementById('lot-cdek-city-code');
+        const status = document.getElementById('lot-cdek-city-status');
+        if (!codeInput || city.length < 2) return;
+        fetch(citiesUrl + '?city=' + encodeURIComponent(city) + '&country_code=KZ', {
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json' }
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data && data.ok && data.code) {
+                    codeInput.value = data.code;
+                    if (status) status.textContent = (data.city || city) + ' → ' + data.code;
+                } else if (status) {
+                    status.textContent = <?= json_encode(t('listing_shipping.cdek_city_not_found'), JSON_UNESCAPED_UNICODE) ?>;
+                }
+            })
+            .catch(function () {});
+    }
+
+    function scheduleCity() {
+        clearTimeout(cityTimer);
+        cityTimer = setTimeout(resolveCity, 400);
+    }
+
+    let pvzTimer = null;
+    function loadPvz() {
+        const list = document.getElementById('lot-cdek-pvz-datalist');
+        const codeInput = document.getElementById('lot-shipment-point');
+        const city = (document.getElementById('lot-ship-city')?.value || '').trim();
+        const cityCode = (document.getElementById('lot-cdek-city-code')?.value || '').trim();
+        if (!list || !codeInput) return;
+        const q = (codeInput.value || '').trim();
+        let url = pointsUrl + '?limit=40&type=PVZ&city=' + encodeURIComponent(city) + '&q=' + encodeURIComponent(q);
+        if (cityCode) url += '&city_code=' + encodeURIComponent(cityCode);
+        fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data || !data.points) return;
+                list.innerHTML = '';
+                data.points.forEach(function (p) {
+                    const opt = document.createElement('option');
+                    opt.value = p.code;
+                    opt.label = (p.address || p.name || p.code) + (p.city ? (' — ' + p.city) : '');
+                    list.appendChild(opt);
+                });
+            })
+            .catch(function () {});
     }
 
     document.querySelectorAll('.lot-fulfillment-radio').forEach(el => el.addEventListener('change', syncVisibility));
+    document.querySelectorAll('.lot-origin-type').forEach(el => el.addEventListener('change', function () {
+        syncOriginType();
+        if (document.querySelector('input.lot-origin-type[value="pvz"]:checked')) loadPvz();
+    }));
 
     document.querySelectorAll('.lot-param-mode').forEach(radio => {
         radio.addEventListener('change', () => {
@@ -171,6 +285,7 @@ $defaultAddressLine = implode(', ', array_filter([
         if (this.checked) {
             const saveCb = document.getElementById('lot-save-default-ship');
             if (saveCb) saveCb.checked = false;
+            scheduleCity();
         }
     });
 
@@ -183,7 +298,19 @@ $defaultAddressLine = implode(', ', array_filter([
         if (inp) inp.disabled = this.checked;
     });
 
+    document.getElementById('lot-ship-city')?.addEventListener('input', function () {
+        scheduleCity();
+        clearTimeout(pvzTimer);
+        pvzTimer = setTimeout(loadPvz, 400);
+    });
+    document.getElementById('lot-shipment-point')?.addEventListener('input', function () {
+        clearTimeout(pvzTimer);
+        pvzTimer = setTimeout(loadPvz, 300);
+    });
+
     typeSelect?.addEventListener('change', syncVisibility);
     syncVisibility();
+    syncOriginType();
+    if ((document.getElementById('lot-ship-city')?.value || '').trim()) scheduleCity();
 })();
 </script>

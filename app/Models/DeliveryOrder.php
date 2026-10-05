@@ -16,13 +16,18 @@ class DeliveryOrder extends Model
     public const STATUS_READY_FOR_PAYMENT = 'DELIVERY_ORDER_READY_FOR_PAYMENT';
     public const STATUS_PAYMENT_PENDING = 'DELIVERY_PAYMENT_PENDING';
     public const STATUS_PAID = 'DELIVERY_PAID';
+    /** Оплата подтверждена; запрос в CDEK ещё не завершён (HTTP 202 / deferred). */
+    public const STATUS_CDEK_ORDER_PENDING = 'CDEK_ORDER_PENDING';
     public const STATUS_ORDER_CREATED = 'DELIVERY_ORDER_CREATED';
+    public const STATUS_CDEK_ORDER_FAILED = 'CDEK_ORDER_FAILED';
     public const STATUS_ACCEPTED = 'DELIVERY_ACCEPTED';
     public const STATUS_SHIPMENT_RECEIVED = 'SHIPMENT_RECEIVED';
     public const STATUS_IN_TRANSIT = 'IN_TRANSIT';
     public const STATUS_DELIVERED = 'DELIVERED';
     public const STATUS_CANCELLED = 'CANCELLED';
     public const STATUS_EXCEPTION = 'EXCEPTION';
+    /** Деньги за доставку получены, но логистика не может быть зарегистрирована. */
+    public const STATUS_REFUND_REQUIRED = 'REFUND_REQUIRED';
 
     public function __construct()
     {
@@ -316,11 +321,63 @@ class DeliveryOrder extends Model
             'shipping_version' => 'INT UNSIGNED DEFAULT NULL',
             'route_hash' => 'CHAR(64) DEFAULT NULL',
             'package_hash' => 'CHAR(64) DEFAULT NULL',
+            'tariff_code' => 'INT DEFAULT NULL',
+            'cdek_delivery_mode' => 'INT DEFAULT NULL',
+            'cdek_delivery_sum' => 'INT UNSIGNED DEFAULT NULL',
+            'services_json' => 'TEXT DEFAULT NULL',
         ]);
         $this->ensureTableColumns('delivery_orders', [
             'shipping_version' => 'INT UNSIGNED NOT NULL DEFAULT 1',
             'listing_shipping_version' => 'INT UNSIGNED NOT NULL DEFAULT 1',
+            'cdek_uuid' => 'VARCHAR(64) DEFAULT NULL',
+            'cdek_number' => 'VARCHAR(64) DEFAULT NULL',
+            'cdek_request_uuid' => 'VARCHAR(64) DEFAULT NULL',
+            'cdek_api_status' => "VARCHAR(32) NOT NULL DEFAULT 'none'",
+            'cdek_status_code' => 'VARCHAR(64) DEFAULT NULL',
+            'create_idempotency_key' => 'VARCHAR(64) DEFAULT NULL',
+            'payment_id' => 'INT UNSIGNED DEFAULT NULL',
+            'last_synced_at' => 'DATETIME DEFAULT NULL',
+            'last_error_code' => 'VARCHAR(64) DEFAULT NULL',
+            'last_error_message' => 'VARCHAR(255) DEFAULT NULL',
         ]);
+        $this->ensureTableColumns('delivery_senders', [
+            'company' => 'VARCHAR(255) DEFAULT NULL',
+            'origin_type' => "VARCHAR(16) NOT NULL DEFAULT 'door'",
+            'shipment_point' => 'VARCHAR(64) DEFAULT NULL',
+            'cdek_city_code' => 'INT DEFAULT NULL',
+            'latitude' => 'DECIMAL(10,7) DEFAULT NULL',
+            'longitude' => 'DECIMAL(10,7) DEFAULT NULL',
+        ]);
+        $this->ensureTableColumns('delivery_recipients', [
+            'cdek_city_code' => 'INT DEFAULT NULL',
+            'delivery_point' => 'VARCHAR(64) DEFAULT NULL',
+            'latitude' => 'DECIMAL(10,7) DEFAULT NULL',
+            'longitude' => 'DECIMAL(10,7) DEFAULT NULL',
+        ]);
+        $this->ensureTableColumns('delivery_shipments', [
+            'description' => 'VARCHAR(255) DEFAULT NULL',
+            'declared_cost' => 'INT UNSIGNED DEFAULT NULL',
+            'declared_currency' => "CHAR(3) NOT NULL DEFAULT 'KZT'",
+        ]);
+        $this->ensureUniqueIndex('delivery_orders', 'uq_delivery_create_idempotency', 'create_idempotency_key');
+        $this->ensureUniqueIndex('delivery_orders', 'uq_delivery_cdek_uuid', 'cdek_uuid');
+    }
+
+    private function ensureUniqueIndex(string $table, string $indexName, string $column): void
+    {
+        try {
+            $stmt = $this->db->prepare(
+                'SELECT 1 FROM information_schema.STATISTICS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ? LIMIT 1'
+            );
+            $stmt->execute([$table, $indexName]);
+            if ($stmt->fetch()) {
+                return;
+            }
+            $this->db->exec("ALTER TABLE {$table} ADD UNIQUE KEY {$indexName} ({$column})");
+        } catch (\Throwable $e) {
+            // ignore — column/index may already exist or engine may lack privileges
+        }
     }
 
     /** @param array<string, string> $columns */
@@ -494,10 +551,12 @@ class DeliveryOrder extends Model
         $limit = max(1, min(200, $limit));
         $statuses = $statuses ?? [
             self::STATUS_PAID,
+            self::STATUS_CDEK_ORDER_PENDING,
             self::STATUS_ORDER_CREATED,
             self::STATUS_ACCEPTED,
             self::STATUS_SHIPMENT_RECEIVED,
             self::STATUS_IN_TRANSIT,
+            self::STATUS_CDEK_ORDER_FAILED,
             self::STATUS_EXCEPTION,
         ];
         $placeholders = implode(',', array_fill(0, count($statuses), '?'));
@@ -546,6 +605,47 @@ class DeliveryOrder extends Model
         $stmt->execute([$orderId]);
         $row = $stmt->fetch();
         return $row ?: null;
+    }
+
+    /**
+     * Оплаченная / зарегистрированная доставка по product_id — Point A listing нельзя тихо менять.
+     */
+    public function hasLockedDeliveryForProduct(int $productId): bool
+    {
+        if ($productId <= 0) {
+            return false;
+        }
+        $locked = [
+            self::STATUS_PAID,
+            self::STATUS_CDEK_ORDER_PENDING,
+            self::STATUS_ORDER_CREATED,
+            self::STATUS_ACCEPTED,
+            self::STATUS_SHIPMENT_RECEIVED,
+            self::STATUS_IN_TRANSIT,
+            self::STATUS_DELIVERED,
+            self::STATUS_REFUND_REQUIRED,
+        ];
+        $placeholders = implode(',', array_fill(0, count($locked), '?'));
+        $params = array_merge([$productId], $locked);
+        try {
+            $stmt = $this->db->prepare(
+                "SELECT d.id
+                 FROM delivery_orders d
+                 JOIN orders o ON o.id = d.order_id
+                 WHERE o.product_id = ?
+                   AND (
+                        d.payment_status = 'paid'
+                        OR d.status IN ({$placeholders})
+                        OR (d.cdek_uuid IS NOT NULL AND d.cdek_uuid <> '')
+                        OR (d.logistics_order_id IS NOT NULL AND d.logistics_order_id <> '')
+                   )
+                 LIMIT 1"
+            );
+            $stmt->execute($params);
+            return (bool) $stmt->fetch();
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     public function findWithDetails(int $id): ?array
@@ -750,18 +850,29 @@ class DeliveryOrder extends Model
     public function upsertSender(int $deliveryOrderId, array $data): int
     {
         $existing = $this->senderFor($deliveryOrderId);
+        $company = $data['company'] ?? null;
+        $originType = $data['origin_type'] ?? 'door';
+        $shipmentPoint = $data['shipment_point'] ?? null;
+        $cityCode = $data['cdek_city_code'] ?? null;
+        $lat = $data['latitude'] ?? null;
+        $lng = $data['longitude'] ?? null;
+
         if ($existing) {
             $stmt = $this->db->prepare(
                 'UPDATE delivery_senders SET
-                    name = ?, phone = ?, email = ?, country = ?, region = ?, city = ?,
-                    street = ?, building = ?, apartment = ?, postal_code = ?, notes = ?
+                    name = ?, phone = ?, email = ?, company = ?, country = ?, region = ?, city = ?,
+                    street = ?, building = ?, apartment = ?, postal_code = ?,
+                    origin_type = ?, shipment_point = ?, cdek_city_code = ?, latitude = ?, longitude = ?,
+                    notes = ?
                  WHERE delivery_order_id = ?'
             );
             $stmt->execute([
-                $data['name'], $data['phone'], $data['email'] ?? null,
+                $data['name'], $data['phone'], $data['email'] ?? null, $company,
                 $data['country'] ?? 'KZ', $data['region'] ?? null, $data['city'],
                 $data['street'] ?? null, $data['building'] ?? null, $data['apartment'] ?? null,
-                $data['postal_code'] ?? null, $data['notes'] ?? null,
+                $data['postal_code'] ?? null,
+                $originType, $shipmentPoint, $cityCode, $lat, $lng,
+                $data['notes'] ?? null,
                 $deliveryOrderId,
             ]);
             return (int) $existing['id'];
@@ -769,16 +880,19 @@ class DeliveryOrder extends Model
 
         $stmt = $this->db->prepare(
             'INSERT INTO delivery_senders (
-                delivery_order_id, name, phone, email, country, region, city,
-                street, building, apartment, postal_code, notes
-             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                delivery_order_id, name, phone, email, company, country, region, city,
+                street, building, apartment, postal_code,
+                origin_type, shipment_point, cdek_city_code, latitude, longitude, notes
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([
             $deliveryOrderId,
-            $data['name'], $data['phone'], $data['email'] ?? null,
+            $data['name'], $data['phone'], $data['email'] ?? null, $company,
             $data['country'] ?? 'KZ', $data['region'] ?? null, $data['city'],
             $data['street'] ?? null, $data['building'] ?? null, $data['apartment'] ?? null,
-            $data['postal_code'] ?? null, $data['notes'] ?? null,
+            $data['postal_code'] ?? null,
+            $originType, $shipmentPoint, $cityCode, $lat, $lng,
+            $data['notes'] ?? null,
         ]);
         return (int) $this->db->lastInsertId();
     }
@@ -786,19 +900,29 @@ class DeliveryOrder extends Model
     public function upsertRecipient(int $deliveryOrderId, array $data): int
     {
         $existing = $this->recipientFor($deliveryOrderId);
+        $mode = $data['delivery_mode'] ?? 'courier';
+        $pvzCode = $data['pvz_code'] ?? null;
+        $deliveryPoint = $data['delivery_point'] ?? $pvzCode;
+        $cityCode = $data['cdek_city_code'] ?? null;
+        $lat = $data['latitude'] ?? null;
+        $lng = $data['longitude'] ?? null;
+
         if ($existing) {
             $stmt = $this->db->prepare(
                 'UPDATE delivery_recipients SET
                     name = ?, phone = ?, email = ?, delivery_mode = ?, country = ?, region = ?, city = ?,
-                    street = ?, building = ?, apartment = ?, postal_code = ?, pvz_code = ?, pvz_name = ?, notes = ?
+                    street = ?, building = ?, apartment = ?, postal_code = ?,
+                    pvz_code = ?, pvz_name = ?, delivery_point = ?, cdek_city_code = ?,
+                    latitude = ?, longitude = ?, notes = ?
                  WHERE delivery_order_id = ?'
             );
             $stmt->execute([
                 $data['name'], $data['phone'], $data['email'] ?? null,
-                $data['delivery_mode'] ?? 'courier',
+                $mode,
                 $data['country'] ?? 'KZ', $data['region'] ?? null, $data['city'],
                 $data['street'] ?? null, $data['building'] ?? null, $data['apartment'] ?? null,
-                $data['postal_code'] ?? null, $data['pvz_code'] ?? null, $data['pvz_name'] ?? null,
+                $data['postal_code'] ?? null, $pvzCode, $data['pvz_name'] ?? null, $deliveryPoint,
+                $cityCode, $lat, $lng,
                 $data['notes'] ?? null,
                 $deliveryOrderId,
             ]);
@@ -808,16 +932,18 @@ class DeliveryOrder extends Model
         $stmt = $this->db->prepare(
             'INSERT INTO delivery_recipients (
                 delivery_order_id, name, phone, email, delivery_mode, country, region, city,
-                street, building, apartment, postal_code, pvz_code, pvz_name, notes
-             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                street, building, apartment, postal_code, pvz_code, pvz_name, delivery_point,
+                cdek_city_code, latitude, longitude, notes
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([
             $deliveryOrderId,
             $data['name'], $data['phone'], $data['email'] ?? null,
-            $data['delivery_mode'] ?? 'courier',
+            $mode,
             $data['country'] ?? 'KZ', $data['region'] ?? null, $data['city'],
             $data['street'] ?? null, $data['building'] ?? null, $data['apartment'] ?? null,
-            $data['postal_code'] ?? null, $data['pvz_code'] ?? null, $data['pvz_name'] ?? null,
+            $data['postal_code'] ?? null, $pvzCode, $data['pvz_name'] ?? null, $deliveryPoint,
+            $cityCode, $lat, $lng,
             $data['notes'] ?? null,
         ]);
         return (int) $this->db->lastInsertId();
@@ -828,6 +954,9 @@ class DeliveryOrder extends Model
         $stmt = $this->db->prepare(
             'UPDATE delivery_shipments SET
                 package_count = ?,
+                description = COALESCE(?, description),
+                declared_cost = COALESCE(?, declared_cost),
+                declared_currency = COALESCE(?, declared_currency),
                 item_weight = ?, packaging_weight = ?, gross_weight = ?,
                 item_length = ?, item_width = ?, item_height = ?,
                 package_length = ?, package_width = ?, package_height = ?,
@@ -841,6 +970,9 @@ class DeliveryOrder extends Model
         );
         $stmt->execute([
             max(1, (int) ($data['package_count'] ?? 1)),
+            array_key_exists('description', $data) ? ($data['description'] ?? null) : null,
+            array_key_exists('declared_cost', $data) ? ($data['declared_cost'] ?? null) : null,
+            array_key_exists('declared_currency', $data) ? ($data['declared_currency'] ?? null) : null,
             $data['item_weight'] ?? null,
             $data['packaging_weight'] ?? null,
             $data['gross_weight'] ?? null,
@@ -873,6 +1005,28 @@ class DeliveryOrder extends Model
         ]);
     }
 
+    public function findByCdekUuid(string $uuid): ?array
+    {
+        $uuid = trim($uuid);
+        if ($uuid === '') {
+            return null;
+        }
+        $stmt = $this->db->prepare(
+            'SELECT * FROM delivery_orders
+             WHERE cdek_uuid = ? OR logistics_order_id = ?
+             LIMIT 1'
+        );
+        $stmt->execute([$uuid, $uuid]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
+    public function buildCreateIdempotencyKey(int $deliveryOrderId, ?int $paymentId = null): string
+    {
+        $paymentPart = $paymentId && $paymentId > 0 ? (string) $paymentId : 'nopay';
+        return substr(hash('sha256', 'cdek-create|' . $deliveryOrderId . '|' . $paymentPart), 0, 64);
+    }
+
     public function saveQuotes(int $deliveryOrderId, int $providerId, string $requestId, array $quotes): void
     {
         $this->db->prepare(
@@ -883,15 +1037,21 @@ class DeliveryOrder extends Model
         $stmt = $this->db->prepare(
             'INSERT INTO delivery_quotes (
                 delivery_order_id, logistics_provider_id, request_id, tariff_id, tariff_version,
-                service_code, service_name, base_amount, packaging_amount, handling_amount,
+                service_code, tariff_code, cdek_delivery_mode, service_name,
+                base_amount, cdek_delivery_sum, packaging_amount, handling_amount,
                 extra_services_amount, discount_amount, total_amount, currency,
                 billable_weight, billable_weight_method, calculation_method, shipping_version,
                 eta_days_min, eta_days_max, valid_until,
-                request_payload_hash, route_hash, package_hash, response_hash, snapshot_json, quote_status
-             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                request_payload_hash, route_hash, package_hash, response_hash, snapshot_json,
+                services_json, quote_status
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
 
         foreach ($quotes as $q) {
+            $tariffCode = $q['tariff_code'] ?? null;
+            if ($tariffCode === null && !empty($q['service_code']) && preg_match('/(\d+)/', (string) $q['service_code'], $m)) {
+                $tariffCode = (int) $m[1];
+            }
             $stmt->execute([
                 $deliveryOrderId,
                 $providerId,
@@ -899,8 +1059,11 @@ class DeliveryOrder extends Model
                 $q['tariff_id'] ?? null,
                 $q['tariff_version'] ?? null,
                 $q['service_code'],
+                $tariffCode,
+                $q['cdek_delivery_mode'] ?? $q['delivery_mode'] ?? null,
                 $q['service_name'],
                 (int) ($q['base_amount'] ?? 0),
+                isset($q['cdek_delivery_sum']) ? (int) $q['cdek_delivery_sum'] : (int) ($q['base_amount'] ?? 0),
                 (int) ($q['packaging_amount'] ?? 0),
                 (int) ($q['handling_amount'] ?? 0),
                 (int) ($q['extra_services_amount'] ?? 0),
@@ -918,7 +1081,12 @@ class DeliveryOrder extends Model
                 $q['route_hash'] ?? null,
                 $q['package_hash'] ?? null,
                 $q['response_hash'] ?? null,
-                !empty($q['snapshot_json']) ? (is_string($q['snapshot_json']) ? $q['snapshot_json'] : json_encode($q['snapshot_json'], JSON_UNESCAPED_UNICODE)) : null,
+                isset($q['snapshot_json'])
+                    ? (is_string($q['snapshot_json']) ? $q['snapshot_json'] : json_encode($q['snapshot_json'], JSON_UNESCAPED_UNICODE))
+                    : null,
+                isset($q['services_json'])
+                    ? (is_string($q['services_json']) ? $q['services_json'] : json_encode($q['services_json'], JSON_UNESCAPED_UNICODE))
+                    : null,
                 $q['quote_status'] ?? 'active',
             ]);
         }
@@ -1024,8 +1192,32 @@ class DeliveryOrder extends Model
             return true;
         }
 
+        $fsm = new \App\Services\Delivery\DeliveryStatusMachine();
+        if (!$fsm->canTransition((string) $from, $toStatus)
+            && !$fsm->canApplyCarrierProgress((string) $from, $toStatus)
+        ) {
+            $this->logEvent(
+                $deliveryOrderId,
+                $actorId,
+                $actorRole,
+                'invalid_status_transition',
+                $from,
+                $toStatus,
+                \App\Services\Delivery\DeliveryPii::redactPayload($payload ?? [])
+            );
+            return false;
+        }
+
         $this->updateFields($deliveryOrderId, ['status' => $toStatus]);
-        $this->logEvent($deliveryOrderId, $actorId, $actorRole, $eventType, $from, $toStatus, $payload);
+        $this->logEvent(
+            $deliveryOrderId,
+            $actorId,
+            $actorRole,
+            $eventType,
+            $from,
+            $toStatus,
+            $payload ? \App\Services\Delivery\DeliveryPii::redactPayload($payload) : null
+        );
         return true;
     }
 

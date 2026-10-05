@@ -1,37 +1,75 @@
 <?php
 
 /**
- * СДЭК API v2 — скопируйте в config/cdek.php.
+ * СДЭК API v2 — скопируйте в config/cdek.php (файл в .gitignore).
  *
  * Документация: https://apidoc.cdek.ru/#tag/common/Vvedenie
- * Тестовый стенд: https://api.edu.cdek.ru/v2
+ * OpenAPI: openapi_api_v2_integration.json
  *
- * Account / Secure password:
- *   - тест: публичные ключи из раздела «Авторизация» на apidoc.cdek.ru
- *   - бой: ключи из ЛК интегратора СДЭК + api_url = https://api.cdek.ru/v2
+ * TEST:       https://api.edu.cdek.ru/v2
+ * PRODUCTION: https://api.cdek.ru/v2
  *
- * Env: CDEK_ACCOUNT, CDEK_SECURE_PASSWORD, CDEK_API_URL, CDEK_TEST_MODE
+ * Секреты — ТОЛЬКО из env / локального config/cdek.php. НИКОГДА во frontend / Git.
+ *
+ * Env:
+ *   CDEK_ACCOUNT, CDEK_SECURE_PASSWORD, CDEK_API_URL, CDEK_TEST_MODE
+ *   CDEK_CURRENCY, CDEK_TOKEN_CACHE, CDEK_REDIS_TOKEN_KEY, CDEK_WEBHOOK_TOKEN
+ *   CDEK_DEVELOPER_KEY, CDEK_ORDER_CREATE_ENABLED
+ *   CDEK_TIMEOUT, CDEK_CONNECT_TIMEOUT, CDEK_RETRY_MAX, CDEK_RETRY_BACKOFF_MS
+ *   CDEK_HTTP_LOG_ENABLED, CDEK_HTTP_LOG_PATH
  */
+$testModeDefault = 1;
+$envTest = getenv('CDEK_TEST_MODE');
+$testMode = (int) ($envTest !== false && $envTest !== '' ? $envTest : $testModeDefault);
+
+$defaultApiUrl = $testMode === 1
+    ? 'https://api.edu.cdek.ru/v2'
+    : 'https://api.cdek.ru/v2';
+
 return [
+    // OAuth client_id / client_secret (CDEK names: account / secure_password)
     'account' => getenv('CDEK_ACCOUNT') ?: 'wqGwiQx0gg8mLtiEKsUinjVSICCjtTEP',
     'secure_password' => getenv('CDEK_SECURE_PASSWORD') ?: 'RmAmgvSgSl1yirlz9QupbzOJVqhCxcP5',
-    'api_url' => getenv('CDEK_API_URL') ?: 'https://api.edu.cdek.ru/v2',
-    'test_mode' => (int) (getenv('CDEK_TEST_MODE') !== false && getenv('CDEK_TEST_MODE') !== ''
-        ? getenv('CDEK_TEST_MODE')
-        : 1),
+
+    'api_url' => getenv('CDEK_API_URL') ?: $defaultApiUrl,
+    'environment' => $testMode === 1 ? 'test' : 'production',
+    'test_mode' => $testMode,
+
     // Код валюты калькулятора СДЭК: 1=RUB, 2=KZT, 3=USD, 4=EUR
     'currency' => (int) (getenv('CDEK_CURRENCY') ?: 2),
     'currency_label' => 'KZT',
-    // Тип заказа: 1 = ИМ (интернет-магазин), 2 = доставка
+
+    // Тип заказа: 1 = ИМ, 2 = доставка (смысл уточнять у CDEK — GAP)
     'order_type' => 1,
+
+    // Optional OpenAPI header developer-key
+    'developer_key' => getenv('CDEK_DEVELOPER_KEY') ?: '',
+
+    // Phase 2+: real POST /orders gated until payment stage enables it
+    'order_create_enabled' => (int) (getenv('CDEK_ORDER_CREATE_ENABLED') ?: 0) === 1,
+
     'lang' => 'rus',
     'default_country' => 'KZ',
-    // Кэш OAuth-токена: Redis (REDIS_HOST) предпочтителен; файл — fallback.
-    // Пустой token_cache_path = storage/cdek_token.json
+
+    // Timeouts (seconds)
+    'timeout' => (int) (getenv('CDEK_TIMEOUT') ?: 45),
+    'connect_timeout' => (int) (getenv('CDEK_CONNECT_TIMEOUT') ?: 20),
+
+    // Safe retry (GET / calculator only). Order create NEVER uses these.
+    'retry_max' => (int) (getenv('CDEK_RETRY_MAX') ?: 2),
+    'retry_backoff_ms' => (int) (getenv('CDEK_RETRY_BACKOFF_MS') ?: 200),
+
+    // OAuth token cache
     'token_cache_path' => getenv('CDEK_TOKEN_CACHE') ?: '',
     'redis_token_key' => getenv('CDEK_REDIS_TOKEN_KEY') ?: 'cdek:oauth:access_token',
-    // Shared secret для входящих webhook (?token= или заголовок X-Cdek-Webhook-Token).
-    // В test_mode без token — endpoint открыт; в prod token обязателен.
-    // Env: CDEK_WEBHOOK_TOKEN
+
+    // Inbound webhook shared secret (registration URL configured later)
     'webhook_token' => getenv('CDEK_WEBHOOK_TOKEN') ?: '',
+    'webhook_url' => getenv('CDEK_WEBHOOK_URL') ?: '',
+
+    // Technical HTTP log (no PII/secrets)
+    'http_log_enabled' => (int) (getenv('CDEK_HTTP_LOG_ENABLED') !== false && getenv('CDEK_HTTP_LOG_ENABLED') !== ''
+        ? getenv('CDEK_HTTP_LOG_ENABLED')
+        : 1),
+    'http_log_path' => getenv('CDEK_HTTP_LOG_PATH') ?: '',
 ];

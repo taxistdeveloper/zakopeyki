@@ -10,7 +10,6 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\Cdek\CdekDeliveryPointsSyncService;
-use App\Services\FreedomPay\Client as FreedomPayClient;
 
 class DeliveryService
 {
@@ -53,6 +52,20 @@ class DeliveryService
             (int) $order['seller_id']
         );
 
+        // Phase 5: apply buyer Point B snapshot from checkout (no auto quote).
+        $snapshotJson = (string) ($order['buyer_delivery_json'] ?? '');
+        if ($snapshotJson !== '' && ($order['delivery_method'] ?? '') === 'cdek') {
+            $decoded = json_decode($snapshotJson, true);
+            if (is_array($decoded)) {
+                (new BuyerPointBService(null, null, null, $service))->applySnapshotToDeliveryOrder(
+                    $deliveryOrderId,
+                    (int) $order['buyer_id'],
+                    $decoded,
+                    false
+                );
+            }
+        }
+
         $buyerId = (int) $order['buyer_id'];
         $sellerId = (int) $order['seller_id'];
         $n = new Notification();
@@ -64,9 +77,96 @@ class DeliveryService
     {
         $code = $deliveryOrder['logistics_code'] ?? 'stub';
         return match ($code) {
-            'cdek' => new CdekLogisticsProvider(),
+            'cdek' => new CdekLogisticsProvider(null, $this->orders),
             default => new StubLogisticsProvider(),
         };
+    }
+
+    /**
+     * Явный расчёт доставки покупателем (Phase 6).
+     * Frontend передаёт только delivery_order id; сумма считается на сервере.
+     *
+     * @return array{
+     *   ok: bool,
+     *   error?: string,
+     *   error_code?: string,
+     *   quotes?: list<array<string, mixed>>,
+     *   active_quote_ids?: list<int>,
+     *   reused?: bool
+     * }
+     */
+    public function calculateQuotesForBuyer(int $deliveryOrderId, int $actorId): array
+    {
+        $row = $this->orders->findWithDetails($deliveryOrderId);
+        if (!$row) {
+            return ['ok' => false, 'error' => t('delivery.not_found'), 'error_code' => 'not_found'];
+        }
+        if ((int) $row['buyer_user_id'] !== $actorId) {
+            return ['ok' => false, 'error' => t('delivery.forbidden'), 'error_code' => 'forbidden'];
+        }
+
+        // Ignore any client-supplied delivery amount (security).
+        unset($_POST['total_amount'], $_POST['delivery_amount'], $_POST['deliveryAmountToPay'], $_POST['amount']);
+
+        $calc = new \App\Services\Cdek\CdekCalculatorService();
+        $ready = $calc->validateReady($row);
+        if (!$ready['ok']) {
+            return [
+                'ok' => false,
+                'error' => $ready['error'] ?? t('delivery.data_incomplete'),
+                'error_code' => $ready['error_code'] ?? 'data_incomplete',
+                'field' => $ready['field'] ?? null,
+            ];
+        }
+
+        // Mark complete before quote request.
+        if ($this->shipmentComplete($row['shipment'] ?? null) && $row['sender'] && $row['recipient']) {
+            $this->orders->updateFields($deliveryOrderId, [
+                'data_completeness_status' => 'complete',
+            ]);
+            if (($row['status'] ?? '') === DeliveryOrder::STATUS_DATA_COLLECTION) {
+                $this->orders->transitionStatus(
+                    $deliveryOrderId,
+                    DeliveryOrder::STATUS_DATA_COMPLETE,
+                    $actorId,
+                    'buyer',
+                    'data_complete_before_calc'
+                );
+            }
+        }
+
+        $result = $this->requestQuotes($deliveryOrderId);
+        if (!$result['ok']) {
+            return $result;
+        }
+
+        $quotes = $this->orders->quotesFor($deliveryOrderId);
+        $public = [];
+        foreach ($quotes as $q) {
+            $total = (int) ($q['total_amount'] ?? 0);
+            $public[] = [
+                'id' => (int) $q['id'],
+                'service_name' => $q['service_name'] ?? null,
+                'tariff_code' => isset($q['tariff_code']) ? (int) $q['tariff_code'] : null,
+                'delivery_mode' => $q['cdek_delivery_mode'] ?? null,
+                'cdek_delivery_sum' => (int) ($q['cdek_delivery_sum'] ?? $q['base_amount'] ?? 0),
+                'delivery_amount_to_pay' => $total,
+                'total_amount' => $total,
+                'currency' => $q['currency'] ?? 'KZT',
+                'eta_days_min' => $q['eta_days_min'] ?? null,
+                'eta_days_max' => $q['eta_days_max'] ?? null,
+                'valid_until' => $q['valid_until'] ?? null,
+                'quote_status' => $q['quote_status'] ?? 'active',
+                'is_selected' => !empty($q['is_selected']),
+            ];
+        }
+
+        return [
+            'ok' => true,
+            'reused' => !empty($result['reused']),
+            'quotes' => $public,
+            'active_quote_ids' => array_map(static fn(array $q): int => (int) $q['id'], $public),
+        ];
     }
 
     /** @return array{ok: bool, error?: string} */
@@ -83,25 +183,35 @@ class DeliveryService
             return ['ok' => false, 'error' => t('delivery.bad_status')];
         }
 
-        $name = trim((string) ($input['name'] ?? ''));
-        $phone = trim((string) ($input['phone'] ?? ''));
-        $city = trim((string) ($input['city'] ?? ''));
-        if ($name === '' || $phone === '' || $city === '') {
+        $validator = new DeliveryPointValidator();
+        $pointA = $validator->validatePointA([
+            'name' => $input['name'] ?? '',
+            'phone' => $input['phone'] ?? '',
+            'email' => $input['email'] ?? null,
+            'company' => $input['company'] ?? null,
+            'country' => $input['country'] ?? 'KZ',
+            'region' => $input['region'] ?? null,
+            'city' => $input['city'] ?? '',
+            'street' => $input['street'] ?? null,
+            'building' => $input['building'] ?? null,
+            'apartment' => $input['apartment'] ?? null,
+            'postal_code' => $input['postal_code'] ?? null,
+            'origin_type' => $input['origin_type'] ?? 'door',
+            'shipment_point' => $input['shipment_point'] ?? null,
+            'cdek_city_code' => $input['cdek_city_code'] ?? null,
+            'latitude' => $input['latitude'] ?? null,
+            'longitude' => $input['longitude'] ?? null,
+            'notes' => $input['notes'] ?? null,
+        ], false);
+        if (!$pointA['ok']) {
             return ['ok' => false, 'error' => t('delivery.sender_required')];
         }
 
-        $senderId = $this->orders->upsertSender($deliveryOrderId, [
-            'name' => $name,
-            'phone' => $phone,
-            'email' => trim((string) ($input['email'] ?? '')) ?: null,
-            'region' => trim((string) ($input['region'] ?? '')) ?: null,
-            'city' => $city,
-            'street' => trim((string) ($input['street'] ?? '')) ?: null,
-            'building' => trim((string) ($input['building'] ?? '')) ?: null,
-            'apartment' => trim((string) ($input['apartment'] ?? '')) ?: null,
-            'postal_code' => trim((string) ($input['postal_code'] ?? '')) ?: null,
-            'notes' => trim((string) ($input['notes'] ?? '')) ?: null,
-        ]);
+        $name = $pointA['data']['name'];
+        $phone = $pointA['data']['phone'];
+        $city = $pointA['data']['city'];
+
+        $senderId = $this->orders->upsertSender($deliveryOrderId, $pointA['data']);
 
         $dimensionsUnknown = !empty($input['dimensions_unknown']);
         $packagingId = (int) ($input['packaging_id'] ?? 0);
@@ -247,8 +357,10 @@ class DeliveryService
     }
 
     /** @return array{ok: bool, error?: string} */
-    public function saveBuyerData(int $deliveryOrderId, int $actorId, array $input): array
+    public function saveBuyerData(int $deliveryOrderId, int $actorId, array $input, array $options = []): array
     {
+        $autoQuote = array_key_exists('auto_quote', $options) ? (bool) $options['auto_quote'] : true;
+
         $row = $this->orders->findWithDetails($deliveryOrderId);
         if (!$row) {
             return ['ok' => false, 'error' => t('delivery.not_found')];
@@ -260,23 +372,45 @@ class DeliveryService
             return ['ok' => false, 'error' => t('delivery.bad_status')];
         }
 
-        $name = trim((string) ($input['name'] ?? ''));
-        $phone = trim((string) ($input['phone'] ?? ''));
-        $city = trim((string) ($input['city'] ?? ''));
-        $mode = in_array($input['delivery_mode'] ?? '', ['courier', 'pvz'], true)
-            ? $input['delivery_mode']
-            : 'courier';
-
-        if ($name === '' || $phone === '' || $city === '') {
+        $validator = new DeliveryPointValidator();
+        $pointB = $validator->validatePointB([
+            'name' => $input['name'] ?? '',
+            'phone' => $input['phone'] ?? '',
+            'email' => $input['email'] ?? null,
+            'delivery_mode' => $input['delivery_mode'] ?? 'courier',
+            'country' => $input['country'] ?? 'KZ',
+            'region' => $input['region'] ?? null,
+            'city' => $input['city'] ?? '',
+            'street' => $input['street'] ?? null,
+            'building' => $input['building'] ?? null,
+            'apartment' => $input['apartment'] ?? null,
+            'postal_code' => $input['postal_code'] ?? null,
+            'pvz_code' => $input['pvz_code'] ?? null,
+            'pvz_name' => $input['pvz_name'] ?? null,
+            'delivery_point' => $input['delivery_point'] ?? null,
+            'cdek_city_code' => $input['cdek_city_code'] ?? null,
+            'latitude' => $input['latitude'] ?? null,
+            'longitude' => $input['longitude'] ?? null,
+            'notes' => $input['notes'] ?? null,
+        ], !empty($options['require_cdek_codes']));
+        if (!$pointB['ok']) {
+            $err = $pointB['error'] ?? '';
+            if ($err === 'recipient_address_required') {
+                return ['ok' => false, 'error' => t('delivery.address_required')];
+            }
+            if ($err === 'pvz_required') {
+                return ['ok' => false, 'error' => t('delivery.pvz_required')];
+            }
             return ['ok' => false, 'error' => t('delivery.recipient_required')];
         }
 
-        if ($mode === 'courier' && trim((string) ($input['street'] ?? '')) === '') {
-            return ['ok' => false, 'error' => t('delivery.address_required')];
-        }
+        $name = $pointB['data']['name'];
+        $phone = $pointB['data']['phone'];
+        $city = $pointB['data']['city'];
+        $mode = $pointB['data']['delivery_mode'];
 
-        $pvzCode = trim((string) ($input['pvz_code'] ?? ''));
-        $pvzName = trim((string) ($input['pvz_name'] ?? '')) ?: null;
+        $pvzCode = (string) ($pointB['data']['pvz_code'] ?? '');
+        $pvzName = $pointB['data']['pvz_name'] ?? null;
         if ($mode === 'pvz') {
             if ($pvzCode === '') {
                 return ['ok' => false, 'error' => t('delivery.pvz_required')];
@@ -302,24 +436,17 @@ class DeliveryService
             if (!empty($point['city'])) {
                 $city = (string) $point['city'];
             }
+            $pointB['data']['pvz_code'] = $pvzCode;
+            $pointB['data']['delivery_point'] = $pvzCode;
+            $pointB['data']['pvz_name'] = $pvzName;
+            $pointB['data']['city'] = $city;
+            if (!empty($point['city_code'])) {
+                $pointB['data']['cdek_city_code'] = (int) $point['city_code'];
+            }
         }
 
         $oldFingerprint = $this->recipientFingerprint($row['recipient'] ?? null);
-        $newData = [
-            'name' => $name,
-            'phone' => $phone,
-            'email' => trim((string) ($input['email'] ?? '')) ?: null,
-            'delivery_mode' => $mode,
-            'region' => trim((string) ($input['region'] ?? '')) ?: null,
-            'city' => $city,
-            'street' => trim((string) ($input['street'] ?? '')) ?: null,
-            'building' => trim((string) ($input['building'] ?? '')) ?: null,
-            'apartment' => trim((string) ($input['apartment'] ?? '')) ?: null,
-            'postal_code' => trim((string) ($input['postal_code'] ?? '')) ?: null,
-            'pvz_code' => $mode === 'pvz' ? $pvzCode : null,
-            'pvz_name' => $mode === 'pvz' ? $pvzName : null,
-            'notes' => trim((string) ($input['notes'] ?? '')) ?: null,
-        ];
+        $newData = $pointB['data'];
 
         if ($this->shouldInvalidateQuotes($row) && $oldFingerprint !== null) {
             $newFingerprint = $this->recipientFingerprint($newData);
@@ -337,7 +464,7 @@ class DeliveryService
         ]);
         $this->orders->logEvent($deliveryOrderId, $actorId, 'buyer', 'recipient_saved', null, null);
 
-        $this->syncDataCompleteness($deliveryOrderId);
+        $this->syncDataCompleteness($deliveryOrderId, $autoQuote);
         return ['ok' => true];
     }
 
@@ -381,8 +508,24 @@ class DeliveryService
         $quotes = $provider->getQuotes($context);
 
         if ($quotes === []) {
-            $this->orders->transitionStatus($deliveryOrderId, DeliveryOrder::STATUS_EXCEPTION, null, 'system', 'quote_empty');
-            return ['ok' => false, 'error' => t('delivery.quote_failed')];
+            $providerError = null;
+            if ($provider instanceof CdekLogisticsProvider) {
+                $providerError = $provider->getLastError();
+            }
+            $this->orders->transitionStatus($deliveryOrderId, DeliveryOrder::STATUS_EXCEPTION, null, 'system', 'quote_empty', [
+                'error_code' => $providerError['error_code'] ?? null,
+            ]);
+            // Reset to DATA_COMPLETE so buyer can retry calculate.
+            $this->orders->updateFields($deliveryOrderId, [
+                'status' => DeliveryOrder::STATUS_DATA_COMPLETE,
+                'data_completeness_status' => 'complete',
+            ]);
+            return [
+                'ok' => false,
+                'error' => $providerError['error'] ?? t('delivery.quote_failed'),
+                'error_code' => $providerError['error_code'] ?? 'quote_failed',
+                'http_status' => $providerError['http_status'] ?? null,
+            ];
         }
 
         $reused = !empty($quotes[0]['reused']);
@@ -467,165 +610,76 @@ class DeliveryService
      */
     public function initiatePayment(int $deliveryOrderId, int $actorId, string $method = 'card'): array
     {
-        $row = $this->orders->findWithDetails($deliveryOrderId);
-        if (!$row) {
-            return ['ok' => false, 'error' => t('delivery.not_found')];
-        }
-        if ((int) $row['buyer_user_id'] !== $actorId) {
-            return ['ok' => false, 'error' => t('delivery.forbidden')];
-        }
-        if ($row['status'] !== DeliveryOrder::STATUS_READY_FOR_PAYMENT) {
-            return ['ok' => false, 'error' => t('delivery.bad_status')];
-        }
+        // Phase 7: amount/currency never from frontend; gateway-agnostic via DeliveryPaymentService.
+        unset($_POST['amount'], $_POST['total_amount'], $_POST['currency'], $_POST['delivery_amount']);
+        return (new DeliveryPaymentService($this->orders))->createPaymentIntent($deliveryOrderId, $actorId, [
+            'payment_method' => $method,
+        ]);
+    }
 
-        $quote = $row['selected_quote'];
-        if (!$quote || strtotime((string) $quote['valid_until']) < time()) {
-            return ['ok' => false, 'error' => t('delivery.quote_expired')];
-        }
+    /**
+     * Confirmed delivery payment (server-side only). Does NOT create CDEK order (Phase 7).
+     */
+    public function onDeliveryPaid(int $deliveryOrderId, int $amount): void
+    {
+        (new DeliveryPaymentService($this->orders))->onPaymentConfirmed($deliveryOrderId, $amount);
+    }
 
-        // Final recalculation: цена только из нашего quote после сверки с провайдером.
-        $guard = new ShippingQuoteGuard($this->orders);
-        $revalidated = $guard->revalidateForPayment(
-            $row,
-            fn(int $id): array => $this->requestQuotes($id),
-            $this->providerFor($row)
-        );
-        if (!$revalidated['ok']) {
-            $this->orders->logEvent($deliveryOrderId, $actorId, 'buyer', 'payment_blocked_recalc', null, null, [
-                'reason' => $revalidated['reason'] ?? null,
-                'old_amount' => $revalidated['old_amount'] ?? null,
-                'new_amount' => $revalidated['new_amount'] ?? null,
-            ]);
+    /**
+     * Gate for Phase 8 CDEK registration.
+     *
+     * @return array{ok: bool, reason?: string, checks?: array<string, bool>}
+     */
+    public function canCreateCdekOrder(int $deliveryOrderId): array
+    {
+        return (new DeliveryPaymentService($this->orders))->canCreateCdekOrder($deliveryOrderId);
+    }
+
+    /** @return array{ok: bool, error?: string, deferred?: bool} */
+    public function createLogisticsOrder(int $deliveryOrderId): array
+    {
+        $gate = $this->canCreateCdekOrder($deliveryOrderId);
+        if (!($gate['ok'] ?? false)) {
             return [
                 'ok' => false,
-                'error' => $revalidated['error'] ?? t('delivery.payment_failed'),
-                'reason' => $revalidated['reason'] ?? null,
-                'old_amount' => $revalidated['old_amount'] ?? null,
-                'new_amount' => $revalidated['new_amount'] ?? null,
+                'error' => t('delivery.cdek_not_ready'),
+                'reason' => $gate['reason'] ?? 'can_create_false',
+                'checks' => $gate['checks'] ?? [],
             ];
         }
 
-        $amount = (int) ($revalidated['amount'] ?? 0);
-        if ($amount <= 0) {
-            return ['ok' => false, 'error' => t('delivery.invalid_amount')];
-        }
-
-        // Перечитываем quote после возможного touch.
-        $row = $this->orders->findWithDetails($deliveryOrderId);
-        $quote = $row['selected_quote'] ?? $quote;
-
-        $pending = (new DeliveryPayment())->findPendingForOrder($deliveryOrderId);
-        if ($pending) {
-            return ['ok' => false, 'error' => t('delivery.payment_pending')];
-        }
-
-        // Idempotency: quote+amount — повтор после fail с той же суммой не ломает unique key.
-        $idempotencyKey = 'del-pay-' . $deliveryOrderId . '-' . (int) $quote['id'] . '-' . $amount;
-        $pgOrderId = 'zk-del-' . $deliveryOrderId . '-' . bin2hex(random_bytes(4));
-
-        $fp = new FreedomPayClient();
-        if ($method === 'card' && $fp->isConfigured()) {
-            $init = $fp->initPayment([
-                'order_id' => $pgOrderId,
-                'amount' => $amount,
-                'description' => t('delivery.payment_description', [
-                    'number' => $row['order_number'],
-                ]),
-                'param1' => (string) $deliveryOrderId,
-            ]);
-            if (empty($init['redirect_url'])) {
-                return ['ok' => false, 'error' => t('delivery.payment_failed')];
-            }
-
-            (new DeliveryPayment())->createPending([
-                'delivery_order_id' => $deliveryOrderId,
-                'buyer_user_id' => $actorId,
-                'pg_order_id' => $pgOrderId,
-                'amount' => $amount,
-                'currency' => $quote['currency'] ?? 'KZT',
-                'idempotency_key' => $idempotencyKey,
-                'meta' => json_encode(['quote_id' => (int) $quote['id']], JSON_UNESCAPED_UNICODE),
-            ]);
-
-            $this->orders->transitionStatus(
-                $deliveryOrderId,
-                DeliveryOrder::STATUS_PAYMENT_PENDING,
-                $actorId,
-                'buyer',
-                'payment_initiated',
-                ['pg_order_id' => $pgOrderId, 'amount' => $amount]
-            );
-            $this->orders->updateFields($deliveryOrderId, ['payment_status' => 'pending']);
-
-            return ['ok' => true, 'redirect_url' => (string) $init['redirect_url']];
-        }
-
-        $allowSim = (bool) ($GLOBALS['appConfig']['allow_simulated_payments'] ?? false);
-        if ($method === 'card' && $allowSim) {
-            (new DeliveryPayment())->createPending([
-                'delivery_order_id' => $deliveryOrderId,
-                'buyer_user_id' => $actorId,
-                'pg_order_id' => $pgOrderId,
-                'amount' => $amount,
-                'idempotency_key' => $idempotencyKey,
-            ]);
-            (new DeliveryPayment())->completeFromGateway($pgOrderId, 'sim-' . time(), (string) $amount);
-            return ['ok' => true, 'redirect_url' => ProductHelper::url('/delivery/' . $deliveryOrderId)];
-        }
-
-        return ['ok' => false, 'error' => t('wallet.payments_disabled')];
-    }
-
-    public function onDeliveryPaid(int $deliveryOrderId, int $amount): void
-    {
-        $row = $this->orders->findWithDetails($deliveryOrderId);
-        if (!$row) {
-            return;
-        }
-
-        $now = date('Y-m-d H:i:s');
-        $this->orders->updateFields($deliveryOrderId, [
-            'status' => DeliveryOrder::STATUS_PAID,
-            'payment_status' => 'paid',
-            'paid_amount' => $amount,
-            'paid_at' => $now,
-        ]);
-        if (!empty($row['quote_id'])) {
-            $this->orders->markQuotePaidSnapshot((int) $row['quote_id']);
-        }
-        $this->orders->logEvent($deliveryOrderId, (int) $row['buyer_user_id'], 'buyer', 'payment_confirmed', null, DeliveryOrder::STATUS_PAID, [
-            'amount' => $amount,
-        ]);
-
-        $this->createLogisticsOrder($deliveryOrderId);
-
-        (new Notification())->createFor(
-            (int) $row['seller_user_id'],
-            t('delivery.notify_paid_seller', ['number' => $row['order_number']])
-        );
-    }
-
-    /** @return array{ok: bool, error?: string} */
-    public function createLogisticsOrder(int $deliveryOrderId): array
-    {
         $row = $this->orders->findWithDetails($deliveryOrderId);
         if (!$row) {
             return ['ok' => false, 'error' => t('delivery.not_found')];
         }
-        if (!empty($row['logistics_order_id'])) {
+
+        $existingUuid = (string) ($row['cdek_uuid'] ?? $row['logistics_order_id'] ?? '');
+        if ($existingUuid !== '') {
             return ['ok' => true];
         }
-        if (!in_array($row['status'], [DeliveryOrder::STATUS_PAID, DeliveryOrder::STATUS_ORDER_CREATED], true)) {
+
+        $fsm = new DeliveryStatusMachine();
+        if (!$fsm->isCreateAllowed(
+            (string) $row['status'],
+            (string) ($row['cdek_api_status'] ?? DeliveryStatusMachine::API_NONE),
+            null
+        )) {
             return ['ok' => false, 'error' => t('delivery.bad_status')];
         }
 
+        // Phase 2/7 gate: реальные POST /v2/orders для CDEK отключены до Phase 8.
+        $providerCode = (string) ($row['logistics_code'] ?? 'stub');
+        if ($providerCode === 'cdek' && !DeliveryModelService::isOrderCreateEnabled()) {
+            $model = new DeliveryModelService($this->orders, null, $fsm, $this);
+            return $model->markCreatePending($deliveryOrderId);
+        }
+
         // Защита от race: два payment-callback не должны параллельно дергать create.
-        // Для CDEK доп. lock внутри CdekOrderService; здесь — локальный pre-check после re-read.
         $row = $this->orders->findWithDetails($deliveryOrderId);
         if (!$row) {
             return ['ok' => false, 'error' => t('delivery.not_found')];
         }
-        if (!empty($row['logistics_order_id'])) {
+        if (!empty($row['logistics_order_id']) || !empty($row['cdek_uuid'])) {
             return ['ok' => true];
         }
 
@@ -633,27 +687,50 @@ class DeliveryService
         try {
             $result = $this->providerFor($row)->createOrder($avr);
         } catch (\Throwable $e) {
-            $this->orders->transitionStatus(
+            $this->orders->updateFields($deliveryOrderId, [
+                'status' => DeliveryOrder::STATUS_CDEK_ORDER_FAILED,
+                'cdek_api_status' => DeliveryStatusMachine::API_FAILED,
+                'last_error_code' => 'create_failed',
+                'last_error_message' => mb_substr($e->getMessage(), 0, 255),
+            ]);
+            $this->orders->logEvent(
                 $deliveryOrderId,
-                DeliveryOrder::STATUS_EXCEPTION,
                 null,
                 'system',
                 'logistics_create_failed',
-                ['error' => $e->getMessage()]
+                DeliveryOrder::STATUS_PAID,
+                DeliveryOrder::STATUS_CDEK_ORDER_FAILED,
+                DeliveryPii::redactPayload(['error' => $e->getMessage()])
             );
             return ['ok' => false, 'error' => $e->getMessage()];
         }
 
+        $uuid = (string) ($result['logistics_order_id'] ?? '');
+        $tracking = (string) ($result['tracking_number'] ?? '');
         $this->orders->updateFields($deliveryOrderId, [
-            'logistics_order_id' => $result['logistics_order_id'],
+            'logistics_order_id' => $uuid !== '' ? $uuid : null,
+            'cdek_uuid' => $uuid !== '' ? $uuid : null,
+            'cdek_number' => $tracking !== '' ? $tracking : null,
+            'cdek_api_status' => DeliveryStatusMachine::API_CREATED,
             'status' => DeliveryOrder::STATUS_ORDER_CREATED,
             'accepted_at' => date('Y-m-d H:i:s'),
+            'last_synced_at' => date('Y-m-d H:i:s'),
+            'last_error_code' => null,
+            'last_error_message' => null,
         ]);
-        $this->orders->logEvent($deliveryOrderId, null, 'system', 'logistics_order_created', DeliveryOrder::STATUS_PAID, DeliveryOrder::STATUS_ORDER_CREATED, $result);
+        $this->orders->logEvent(
+            $deliveryOrderId,
+            null,
+            'system',
+            'logistics_order_created',
+            DeliveryOrder::STATUS_PAID,
+            DeliveryOrder::STATUS_ORDER_CREATED,
+            DeliveryPii::redactPayload($result)
+        );
 
-        if (!empty($result['tracking_number'])) {
+        if ($tracking !== '') {
             $this->orders->addTrackingEvent($deliveryOrderId, [
-                'tracking_number' => $result['tracking_number'],
+                'tracking_number' => $tracking,
                 'carrier_status' => 'created',
                 'carrier_message' => t('delivery.tracking_created'),
                 'event_at' => date('Y-m-d H:i:s'),
@@ -731,7 +808,7 @@ class DeliveryService
         return ['ok' => true];
     }
 
-    private function syncDataCompleteness(int $deliveryOrderId): void
+    private function syncDataCompleteness(int $deliveryOrderId, bool $autoQuote = true): void
     {
         $row = $this->orders->findWithDetails($deliveryOrderId);
         if (!$row || !$row['sender'] || !$row['recipient'] || !$row['shipment']) {
@@ -760,7 +837,11 @@ class DeliveryService
                     'data_complete'
                 );
             }
-            $this->requestQuotes($deliveryOrderId);
+        // Phase 5/6: checkout-applied Point B must not auto-trigger quote calc.
+            // Buyer explicitly calls POST /delivery/{id}/quotes/calculate.
+            if ($autoQuote) {
+                $this->requestQuotes($deliveryOrderId);
+            }
         }
     }
 
@@ -820,6 +901,8 @@ class DeliveryService
             $recipient['apartment'] ?? '',
             $recipient['postal_code'] ?? '',
             $recipient['pvz_code'] ?? '',
+            $recipient['delivery_point'] ?? '',
+            (string) ($recipient['cdek_city_code'] ?? ''),
         ];
         return hash('sha256', implode('|', $parts));
     }
@@ -830,16 +913,35 @@ class DeliveryService
         return [
             'delivery_order_id' => (int) $row['id'],
             'order_number' => $row['order_number'],
+            'order_id' => (int) ($row['order_id'] ?? 0),
+            'product_id' => (int) ($row['product_id'] ?? 0),
             'shipping_version' => (int) ($row['shipping_version'] ?? 1),
             'listing_shipping_version' => (int) ($row['listing_shipping_version'] ?? 1),
+            'point_a' => $row['sender'],
+            'point_b' => $row['recipient'],
             'origin' => $row['sender'],
             'destination' => $row['recipient'],
             'shipment' => $row['shipment'],
+            'weight' => $row['shipment']['billed_gross_weight']
+                ?? $row['shipment']['gross_weight']
+                ?? $row['shipment']['weight_value']
+                ?? null,
+            'dimensions' => [
+                'length' => $row['shipment']['billed_length'] ?? $row['shipment']['package_length'] ?? null,
+                'width' => $row['shipment']['billed_width'] ?? $row['shipment']['package_width'] ?? null,
+                'height' => $row['shipment']['billed_height'] ?? $row['shipment']['package_height'] ?? null,
+            ],
+            'delivery_mode' => $row['recipient']['delivery_mode'] ?? null,
             'route' => [
                 'from_city' => $row['sender']['city'] ?? null,
                 'to_city' => $row['recipient']['city'] ?? null,
+                'from_cdek_city_code' => $row['sender']['cdek_city_code'] ?? null,
+                'to_cdek_city_code' => $row['recipient']['cdek_city_code'] ?? null,
+                'shipment_point' => $row['sender']['shipment_point'] ?? null,
+                'delivery_point' => $row['recipient']['delivery_point'] ?? $row['recipient']['pvz_code'] ?? null,
             ],
             'requested_at' => date('c'),
+            'calculator_endpoint' => \App\Services\Cdek\CdekCalculatorService::ENDPOINT,
             'context_hash' => hash('sha256', json_encode($context, JSON_UNESCAPED_UNICODE)),
         ];
     }

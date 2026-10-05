@@ -108,6 +108,7 @@ class Order extends Model
             'quantity' => 'INT UNSIGNED NOT NULL DEFAULT 1',
             'stock_held' => 'TINYINT(1) NOT NULL DEFAULT 0',
             'stock_restored' => 'TINYINT(1) NOT NULL DEFAULT 0',
+            'buyer_delivery_json' => 'MEDIUMTEXT DEFAULT NULL',
         ]);
 
         // Старый ENUM paid → escrowed semantics
@@ -317,6 +318,7 @@ class Order extends Model
     /**
      * Оплата → деньги на эскроу (заморозка), товар reserved/sold.
      * Карта через FreedomPay: awaiting_payment + redirect_url.
+     * @param array<string, mixed>|null $buyerDeliverySnapshot Point B snapshot (CDEK checkout)
      * @return array{ok: bool, order_id?: int, redirect_url?: string, error?: string}
      */
     public function createEscrow(
@@ -325,7 +327,8 @@ class Order extends Model
         string $paymentMethod,
         string $deliveryMethod,
         string $dealMode = 'escrow',
-        int $quantity = 1
+        int $quantity = 1,
+        ?array $buyerDeliverySnapshot = null
     ): array {
         $dealMode = $dealMode === 'direct' ? 'direct' : 'escrow';
         $product = (new Product())->find($productId);
@@ -381,7 +384,8 @@ class Order extends Model
                 $dealMode,
                 $arbitrationFee,
                 $chargeTotal,
-                $quantity
+                $quantity,
+                $buyerDeliverySnapshot
             );
         }
 
@@ -433,6 +437,7 @@ class Order extends Model
                 $isDirect ? $now : null,
             ]);
             $orderId = (int) $this->db->lastInsertId();
+            $this->attachBuyerDeliverySnapshot($orderId, $buyerDeliverySnapshot);
 
             if ($isDirect) {
                 $pay = $method === 'wallet'
@@ -484,6 +489,7 @@ class Order extends Model
      * Эскроу фиксируется в Payment::completeFromGateway по result_url.
      *
      * @param array<string, mixed> $product
+     * @param array<string, mixed>|null $buyerDeliverySnapshot
      * @return array{ok: bool, order_id?: int, redirect_url?: string, error?: string}
      */
     private function createFreedomPayEscrow(
@@ -495,7 +501,8 @@ class Order extends Model
         string $dealMode = 'escrow',
         int $arbitrationFee = 0,
         int $chargeTotal = 0,
-        int $quantity = 1
+        int $quantity = 1,
+        ?array $buyerDeliverySnapshot = null
     ): array {
         if ($chargeTotal <= 0) {
             $chargeTotal = EscrowService::buyerChargeTotal($amount, $dealMode);
@@ -558,6 +565,7 @@ class Order extends Model
                 $arbitrationFee,
             ]);
             $orderId = (int) $this->db->lastInsertId();
+            $this->attachBuyerDeliverySnapshot($orderId, $buyerDeliverySnapshot);
 
             $paymentId = $paymentModel->createPending([
                 'pg_order_id' => $pgOrderId,
@@ -596,17 +604,31 @@ class Order extends Model
      * Оплата всей корзины: отдельный эскроу-заказ на каждый товар.
      *
      * @param list<array<string, mixed>> $products
+     * @param array<string, mixed>|null $buyerDeliverySnapshot
      * @return array{ok: bool, order_id?: int, order_ids?: list<int>, redirect_url?: string, error?: string}
      */
-    public function createEscrowCart(array $products, int $buyerId, string $paymentMethod, string $deliveryMethod): array
-    {
+    public function createEscrowCart(
+        array $products,
+        int $buyerId,
+        string $paymentMethod,
+        string $deliveryMethod,
+        ?array $buyerDeliverySnapshot = null
+    ): array {
         if ($products === []) {
             return ['ok' => false, 'error' => t('checkout.cart_empty')];
         }
 
         if (count($products) === 1) {
             $qty = max(1, (int) ($products[0]['cart_qty'] ?? 1));
-            return $this->createEscrow((int) $products[0]['id'], $buyerId, $paymentMethod, $deliveryMethod, 'escrow', $qty);
+            return $this->createEscrow(
+                (int) $products[0]['id'],
+                $buyerId,
+                $paymentMethod,
+                $deliveryMethod,
+                'escrow',
+                $qty,
+                $buyerDeliverySnapshot
+            );
         }
 
         $validated = [];
@@ -653,7 +675,16 @@ class Order extends Model
         }
 
         if ($useFreedomPay) {
-            return $this->createFreedomPayEscrowCart($validated, $buyerId, $total, $delivery, $fp, $arbitrationFeeTotal, $chargeTotal);
+            return $this->createFreedomPayEscrowCart(
+                $validated,
+                $buyerId,
+                $total,
+                $delivery,
+                $fp,
+                $arbitrationFeeTotal,
+                $chargeTotal,
+                $buyerDeliverySnapshot
+            );
         }
 
         $wallet = new Wallet();
@@ -703,6 +734,7 @@ class Order extends Model
                     $itemFee,
                 ]);
                 $orderId = (int) $this->db->lastInsertId();
+                $this->attachBuyerDeliverySnapshot($orderId, $buyerDeliverySnapshot);
                 $orderIds[] = $orderId;
 
                 if ($method === 'wallet') {
@@ -760,6 +792,7 @@ class Order extends Model
 
     /**
      * @param list<array<string, mixed>> $products
+     * @param array<string, mixed>|null $buyerDeliverySnapshot
      * @return array{ok: bool, order_id?: int, order_ids?: list<int>, redirect_url?: string, error?: string}
      */
     private function createFreedomPayEscrowCart(
@@ -769,7 +802,8 @@ class Order extends Model
         string $delivery,
         \App\Services\FreedomPay\Client $fp,
         int $arbitrationFeeTotal = 0,
-        int $chargeTotal = 0
+        int $chargeTotal = 0,
+        ?array $buyerDeliverySnapshot = null
     ): array {
         if ($chargeTotal <= 0) {
             $arbitrationFeeTotal = EscrowService::arbitrationFeeForItems($products);
@@ -843,6 +877,7 @@ class Order extends Model
                     $itemFee,
                 ]);
                 $orderId = (int) $this->db->lastInsertId();
+                $this->attachBuyerDeliverySnapshot($orderId, $buyerDeliverySnapshot);
                 $orderIds[] = $orderId;
                 $cartItems[] = [
                     'order_id' => $orderId,
@@ -902,5 +937,33 @@ class Order extends Model
         }
         $stmt = $this->db->prepare('UPDATE orders SET stock_held = 1 WHERE id = ?');
         $stmt->execute([$orderId]);
+    }
+
+    /** @param array<string, mixed>|null $snapshot */
+    private function attachBuyerDeliverySnapshot(int $orderId, ?array $snapshot): void
+    {
+        if ($orderId <= 0 || $snapshot === null || $snapshot === []) {
+            return;
+        }
+        $json = json_encode($snapshot, JSON_UNESCAPED_UNICODE);
+        if (!is_string($json)) {
+            return;
+        }
+        $this->updateFields($orderId, ['buyer_delivery_json' => $json]);
+    }
+
+    /** @return array<string, mixed>|null */
+    public function buyerDeliverySnapshot(int $orderId): ?array
+    {
+        $row = $this->find($orderId);
+        if (!$row) {
+            return null;
+        }
+        $raw = (string) ($row['buyer_delivery_json'] ?? '');
+        if ($raw === '') {
+            return null;
+        }
+        $decoded = json_decode($raw, true);
+        return is_array($decoded) ? $decoded : null;
     }
 }

@@ -62,10 +62,15 @@ $router->get('/payments/freedompay/success', [PaymentController::class, 'freedom
 $router->get('/payments/freedompay/failure', [PaymentController::class, 'freedomPayFailure']);
 $router->get('/delivery/order/{orderId}', [DeliveryController::class, 'byOrder']);
 $router->get('/delivery/cdek/points', [DeliveryController::class, 'cdekPoints']);
+$router->get('/delivery/cdek/cities', [DeliveryController::class, 'cdekCities']);
 $router->get('/delivery/{id}', [DeliveryController::class, 'show']);
+$router->get('/delivery/{id}/recipient', [DeliveryController::class, 'getRecipient']);
 $router->post('/delivery/{id}/sender', [DeliveryController::class, 'saveSender']);
 $router->post('/delivery/{id}/recipient', [DeliveryController::class, 'saveRecipient']);
 $router->post('/delivery/{id}/quote', [DeliveryController::class, 'selectQuote']);
+$router->post('/delivery/{id}/quotes/calculate', [DeliveryController::class, 'calculateQuotes']);
+$router->get('/delivery/{id}/payment', [DeliveryController::class, 'paymentStatus']);
+$router->get('/delivery/{id}/cdek-ready', [DeliveryController::class, 'cdekReady']);
 $router->post('/delivery/{id}/pay', [DeliveryController::class, 'pay']);
 $router->post('/webhooks/delivery/status', [DeliveryController::class, 'logisticsWebhook']);
 $router->get('/orders', [OrderController::class, 'index']);

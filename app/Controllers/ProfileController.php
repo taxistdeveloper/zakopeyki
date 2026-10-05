@@ -536,6 +536,13 @@ class ProfileController extends Controller
         $shipResult = $shippingSvc->validateAndBuild(Auth::id(), $type, $_POST, $dbUser);
         if (!$shipResult['ok']) {
             $_SESSION['error'] = $shipResult['error'] ?? t('listing_shipping.validation_failed');
+            if (!empty($shipResult['missing_fields']) && is_array($shipResult['missing_fields'])) {
+                $_SESSION['listing_shipping_errors'] = [
+                    'field' => $shipResult['field'] ?? null,
+                    'error_code' => $shipResult['error_code'] ?? null,
+                    'missing_fields' => $shipResult['missing_fields'],
+                ];
+            }
             $this->redirect($lotsFailUrl);
         }
 
@@ -556,7 +563,12 @@ class ProfileController extends Controller
         ], $auction['fields']));
 
         if (!empty($shipResult['data'])) {
-            $shippingSvc->saveForProduct((int) $productId, $shipResult['data']);
+            $save = $shippingSvc->saveForOwnedProduct((int) $productId, Auth::id(), $shipResult['data']);
+            if (!$save['ok']) {
+                (new Product())->delete((int) $productId);
+                $_SESSION['error'] = $save['error'] ?? t('listing_shipping.validation_failed');
+                $this->redirect($lotsFailUrl);
+            }
         }
 
         if ($serviceFee > 0) {
@@ -783,6 +795,13 @@ class ProfileController extends Controller
         $shipResult = $shippingSvc->validateAndBuild(Auth::id(), $type, $_POST, $dbUser);
         if (!$shipResult['ok']) {
             $_SESSION['error'] = $shipResult['error'] ?? t('listing_shipping.validation_failed');
+            if (!empty($shipResult['missing_fields']) && is_array($shipResult['missing_fields'])) {
+                $_SESSION['listing_shipping_errors'] = [
+                    'field' => $shipResult['field'] ?? null,
+                    'error_code' => $shipResult['error_code'] ?? null,
+                    'missing_fields' => $shipResult['missing_fields'],
+                ];
+            }
             $this->redirect($editUrl);
         }
 
@@ -803,7 +822,11 @@ class ProfileController extends Controller
         ], $auction['fields']));
 
         if (!empty($shipResult['data'])) {
-            $shippingSvc->saveForProduct((int) $id, $shipResult['data']);
+            $save = $shippingSvc->saveForOwnedProduct((int) $id, Auth::id(), $shipResult['data']);
+            if (!$save['ok']) {
+                $_SESSION['error'] = $save['error'] ?? t('listing_shipping.validation_failed');
+                $this->redirect($editUrl);
+            }
         }
 
         ActivityLogger::info('product.update', 'Обновлено объявление «' . $title . '»', 'product', (int) $id, [

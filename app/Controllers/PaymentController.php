@@ -246,9 +246,28 @@ class PaymentController extends Controller
         bool $canReject
     ): void {
         $payments = new DeliveryPayment();
+        $params = FreedomPayClient::requestParams();
 
         if ($pgResult === 1) {
-            $done = $payments->completeFromGateway($pgOrderId, $pgPaymentId, $pgAmount);
+            $pgCurrency = isset($params['pg_currency']) ? (string) $params['pg_currency'] : null;
+            if ($pgCurrency === '398') {
+                $pgCurrency = 'KZT';
+            }
+            $webhookHash = hash('sha256', json_encode([
+                'pg_order_id' => $pgOrderId,
+                'pg_payment_id' => $pgPaymentId,
+                'pg_amount' => $pgAmount,
+                'pg_result' => $pgResult,
+                'pg_currency' => $pgCurrency,
+            ], JSON_UNESCAPED_UNICODE));
+
+            $done = $payments->completeFromGateway(
+                $pgOrderId,
+                $pgPaymentId,
+                $pgAmount,
+                $pgCurrency,
+                $webhookHash
+            );
             if ($done['ok']) {
                 ActivityLogger::info(
                     'payment.freedompay.delivery',

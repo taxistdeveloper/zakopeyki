@@ -228,6 +228,42 @@ $missingForQuotes = $missingForQuotes ?? [];
         </div>
     <?php endif; ?>
 
+    <?php
+    $canCalculate = !empty($isBuyer)
+        && $missingForQuotes === []
+        && in_array($status, [
+            DeliveryOrder::STATUS_DATA_COLLECTION,
+            DeliveryOrder::STATUS_DATA_COMPLETE,
+            DeliveryOrder::STATUS_QUOTE_RECEIVED,
+            DeliveryOrder::STATUS_READY_FOR_PAYMENT,
+            DeliveryOrder::STATUS_EXCEPTION,
+        ], true);
+    ?>
+    <?php if ($canCalculate): ?>
+        <form method="post" action="<?= ProductHelper::url('/delivery/' . (int) $d['id'] . '/quotes/calculate') ?>" class="bg-white/90 dark:bg-white/[0.04] rounded-[24px] border border-black/[0.06] dark:border-white/10 p-5 space-y-3 shadow-soft">
+            <?= csrf_field() ?>
+            <h2 class="font-display font-bold text-ink-900 dark:text-white"><?= htmlspecialchars(t('delivery.calculate_title')) ?></h2>
+            <p class="text-xs text-gray-500"><?= htmlspecialchars(t('delivery.calculate_hint')) ?></p>
+            <?php if ($recipient): ?>
+                <p class="text-sm text-ink-800 dark:text-gray-200">
+                    <?= htmlspecialchars(t('delivery.mode_' . ($recipient['delivery_mode'] ?? 'courier'))) ?>
+                    · <?= htmlspecialchars($recipient['city'] ?? '') ?>
+                    <?php if (($recipient['delivery_mode'] ?? '') === 'pvz'): ?>
+                        · <?= htmlspecialchars($recipient['pvz_name'] ?? $recipient['pvz_code'] ?? '') ?>
+                    <?php else: ?>
+                        · <?= htmlspecialchars(trim(($recipient['street'] ?? '') . ' ' . ($recipient['building'] ?? ''))) ?>
+                    <?php endif; ?>
+                </p>
+            <?php endif; ?>
+            <button type="submit" class="<?= $btn ?> bg-brand-600 hover:bg-brand-500 text-white">
+                <?= htmlspecialchars(t('delivery.calculate_btn')) ?>
+            </button>
+            <?php if ($quotes === [] && $status === DeliveryOrder::STATUS_DATA_COMPLETE): ?>
+                <p class="text-[11px] text-amber-700 dark:text-amber-300"><?= htmlspecialchars(t('delivery.calculate_required')) ?></p>
+            <?php endif; ?>
+        </form>
+    <?php endif; ?>
+
     <?php if ($quotes !== [] && !empty($isBuyer) && ($canSelectQuote || $selectedQuote)): ?>
         <div class="bg-white/90 dark:bg-white/[0.04] rounded-[24px] border border-black/[0.06] dark:border-white/10 p-5 space-y-4 shadow-soft">
             <h2 class="font-display font-bold text-ink-900 dark:text-white"><?= htmlspecialchars(t('delivery.quotes_title')) ?></h2>
@@ -249,6 +285,10 @@ $missingForQuotes = $missingForQuotes ?? [];
                             </span>
                             <span class="font-display font-extrabold text-brand-600"><?= htmlspecialchars($qTotal) ?></span>
                         </label>
+                        <p class="text-[10px] text-gray-400 pl-8 -mt-2 mb-1">
+                            <?= htmlspecialchars(t('delivery.amount_to_pay_label')) ?>:
+                            <?= htmlspecialchars(number_format((int) ($quote['total_amount'] ?? 0), 0, '', ' ') . ' ' . ($quote['currency'] ?? 'KZT')) ?>
+                        </p>
                     <?php endforeach; ?>
                     <button type="submit" class="<?= $btn ?> bg-brand-600 hover:bg-brand-500 text-white"><?= htmlspecialchars(t('delivery.confirm_quote')) ?></button>
                 </form>
@@ -262,15 +302,51 @@ $missingForQuotes = $missingForQuotes ?? [];
     <?php endif; ?>
 
     <?php if (!empty($isBuyer) && $canPay): ?>
-        <form method="post" action="<?= ProductHelper::url('/delivery/' . (int) $d['id'] . '/pay') ?>" class="bg-white/90 dark:bg-white/[0.04] rounded-[24px] border border-black/[0.06] dark:border-white/10 p-5 space-y-3 shadow-soft">
+        <form method="post" action="<?= ProductHelper::url('/delivery/' . (int) $d['id'] . '/pay') ?>" class="bg-white/90 dark:bg-white/[0.04] rounded-[24px] border border-black/[0.06] dark:border-white/10 p-5 space-y-3 shadow-soft" data-delivery-pay>
             <?= csrf_field() ?>
             <input type="hidden" name="payment_method" value="card">
             <h2 class="font-display font-bold text-ink-900 dark:text-white"><?= htmlspecialchars(t('delivery.payment_title')) ?></h2>
             <p class="text-xs text-gray-500"><?= htmlspecialchars(t('delivery.payment_hint')) ?></p>
+            <p class="text-sm font-semibold text-ink-800 dark:text-gray-200">
+                <?= htmlspecialchars(t('delivery.payment_100_notice')) ?>
+            </p>
+            <?php if ($selectedQuote): ?>
+                <p class="text-lg font-display font-extrabold text-brand-600">
+                    <?= htmlspecialchars(number_format((int) $selectedQuote['total_amount'], 0, '', ' ') . ' ' . ($selectedQuote['currency'] ?? 'KZT')) ?>
+                </p>
+            <?php endif; ?>
             <button type="submit" class="<?= $btn ?> bg-emerald-600 hover:bg-emerald-500 text-white">
                 <?= htmlspecialchars(t('delivery.pay_btn', ['amount' => $payAmount])) ?>
             </button>
+            <p class="text-[11px] text-gray-400"><?= htmlspecialchars(t('delivery.payment_redirect_not_proof')) ?></p>
         </form>
+        <script>
+        (function () {
+            var statusUrl = <?= json_encode(ProductHelper::url('/delivery/' . (int) $d['id'] . '/payment'), JSON_UNESCAPED_SLASHES) ?>;
+            // After return from acquirer, poll backend (redirect alone is not proof).
+            if (!/payment|paid|success/i.test(location.search + location.hash)) return;
+            fetch(statusUrl, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data && data.payment && data.payment.status === 'paid') {
+                        location.reload();
+                    }
+                }).catch(function () {});
+        })();
+        </script>
+    <?php elseif (!empty($isBuyer) && $status === DeliveryOrder::STATUS_PAYMENT_PENDING): ?>
+        <div class="bg-amber-50/80 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 rounded-[24px] p-5 text-sm space-y-2">
+            <p class="font-semibold text-amber-900 dark:text-amber-100"><?= htmlspecialchars(t('delivery.payment_pending_title')) ?></p>
+            <p class="text-amber-800/90 dark:text-amber-200/90"><?= htmlspecialchars(t('delivery.payment_pending_hint')) ?></p>
+            <a href="<?= ProductHelper::url('/delivery/' . (int) $d['id'] . '/payment') ?>" class="text-xs font-semibold text-brand-600 hover:underline" data-payment-status-link>
+                <?= htmlspecialchars(t('delivery.payment_check_status')) ?>
+            </a>
+        </div>
+    <?php elseif (!empty($isBuyer) && $status === DeliveryOrder::STATUS_PAID): ?>
+        <div class="bg-emerald-50/80 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40 rounded-[24px] p-5 text-sm">
+            <p class="font-semibold text-emerald-900 dark:text-emerald-100"><?= htmlspecialchars(t('delivery.payment_paid_title')) ?></p>
+            <p class="text-emerald-800/90 dark:text-emerald-200/90 mt-1"><?= htmlspecialchars(t('delivery.payment_paid_hint')) ?></p>
+        </div>
     <?php endif; ?>
 
     <?php if ($tracking !== []): ?>

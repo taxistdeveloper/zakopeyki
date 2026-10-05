@@ -10,6 +10,7 @@ use App\Models\Notification;
 use App\Models\Order;
 use App\Services\Delivery\DeliveryService;
 use App\Services\Delivery\PackagingRecommendationService;
+use App\Services\Listing\ListingShippingService;
 
 class DeliveryController extends Controller
 {
@@ -97,11 +98,53 @@ class DeliveryController extends Controller
     public function saveRecipient(string $id): void
     {
         Auth::requireLogin();
-        $result = (new DeliveryService())->saveBuyerData((int) $id, Auth::id(), $_POST);
+        $svc = new \App\Services\Delivery\BuyerPointBService();
+        // Prefer domain service: validates PVZ via directory + invalidates quotes; no auto quote from checkout path.
+        $result = $svc->updatePointB((int) $id, Auth::id(), $_POST, false);
+        // If still in early data collection without product_id join, fall back.
+        if (($result['error_code'] ?? '') === 'not_found' || (($result['ok'] ?? false) === false && ($result['error'] ?? '') === 'not_found')) {
+            $result = (new DeliveryService())->saveBuyerData((int) $id, Auth::id(), $_POST, ['auto_quote' => false]);
+        }
         $_SESSION[$result['ok'] ? 'flash' : 'error'] = $result['ok']
             ? t('delivery.recipient_saved')
             : ($result['error'] ?? t('delivery.save_failed'));
         $this->redirect('/delivery/' . (int) $id);
+    }
+
+    /**
+     * GET /delivery/{id}/recipient — сохранённый Point B (buyer/seller ownership).
+     */
+    public function getRecipient(string $id): void
+    {
+        Auth::requireLogin();
+        $result = (new \App\Services\Delivery\BuyerPointBService())->getPointB((int) $id, Auth::id());
+        if (!$result['ok']) {
+            $code = ($result['error'] ?? '') === 'forbidden' ? 403 : 404;
+            $this->json(['ok' => false, 'error' => $result['error'] ?? 'not_found'], $code);
+        }
+        $recipient = $result['recipient'];
+        // Не отдаём лишнее; PII только владельцу заказа.
+        $this->json([
+            'ok' => true,
+            'recipient' => $recipient ? [
+                'name' => $recipient['name'] ?? null,
+                'phone' => $recipient['phone'] ?? null,
+                'email' => $recipient['email'] ?? null,
+                'delivery_mode' => $recipient['delivery_mode'] ?? null,
+                'country' => $recipient['country'] ?? null,
+                'region' => $recipient['region'] ?? null,
+                'city' => $recipient['city'] ?? null,
+                'street' => $recipient['street'] ?? null,
+                'building' => $recipient['building'] ?? null,
+                'apartment' => $recipient['apartment'] ?? null,
+                'postal_code' => $recipient['postal_code'] ?? null,
+                'pvz_code' => $recipient['pvz_code'] ?? null,
+                'pvz_name' => $recipient['pvz_name'] ?? null,
+                'delivery_point' => $recipient['delivery_point'] ?? null,
+                'cdek_city_code' => isset($recipient['cdek_city_code']) ? (int) $recipient['cdek_city_code'] : null,
+                'notes' => $recipient['notes'] ?? null,
+            ] : null,
+        ]);
     }
 
     public function selectQuote(string $id): void
@@ -115,9 +158,49 @@ class DeliveryController extends Controller
         $this->redirect('/delivery/' . (int) $id);
     }
 
+    /**
+     * POST /delivery/{id}/quotes/calculate — серверный расчёт CDEK (Phase 6).
+     * Тело: только CSRF; сумма и CalculatorRequestDto с frontend не принимаются.
+     */
+    public function calculateQuotes(string $id): void
+    {
+        Auth::requireLogin();
+        $wantsJson = str_contains((string) ($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json')
+            || (($_POST['format'] ?? '') === 'json')
+            || (($_GET['format'] ?? '') === 'json');
+
+        $result = (new DeliveryService())->calculateQuotesForBuyer((int) $id, Auth::id());
+
+        if ($wantsJson) {
+            $code = 200;
+            if (!($result['ok'] ?? false)) {
+                $code = match ($result['error_code'] ?? '') {
+                    'forbidden' => 403,
+                    'not_found' => 404,
+                    default => 422,
+                };
+            }
+            $this->json([
+                'ok' => (bool) ($result['ok'] ?? false),
+                'error' => $result['error'] ?? null,
+                'error_code' => $result['error_code'] ?? null,
+                'quotes' => $result['quotes'] ?? [],
+                'active_quote_ids' => $result['active_quote_ids'] ?? [],
+                'reused' => !empty($result['reused']),
+            ], $code);
+            return;
+        }
+
+        $_SESSION[$result['ok'] ? 'flash' : 'error'] = $result['ok']
+            ? t('delivery.quote_calculated')
+            : ($result['error'] ?? t('delivery.quote_failed'));
+        $this->redirect('/delivery/' . (int) $id);
+    }
+
     public function pay(string $id): void
     {
         Auth::requireLogin();
+        unset($_POST['amount'], $_POST['total_amount'], $_POST['currency'], $_POST['delivery_amount']);
         $method = ($_POST['payment_method'] ?? 'card') === 'card' ? 'card' : 'card';
         $result = (new DeliveryService())->initiatePayment((int) $id, Auth::id(), $method);
         if (!$result['ok']) {
@@ -130,6 +213,42 @@ class DeliveryController extends Controller
         }
         $_SESSION['flash'] = t('delivery.payment_success');
         $this->redirect('/delivery/' . (int) $id);
+    }
+
+    /**
+     * GET /delivery/{id}/payment — статус оплаты (только backend truth).
+     */
+    public function paymentStatus(string $id): void
+    {
+        Auth::requireLogin();
+        $result = (new \App\Services\Delivery\DeliveryPaymentService())->getPaymentStatus((int) $id, Auth::id());
+        $code = ($result['ok'] ?? false) ? 200 : ((($result['error_code'] ?? '') === 'forbidden') ? 403 : 404);
+        $this->json($result, $code);
+    }
+
+    /**
+     * GET /delivery/{id}/cdek-ready — canCreateCdekOrder() без создания заказа.
+     */
+    public function cdekReady(string $id): void
+    {
+        Auth::requireLogin();
+        $delivery = (new DeliveryOrder())->findWithDetails((int) $id);
+        if (!$delivery) {
+            $this->json(['ok' => false, 'error' => 'not_found'], 404);
+            return;
+        }
+        $uid = Auth::id();
+        if ((int) $delivery['buyer_user_id'] !== $uid && (int) $delivery['seller_user_id'] !== $uid && !Auth::can('disputes')) {
+            $this->json(['ok' => false, 'error' => 'forbidden'], 403);
+            return;
+        }
+        $gate = (new DeliveryService())->canCreateCdekOrder((int) $id);
+        $this->json([
+            'ok' => true,
+            'ready' => (bool) ($gate['ok'] ?? false),
+            'reason' => $gate['reason'] ?? null,
+            'checks' => $gate['checks'] ?? [],
+        ]);
     }
 
     /**
@@ -158,6 +277,33 @@ class DeliveryController extends Controller
             'points' => $public,
             'count' => count($public),
             'directory_total' => $points->countActive('KZ'),
+        ]);
+    }
+
+    /**
+     * Resolve city → CDEK city code for seller Point A (via CdekApi client).
+     * GET /delivery/cdek/cities?city=&country_code=
+     */
+    public function cdekCities(): void
+    {
+        Auth::requireLogin();
+
+        $city = trim((string) ($_GET['city'] ?? ''));
+        $country = strtoupper(trim((string) ($_GET['country_code'] ?? 'KZ'))) ?: 'KZ';
+        if ($city === '') {
+            $this->json(['ok' => false, 'error' => 'city_required'], 422);
+        }
+
+        $found = (new ListingShippingService())->resolveCityCode($city, $country);
+        if ($found === null) {
+            $this->json(['ok' => false, 'error' => 'city_not_found', 'city' => $city], 404);
+        }
+
+        $this->json([
+            'ok' => true,
+            'code' => (int) $found['code'],
+            'city' => (string) ($found['city'] ?? $city),
+            'country_code' => (string) ($found['country_code'] ?? $country),
         ]);
     }
 

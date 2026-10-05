@@ -288,6 +288,7 @@ final class DemoSeeder
     private function seedStories(): void
     {
         echo "Stories...\n";
+        // 10 демо-сторис: по кольцу у разных аккаунтов, срок 24ч обновляется при повторном запуске
         $packs = [
             'shop' => [
                 ['🔥 Сегодня −15% на наушники Sony', '#ef4444', '🔥', 'sony-wh-1000xm5'],
@@ -315,16 +316,28 @@ final class DemoSeeder
             ],
         ];
 
+        $find = $this->db->prepare(
+            'SELECT id FROM stories WHERE user_id = ? AND caption = ? ORDER BY id DESC LIMIT 1'
+        );
+        $refresh = $this->db->prepare(
+            'UPDATE stories
+             SET image = ?, bg_color = ?, emoji = ?, audience = ?, comments_enabled = 1,
+                 visibility = ?, attach_product = 1, expires_at = DATE_ADD(NOW(), INTERVAL 24 HOUR)
+             WHERE id = ?'
+        );
+
         foreach ($packs as $key => $stories) {
             $uid = $this->ids[$key] ?? 0;
             if ($uid < 1) {
                 continue;
             }
-            $active = $this->stories->byUser($uid);
             foreach ($stories as $story) {
                 [$caption, $color, $emoji, $slug] = $story;
                 $image = $this->storyImage($slug, $caption, $color);
-                if ($active !== []) {
+                $find->execute([$uid, $caption]);
+                $id = (int) $find->fetchColumn();
+                if ($id > 0) {
+                    $refresh->execute([$image, $color, $emoji, 'all', 'public', $id]);
                     continue;
                 }
                 $this->stories->create([
@@ -333,6 +346,9 @@ final class DemoSeeder
                     'image' => $image,
                     'bg_color' => $color,
                     'emoji' => $emoji,
+                    'audience' => 'all',
+                    'visibility' => 'public',
+                    'attach_product' => 1,
                 ]);
                 $this->created['story'] = true;
             }

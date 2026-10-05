@@ -66,7 +66,7 @@ class EscrowService
         'cancelled',
     ];
 
-    public const DELIVERY_METHODS = ['kazpost', 'cdek', 'courier', 'other', 'digital'];
+    public const DELIVERY_METHODS = ['kazpost', 'cdek', 'courier', 'other', 'digital', 'pickup'];
 
     public function __construct(private ?Order $orders = null)
     {
