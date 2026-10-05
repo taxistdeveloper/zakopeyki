@@ -6,6 +6,7 @@ use App\Core\Auth;
 use App\Core\Controller;
 use App\Helpers\UploadHelper;
 use App\Models\Follow;
+use App\Models\Product;
 use App\Models\Story;
 
 class StoryController extends Controller
@@ -25,6 +26,24 @@ class StoryController extends Controller
             $caption = mb_substr($caption, 0, 280);
         }
 
+        $productMode = (string) ($_POST['product_mode'] ?? 'auto');
+        if (!in_array($productMode, ['auto', 'pick', 'none'], true)) {
+            $productMode = 'auto';
+        }
+        $pickedProductId = null;
+        if ($productMode === 'pick') {
+            $pickedProductId = (int) ($_POST['product_id'] ?? 0);
+            $picked = $pickedProductId > 0 ? (new Product())->find($pickedProductId) : null;
+            $owned = $picked
+                && (int) ($picked['user_id'] ?? 0) === (int) Auth::id()
+                && (string) ($picked['status'] ?? '') === 'active';
+            if (!$owned) {
+                $_SESSION['flash'] = t('home.story_create_product_pick_need');
+                $this->redirect('/');
+                return;
+            }
+        }
+
         $image = $this->uploadMedia();
 
         if ($image === null) {
@@ -41,7 +60,7 @@ class StoryController extends Controller
         }
         $commentsEnabled = !isset($_POST['comments_enabled'])
             || in_array((string) $_POST['comments_enabled'], ['1', 'true', 'on', 'yes'], true);
-        $attachProduct = (string) ($_POST['product_mode'] ?? 'auto') !== 'none';
+        $attachProduct = $productMode !== 'none';
 
         (new Story())->create([
             'user_id' => Auth::id(),
@@ -53,6 +72,7 @@ class StoryController extends Controller
             'comments_enabled' => $commentsEnabled ? 1 : 0,
             'visibility' => $visibility,
             'attach_product' => $attachProduct ? 1 : 0,
+            'product_id' => $productMode === 'pick' ? $pickedProductId : null,
         ]);
 
         $notifySubs = $visibility !== 'private' && (isset($_POST['notify_subs'])

@@ -560,8 +560,13 @@ $storyGroupsForJs = array_map(static function ($g) use ($formatStoryProduct) {
     $g['product'] = $formatted;
     if (!empty($g['stories']) && is_array($g['stories'])) {
         foreach ($g['stories'] as &$story) {
-            $attach = !array_key_exists('attach_product', $story) || (int) $story['attach_product'] === 1;
-            $story['product'] = $attach ? $formatted : null;
+            if (array_key_exists('linked_product', $story)) {
+                $story['product'] = $formatStoryProduct($story['linked_product']);
+                unset($story['linked_product']);
+            } else {
+                $attach = !array_key_exists('attach_product', $story) || (int) $story['attach_product'] === 1;
+                $story['product'] = $attach ? $formatted : null;
+            }
         }
         unset($story);
     }

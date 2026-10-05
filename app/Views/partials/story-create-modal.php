@@ -3,11 +3,23 @@ use App\Core\Auth;
 use App\Helpers\AvatarHelper;
 use App\Helpers\IconHelper;
 use App\Helpers\ProductHelper;
+use App\Models\Product;
 
 $me = Auth::user() ?? [];
 $myAvatar = AvatarHelper::url($me);
 $myName = (string) ($me['name'] ?? t('js.you'));
 $myInitial = AvatarHelper::initial($me);
+$storyPickProducts = [];
+if (Auth::check()) {
+    foreach ((new Product())->activeShopByUser((int) Auth::id(), 40) as $row) {
+        $storyPickProducts[] = [
+            'id' => (int) $row['id'],
+            'title' => (string) ($row['title'] ?? ''),
+            'price' => ProductHelper::formatPrice($row),
+            'image' => ProductHelper::imageUrl($row),
+        ];
+    }
+}
 ?>
 <!-- CREATE STORY — публикация в стиле live-setup / shorts -->
 <div id="story-create-modal" class="hidden fixed inset-0 z-[60] live-setup-shell" role="dialog" aria-modal="true" aria-labelledby="story-create-heading">
@@ -121,6 +133,36 @@ $myInitial = AvatarHelper::initial($me);
                                 <span class="story-create-product-choice-text"><?= htmlspecialchars(t('home.story_create_product_auto')) ?></span>
                             </span>
                         </label>
+                        <div class="story-create-product-pick">
+                            <label class="story-create-product-choice">
+                                <input type="radio" name="product_mode" value="pick">
+                                <span class="story-create-product-choice-mark" aria-hidden="true"></span>
+                                <span class="story-create-product-choice-body">
+                                    <span class="story-create-product-choice-title"><?= htmlspecialchars(t('home.story_create_product_pick_title')) ?></span>
+                                    <span class="story-create-product-choice-text"><?= htmlspecialchars(t('home.story_create_product_pick')) ?></span>
+                                </span>
+                            </label>
+                            <div class="story-create-product-list">
+                                <?php if ($storyPickProducts === []): ?>
+                                    <p class="story-create-product-empty"><?= htmlspecialchars(t('home.story_create_product_pick_empty')) ?></p>
+                                <?php else: ?>
+                                    <?php foreach ($storyPickProducts as $pick): ?>
+                                        <label class="story-create-product-item">
+                                            <input type="radio" name="product_id" value="<?= (int) $pick['id'] ?>">
+                                            <?php if (!empty($pick['image'])): ?>
+                                                <img src="<?= htmlspecialchars((string) $pick['image']) ?>" alt="">
+                                            <?php else: ?>
+                                                <span class="story-create-product-item-ph" aria-hidden="true"><?= IconHelper::svg('bag', 'w-4 h-4') ?></span>
+                                            <?php endif; ?>
+                                            <span class="min-w-0 flex-1">
+                                                <span class="story-create-product-item-title"><?= htmlspecialchars($pick['title']) ?></span>
+                                                <span class="story-create-product-item-price"><?= htmlspecialchars($pick['price']) ?></span>
+                                            </span>
+                                        </label>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </div>
+                        </div>
                         <label class="story-create-product-choice">
                             <input type="radio" name="product_mode" value="none">
                             <span class="story-create-product-choice-mark" aria-hidden="true"></span>

@@ -38,6 +38,7 @@ class Story extends Model
             'comments_enabled' => 'TINYINT(1) NOT NULL DEFAULT 1',
             'visibility' => "VARCHAR(20) NOT NULL DEFAULT 'public'",
             'attach_product' => 'TINYINT(1) NOT NULL DEFAULT 1',
+            'product_id' => 'INT UNSIGNED NULL DEFAULT NULL',
         ] as $col => $def) {
             $exists = $this->db->query('SHOW COLUMNS FROM stories LIKE ' . $this->db->quote($col))->fetch();
             if (!$exists) {
@@ -85,10 +86,44 @@ class Story extends Model
             $groups[$uid]['stories'][] = $row;
         }
 
+        $pickedIds = [];
+        foreach ($groups as $group) {
+            foreach ($group['stories'] as $story) {
+                $pid = (int) ($story['product_id'] ?? 0);
+                if ($pid > 0) {
+                    $pickedIds[$pid] = $pid;
+                }
+            }
+        }
+        $pickedMap = $this->activeProductsByIds(array_values($pickedIds));
+
         // В ленте группы — по свежести; внутри группы — от старой к новой
         foreach ($groups as &$group) {
             $group['stories'] = array_reverse($group['stories']);
-            $group['product'] = $this->latestProductForUser((int) $group['user_id']);
+            $uid = (int) $group['user_id'];
+            $needsLatest = false;
+            foreach ($group['stories'] as $story) {
+                $attach = !array_key_exists('attach_product', $story) || (int) $story['attach_product'] === 1;
+                if ($attach && (int) ($story['product_id'] ?? 0) <= 0) {
+                    $needsLatest = true;
+                    break;
+                }
+            }
+            $latest = $needsLatest ? $this->latestProductForUser($uid) : null;
+            $group['product'] = $latest;
+            foreach ($group['stories'] as &$story) {
+                $attach = !array_key_exists('attach_product', $story) || (int) $story['attach_product'] === 1;
+                $pid = (int) ($story['product_id'] ?? 0);
+                if (!$attach) {
+                    $story['linked_product'] = null;
+                } elseif ($pid > 0) {
+                    $row = $pickedMap[$pid] ?? null;
+                    $story['linked_product'] = ($row && (int) ($row['user_id'] ?? 0) === $uid) ? $row : null;
+                } else {
+                    $story['linked_product'] = $latest;
+                }
+            }
+            unset($story);
         }
         unset($group);
 
@@ -110,6 +145,27 @@ class Story extends Model
         return $row ?: null;
     }
 
+    /** @param list<int> $ids @return array<int, array<string, mixed>> */
+    private function activeProductsByIds(array $ids): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+        if ($ids === []) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $this->db->prepare(
+            "SELECT id, user_id, title, price, type, price_label, current_bid, image, images, exchange_for
+             FROM products
+             WHERE id IN ($placeholders) AND status = 'active'"
+        );
+        $stmt->execute($ids);
+        $map = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $map[(int) $row['id']] = $row;
+        }
+        return $map;
+    }
+
     /** @param array<string, mixed> $row @param array<int, true> $followingIds */
     private function viewerCanSee(array $row, ?int $viewerId, array $followingIds): bool
     {
@@ -129,9 +185,10 @@ class Story extends Model
     public function create(array $data): int
     {
         $stmt = $this->db->prepare(
-            'INSERT INTO stories (user_id, caption, image, bg_color, emoji, audience, comments_enabled, visibility, attach_product, expires_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 24 HOUR))'
+            'INSERT INTO stories (user_id, caption, image, bg_color, emoji, audience, comments_enabled, visibility, attach_product, product_id, expires_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 24 HOUR))'
         );
+        $productId = isset($data['product_id']) ? (int) $data['product_id'] : 0;
         $stmt->execute([
             $data['user_id'],
             $data['caption'] ?? null,
@@ -142,6 +199,7 @@ class Story extends Model
             array_key_exists('comments_enabled', $data) ? (!empty($data['comments_enabled']) ? 1 : 0) : 1,
             $data['visibility'] ?? 'public',
             array_key_exists('attach_product', $data) ? (!empty($data['attach_product']) ? 1 : 0) : 1,
+            $productId > 0 ? $productId : null,
         ]);
         return (int) $this->db->lastInsertId();
     }
