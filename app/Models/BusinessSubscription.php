@@ -42,6 +42,9 @@ class BusinessSubscription extends Model
         $this->ensureColumn('extra_staff', 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER extra_catalog');
         $this->ensureColumn('extra_ai_infographic', 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER extra_staff');
         $this->ensureColumn('extra_ai_tryon', 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER extra_ai_infographic');
+        $this->ensurePrimaryAutoIncrement('business_subscriptions');
+        $this->ensureIndex('business_subscriptions', 'idx_bs_user', 'INDEX idx_bs_user (user_id)');
+        $this->ensureIndex('business_subscriptions', 'idx_bs_status_ends', 'INDEX idx_bs_status_ends (status, ends_at)');
 
         self::$ensured = true;
     }

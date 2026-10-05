@@ -42,6 +42,10 @@ class BusinessUpgradeRequest extends Model
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
         );
 
+        $this->ensurePrimaryAutoIncrement('business_upgrade_requests');
+        $this->ensureIndex('business_upgrade_requests', 'idx_bur_user', 'INDEX idx_bur_user (user_id)');
+        $this->ensureIndex('business_upgrade_requests', 'idx_bur_status', 'INDEX idx_bur_status (status)');
+
         self::$ensured = true;
     }
 

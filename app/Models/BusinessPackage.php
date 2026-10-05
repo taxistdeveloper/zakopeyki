@@ -53,6 +53,8 @@ class BusinessPackage extends Model
         $this->ensureColumn('limits_json', 'TEXT DEFAULT NULL AFTER benefits_json');
         $this->ensureColumn('kind', "VARCHAR(20) NOT NULL DEFAULT 'plan' AFTER limits_json");
         $this->ensureColumn('billing', "VARCHAR(20) NOT NULL DEFAULT 'period' AFTER kind");
+        $this->ensurePrimaryAutoIncrement('business_packages');
+        $this->ensureIndex('business_packages', 'uk_bp_slug', 'UNIQUE KEY uk_bp_slug (slug)');
 
         foreach ($this->catalogSeed() as $row) {
             $this->upsert($row);

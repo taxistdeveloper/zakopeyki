@@ -32,6 +32,8 @@ class BusinessUsage extends Model
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
         );
 
+        $this->ensureIndex('business_usage', 'PRIMARY', 'PRIMARY KEY (user_id, period_key, metric)');
+
         self::$ensured = true;
     }
 
