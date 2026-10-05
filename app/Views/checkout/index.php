@@ -150,18 +150,16 @@ $canCard = $fpConfigured || $simPayments;
                 <?php endif; ?>
             </div>
 
-            <div class="flex flex-wrap items-center gap-2 pt-1">
+            <div class="flex flex-wrap items-center justify-center gap-3 pt-1">
                 <?php
                 $payLogos = [
-                    ['file' => 'halyk.png', 'alt' => 'Halyk', 'img' => 'h-7'],
-                    ['file' => 'visa.png', 'alt' => 'Visa', 'img' => 'h-8'],
-                    ['file' => 'mastercard.png', 'alt' => 'Mastercard', 'img' => 'h-8'],
+                    ['file' => 'halyk.png', 'alt' => 'Halyk', 'class' => 'h-9 w-auto max-w-[10rem] object-contain'],
+                    ['file' => 'visa.png', 'alt' => 'Visa', 'class' => 'h-10 w-auto max-w-[7rem] object-contain rounded-md'],
+                    ['file' => 'mastercard.png', 'alt' => 'Mastercard', 'class' => 'h-10 w-auto max-w-[8rem] object-contain rounded-md'],
                 ];
                 foreach ($payLogos as $logo):
                 ?>
-                <span class="inline-flex h-11 items-center justify-center rounded-xl bg-white px-2 border border-black/[0.06] dark:border-white/15">
-                    <img src="<?= ProductHelper::url('/public/assets/img/payments/' . $logo['file']) ?>" alt="<?= htmlspecialchars($logo['alt']) ?>" class="<?= $logo['img'] ?> w-auto max-w-[9.5rem] object-contain">
-                </span>
+                <img src="<?= ProductHelper::url('/public/assets/img/payments/' . $logo['file']) ?>" alt="<?= htmlspecialchars($logo['alt']) ?>" class="<?= $logo['class'] ?>">
                 <?php endforeach; ?>
             </div>
 
