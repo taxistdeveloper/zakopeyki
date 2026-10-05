@@ -4,6 +4,7 @@ use App\Helpers\AvatarHelper;
 use App\Helpers\IconHelper;
 use App\Core\View;
 use App\Core\Auth;
+use App\Models\Favorite;
 
 $storyGroups = $storyGroups ?? [];
 $streams = $streams ?? [];
@@ -273,9 +274,14 @@ $changelog = $changelog ?? null;
                 <div id="story-progress" class="flex gap-[3px]"></div>
                 <div class="flex items-center gap-2 text-white px-0.5 pointer-events-auto min-w-0">
                     <div id="story-viewer-avatar"></div>
-                    <span id="story-viewer-name" class="text-[13px] font-semibold drop-shadow"></span>
-                    <span id="story-viewer-time" class="text-[12px] text-white/65 flex-shrink-0"></span>
-                    <button type="button" class="sm:hidden ml-auto w-8 h-8 text-white text-xl" onclick="closeStoryViewer()" aria-label="Close">✕</button>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-1.5 min-w-0">
+                            <span id="story-viewer-name" class="text-[13px] font-semibold drop-shadow"></span>
+                            <button type="button" id="story-follow-btn" class="hidden story-follow-btn"><?= htmlspecialchars(t('live.subscribe')) ?></button>
+                        </div>
+                        <span id="story-viewer-time" class="text-[12px] text-white/65"></span>
+                    </div>
+                    <button type="button" class="sm:hidden flex-shrink-0 w-8 h-8 text-white text-xl" onclick="closeStoryViewer()" aria-label="Close">✕</button>
                 </div>
             </div>
 
@@ -294,11 +300,14 @@ $changelog = $changelog ?? null;
                 </a>
                 <div class="story-reply-bar">
                     <input id="story-reply-input" type="text" class="story-reply-input" placeholder="<?= htmlspecialchars(t('home.story_reply')) ?>" maxlength="200" autocomplete="off">
-                    <button type="button" id="story-share-btn" class="story-action-btn" title="<?= htmlspecialchars(t('home.story_share')) ?>">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                    <button type="button" id="story-message-btn" class="story-action-btn" title="<?= htmlspecialchars(t('home.story_message')) ?>" aria-label="<?= htmlspecialchars(t('home.story_message')) ?>">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
                     </button>
-                    <button type="button" id="story-like-btn" class="story-action-btn" title="<?= htmlspecialchars(t('home.story_like')) ?>">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                    <button type="button" id="story-share-btn" class="story-action-btn" title="<?= htmlspecialchars(t('home.story_share')) ?>" aria-label="<?= htmlspecialchars(t('home.story_share')) ?>">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/></svg>
+                    </button>
+                    <button type="button" id="story-favorite-btn" class="story-action-btn favorite-btn hidden" title="<?= htmlspecialchars(t('card.favorite')) ?>" aria-label="<?= htmlspecialchars(t('card.favorite')) ?>" data-product-id="">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                     </button>
                 </div>
                 <div id="story-delete-wrap" class="hidden flex justify-center">
@@ -371,10 +380,10 @@ $changelog = $changelog ?? null;
                             <div class="live-v2-host-row">
                                 <span id="live-shop-name" class="live-v2-host-name"></span>
                                 <svg class="live-v2-star" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 14.8 7.2 17l.9-5.4L4.2 7.7l5.4-.8L12 2z"/></svg>
-                                <button type="button" id="live-shop-follow" class="hidden live-v2-follow"><?= htmlspecialchars(t('live.subscribe')) ?></button>
                             </div>
                             <p id="live-shop-followers" class="live-v2-followers">—</p>
                         </div>
+                        <button type="button" id="live-shop-follow" class="hidden live-v2-follow"><?= htmlspecialchars(t('live.subscribe')) ?></button>
                         <div class="live-v2-live-block">
                             <span class="live-v2-live-badge"><i></i> LIVE</span>
                             <span id="live-shop-timer" class="live-v2-timer">00:00:00</span>
@@ -540,22 +549,29 @@ $changelog = $changelog ?? null;
 
 <script>
 <?php
-$formatStoryProduct = static function ($product): ?array {
+$favoriteIds = [];
+if (Auth::check()) {
+    $favoriteIds = array_fill_keys((new Favorite())->idsForUser((int) Auth::id()), true);
+}
+$formatStoryProduct = static function ($product) use ($favoriteIds): ?array {
     if (!$product) {
         return null;
     }
+    $pid = (int) $product['id'];
     return [
-        'id' => (int) $product['id'],
+        'id' => $pid,
         'title' => $product['title'],
         'price' => ProductHelper::formatPrice($product),
-        'url' => ProductHelper::url('/product/' . (int) $product['id']),
+        'url' => ProductHelper::url('/product/' . $pid),
         'image' => ProductHelper::imageUrl($product),
+        'favorited' => isset($favoriteIds[$pid]),
     ];
 };
 $storyGroupsForJs = array_map(static function ($g) use ($formatStoryProduct) {
     $g['avatar_url'] = AvatarHelper::url([
         'avatar_file' => $g['user_avatar_file'] ?? null,
     ]);
+    $g['is_following'] = !empty($g['is_following']);
     $formatted = $formatStoryProduct($g['product'] ?? null);
     $g['product'] = $formatted;
     if (!empty($g['stories']) && is_array($g['stories'])) {

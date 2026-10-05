@@ -240,6 +240,7 @@ return [
         'close_stream' => 'Закрыть',
         'confirm_close_stream' => 'Закрыть стрим?',
         'story_reply' => 'Ответить...',
+        'story_message' => 'Отправить сообщение',
         'story_like' => 'Нравится',
         'story_share' => 'Поделиться',
         'story_link_copied' => 'Ссылка скопирована',

@@ -309,6 +309,7 @@ function url(string $path = ''): string
             align-items: center;
             gap: 8px;
             min-width: 0;
+            max-width: 100%;
             padding: 5px 8px 5px 5px;
             border-radius: 999px;
             background: var(--live-glass);
@@ -316,6 +317,7 @@ function url(string $path = ''): string
             -webkit-backdrop-filter: blur(14px);
             border: 1px solid var(--live-line);
             box-shadow: 0 6px 18px rgba(0,0,0,0.22);
+            overflow: hidden;
         }
         .live-v2-avatar {
             width: 34px; height: 34px; border-radius: 999px;
@@ -325,22 +327,32 @@ function url(string $path = ''): string
             flex-shrink: 0;
             box-shadow: 0 0 0 2px rgba(255,255,255,0.85);
         }
-        .live-v2-host-meta { min-width: 0; flex: 1; }
+        .live-v2-host-meta { min-width: 0; flex: 1 1 0; overflow: hidden; }
         .live-v2-host-row { display: flex; align-items: center; gap: 4px; min-width: 0; }
         .live-v2-host-name {
             font-family: Sora, system-ui, sans-serif;
             font-size: 12px; font-weight: 700;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
             text-shadow: 0 1px 2px rgba(0,0,0,0.35);
+            min-width: 0;
         }
         .live-v2-star { color: var(--live-gold); flex-shrink: 0; }
         .live-v2-follow {
-            flex-shrink: 0;
-            margin-left: 2px;
+            flex: 0 0 auto;
+            max-width: 7.2rem;
+            margin-left: 0;
             border: 0; cursor: pointer;
             font-size: 10px; font-weight: 800;
-            padding: 3px 8px; border-radius: 999px;
+            padding: 4px 9px; border-radius: 999px;
             background: var(--live-gold); color: var(--live-ink);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .live-v2-follow[data-following="1"] {
+            background: rgba(255,255,255,0.18);
+            color: #fff;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28);
         }
         .live-v2-followers {
             margin: 0; font-size: 9px; color: rgba(255,255,255,0.72);
@@ -348,7 +360,7 @@ function url(string $path = ''): string
         }
         .live-v2-live-block {
             display: flex; flex-direction: column; align-items: flex-end;
-            gap: 2px; flex-shrink: 0; padding-right: 2px;
+            gap: 2px; flex: 0 0 auto; padding-right: 2px; margin-left: 2px;
         }
         .live-v2-live-badge {
             display: inline-flex; align-items: center; gap: 4px;
@@ -904,6 +916,7 @@ function url(string $path = ''): string
             .live-v2-host { gap: 6px; padding: 4px 6px 4px 4px; }
             .live-v2-avatar { width: 30px; height: 30px; font-size: 12px; }
             .live-v2-host-name { font-size: 11px; }
+            .live-v2-follow { max-width: 5.8rem; padding: 3px 7px; font-size: 9px; }
             .live-v2-followers { display: none; }
             .live-v2-support { max-width: 100%; }
             .live-v2-chip { padding: 5px 8px; font-size: 10px; }
@@ -1876,15 +1889,29 @@ function url(string $path = ''): string
         }
         #story-viewer-name {
             min-width: 0;
-            max-width: calc(100% - 148px);
             line-height: 1.25;
-            white-space: normal;
-            overflow-wrap: anywhere;
-            word-break: break-word;
-            display: -webkit-box;
-            -webkit-box-orient: vertical;
-            -webkit-line-clamp: 2;
+            white-space: nowrap;
             overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+        }
+        .story-follow-btn {
+            flex-shrink: 0;
+            border: 0;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 800;
+            line-height: 1;
+            padding: 5px 10px;
+            border-radius: 999px;
+            background: #f5c518;
+            color: #111;
+            white-space: nowrap;
+        }
+        .story-follow-btn[data-following="1"] {
+            background: rgba(255,255,255,0.2);
+            color: #fff;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.35);
         }
         #story-caption-center {
             margin-top: 12px;
@@ -1976,7 +2003,8 @@ function url(string $path = ''): string
             flex-shrink: 0;
             padding: 0;
         }
-        .story-action-btn.is-liked { color: #ff3040; }
+        .story-action-btn.is-liked,
+        .story-action-btn.is-favorited { color: #ff3040; }
         .story-footer {
             position: absolute;
             left: 0;
@@ -2503,6 +2531,7 @@ function url(string $path = ''): string
             'card.favorite', 'card.unfavorite', 'card.add_cart', 'card.in_cart',
             'profile.edit', 'profile.delete', 'profile.confirm_delete_lot',
             'home.story_link_copied',
+            'home.story_message', 'home.story_share', 'home.story_reply',
             'home.story_create_draft_saved', 'home.story_create_need_content', 'home.story_create_need_photo',
             'home.story_create_product_pick_need',
             'home.story_create_video_long', 'home.story_create_video_wait', 'home.story_create_file_big', 'home.story_create_media_bad',

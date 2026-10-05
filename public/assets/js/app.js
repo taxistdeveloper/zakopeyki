@@ -868,6 +868,7 @@ function renderStory() {
     }
     document.getElementById('story-viewer-name').textContent = group.user_name || '';
     document.getElementById('story-viewer-time').textContent = timeAgo(story.created_at);
+    updateStoryFollowBtn(group);
 
     const progress = document.getElementById('story-progress');
     progress.innerHTML = group.stories.map((_, i) => {
@@ -960,6 +961,7 @@ function renderStory() {
         ? story.product
         : (group.product || null);
     renderStoryProduct(storyProduct || null);
+    updateStoryFavoriteBtn(storyProduct || null);
 
     const reply = document.getElementById('story-reply-input');
     if (reply) {
@@ -985,14 +987,6 @@ function renderStory() {
         delWrap.classList.add('hidden');
     }
 
-    const likeBtn = document.getElementById('story-like-btn');
-    if (likeBtn) {
-        const liked = !!storyLiked[storyKey(story)];
-        likeBtn.classList.toggle('is-liked', liked);
-        const path = likeBtn.querySelector('svg path');
-        if (path) path.setAttribute('fill', liked ? 'currentColor' : 'none');
-    }
-
     if (document.activeElement && document.activeElement.id === 'story-reply-input') {
         return;
     }
@@ -1002,11 +996,70 @@ function renderStory() {
     }
 }
 
-function storyKey(story) {
-    return String(story && story.id != null ? story.id : '');
+function updateStoryFollowBtn(group) {
+    const btn = document.getElementById('story-follow-btn');
+    const msgBtn = document.getElementById('story-message-btn');
+    const userId = Number(group && group.user_id) || 0;
+    const isOwn = !!(window.__currentUserId && userId && Number(window.__currentUserId) === userId);
+    if (msgBtn) {
+        msgBtn.classList.toggle('hidden', !userId || isOwn);
+    }
+    if (!btn) return;
+    if (!userId || isOwn) {
+        btn.classList.add('hidden');
+        btn.removeAttribute('data-user-id');
+        return;
+    }
+    btn.classList.remove('hidden');
+    btn.setAttribute('data-user-id', String(userId));
+    btn.dataset.userId = String(userId);
+    setFollowButtonState(btn, !!group.is_following);
 }
 
-const storyLiked = {};
+function updateStoryFavoriteBtn(product) {
+    const btn = document.getElementById('story-favorite-btn');
+    if (!btn) return;
+    const productId = product && product.id ? Number(product.id) : 0;
+    if (!productId) {
+        btn.classList.add('hidden');
+        btn.dataset.productId = '';
+        btn.removeAttribute('data-product-id');
+        return;
+    }
+    btn.classList.remove('hidden');
+    btn.dataset.productId = String(productId);
+    btn.setAttribute('data-product-id', String(productId));
+    setFavoriteButtonState(btn, !!product.favorited);
+}
+
+function syncStoryGroupFollowing(userId, following) {
+    const uid = Number(userId) || 0;
+    if (!uid) return;
+    (window.__storyGroups || []).forEach(function (group) {
+        if (Number(group.user_id) === uid) {
+            group.is_following = !!following;
+        }
+    });
+}
+
+function syncStoryProductFavorite(productId, favorited) {
+    const pid = Number(productId) || 0;
+    if (!pid) return;
+    (window.__storyGroups || []).forEach(function (group) {
+        if (group.product && Number(group.product.id) === pid) {
+            group.product.favorited = !!favorited;
+        }
+        (group.stories || []).forEach(function (story) {
+            if (story.product && Number(story.product.id) === pid) {
+                story.product.favorited = !!favorited;
+            }
+        });
+    });
+    const storyFav = document.getElementById('story-favorite-btn');
+    if (storyFav && String(storyFav.dataset.productId || '') === String(pid)) {
+        setFavoriteButtonState(storyFav, !!favorited);
+    }
+}
 
 function renderStoryProduct(product) {
     const card = document.getElementById('story-product-card');
@@ -1083,39 +1136,65 @@ function bindStoryChrome() {
     reply?.addEventListener('keydown', function (e) {
         if (e.key === 'Enter') {
             e.preventDefault();
-            reply.blur();
-            reply.value = '';
-            resumeStoryTimer();
+            openStoryMessage();
         }
     });
 
-    document.getElementById('story-like-btn')?.addEventListener('click', function (e) {
+    document.getElementById('story-message-btn')?.addEventListener('click', function (e) {
         e.stopPropagation();
-        const ctx = currentStory();
-        if (!ctx) return;
-        const key = storyKey(ctx.story);
-        storyLiked[key] = !storyLiked[key];
-        this.classList.toggle('is-liked', !!storyLiked[key]);
-        const path = this.querySelector('svg path');
-        if (path) path.setAttribute('fill', storyLiked[key] ? 'currentColor' : 'none');
+        openStoryMessage();
     });
 
     document.getElementById('story-share-btn')?.addEventListener('click', function (e) {
         e.stopPropagation();
-        const url = window.location.href;
-        const done = function () {
-            alert(window.__i18n?.['home.story_link_copied'] || 'Ссылка скопирована');
-        };
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(url).then(done).catch(done);
-        } else {
-            done();
-        }
+        shareCurrentStory();
     });
 
     document.getElementById('story-product-card')?.addEventListener('click', function (e) {
         e.stopPropagation();
     });
+}
+
+function openStoryMessage() {
+    const ctx = currentStory();
+    if (!ctx) return;
+    if (!window.__isLoggedIn) {
+        window.location.href = window.__loginUrl || '/login';
+        return;
+    }
+    const userId = Number(ctx.group.user_id) || 0;
+    if (!userId || (window.__currentUserId && Number(window.__currentUserId) === userId)) {
+        return;
+    }
+    const productId = ctx.story && ctx.story.product && ctx.story.product.id
+        ? Number(ctx.story.product.id)
+        : 0;
+    let url = (window.__chatStartUrl || '/chat/start') + '?user_id=' + encodeURIComponent(String(userId));
+    if (productId > 0) {
+        url += '&product_id=' + encodeURIComponent(String(productId));
+    }
+    window.location.href = url;
+}
+
+function shareCurrentStory() {
+    const ctx = currentStory();
+    const title = (ctx && ctx.group && ctx.group.user_name)
+        ? (ctx.group.user_name + ' — zakopeyki.kz')
+        : 'zakopeyki.kz';
+    const url = window.location.href.split('#')[0]
+        + (ctx && ctx.story && ctx.story.id ? ('#story-' + ctx.story.id) : '');
+    if (navigator.share) {
+        navigator.share({ title: title, url: url }).catch(function () {});
+        return;
+    }
+    const done = function () {
+        alert(window.__i18n?.['home.story_link_copied'] || 'Ссылка скопирована');
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(done).catch(done);
+    } else {
+        done();
+    }
 }
 
 document.addEventListener('DOMContentLoaded', bindStoryChrome);
@@ -3555,8 +3634,10 @@ function setFavoriteButtonState(btn, favorited) {
     const on = !!favorited;
     btn.dataset.favorited = on ? '1' : '0';
     btn.classList.toggle('is-favorited', on);
-    btn.classList.toggle('text-red-500', on);
-    btn.classList.toggle('text-gray-400', !on);
+    if (!btn.classList.contains('story-action-btn')) {
+        btn.classList.toggle('text-red-500', on);
+        btn.classList.toggle('text-gray-400', !on);
+    }
     btn.setAttribute('aria-label', on ? (window.__i18n?.['card.unfavorite'] || 'Убрать из избранного') : (window.__i18n?.['card.favorite'] || 'В избранное'));
     const svg = btn.querySelector('svg');
     if (svg) svg.setAttribute('fill', on ? 'currentColor' : 'none');
@@ -3596,6 +3677,7 @@ document.addEventListener('click', function (e) {
             if (!data) return;
             if (data.ok) {
                 setFavoriteButtonState(btn, data.favorited);
+                syncStoryProductFavorite(productId, data.favorited);
                 const grid = btn.closest('[data-favorites-grid]');
                 if (!data.favorited && grid) {
                     btn.closest('article')?.remove();
@@ -4228,7 +4310,7 @@ document.addEventListener('DOMContentLoaded', function () {
     } catch (err) { /* ignore */ }
 });
 document.addEventListener('click', function (e) {
-    const btn = e.target.closest('.follow-btn, #live-shop-follow');
+    const btn = e.target.closest('.follow-btn, #live-shop-follow, #story-follow-btn');
     if (!btn) return;
     e.preventDefault();
     e.stopPropagation();
@@ -4276,6 +4358,7 @@ document.addEventListener('click', function (e) {
             const data = res.data;
             if (data && data.ok) {
                 setFollowButtonState(btn, data.following);
+                syncStoryGroupFollowing(userId, data.following);
                 const followers = document.getElementById('live-shop-followers');
                 if (followers && data.followers_count != null && btn.id === 'live-shop-follow') {
                     followers.textContent = Number(data.followers_count) + ' ' + (window.__i18n?.['live.followers'] || 'подписчиков');
@@ -4286,7 +4369,7 @@ document.addEventListener('click', function (e) {
                         ? sellerFmtCount(data.followers_count)
                         : String(Number(data.followers_count) || 0);
                 }
-                document.querySelectorAll('.follow-btn[data-user-id="' + userId + '"], #live-shop-follow').forEach(function (other) {
+                document.querySelectorAll('.follow-btn[data-user-id="' + userId + '"], #live-shop-follow[data-user-id="' + userId + '"], #story-follow-btn[data-user-id="' + userId + '"]').forEach(function (other) {
                     if (other !== btn) setFollowButtonState(other, data.following);
                 });
                 const subList = btn.closest('[data-subscriptions-list]');

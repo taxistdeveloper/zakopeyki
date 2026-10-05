@@ -240,6 +240,7 @@ return [
         'close_stream' => 'Жабу',
         'confirm_close_stream' => 'Стримді жабу?',
         'story_reply' => 'Жауап беру...',
+        'story_message' => 'Хабарлама жіберу',
         'story_like' => 'Ұнайды',
         'story_share' => 'Бөлісу',
         'story_link_copied' => 'Сілтеме көшірілді',

@@ -80,6 +80,7 @@ class Story extends Model
                     'user_name' => $row['user_name'],
                     'user_avatar' => $row['user_avatar'] ?: mb_strtoupper(mb_substr($row['user_name'], 0, 1)),
                     'user_avatar_file' => $row['user_avatar_file'] ?? null,
+                    'is_following' => isset($followingIds[$uid]),
                     'stories' => [],
                 ];
             }
