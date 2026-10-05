@@ -33,11 +33,21 @@ class Story extends Model
                 INDEX idx_expires (expires_at)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
         );
+        foreach ([
+            'audience' => "VARCHAR(20) NOT NULL DEFAULT 'all'",
+            'comments_enabled' => 'TINYINT(1) NOT NULL DEFAULT 1',
+            'visibility' => "VARCHAR(20) NOT NULL DEFAULT 'public'",
+        ] as $col => $def) {
+            $exists = $this->db->query('SHOW COLUMNS FROM stories LIKE ' . $this->db->quote($col))->fetch();
+            if (!$exists) {
+                $this->db->exec("ALTER TABLE stories ADD COLUMN {$col} {$def}");
+            }
+        }
         self::$ensured = true;
     }
 
     /** Активные истории, сгруппированные по пользователю (последние 24ч) */
-    public function activeGrouped(): array
+    public function activeGrouped(?int $viewerId = null): array
     {
         $stmt = $this->db->query(
             "SELECT s.*, u.name AS user_name, u.avatar AS user_avatar, u.avatar_file AS user_avatar_file
@@ -48,8 +58,19 @@ class Story extends Model
         );
         $rows = $stmt->fetchAll();
 
+        $followingIds = [];
+        if ($viewerId) {
+            new Follow();
+            $followStmt = $this->db->prepare('SELECT following_id FROM user_follows WHERE follower_id = ?');
+            $followStmt->execute([$viewerId]);
+            $followingIds = array_fill_keys(array_map('intval', $followStmt->fetchAll(\PDO::FETCH_COLUMN)), true);
+        }
+
         $groups = [];
         foreach ($rows as $row) {
+            if (!$this->viewerCanSee($row, $viewerId, $followingIds)) {
+                continue;
+            }
             $uid = (int) $row['user_id'];
             if (!isset($groups[$uid])) {
                 $groups[$uid] = [
@@ -88,11 +109,27 @@ class Story extends Model
         return $row ?: null;
     }
 
+    /** @param array<string, mixed> $row @param array<int, true> $followingIds */
+    private function viewerCanSee(array $row, ?int $viewerId, array $followingIds): bool
+    {
+        $authorId = (int) ($row['user_id'] ?? 0);
+        if ($viewerId !== null && $viewerId > 0 && $viewerId === $authorId) {
+            return true;
+        }
+        if ((string) ($row['visibility'] ?? 'public') === 'private') {
+            return false;
+        }
+        if ((string) ($row['audience'] ?? 'all') === 'followers') {
+            return $viewerId !== null && isset($followingIds[$authorId]);
+        }
+        return true;
+    }
+
     public function create(array $data): int
     {
         $stmt = $this->db->prepare(
-            'INSERT INTO stories (user_id, caption, image, bg_color, emoji, expires_at)
-             VALUES (?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 24 HOUR))'
+            'INSERT INTO stories (user_id, caption, image, bg_color, emoji, audience, comments_enabled, visibility, expires_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 24 HOUR))'
         );
         $stmt->execute([
             $data['user_id'],
@@ -100,6 +137,9 @@ class Story extends Model
             $data['image'] ?? null,
             $data['bg_color'] ?? '#f59e0b',
             $data['emoji'] ?? '✨',
+            $data['audience'] ?? 'all',
+            array_key_exists('comments_enabled', $data) ? (!empty($data['comments_enabled']) ? 1 : 0) : 1,
+            $data['visibility'] ?? 'public',
         ]);
         return (int) $this->db->lastInsertId();
     }

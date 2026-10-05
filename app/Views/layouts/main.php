@@ -1343,6 +1343,10 @@ function url(string $path = ''): string
             font-weight: 600;
             padding: 0 6px;
             color: #111827;
+            cursor: pointer;
+            pointer-events: auto;
+            position: relative;
+            z-index: 1;
         }
         .live-setup-notify {
             display: flex;

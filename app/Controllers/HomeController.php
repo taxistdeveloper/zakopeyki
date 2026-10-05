@@ -23,7 +23,7 @@ class HomeController extends Controller
         $search = trim($_GET['q'] ?? '');
 
         $items = $productModel->allActive(null, $search ?: null);
-        $storyGroups = (new Story())->activeGrouped();
+        $storyGroups = (new Story())->activeGrouped(Auth::check() ? Auth::id() : null);
         $streams = (new Stream())->allActive();
 
         $notifications = [];

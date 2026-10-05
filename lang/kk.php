@@ -212,6 +212,7 @@ return [
         'story_create_comments' => 'Пікірлер',
         'story_create_visibility' => 'Көрінуі',
         'story_create_public' => 'Жария',
+        'story_create_private' => 'Тек мен',
         'story_create_notify' => 'Жазылушыларды жариялау туралы хабардар ету',
         'story_create_publish' => 'Стористі жариялау',
         'story_create_publish_hint' => 'Жарияланғаннан кейін сторис 24 сағат барлығына қолжетімді болады',

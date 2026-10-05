@@ -31,17 +31,31 @@ class StoryController extends Controller
             $this->redirect('/');
         }
 
+        $audience = (string) ($_POST['audience'] ?? 'all');
+        if (!in_array($audience, ['all', 'followers'], true)) {
+            $audience = 'all';
+        }
+        $visibility = (string) ($_POST['visibility'] ?? 'public');
+        if (!in_array($visibility, ['public', 'private'], true)) {
+            $visibility = 'public';
+        }
+        $commentsEnabled = !isset($_POST['comments_enabled'])
+            || in_array((string) $_POST['comments_enabled'], ['1', 'true', 'on', 'yes'], true);
+
         (new Story())->create([
             'user_id' => Auth::id(),
             'caption' => $caption !== '' ? $caption : null,
             'image' => $image,
             'bg_color' => '#7c3aed',
             'emoji' => '✨',
+            'audience' => $audience,
+            'comments_enabled' => $commentsEnabled ? 1 : 0,
+            'visibility' => $visibility,
         ]);
 
-        $notifySubs = isset($_POST['notify_subs'])
+        $notifySubs = $visibility !== 'private' && (isset($_POST['notify_subs'])
             ? in_array((string) $_POST['notify_subs'], ['1', 'true', 'on', 'yes'], true)
-            : true;
+            : true);
         if ($notifySubs) {
             $name = (string) (Auth::user()['name'] ?? 'Продавец');
             (new Follow())->notifyFollowers(

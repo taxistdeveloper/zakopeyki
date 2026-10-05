@@ -212,6 +212,7 @@ return [
         'story_create_comments' => 'Комментарии',
         'story_create_visibility' => 'Видимость',
         'story_create_public' => 'Публичный',
+        'story_create_private' => 'Только я',
         'story_create_notify' => 'Уведомлять подписчиков о публикации',
         'story_create_publish' => 'Опубликовать историю',
         'story_create_publish_hint' => 'После публикации история будет доступна всем пользователям 24 часа',

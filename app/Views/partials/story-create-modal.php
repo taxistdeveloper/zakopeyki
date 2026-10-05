@@ -129,8 +129,9 @@ $myInitial = AvatarHelper::initial($me);
                                 <?= IconHelper::svg('globe', 'w-3.5 h-3.5') ?>
                                 <?= htmlspecialchars(t('home.story_create_who')) ?>
                             </span>
-                            <select class="live-setup-select" disabled>
-                                <option selected><?= htmlspecialchars(t('home.live_setup_who_all')) ?></option>
+                            <select id="story-create-audience" name="audience" class="live-setup-select">
+                                <option value="all" selected><?= htmlspecialchars(t('home.live_setup_who_all')) ?></option>
+                                <option value="followers"><?= htmlspecialchars(t('home.live_setup_who_followers')) ?></option>
                             </select>
                         </label>
                         <label class="live-setup-field">
@@ -138,8 +139,9 @@ $myInitial = AvatarHelper::initial($me);
                                 <?= IconHelper::svg('message', 'w-3.5 h-3.5') ?>
                                 <?= htmlspecialchars(t('home.story_create_comments')) ?>
                             </span>
-                            <select class="live-setup-select" disabled>
-                                <option selected><?= htmlspecialchars(t('home.live_setup_chat_on')) ?></option>
+                            <select id="story-create-comments" name="comments_enabled" class="live-setup-select">
+                                <option value="1" selected><?= htmlspecialchars(t('home.live_setup_chat_on')) ?></option>
+                                <option value="0"><?= htmlspecialchars(t('home.live_setup_chat_off')) ?></option>
                             </select>
                         </label>
                         <label class="live-setup-field">
@@ -147,8 +149,9 @@ $myInitial = AvatarHelper::initial($me);
                                 <?= IconHelper::svg('eye', 'w-3.5 h-3.5') ?>
                                 <?= htmlspecialchars(t('home.story_create_visibility')) ?>
                             </span>
-                            <select class="live-setup-select" disabled>
-                                <option selected><?= htmlspecialchars(t('home.story_create_public')) ?></option>
+                            <select id="story-create-visibility" name="visibility" class="live-setup-select">
+                                <option value="public" selected><?= htmlspecialchars(t('home.story_create_public')) ?></option>
+                                <option value="private"><?= htmlspecialchars(t('home.story_create_private')) ?></option>
                             </select>
                         </label>
                     </div>

@@ -595,6 +595,9 @@ function saveStoryCreateDraft() {
             caption: document.getElementById('story-create-caption')?.value || '',
             desc: document.getElementById('story-create-desc')?.value || '',
             notify: document.getElementById('story-create-notify-toggle')?.classList.contains('is-on') !== false,
+            audience: document.getElementById('story-create-audience')?.value || 'all',
+            comments: document.getElementById('story-create-comments')?.value || '1',
+            visibility: document.getElementById('story-create-visibility')?.value || 'public',
         };
         localStorage.setItem(STORY_CREATE_DRAFT_KEY, JSON.stringify(data));
         alert(window.__i18n?.['home.story_create_draft_saved'] || window.__i18n?.['home.live_setup_draft_saved'] || 'Черновик сохранён');
@@ -620,6 +623,12 @@ function loadStoryCreateDraft() {
             const input = document.getElementById('story-create-notify-input');
             if (input) input.value = on ? '1' : '0';
         }
+        const audience = document.getElementById('story-create-audience');
+        const comments = document.getElementById('story-create-comments');
+        const visibility = document.getElementById('story-create-visibility');
+        if (audience && (data.audience === 'all' || data.audience === 'followers')) audience.value = data.audience;
+        if (comments && (data.comments === '0' || data.comments === '1')) comments.value = data.comments;
+        if (visibility && (data.visibility === 'public' || data.visibility === 'private')) visibility.value = data.visibility;
     } catch (err) { /* ignore */ }
 }
 
@@ -933,6 +942,14 @@ function renderStory() {
     }
 
     renderStoryProduct(group.product || null);
+
+    const reply = document.getElementById('story-reply-input');
+    if (reply) {
+        const commentsOn = String(story.comments_enabled == null ? '1' : story.comments_enabled) !== '0';
+        reply.classList.toggle('hidden', !commentsOn);
+        reply.disabled = !commentsOn;
+        if (!commentsOn) reply.value = '';
+    }
 
     const groups = window.__storyGroups || [];
     const canPrev = storyItemIndex > 0 || storyGroupIndex > 0;
