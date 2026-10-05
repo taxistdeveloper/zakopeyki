@@ -88,7 +88,7 @@ $myInitial = AvatarHelper::initial($me);
                         <span class="live-setup-tag is-req"><?= htmlspecialchars(t('home.live_setup_required')) ?></span>
                     </div>
                     <div class="story-create-field-wrap">
-                        <input type="text" id="story-create-caption" name="caption" maxlength="280" placeholder="<?= htmlspecialchars(t('home.story_create_caption_ph')) ?>" class="story-create-input" oninput="updateStoryCreateCounters()">
+                        <textarea id="story-create-caption" name="caption" maxlength="280" rows="1" placeholder="<?= htmlspecialchars(t('home.story_create_caption_ph')) ?>" class="story-create-input story-create-caption" oninput="updateStoryCreateCounters()"></textarea>
                         <span id="story-create-caption-count" class="story-create-counter">0/280</span>
                     </div>
                 </section>
@@ -186,7 +186,7 @@ $myInitial = AvatarHelper::initial($me);
             <img id="story-create-preview-img" src="" alt="" class="hidden absolute inset-0 w-full h-full object-cover">
             <video id="story-create-preview-video" class="hidden absolute inset-0 w-full h-full object-cover" muted playsinline preload="metadata"></video>
             <div class="absolute inset-0 flex flex-col items-end justify-end px-5 pb-6 text-left z-[1] bg-gradient-to-t from-black/55 via-transparent to-transparent">
-                <p id="story-create-preview-text" class="w-full text-white text-sm font-semibold drop-shadow leading-snug"></p>
+                <p id="story-create-preview-text" class="story-caption-overlay w-full"></p>
             </div>
         </div>
         <button type="button" onclick="closeStoryCreatePreview()" class="mt-3 w-full text-[12px] font-semibold text-white/80 hover:text-white py-2"><?= htmlspecialchars(t('home.close_stream')) ?></button>

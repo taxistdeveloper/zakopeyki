@@ -16,7 +16,7 @@ $changelog = $changelog ?? null;
     <?php endif; ?>
 
     <!-- STORIES -->
-    <div class="flex items-center gap-4 overflow-x-auto pb-1 scrollbar-hide">
+    <div class="flex items-start gap-4 overflow-x-auto pb-2 scrollbar-hide">
         <?php if (Auth::check()):
             $me = Auth::user();
             $myAvatar = AvatarHelper::url($me);
@@ -32,14 +32,14 @@ $changelog = $changelog ?? null;
                     </div>
                     <span class="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-accent-500 text-white text-xs font-bold flex items-center justify-center border-2 border-ink-50 dark:border-ink-900">+</span>
                 </div>
-                <span class="text-[10px] text-ink-700/70 dark:text-gray-300 truncate w-14 text-center font-semibold"><?= htmlspecialchars(t('home.your_story')) ?></span>
+                <span class="story-ring-name text-ink-700/70 dark:text-gray-300 font-semibold"><?= htmlspecialchars(t('home.your_story')) ?></span>
             </button>
         <?php else: ?>
             <a href="<?= ProductHelper::url('/login') ?>" class="flex flex-col items-center flex-shrink-0 space-y-1.5">
                 <div class="w-[58px] h-[58px] rounded-full p-[2px] border-2 border-dashed border-brand-500/80 flex items-center justify-center">
                     <div class="w-full h-full rounded-full bg-white dark:bg-white/10 flex items-center justify-center text-2xl text-brand-500 font-bold">+</div>
                 </div>
-                <span class="text-[10px] text-gray-500 truncate w-14 text-center font-medium"><?= htmlspecialchars(t('nav.login')) ?></span>
+                <span class="story-ring-name text-gray-500 font-medium"><?= htmlspecialchars(t('nav.login')) ?></span>
             </a>
         <?php endif; ?>
 
@@ -62,7 +62,7 @@ $changelog = $changelog ?? null;
                         </div>
                     </div>
                 </div>
-                <span class="text-[10px] text-ink-700/70 dark:text-gray-300 truncate w-14 text-center font-medium"><?= htmlspecialchars($group['user_name']) ?></span>
+                <span class="story-ring-name text-ink-700/70 dark:text-gray-300 font-medium"><?= htmlspecialchars($group['user_name']) ?></span>
             </button>
         <?php endforeach; ?>
 
@@ -240,15 +240,16 @@ $changelog = $changelog ?? null;
 
             <div class="absolute top-0 left-0 right-0 z-20 pt-3 px-3 pb-2 space-y-2 pointer-events-none">
                 <div id="story-progress" class="flex gap-[3px]"></div>
-                <div class="flex items-center gap-2 text-white px-0.5 pointer-events-auto">
+                <div class="flex items-center gap-2 text-white px-0.5 pointer-events-auto min-w-0">
                     <div id="story-viewer-avatar"></div>
-                    <span id="story-viewer-name" class="text-[13px] font-semibold truncate drop-shadow max-w-[55%]"></span>
+                    <span id="story-viewer-name" class="text-[13px] font-semibold drop-shadow"></span>
                     <span id="story-viewer-time" class="text-[12px] text-white/65 flex-shrink-0"></span>
                     <button type="button" class="sm:hidden ml-auto w-8 h-8 text-white text-xl" onclick="closeStoryViewer()" aria-label="Close">✕</button>
                 </div>
             </div>
 
             <div class="story-footer">
+                <p id="story-caption-overlay" class="story-caption-overlay hidden"></p>
                 <a id="story-product-card" href="#" class="hidden story-product-card">
                     <img id="story-product-img" src="" alt="" class="hidden">
                     <div id="story-product-ph" class="story-product-ph">

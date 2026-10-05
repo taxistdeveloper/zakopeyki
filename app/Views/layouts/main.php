@@ -1557,6 +1557,18 @@ function url(string $path = ''): string
             padding: 10px 12px 28px;
             resize: vertical;
         }
+        textarea.story-create-caption {
+            height: 44px;
+            min-height: 44px;
+            max-height: 132px;
+            padding: 11px 58px 26px 12px;
+            line-height: 1.35;
+            resize: none;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
         .story-create-color {
             width: 100%;
             height: 44px;
@@ -1689,9 +1701,37 @@ function url(string $path = ''): string
             justify-content: center;
             box-shadow: 0 0 0 1.5px #fff;
         }
+        #story-emoji {
+            min-width: 0;
+        }
         #story-emoji-icon {
             font-size: clamp(3.5rem, 9vh, 5.5rem);
             filter: drop-shadow(0 6px 16px rgba(0,0,0,.3));
+        }
+        .story-ring-name {
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+            overflow: hidden;
+            width: 4.25rem;
+            font-size: 10px;
+            line-height: 1.25;
+            text-align: center;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+        #story-viewer-name {
+            min-width: 0;
+            max-width: calc(100% - 148px);
+            line-height: 1.25;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+            overflow: hidden;
         }
         #story-caption-center {
             margin-top: 12px;
@@ -1700,9 +1740,33 @@ function url(string $path = ''): string
             font-weight: 700;
             color: #fff;
             text-shadow: 0 2px 12px rgba(0,0,0,.4);
-            max-width: 85%;
-            line-height: 1.3;
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            line-height: 1.35;
             text-align: center;
+            white-space: pre-line;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+        .story-caption-overlay,
+        #story-create-preview-text {
+            margin: 0;
+            color: #fff;
+            font-family: Sora, system-ui, sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            line-height: 1.35;
+            text-align: center;
+            text-shadow: 0 2px 10px rgba(0,0,0,.55);
+            white-space: pre-line;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+        #story-create-preview-text {
+            width: 100%;
+            font-size: 14px;
+            text-align: left;
         }
         .story-product-card {
             display: flex;

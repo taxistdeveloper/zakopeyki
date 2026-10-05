@@ -554,6 +554,14 @@ function clearStoryCreateImage() {
     onStoryCreateImageChange({ target: { files: [] } });
 }
 
+function sizeStoryCreateCaption() {
+    const el = document.getElementById('story-create-caption');
+    if (!el || el.tagName !== 'TEXTAREA') return;
+    el.style.height = 'auto';
+    const next = Math.max(44, Math.min(el.scrollHeight, 132));
+    el.style.height = next + 'px';
+}
+
 function updateStoryCreateCounters() {
     const caption = document.getElementById('story-create-caption');
     const desc = document.getElementById('story-create-desc');
@@ -561,6 +569,7 @@ function updateStoryCreateCounters() {
     const dCount = document.getElementById('story-create-desc-count');
     if (caption && cCount) cCount.textContent = (caption.value || '').length + '/280';
     if (desc && dCount) dCount.textContent = (desc.value || '').length + '/200';
+    sizeStoryCreateCaption();
 }
 
 function toggleStoryCreateNotify() {
@@ -847,6 +856,7 @@ function renderStory() {
     const emojiWrap = document.getElementById('story-emoji');
     const emoji = document.getElementById('story-emoji-icon') || emojiWrap;
     const captionCenter = document.getElementById('story-caption-center');
+    const captionOverlay = document.getElementById('story-caption-overlay');
     const storyText = story.caption || '';
 
     if (story.image) {
@@ -856,6 +866,10 @@ function renderStory() {
         bg.style.removeProperty('--story-c2');
         emojiWrap?.classList.add('hidden');
         captionCenter?.classList.add('hidden');
+        if (captionOverlay) {
+            captionOverlay.textContent = storyText;
+            captionOverlay.classList.toggle('hidden', !storyText);
+        }
         if (isStoryVideoName(story.image)) {
             img.classList.add('hidden');
             img.removeAttribute('src');
@@ -911,6 +925,7 @@ function renderStory() {
         bg.style.setProperty('--story-c2', c2);
         if (emoji) emoji.textContent = story.emoji || '✨';
         emojiWrap?.classList.remove('hidden');
+        captionOverlay?.classList.add('hidden');
         if (captionCenter) {
             captionCenter.textContent = storyText;
             captionCenter.classList.toggle('hidden', !storyText);
