@@ -74,9 +74,6 @@ $documents = $documents ?? [];
         <a href="<?= ProductHelper::url('/catalog/new') ?>" class="inline-flex items-center justify-center h-11 px-5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-display font-bold text-xs uppercase tracking-wide transition">
             <?= htmlspecialchars(t('about.cta_catalog')) ?>
         </a>
-        <a href="<?= ProductHelper::url('/register') ?>" class="inline-flex items-center justify-center h-11 px-5 rounded-xl border border-black/[0.1] dark:border-white/15 text-ink-800 dark:text-gray-200 font-semibold text-sm hover:border-brand-400/50 transition">
-            <?= htmlspecialchars(t('about.cta_register')) ?>
-        </a>
     </div>
 </section>
 
