@@ -393,6 +393,33 @@ class ProfileController extends Controller
         $this->redirect('/profile?tab=password');
     }
 
+    public function acceptListingRules(): void
+    {
+        Auth::requireLogin();
+        $users = new User();
+        $users->acceptListingRules((int) Auth::id());
+        $fresh = $users->find((int) Auth::id());
+        if ($fresh) {
+            Auth::refresh($fresh);
+        }
+        $this->json(['ok' => true]);
+    }
+
+    private function requireListingRules(string $failUrl): void
+    {
+        $users = new User();
+        $user = $users->find(Auth::id());
+        if ($user && !empty($user['listing_rules_accepted_at'])) {
+            return;
+        }
+        if ((string) ($_POST['listing_rules_ack'] ?? '') === '1') {
+            $users->acceptListingRules((int) Auth::id());
+            return;
+        }
+        $_SESSION['error'] = t('flash.listing_rules_required');
+        $this->redirect($failUrl);
+    }
+
     public function store(): void
     {
         Auth::requireLogin();
@@ -406,6 +433,7 @@ class ProfileController extends Controller
         }
 
         $lotsFailUrl = '/profile?tab=lots';
+        $this->requireListingRules($type === 'gig' ? '/profile?tab=lots&type=gig' : $lotsFailUrl);
 
         $amlFail = $this->guardAml($type === 'gig' ? '/profile?tab=lots&type=gig' : $lotsFailUrl);
         if ($amlFail !== null) {

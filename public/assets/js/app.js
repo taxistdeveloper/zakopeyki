@@ -306,7 +306,7 @@ document.addEventListener('click', function (e) {
 // Переносим полноэкранные модалки в body: внутри анимированных/overflow-обёрток
 // position:fixed позиционируется неверно, и просмотрщик уезжает вниз страницы.
 function portalStoryModals() {
-    ['story-viewer', 'stream-viewer', 'story-create-modal', 'story-create-preview', 'whats-new-modal', 'live-start-preview-modal', 'live-setup-modal', 'live-product-picker', 'live-giveaway-editor', 'seller-profile-modal', 'listing-verify-modal'].forEach(function (id) {
+    ['story-viewer', 'stream-viewer', 'story-create-modal', 'story-create-preview', 'whats-new-modal', 'live-start-preview-modal', 'live-setup-modal', 'live-product-picker', 'live-giveaway-editor', 'seller-profile-modal', 'listing-verify-modal', 'listing-rules-modal'].forEach(function (id) {
         const el = document.getElementById(id);
         if (el && el.parentElement !== document.body) {
             document.body.appendChild(el);
@@ -373,7 +373,7 @@ function closeStoryCreate() {
 }
 
 const STORY_CREATE_DRAFT_KEY = 'zakopeyki_story_create_draft';
-const STORY_VIDEO_MAX_SEC = 60.5;
+const STORY_VIDEO_MAX_SEC = 2 * 60 * 60;
 const STORY_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 const STORY_VIDEO_MAX_BYTES = 50 * 1024 * 1024;
 let storyCreateImageUrl = '';
@@ -535,7 +535,7 @@ function onStoryCreateImageChange(e) {
             return;
         }
         const tooLong = dur > STORY_VIDEO_MAX_SEC;
-        storyCreateClipSec = tooLong ? 60 : 0;
+        storyCreateClipSec = tooLong ? STORY_VIDEO_MAX_SEC : 0;
         document.getElementById('story-create-video-trim')?.classList.toggle('hidden', !tooLong);
         storyCreateMediaReady = true;
         if (video) {
@@ -909,7 +909,7 @@ function renderStory() {
                 video.onloadedmetadata = function () {
                     if (renderGen !== storyRenderGen) return;
                     const sec = video.duration;
-                    const playSec = (isFinite(sec) && sec > 0) ? Math.min(60, sec) : 60;
+                    const playSec = (isFinite(sec) && sec > 0) ? Math.min(STORY_VIDEO_MAX_SEC, sec) : STORY_VIDEO_MAX_SEC;
                     storyPlayMs = Math.max(1000, Math.round(playSec * 1000));
                     beginStoryPlayback();
                     const play = video.play();

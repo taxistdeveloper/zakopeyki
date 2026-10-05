@@ -70,6 +70,7 @@ class Auth
             'business_entity_type' => $user['business_entity_type'] ?? null,
             'is_course_author' => !empty($user['is_course_author']) ? 1 : 0,
             'site_access' => !empty($user['site_access']) ? 1 : 0,
+            'listing_rules_accepted_at' => $user['listing_rules_accepted_at'] ?? null,
             'permissions' => self::normalizePermissions($user['permissions'] ?? null, (string) ($user['role'] ?? 'user')),
         ];
     }
@@ -123,6 +124,26 @@ class Auth
     public static function id(): ?int
     {
         return self::user()['id'] ?? null;
+    }
+
+    public static function listingRulesAccepted(): bool
+    {
+        static $cached = null;
+        if ($cached !== null) {
+            return $cached;
+        }
+        if (!self::check()) {
+            return $cached = false;
+        }
+        if (!empty(self::user()['listing_rules_accepted_at'])) {
+            return $cached = true;
+        }
+        $fresh = (new \App\Models\User())->find((int) self::id());
+        if ($fresh && !empty($fresh['listing_rules_accepted_at'])) {
+            self::refresh($fresh);
+            return $cached = true;
+        }
+        return $cached = false;
     }
 
     public static function isAdmin(): bool

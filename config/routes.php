@@ -143,6 +143,7 @@ $router->post('/logout', [AuthController::class, 'logout']);
 $router->get('/profile', [ProfileController::class, 'index']);
 $router->get('/profile/verify-listing', [ProfileController::class, 'verifyListingForm']);
 $router->post('/profile/verify-listing', [ProfileController::class, 'verifyListing']);
+$router->post('/profile/listing-rules', [ProfileController::class, 'acceptListingRules']);
 $router->post('/profile/store', [ProfileController::class, 'store']);
 $router->post('/profile/author/enable', [ProfileController::class, 'enableCourseAuthor']);
 $router->post('/profile/lots/{id}/update', [ProfileController::class, 'updateLot']);

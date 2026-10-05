@@ -51,12 +51,16 @@ $langSwitchUrl = static function (string $code) use ($lang): string {
         </div>
         <?php if (Auth::check()):
             $listingVerified = \App\Services\AMLService::userListingStatus(Auth::user()) === 'ok';
+            $rulesAccepted = Auth::listingRulesAccepted();
             $addListingHref = $listingVerified
                 ? ProductHelper::url('/profile?tab=lots')
                 : ProductHelper::url('/profile/verify-listing');
         ?>
             <a href="<?= $addListingHref ?>"
-               <?php if (!$listingVerified): ?>onclick="if (typeof openListingVerify === 'function') { event.preventDefault(); openListingVerify(); }"<?php endif; ?>
+               id="header-add-listing"
+               data-rules-accepted="<?= $rulesAccepted ? '1' : '0' ?>"
+               data-needs-verify="<?= $listingVerified ? '0' : '1' ?>"
+               <?php if ($rulesAccepted && !$listingVerified): ?>onclick="if (typeof openListingVerify === 'function') { event.preventDefault(); openListingVerify(); }"<?php endif; ?>
                class="inline-flex items-center gap-1.5 h-10 px-3 sm:px-4 rounded-xl bg-accent-500 hover:bg-accent-400 text-white font-display font-bold text-xs sm:text-sm shadow-soft transition whitespace-nowrap"
                title="<?= htmlspecialchars(t('header.add_listing_title')) ?>">
                 <span class="text-base leading-none">+</span>

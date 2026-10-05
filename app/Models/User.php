@@ -62,6 +62,7 @@ class User extends Model
             'ship_postal_code' => 'VARCHAR(20) DEFAULT NULL AFTER ship_apartment',
             'ship_contact_name' => 'VARCHAR(160) DEFAULT NULL AFTER ship_postal_code',
             'ship_phone' => 'VARCHAR(32) DEFAULT NULL AFTER ship_contact_name',
+            'listing_rules_accepted_at' => 'DATETIME DEFAULT NULL AFTER ship_phone',
         ];
 
         foreach ($needed as $col => $def) {
@@ -195,6 +196,14 @@ class User extends Model
     public function setLimitWarningSent(int $userId): void
     {
         $stmt = $this->db->prepare('UPDATE users SET limit_warning_sent_at = NOW() WHERE id = ?');
+        $stmt->execute([$userId]);
+    }
+
+    public function acceptListingRules(int $userId): void
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE users SET listing_rules_accepted_at = NOW() WHERE id = ? AND listing_rules_accepted_at IS NULL'
+        );
         $stmt->execute([$userId]);
     }
 
