@@ -1029,10 +1029,11 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                     </div>
                     <?php
                     $editKind = $editing['auction_kind'] ?? 'english';
+                    $auctionDurations = [1 => '1 ч', 6 => '6 ч', 24 => '24 ч', 72 => '3 дн', 168 => '7 дн', 720 => '1 мес'];
                     $editHours = 24;
                     if (!empty($editing['auction_start_at']) && !empty($editing['auction_end_at'])) {
                         $diffH = (int) round((strtotime((string) $editing['auction_end_at']) - strtotime((string) $editing['auction_start_at'])) / 3600);
-                        if (in_array($diffH, [1, 6, 24, 72, 168], true)) {
+                        if (isset($auctionDurations[$diffH])) {
                             $editHours = $diffH;
                         }
                     }
@@ -1067,12 +1068,12 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                                 <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.auction_duration')) ?></label>
                                 <div class="relative" data-lot-select-wrap>
                                     <select name="auction_hours" id="lot-auction-hours" class="hidden">
-                                        <?php foreach ([1 => '1 ч', 6 => '6 ч', 24 => '24 ч', 72 => '3 дн', 168 => '7 дн'] as $h => $hl): ?>
+                                        <?php foreach ($auctionDurations as $h => $hl): ?>
                                             <option value="<?= $h ?>" <?= $editHours === $h ? 'selected' : '' ?>><?= htmlspecialchars($hl) ?></option>
                                         <?php endforeach; ?>
                                     </select>
                                     <button type="button" data-lot-trigger class="<?= $selectTrigger ?>" aria-haspopup="listbox" aria-expanded="false">
-                                        <span data-lot-label class="truncate"><?= htmlspecialchars([1 => '1 ч', 6 => '6 ч', 24 => '24 ч', 72 => '3 дн', 168 => '7 дн'][$editHours] ?? '24 ч') ?></span>
+                                        <span data-lot-label class="truncate"><?= htmlspecialchars($auctionDurations[$editHours] ?? '24 ч') ?></span>
                                         <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                                     </button>
                                     <div data-lot-menu class="hidden absolute z-30 mt-1.5 w-full max-h-64 overflow-y-auto bg-white dark:bg-ink-800 border border-black/[0.08] dark:border-white/10 rounded-2xl shadow-lift py-1.5" role="listbox"></div>

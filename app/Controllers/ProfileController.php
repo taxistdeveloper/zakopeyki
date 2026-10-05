@@ -1068,7 +1068,7 @@ class ProfileController extends Controller
         }
 
         $hours = (int) ($_POST['auction_hours'] ?? 24);
-        if (!in_array($hours, [1, 6, 24, 72, 168], true)) {
+        if (!in_array($hours, [1, 6, 24, 72, 168, 720], true)) {
             $hours = 24;
         }
 
