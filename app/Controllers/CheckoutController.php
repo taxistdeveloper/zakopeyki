@@ -168,7 +168,7 @@ class CheckoutController extends Controller
         Cart::remove($productId);
 
         if (!empty($result['redirect_url'])) {
-            ActivityLogger::info('order.pay', 'Редирект на FreedomPay, заказ #' . (int) $result['order_id'], 'order', (int) $result['order_id'], [
+            ActivityLogger::info('order.pay', 'Редирект на оплату картой, заказ #' . (int) $result['order_id'], 'order', (int) $result['order_id'], [
                 'product_id' => $productId,
                 'method' => $method,
                 'delivery' => $delivery,
@@ -216,7 +216,7 @@ class CheckoutController extends Controller
         }
 
         if (!empty($result['redirect_url'])) {
-            ActivityLogger::info('order.pay_cart', 'Редирект на FreedomPay, заказ #' . (int) $result['order_id'], 'order', (int) $result['order_id'], [
+            ActivityLogger::info('order.pay_cart', 'Редирект на оплату картой, заказ #' . (int) $result['order_id'], 'order', (int) $result['order_id'], [
                 'method' => $method,
                 'delivery' => $delivery,
                 'count' => count($items),

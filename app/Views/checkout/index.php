@@ -150,6 +150,21 @@ $canCard = $fpConfigured || $simPayments;
                 <?php endif; ?>
             </div>
 
+            <div class="flex flex-wrap items-center gap-2 pt-1">
+                <?php
+                $payLogos = [
+                    ['file' => 'halyk.png', 'alt' => 'Halyk', 'img' => 'h-7'],
+                    ['file' => 'visa.png', 'alt' => 'Visa', 'img' => 'h-8'],
+                    ['file' => 'mastercard.png', 'alt' => 'Mastercard', 'img' => 'h-8'],
+                ];
+                foreach ($payLogos as $logo):
+                ?>
+                <span class="inline-flex h-11 items-center justify-center rounded-xl bg-white px-2 border border-black/[0.06] dark:border-white/15">
+                    <img src="<?= ProductHelper::url('/public/assets/img/payments/' . $logo['file']) ?>" alt="<?= htmlspecialchars($logo['alt']) ?>" class="<?= $logo['img'] ?> w-auto max-w-[9.5rem] object-contain">
+                </span>
+                <?php endforeach; ?>
+            </div>
+
             <div class="space-y-2 pt-2 border-t border-black/[0.05] dark:border-white/10">
                 <?php if ($isEscrowDeal && $arbitrationFee > 0): ?>
                     <div class="flex justify-between items-center text-sm">

@@ -103,7 +103,7 @@ class Client
     public function initPayment(array $payload): array
     {
         if (!$this->isConfigured()) {
-            return ['ok' => false, 'error' => 'FreedomPay is not configured'];
+            return ['ok' => false, 'error' => 'Платежный шлюз не настроен'];
         }
 
         $request = [
@@ -158,26 +158,30 @@ class Client
 
         $http = $this->httpPost($endpoint, $request);
         if ($http === null) {
-            return ['ok' => false, 'error' => 'FreedomPay request failed'];
+            return ['ok' => false, 'error' => 'Не удалось связаться с платежным шлюзом'];
         }
 
         [$httpCode, $responseBody] = $http;
         if ($httpCode >= 400) {
             return [
                 'ok' => false,
-                'error' => 'FreedomPay HTTP ' . $httpCode,
+                'error' => 'Ошибка платежного шлюза HTTP ' . $httpCode,
                 'raw' => ['body' => mb_substr($responseBody, 0, 500)],
             ];
         }
 
         $parsed = $this->parseXml($responseBody);
         if ($parsed === null) {
-            return ['ok' => false, 'error' => 'Invalid FreedomPay response', 'raw' => ['body' => $responseBody]];
+            return ['ok' => false, 'error' => 'Некорректный ответ платежного шлюза', 'raw' => ['body' => $responseBody]];
         }
 
         if (($parsed['pg_status'] ?? '') !== 'ok') {
             $code = (string) ($parsed['pg_error_code'] ?? '');
-            $desc = (string) ($parsed['pg_error_description'] ?? $parsed['pg_description'] ?? 'FreedomPay error');
+            $desc = (string) ($parsed['pg_error_description'] ?? $parsed['pg_description'] ?? 'Ошибка платежного шлюза');
+            $desc = trim((string) preg_replace('/Freedom\s*Pay/iu', '', $desc));
+            if ($desc === '') {
+                $desc = 'Ошибка платежного шлюза';
+            }
             if ($code !== '') {
                 $desc = '[' . $code . '] ' . $desc;
             }
@@ -190,7 +194,7 @@ class Client
 
         $redirect = (string) ($parsed['pg_redirect_url'] ?? '');
         if ($redirect === '') {
-            return ['ok' => false, 'error' => 'No redirect URL from FreedomPay', 'raw' => $parsed];
+            return ['ok' => false, 'error' => 'Платежный шлюз не вернул страницу оплаты', 'raw' => $parsed];
         }
 
         return [
