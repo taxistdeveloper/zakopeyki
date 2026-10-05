@@ -598,6 +598,7 @@ function saveStoryCreateDraft() {
             audience: document.getElementById('story-create-audience')?.value || 'all',
             comments: document.getElementById('story-create-comments')?.value || '1',
             visibility: document.getElementById('story-create-visibility')?.value || 'public',
+            product_mode: document.querySelector('input[name="product_mode"]:checked')?.value || 'auto',
         };
         localStorage.setItem(STORY_CREATE_DRAFT_KEY, JSON.stringify(data));
         alert(window.__i18n?.['home.story_create_draft_saved'] || window.__i18n?.['home.live_setup_draft_saved'] || 'Черновик сохранён');
@@ -629,6 +630,9 @@ function loadStoryCreateDraft() {
         if (audience && (data.audience === 'all' || data.audience === 'followers')) audience.value = data.audience;
         if (comments && (data.comments === '0' || data.comments === '1')) comments.value = data.comments;
         if (visibility && (data.visibility === 'public' || data.visibility === 'private')) visibility.value = data.visibility;
+        const mode = data.product_mode === 'none' ? 'none' : 'auto';
+        const productMode = document.querySelector('input[name="product_mode"][value="' + mode + '"]');
+        if (productMode) productMode.checked = true;
     } catch (err) { /* ignore */ }
 }
 
@@ -941,7 +945,10 @@ function renderStory() {
         }
     }
 
-    renderStoryProduct(group.product || null);
+    const storyProduct = story && Object.prototype.hasOwnProperty.call(story, 'product')
+        ? story.product
+        : (group.product || null);
+    renderStoryProduct(storyProduct || null);
 
     const reply = document.getElementById('story-reply-input');
     if (reply) {

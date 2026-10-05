@@ -112,9 +112,23 @@ $myInitial = AvatarHelper::initial($me);
                         <span class="live-setup-tag"><?= htmlspecialchars(t('home.live_setup_optional')) ?></span>
                     </div>
                     <p class="live-setup-card-hint"><?= htmlspecialchars(t('home.story_create_product_hint')) ?></p>
-                    <div class="story-create-product-note">
-                        <?= IconHelper::svg('bag', 'w-4 h-4 flex-shrink-0') ?>
-                        <span><?= htmlspecialchars(t('home.story_create_product_auto')) ?></span>
+                    <div class="story-create-product-choices" role="radiogroup" aria-label="<?= htmlspecialchars(t('home.story_create_product')) ?>">
+                        <label class="story-create-product-choice">
+                            <input type="radio" name="product_mode" value="auto" checked>
+                            <span class="story-create-product-choice-mark" aria-hidden="true"></span>
+                            <span class="story-create-product-choice-body">
+                                <span class="story-create-product-choice-title"><?= htmlspecialchars(t('home.story_create_product_auto_title')) ?></span>
+                                <span class="story-create-product-choice-text"><?= htmlspecialchars(t('home.story_create_product_auto')) ?></span>
+                            </span>
+                        </label>
+                        <label class="story-create-product-choice">
+                            <input type="radio" name="product_mode" value="none">
+                            <span class="story-create-product-choice-mark" aria-hidden="true"></span>
+                            <span class="story-create-product-choice-body">
+                                <span class="story-create-product-choice-title"><?= htmlspecialchars(t('home.story_create_product_none_title')) ?></span>
+                                <span class="story-create-product-choice-text"><?= htmlspecialchars(t('home.story_create_product_none')) ?></span>
+                            </span>
+                        </label>
                     </div>
                 </section>
 

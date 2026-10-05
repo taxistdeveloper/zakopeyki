@@ -41,6 +41,7 @@ class StoryController extends Controller
         }
         $commentsEnabled = !isset($_POST['comments_enabled'])
             || in_array((string) $_POST['comments_enabled'], ['1', 'true', 'on', 'yes'], true);
+        $attachProduct = (string) ($_POST['product_mode'] ?? 'auto') !== 'none';
 
         (new Story())->create([
             'user_id' => Auth::id(),
@@ -51,6 +52,7 @@ class StoryController extends Controller
             'audience' => $audience,
             'comments_enabled' => $commentsEnabled ? 1 : 0,
             'visibility' => $visibility,
+            'attach_product' => $attachProduct ? 1 : 0,
         ]);
 
         $notifySubs = $visibility !== 'private' && (isset($_POST['notify_subs'])

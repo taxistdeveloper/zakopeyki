@@ -540,21 +540,30 @@ $changelog = $changelog ?? null;
 
 <script>
 <?php
-$storyGroupsForJs = array_map(static function ($g) {
+$formatStoryProduct = static function ($product): ?array {
+    if (!$product) {
+        return null;
+    }
+    return [
+        'id' => (int) $product['id'],
+        'title' => $product['title'],
+        'price' => ProductHelper::formatPrice($product),
+        'url' => ProductHelper::url('/product/' . (int) $product['id']),
+        'image' => ProductHelper::imageUrl($product),
+    ];
+};
+$storyGroupsForJs = array_map(static function ($g) use ($formatStoryProduct) {
     $g['avatar_url'] = AvatarHelper::url([
         'avatar_file' => $g['user_avatar_file'] ?? null,
     ]);
-    $product = $g['product'] ?? null;
-    if ($product) {
-        $g['product'] = [
-            'id' => (int) $product['id'],
-            'title' => $product['title'],
-            'price' => ProductHelper::formatPrice($product),
-            'url' => ProductHelper::url('/product/' . (int) $product['id']),
-            'image' => ProductHelper::imageUrl($product),
-        ];
-    } else {
-        $g['product'] = null;
+    $formatted = $formatStoryProduct($g['product'] ?? null);
+    $g['product'] = $formatted;
+    if (!empty($g['stories']) && is_array($g['stories'])) {
+        foreach ($g['stories'] as &$story) {
+            $attach = !array_key_exists('attach_product', $story) || (int) $story['attach_product'] === 1;
+            $story['product'] = $attach ? $formatted : null;
+        }
+        unset($story);
     }
     return $g;
 }, $storyGroups);

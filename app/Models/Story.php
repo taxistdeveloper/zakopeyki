@@ -37,6 +37,7 @@ class Story extends Model
             'audience' => "VARCHAR(20) NOT NULL DEFAULT 'all'",
             'comments_enabled' => 'TINYINT(1) NOT NULL DEFAULT 1',
             'visibility' => "VARCHAR(20) NOT NULL DEFAULT 'public'",
+            'attach_product' => 'TINYINT(1) NOT NULL DEFAULT 1',
         ] as $col => $def) {
             $exists = $this->db->query('SHOW COLUMNS FROM stories LIKE ' . $this->db->quote($col))->fetch();
             if (!$exists) {
@@ -128,8 +129,8 @@ class Story extends Model
     public function create(array $data): int
     {
         $stmt = $this->db->prepare(
-            'INSERT INTO stories (user_id, caption, image, bg_color, emoji, audience, comments_enabled, visibility, expires_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 24 HOUR))'
+            'INSERT INTO stories (user_id, caption, image, bg_color, emoji, audience, comments_enabled, visibility, attach_product, expires_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 24 HOUR))'
         );
         $stmt->execute([
             $data['user_id'],
@@ -140,6 +141,7 @@ class Story extends Model
             $data['audience'] ?? 'all',
             array_key_exists('comments_enabled', $data) ? (!empty($data['comments_enabled']) ? 1 : 0) : 1,
             $data['visibility'] ?? 'public',
+            array_key_exists('attach_product', $data) ? (!empty($data['attach_product']) ? 1 : 0) : 1,
         ]);
         return (int) $this->db->lastInsertId();
     }
