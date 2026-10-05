@@ -1029,7 +1029,7 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                     </div>
                     <?php
                     $editKind = $editing['auction_kind'] ?? 'english';
-                    $auctionDurations = [1 => '1 ч', 6 => '6 ч', 24 => '24 ч', 72 => '3 дн', 168 => '7 дн', 720 => '1 мес'];
+                    $auctionDurations = [1 => '1 ч', 6 => '6 ч', 24 => '24 ч', 72 => '3 дн', 168 => '7 дн'];
                     $editHours = 24;
                     if (!empty($editing['auction_start_at']) && !empty($editing['auction_end_at'])) {
                         $diffH = (int) round((strtotime((string) $editing['auction_end_at']) - strtotime((string) $editing['auction_start_at'])) / 3600);

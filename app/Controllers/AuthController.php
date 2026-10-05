@@ -209,7 +209,9 @@ class AuthController extends Controller
 
         $appConfig = $GLOBALS['appConfig'] ?? [];
         if (!empty($appConfig['stub_mode']) && !Auth::hasSiteAccess()) {
-            $_SESSION['stub_flash'] = 'Регистрация прошла успешно! Мы откроемся 30 сентября.';
+            $opensTs = strtotime((string) ($appConfig['stub_opens_at'] ?? '2026-11-30 00:00:00')) ?: strtotime('2026-11-30 00:00:00');
+            $opensLabel = (int) date('j', $opensTs) . ' ' . t('seller.month_' . (int) date('n', $opensTs));
+            $_SESSION['stub_flash'] = 'Регистрация прошла успешно! Мы откроемся ' . $opensLabel . '.';
             $this->redirect('/');
         }
 

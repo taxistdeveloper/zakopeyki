@@ -3,9 +3,10 @@
 use App\Helpers\ProductHelper;
 
 $heroUrl = ProductHelper::url('/public/assets/img/stub-hero.jpg');
-$opensAt = $opensAt ?? '2026-09-30 00:00:00';
-$opensTs = strtotime($opensAt) ?: (time() + 7 * 86400);
+$opensAt = $opensAt ?? '2026-11-30 00:00:00';
+$opensTs = strtotime($opensAt) ?: strtotime('2026-11-30 00:00:00');
 $opensIso = date('Y-m-d\TH:i:sP', $opensTs);
+$opensLabel = (int) date('j', $opensTs) . ' ' . t('seller.month_' . (int) date('n', $opensTs));
 $loginUrl = ProductHelper::url('/login');
 $registerUrl = ProductHelper::url('/register');
 $logoutUrl = ProductHelper::url('/logout');
@@ -1205,7 +1206,7 @@ body.debug .hit {
                     <span class="cd-lbl">секунд</span>
                   </div>
                 </div>
-                <p class="cd-note">30 сентября откроется сайт</p>
+                <p class="cd-note"><?= htmlspecialchars($opensLabel) ?> откроется сайт</p>
               </div>
             </div>
 
@@ -1253,7 +1254,7 @@ body.debug .hit {
         <p class="cta-modal__eyebrow">Ранний доступ</p>
         <p class="cta-modal__title" id="cta-modal-title">Будьте среди первых</p>
         <p class="cta-modal__sub">
-          30 сентября открываем сайт. Зарегистрируйтесь заранее — и встретьте запуск во всеоружии.
+          <?= htmlspecialchars($opensLabel) ?> открываем сайт. Зарегистрируйтесь заранее — и встретьте запуск во всеоружии.
         </p>
         <a class="cta-modal__btn" href="<?= htmlspecialchars($registerUrl) ?>">
           Создать аккаунт
