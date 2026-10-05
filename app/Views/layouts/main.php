@@ -2240,7 +2240,8 @@ function url(string $path = ''): string
         <?= htmlspecialchars(t('live.back_to_stream')) ?>
     </button>
 
-    <!-- ИИ-помощник: отдельный fixed-слой, не внутри overflow-hidden -->
+    <?php if (($currentNav ?? '') === 'home'): ?>
+    <!-- ИИ-помощник: только на главной -->
     <div id="ai-assistant" class="fixed bottom-5 right-5 z-[90] flex flex-col items-end gap-3 pointer-events-none">
         <div id="ai-assistant-panel" class="hidden pointer-events-auto w-[min(calc(100vw-1.5rem),380px)] h-[min(68vh,520px)] glass rounded-2xl shadow-lift border border-ink-900/10 dark:border-white/10 flex flex-col overflow-hidden" role="dialog" aria-label="<?= htmlspecialchars(t('ai.aria')) ?>" aria-hidden="true">
             <div class="px-4 py-3 border-b border-ink-900/10 dark:border-white/10 flex items-center justify-between shrink-0 bg-gradient-to-r from-[#1F4D3A]/12 via-[#C9A227]/08 to-transparent dark:from-[#1F4D3A]/35 dark:via-[#C9A227]/10">
@@ -2277,6 +2278,7 @@ function url(string $path = ''): string
             <span class="ai-fab-label font-display font-semibold text-[10px] sm:text-[11px] tracking-wide text-white bg-[#1F4D3A] px-2.5 py-1 rounded-full shadow-soft border border-[#C9A227]/35 whitespace-nowrap"><?= htmlspecialchars(t('ai.toggle')) ?></span>
         </button>
     </div>
+    <?php endif; ?>
 
     <?php \App\Core\View::partial('partials/chat-drawer'); ?>
     <?php \App\Core\View::partial('partials/seller-profile-modal'); ?>

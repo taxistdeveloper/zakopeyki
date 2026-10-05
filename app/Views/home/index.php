@@ -71,22 +71,53 @@ $changelog = $changelog ?? null;
         <?php endif; ?>
     </div>
 
+    <style>
+        .zk-cat {
+            background: #fff;
+            transition: background .25s ease, transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+        }
+        .dark .zk-cat { background: rgba(255,255,255,.04); }
+        .zk-cat[data-tone="new"]:hover,
+        .zk-cat[data-tone="new"]:focus-visible { background: linear-gradient(135deg, #e4e7ff, #ddd6fe); }
+        .zk-cat[data-tone="used"]:hover,
+        .zk-cat[data-tone="used"]:focus-visible { background: linear-gradient(135deg, #ffedd5, #fde68a); }
+        .zk-cat[data-tone="auction"]:hover,
+        .zk-cat[data-tone="auction"]:focus-visible { background: linear-gradient(135deg, #fff3d6, #ffe0c2); }
+        .zk-cat[data-tone="service"]:hover,
+        .zk-cat[data-tone="service"]:focus-visible { background: linear-gradient(135deg, #dbeafe, #e0e7ff); }
+        .zk-cat[data-tone="exchange"]:hover,
+        .zk-cat[data-tone="exchange"]:focus-visible { background: linear-gradient(135deg, #d1fae5, #cffafe); }
+        .zk-cat[data-tone="free"]:hover,
+        .zk-cat[data-tone="free"]:focus-visible { background: linear-gradient(135deg, #fce7f3, #fee2e2); }
+        .dark .zk-cat[data-tone="new"]:hover,
+        .dark .zk-cat[data-tone="new"]:focus-visible { background: linear-gradient(135deg, rgba(99,102,241,.32), rgba(139,92,246,.22)); }
+        .dark .zk-cat[data-tone="used"]:hover,
+        .dark .zk-cat[data-tone="used"]:focus-visible { background: linear-gradient(135deg, rgba(249,115,22,.32), rgba(245,158,11,.22)); }
+        .dark .zk-cat[data-tone="auction"]:hover,
+        .dark .zk-cat[data-tone="auction"]:focus-visible { background: linear-gradient(135deg, rgba(245,158,11,.30), rgba(251,146,60,.18)); }
+        .dark .zk-cat[data-tone="service"]:hover,
+        .dark .zk-cat[data-tone="service"]:focus-visible { background: linear-gradient(135deg, rgba(37,99,235,.28), rgba(99,102,241,.18)); }
+        .dark .zk-cat[data-tone="exchange"]:hover,
+        .dark .zk-cat[data-tone="exchange"]:focus-visible { background: linear-gradient(135deg, rgba(16,185,129,.28), rgba(6,182,212,.18)); }
+        .dark .zk-cat[data-tone="free"]:hover,
+        .dark .zk-cat[data-tone="free"]:focus-visible { background: linear-gradient(135deg, rgba(236,72,153,.28), rgba(244,63,94,.18)); }
+    </style>
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5">
         <?php
         $cats = [
-            ['url' => '/catalog/new', 'label' => t('home.cat_new'), 'tone' => 'from-blue-50 to-indigo-50', 'img' => 'cat-new.png'],
-            ['url' => '/catalog/used', 'label' => t('home.cat_used'), 'tone' => 'from-orange-50 to-amber-50', 'img' => 'cat-used.png'],
-            ['url' => '/auctions', 'label' => t('home.cat_auctions'), 'tone' => 'from-accent-50 to-orange-50', 'img' => 'cat-auctions.png'],
-            ['url' => '/catalog/services', 'label' => t('home.cat_services'), 'tone' => 'from-slate-50 to-brand-50', 'img' => 'cat-services.png'],
-            ['url' => '/catalog/exchange', 'label' => t('home.cat_exchange'), 'tone' => 'from-brand-50 to-sky-50', 'img' => 'cat-exchange.png'],
-            ['url' => '/catalog/free', 'label' => t('home.cat_free'), 'tone' => 'from-sky-50 to-blue-50', 'img' => 'cat-free.png'],
+            ['url' => '/catalog/new', 'label' => t('home.cat_new'), 'tone' => 'new', 'img' => 'cat-new.png'],
+            ['url' => '/catalog/used', 'label' => t('home.cat_used'), 'tone' => 'used', 'img' => 'cat-used.png'],
+            ['url' => '/auctions', 'label' => t('home.cat_auctions'), 'tone' => 'auction', 'img' => 'cat-auctions.png'],
+            ['url' => '/catalog/services', 'label' => t('home.cat_services'), 'tone' => 'service', 'img' => 'cat-services.png'],
+            ['url' => '/catalog/exchange', 'label' => t('home.cat_exchange'), 'tone' => 'exchange', 'img' => 'cat-exchange.png'],
+            ['url' => '/catalog/free', 'label' => t('home.cat_free'), 'tone' => 'free', 'img' => 'cat-free.png'],
         ];
         foreach ($cats as $c): ?>
-            <a href="<?= ProductHelper::url($c['url']) ?>" class="group min-w-0 bg-gradient-to-br <?= $c['tone'] ?> dark:from-white/[0.06] dark:to-white/[0.02] px-1.5 py-3 sm:px-2 sm:py-3.5 rounded-2xl border border-black/[0.05] dark:border-white/10 text-center hover:border-brand-400/50 hover:shadow-soft hover:-translate-y-0.5 transition duration-300 block">
-                <span class="flex items-center justify-center mb-1 transition duration-300 group-hover:scale-110">
+            <a href="<?= ProductHelper::url($c['url']) ?>" data-tone="<?= $c['tone'] ?>" class="zk-cat group relative min-w-0 overflow-hidden px-1.5 py-3 sm:px-2 sm:py-3.5 rounded-2xl border border-black/[0.05] dark:border-white/10 text-center hover:border-brand-400/50 hover:shadow-soft hover:-translate-y-0.5 block">
+                <span class="relative flex items-center justify-center mb-1 transition duration-300 group-hover:scale-110">
                     <img src="<?= ProductHelper::url('public/assets/icons/categories/' . $c['img']) ?>" alt="" class="h-11 w-11 sm:h-12 sm:w-12 xl:h-14 xl:w-14 object-contain" width="56" height="56" decoding="async" draggable="false">
                 </span>
-                <span class="block text-[10px] sm:text-[11px] font-semibold leading-tight text-ink-800 dark:text-gray-200"><?= $c['label'] ?></span>
+                <span class="relative block text-[10px] sm:text-[11px] font-semibold leading-tight text-ink-800 dark:text-gray-200"><?= $c['label'] ?></span>
             </a>
         <?php endforeach; ?>
     </div>
