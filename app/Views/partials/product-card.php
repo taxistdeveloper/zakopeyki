@@ -82,6 +82,31 @@ if ($ownedDigital) {
 
 $showBuyCartPair = $canCart && $primaryHref && in_array($type, ['used', 'new', 'course', 'gig'], true) && !$isFreePrice;
 $showBuyChoice = $canCart && $primaryHref && ProductHelper::supportsDirectBuy($item) && !$isFreePrice;
+$canManage = $isOwn && isset(ProductHelper::marketplaceTypes()[$type]);
+$ownerActionsHtml = '';
+if ($canManage) {
+    $editUrl = ProductHelper::url('/profile?tab=lots&edit=' . (int) $item['id']);
+    $deleteUrl = ProductHelper::url('/profile/lots/' . (int) $item['id'] . '/delete');
+    $deleteConfirm = t('profile.confirm_delete_lot');
+    ob_start();
+    ?>
+    <div class="card-owner-actions flex gap-1.5 <?= $mini ? '' : 'pt-2 border-t border-black/[0.05] dark:border-white/10' ?>">
+        <a href="<?= htmlspecialchars($editUrl) ?>"
+           class="inline-flex flex-1 items-center justify-center font-display font-bold text-[10px] uppercase tracking-wider py-2 px-2 rounded-xl border border-black/[0.08] dark:border-white/10 text-ink-800 dark:text-gray-200 hover:border-brand-400/50 hover:bg-brand-50/60 dark:hover:bg-white/5 transition">
+            <?= htmlspecialchars(t('profile.edit')) ?>
+        </a>
+        <form method="post" action="<?= htmlspecialchars($deleteUrl) ?>" class="flex-1"
+              onsubmit="return confirm(<?= json_encode($deleteConfirm, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>);">
+            <?= csrf_field() ?>
+            <button type="submit"
+                    class="inline-flex w-full items-center justify-center font-display font-bold text-[10px] uppercase tracking-wider py-2 px-2 rounded-xl text-red-600 border border-red-200/80 dark:border-red-500/30 hover:bg-red-50 dark:hover:bg-red-500/10 transition">
+                <?= htmlspecialchars(t('profile.delete')) ?>
+            </button>
+        </form>
+    </div>
+    <?php
+    $ownerActionsHtml = (string) ob_get_clean();
+}
 $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>';
 ?>
 <?php if ($mini): ?>
@@ -126,6 +151,7 @@ $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" s
                 </button>
             <?php endif; ?>
         </div>
+        <?= $ownerActionsHtml ?>
     </div>
 </article>
 <?php else: ?>
@@ -257,6 +283,7 @@ $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" s
                 <?php endif; ?>
             </div>
             <?php endif; ?>
+            <?= $ownerActionsHtml ?>
         </div>
     </div>
 </article>

@@ -112,6 +112,9 @@ class UserController extends Controller
                 'can_cart' => ProductHelper::isPurchasable($p) && !$isOwn
                     && (!Auth::check() || (int) Auth::id() !== $userId),
                 'favorited' => in_array($pid, $favoriteIds, true),
+                'can_manage' => $isOwn && isset(ProductHelper::marketplaceTypes()[(string) ($p['type'] ?? '')]),
+                'edit_url' => ProductHelper::url('/profile?tab=lots&edit=' . $pid),
+                'delete_url' => ProductHelper::url('/profile/lots/' . $pid . '/delete'),
             ];
         }
 

@@ -4033,6 +4033,32 @@ function renderSellerProducts() {
             bodyBox.appendChild(cart);
         }
 
+        if (p.can_manage && p.edit_url && p.delete_url) {
+            const actions = document.createElement('div');
+            actions.className = 'card-owner-actions flex gap-1.5 mt-auto pt-2';
+            const edit = document.createElement('a');
+            edit.href = p.edit_url;
+            edit.className = 'inline-flex flex-1 items-center justify-center font-display font-bold text-[10px] uppercase tracking-wider py-2 px-2 rounded-xl border border-black/[0.08] dark:border-white/10 text-ink-800 dark:text-gray-200 hover:border-brand-400/50 transition';
+            edit.textContent = window.__i18n?.['profile.edit'] || 'Изменить';
+            edit.addEventListener('click', function () { closeSellerProfile(); });
+            const form = document.createElement('form');
+            form.method = 'post';
+            form.action = p.delete_url;
+            form.className = 'flex-1';
+            form.addEventListener('submit', function (e) {
+                const msg = window.__i18n?.['profile.confirm_delete_lot'] || 'Удалить объявление?';
+                if (!confirm(msg)) e.preventDefault();
+            });
+            const del = document.createElement('button');
+            del.type = 'submit';
+            del.className = 'inline-flex w-full items-center justify-center font-display font-bold text-[10px] uppercase tracking-wider py-2 px-2 rounded-xl text-red-600 border border-red-200/80 dark:border-red-500/30 hover:bg-red-50 dark:hover:bg-red-500/10 transition';
+            del.textContent = window.__i18n?.['profile.delete'] || 'Удалить';
+            form.appendChild(del);
+            actions.appendChild(edit);
+            actions.appendChild(form);
+            bodyBox.appendChild(actions);
+        }
+
         card.appendChild(imgWrap);
         card.appendChild(bodyBox);
         lots.appendChild(card);
@@ -4490,7 +4516,7 @@ function setCartButtonState(btn, inCart) {
 document.addEventListener('click', function (e) {
     const card = e.target.closest('article[data-card-href]');
     if (card
-        && !e.target.closest('a, button, input, select, textarea, label, [data-lightbox], [data-share-menu], .favorite-btn, .cart-btn')
+        && !e.target.closest('a, button, form, input, select, textarea, label, [data-lightbox], [data-share-menu], .favorite-btn, .cart-btn, .card-owner-actions')
     ) {
         const href = card.getAttribute('data-card-href');
         if (href) {
