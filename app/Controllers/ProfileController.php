@@ -1047,7 +1047,7 @@ class ProfileController extends Controller
     public function clearNotifications(): void
     {
         Auth::requireLogin();
-        (new Notification())->markAllRead(Auth::id());
+        (new Notification())->clearAll(Auth::id());
         $this->redirect('/profile?tab=notifications');
     }
 

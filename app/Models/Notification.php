@@ -32,6 +32,12 @@ class Notification extends Model
         $stmt->execute([$userId]);
     }
 
+    public function clearAll(int $userId): void
+    {
+        $stmt = $this->db->prepare('DELETE FROM notifications WHERE user_id = ?');
+        $stmt->execute([$userId]);
+    }
+
     public function createFor(int $userId, string $message): void
     {
         $stmt = $this->db->prepare('INSERT INTO notifications (user_id, message) VALUES (?, ?)');
