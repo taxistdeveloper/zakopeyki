@@ -22,11 +22,28 @@ class Notification extends Model
             return;
         }
         try {
-            $this->db->exec('ALTER TABLE notifications ADD COLUMN link VARCHAR(255) NULL DEFAULT NULL AFTER message');
-        } catch (\PDOException) {
-            // column already exists
+            $exists = $this->db->query("SHOW COLUMNS FROM notifications LIKE 'link'")->fetch();
+            if (!$exists) {
+                $this->db->exec('ALTER TABLE notifications ADD COLUMN link VARCHAR(255) NULL DEFAULT NULL AFTER message');
+            }
+        } catch (\Throwable) {
+            // ignore
         }
         self::$linkEnsured = true;
+    }
+
+    private function hasLinkColumn(): bool
+    {
+        static $has = null;
+        if ($has !== null) {
+            return $has;
+        }
+        try {
+            $has = (bool) $this->db->query("SHOW COLUMNS FROM notifications LIKE 'link'")->fetch();
+        } catch (\Throwable) {
+            $has = false;
+        }
+        return $has;
     }
 
     public function forUser(int $userId, int $limit = 20): array
@@ -61,7 +78,12 @@ class Notification extends Model
 
     public function createFor(int $userId, string $message, ?string $link = null): void
     {
-        $stmt = $this->db->prepare('INSERT INTO notifications (user_id, message, link) VALUES (?, ?, ?)');
-        $stmt->execute([$userId, $message, $link]);
+        if ($link !== null && $this->hasLinkColumn()) {
+            $stmt = $this->db->prepare('INSERT INTO notifications (user_id, message, link) VALUES (?, ?, ?)');
+            $stmt->execute([$userId, $message, $link]);
+            return;
+        }
+        $stmt = $this->db->prepare('INSERT INTO notifications (user_id, message) VALUES (?, ?)');
+        $stmt->execute([$userId, $message]);
     }
 }

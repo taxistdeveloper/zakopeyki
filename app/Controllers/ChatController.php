@@ -160,20 +160,24 @@ class ChatController extends Controller
     public function send(string $id): void
     {
         Auth::requireLogin();
-        $storyId = (int) ($_POST['story_id'] ?? 0);
-        $result = (new Chat())->send(
-            (int) $id,
-            Auth::id(),
-            (string) ($_POST['body'] ?? ''),
-            $storyId > 0 ? $storyId : null
-        );
         $wantsJson = $this->wantsJson();
+        try {
+            $storyId = (int) ($_POST['story_id'] ?? 0);
+            $result = (new Chat())->send(
+                (int) $id,
+                Auth::id(),
+                (string) ($_POST['body'] ?? ''),
+                $storyId > 0 ? $storyId : null
+            );
+        } catch (\Throwable) {
+            $result = ['ok' => false, 'error' => t('chat.send_failed')];
+        }
 
         if ($wantsJson) {
             if (!$result['ok']) {
                 $this->json(['ok' => false, 'error' => $result['error'] ?? t('chat.send_failed')], 422);
             }
-            $this->json(['ok' => true, 'message' => $this->formatMessage($result['message'])]);
+            $this->json(['ok' => true, 'message' => $this->formatMessage($result['message'] ?? null)]);
         }
 
         if (!$result['ok']) {

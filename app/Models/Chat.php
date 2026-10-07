@@ -44,7 +44,6 @@ class Chat extends Model
                 conversation_id INT UNSIGNED NOT NULL,
                 sender_id INT UNSIGNED NOT NULL,
                 body TEXT NOT NULL,
-                story_id INT UNSIGNED NULL DEFAULT NULL,
                 is_read TINYINT(1) NOT NULL DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 INDEX idx_conv (conversation_id),
@@ -53,17 +52,56 @@ class Chat extends Model
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
         );
 
-        try {
-            $this->db->exec('ALTER TABLE chat_messages ADD COLUMN story_id INT UNSIGNED NULL DEFAULT NULL AFTER body');
-        } catch (\PDOException) {
-            // column already exists
-        }
+        $this->ensureColumn('chat_messages', 'story_id', 'INT UNSIGNED NULL DEFAULT NULL AFTER body');
+        $this->ensureColumn('stories', 'comments_enabled', 'TINYINT(1) NOT NULL DEFAULT 1');
+        $this->ensureColumn('stories', 'bg_color', "VARCHAR(20) NOT NULL DEFAULT '#f59e0b'");
+        $this->ensureColumn('stories', 'emoji', "VARCHAR(16) DEFAULT '✨'");
 
         self::$ensured = true;
     }
 
+    private function ensureColumn(string $table, string $column, string $definition): void
+    {
+        try {
+            $safeTable = str_replace('`', '``', $table);
+            $exists = $this->db->query(
+                'SHOW COLUMNS FROM `' . $safeTable . '` LIKE ' . $this->db->quote($column)
+            )->fetch();
+            if ($exists) {
+                return;
+            }
+            $safeColumn = str_replace('`', '``', $column);
+            $this->db->exec(
+                'ALTER TABLE `' . $safeTable . '` ADD COLUMN `' . $safeColumn . '` ' . $definition
+            );
+        } catch (\Throwable) {
+            // table/column race or missing table
+        }
+    }
+
+    private function hasStoryIdColumn(): bool
+    {
+        static $has = null;
+        if ($has !== null) {
+            return $has;
+        }
+        try {
+            $has = (bool) $this->db->query("SHOW COLUMNS FROM chat_messages LIKE 'story_id'")->fetch();
+        } catch (\Throwable) {
+            $has = false;
+        }
+        return $has;
+    }
+
     private function messageSelectSql(): string
     {
+        if (!$this->hasStoryIdColumn()) {
+            return 'SELECT m.*,
+                           u.name AS sender_name, u.avatar AS sender_avatar, u.avatar_file AS sender_avatar_file
+                    FROM chat_messages m
+                    JOIN users u ON u.id = m.sender_id';
+        }
+
         return 'SELECT m.*,
                        u.name AS sender_name, u.avatar AS sender_avatar, u.avatar_file AS sender_avatar_file,
                        s.id AS story_ref_id, s.image AS story_image, s.caption AS story_caption,
@@ -76,6 +114,7 @@ class Chat extends Model
                 JOIN users u ON u.id = m.sender_id
                 LEFT JOIN stories s ON s.id = m.story_id
                 LEFT JOIN users su ON su.id = s.user_id';
+    }
 
     /** @return array{ok: bool, conversation_id?: int, error?: string} */
     public function start(int $meId, int $otherId, int $productId = 0, int $orderId = 0): array
@@ -209,62 +248,89 @@ class Chat extends Model
     /** @return array{ok: bool, message?: array, error?: string} */
     public function send(int $conversationId, int $senderId, string $body, ?int $storyId = null): array
     {
-        $conv = $this->findForUser($conversationId, $senderId);
-        if (!$conv) {
-            return ['ok' => false, 'error' => t('chat.forbidden')];
-        }
+        try {
+            $conv = $this->findForUser($conversationId, $senderId);
+            if (!$conv) {
+                return ['ok' => false, 'error' => t('chat.forbidden')];
+            }
 
-        $body = trim($body);
-        if ($body === '') {
-            return ['ok' => false, 'error' => t('chat.empty')];
-        }
-        if (mb_strlen($body) > 2000) {
-            return ['ok' => false, 'error' => t('chat.too_long')];
-        }
+            $body = trim($body);
+            if ($body === '') {
+                return ['ok' => false, 'error' => t('chat.empty')];
+            }
+            if (mb_strlen($body) > 2000) {
+                return ['ok' => false, 'error' => t('chat.too_long')];
+            }
 
-        $storyId = $storyId && $storyId > 0 ? $storyId : null;
-        if ($storyId !== null) {
-            $storyCheck = $this->db->prepare('SELECT id FROM stories WHERE id = ? LIMIT 1');
-            $storyCheck->execute([$storyId]);
-            if (!$storyCheck->fetch()) {
+            $storyId = $storyId && $storyId > 0 ? $storyId : null;
+            $canStoreStory = $this->hasStoryIdColumn();
+            if ($storyId !== null && $canStoreStory) {
+                $storyCheck = $this->db->prepare('SELECT id FROM stories WHERE id = ? LIMIT 1');
+                $storyCheck->execute([$storyId]);
+                if (!$storyCheck->fetch()) {
+                    $storyId = null;
+                }
+            } elseif ($storyId !== null && !$canStoreStory) {
+                $body = t('chat.story_reply') . ":\n" . $body;
                 $storyId = null;
             }
+
+            $preview = $storyId
+                ? (t('chat.story_reply') . ': ' . mb_substr($body, 0, 80))
+                : mb_substr($body, 0, 120);
+
+            if ($storyId !== null) {
+                $stmt = $this->db->prepare(
+                    'INSERT INTO chat_messages (conversation_id, sender_id, body, story_id, is_read) VALUES (?, ?, ?, ?, 0)'
+                );
+                $stmt->execute([$conversationId, $senderId, $body, $storyId]);
+            } else {
+                $stmt = $this->db->prepare(
+                    'INSERT INTO chat_messages (conversation_id, sender_id, body, is_read) VALUES (?, ?, ?, 0)'
+                );
+                $stmt->execute([$conversationId, $senderId, $body]);
+            }
+            $messageId = (int) $this->db->lastInsertId();
+
+            $upd = $this->db->prepare(
+                'UPDATE chat_conversations SET last_message_at = NOW(), last_preview = ? WHERE id = ?'
+            );
+            $upd->execute([$preview, $conversationId]);
+
+            $peerId = (int) $conv['user_low_id'] === $senderId
+                ? (int) $conv['user_high_id']
+                : (int) $conv['user_low_id'];
+
+            $senderName = (int) $conv['user_low_id'] === $senderId
+                ? (string) $conv['low_name']
+                : (string) $conv['high_name'];
+            $label = (string) ($conv['product_title'] ?? '');
+            $notice = $label !== ''
+                ? t('chat.notify_about', ['name' => $senderName, 'title' => $label])
+                : t('chat.notify', ['name' => $senderName]);
+
+            try {
+                (new Notification())->createFor($peerId, $notice, '/chat/' . $conversationId);
+            } catch (\Throwable) {
+                // уведомление не должно ломать отправку сообщения
+            }
+
+            $msgStmt = $this->db->prepare($this->messageSelectSql() . ' WHERE m.id = ?');
+            $msgStmt->execute([$messageId]);
+            $message = $msgStmt->fetch() ?: [
+                'id' => $messageId,
+                'conversation_id' => $conversationId,
+                'sender_id' => $senderId,
+                'body' => $body,
+                'story_id' => $storyId,
+                'created_at' => date('Y-m-d H:i:s'),
+                'sender_name' => $senderName,
+            ];
+
+            return ['ok' => true, 'message' => $message];
+        } catch (\Throwable $e) {
+            return ['ok' => false, 'error' => t('chat.send_failed')];
         }
-
-        $preview = $storyId
-            ? (t('chat.story_reply') . ': ' . mb_substr($body, 0, 80))
-            : mb_substr($body, 0, 120);
-
-        $stmt = $this->db->prepare(
-            'INSERT INTO chat_messages (conversation_id, sender_id, body, story_id, is_read) VALUES (?, ?, ?, ?, 0)'
-        );
-        $stmt->execute([$conversationId, $senderId, $body, $storyId]);
-        $messageId = (int) $this->db->lastInsertId();
-
-        $upd = $this->db->prepare(
-            'UPDATE chat_conversations SET last_message_at = NOW(), last_preview = ? WHERE id = ?'
-        );
-        $upd->execute([$preview, $conversationId]);
-
-        $peerId = (int) $conv['user_low_id'] === $senderId
-            ? (int) $conv['user_high_id']
-            : (int) $conv['user_low_id'];
-
-        $senderName = (int) $conv['user_low_id'] === $senderId
-            ? (string) $conv['low_name']
-            : (string) $conv['high_name'];
-        $label = (string) ($conv['product_title'] ?? '');
-        $notice = $label !== ''
-            ? t('chat.notify_about', ['name' => $senderName, 'title' => $label])
-            : t('chat.notify', ['name' => $senderName]);
-
-        (new Notification())->createFor($peerId, $notice, '/chat/' . $conversationId);
-
-        $msgStmt = $this->db->prepare($this->messageSelectSql() . ' WHERE m.id = ?');
-        $msgStmt->execute([$messageId]);
-        $message = $msgStmt->fetch() ?: null;
-
-        return ['ok' => true, 'message' => $message];
     }
 
     public function markRead(int $conversationId, int $readerId): void
