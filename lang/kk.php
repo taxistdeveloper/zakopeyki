@@ -616,6 +616,8 @@ return [
         'exchange_contact' => 'Айырбас — сатушыға чаттан жазыңыз немесе WhatsApp арқылы қоңырау шалыңыз',
         'service_contact' => 'Бұл қызмет туралы хабарландыру — орындаушыға чат немесе WhatsApp арқылы жазыңыз. Төлем тікелей, себетсіз.',
         'no_phone' => 'телефон көрсетілмеген',
+        'call' => 'Қоңырау шалу',
+        'whatsapp' => 'WhatsApp',
         'whatsapp_call' => 'WhatsApp арқылы қоңырау',
         'whatsapp_unavailable' => 'Сатушыда WhatsApp нөмірі көрсетілмеген',
         'exchange_for' => 'Мынаған айырбастаймын',

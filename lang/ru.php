@@ -616,6 +616,8 @@ return [
         'exchange_contact' => 'Обмен — напишите продавцу в чат или позвоните в WhatsApp',
         'service_contact' => 'Это объявление об услуге — напишите исполнителю в чат или WhatsApp. Оплата напрямую, без корзины.',
         'no_phone' => 'телефон не указан',
+        'call' => 'Позвонить',
+        'whatsapp' => 'WhatsApp',
         'whatsapp_call' => 'Позвонить в WhatsApp',
         'whatsapp_unavailable' => 'У продавца не указан номер WhatsApp',
         'exchange_for' => 'Меняю на',
