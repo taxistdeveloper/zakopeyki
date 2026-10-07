@@ -53,6 +53,7 @@ return [
         'cart' => 'Себет',
         'clear' => 'Тазалау',
         'no_notifications' => 'Хабарлама жоқ',
+        'notifications_cleared' => 'Хабарламалар тазартылды',
         'no_notifications_guest' => 'Хабарлама жоқ — аккаунтқа кіріңіз',
         'lang_ru' => 'РУС',
         'lang_kk' => 'ҚАЗ',
@@ -1483,6 +1484,7 @@ return [
         'close' => 'Жабу',
     ],
     'flash' => [
+        'notifications_cleared' => 'Хабарламалар тазартылды',
         'personal_saved' => 'Жеке деректер сақталды',
         'bio_saved' => 'Сипаттама сақталды',
         'password_changed' => 'Құпиясөз өзгертілді',

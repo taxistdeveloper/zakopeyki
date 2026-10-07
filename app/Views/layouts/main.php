@@ -2538,6 +2538,7 @@ function url(string $path = ''): string
             'home.story_create_product_pick_need',
             'home.story_create_video_long', 'home.story_create_video_wait', 'home.story_create_file_big', 'home.story_create_media_bad',
             'header.city', 'header.city_choose', 'header.city_detect', 'header.city_detecting', 'header.city_denied',
+            'header.notifications_cleared',
             'chat.title', 'chat.start_hint', 'chat.send_failed', 'chat.start_failed',
             'product.close_photo', 'product.prev_photo', 'product.next_photo', 'product.zoom',
             'product.qty_only',

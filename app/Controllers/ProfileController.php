@@ -1048,7 +1048,20 @@ class ProfileController extends Controller
     {
         Auth::requireLogin();
         (new Notification())->clearAll(Auth::id());
-        $this->redirect('/profile?tab=notifications');
+        $message = t('flash.notifications_cleared');
+
+        $wantsJson = !empty($_SERVER['HTTP_X_REQUESTED_WITH'])
+            || str_contains((string) ($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json');
+        if ($wantsJson) {
+            $this->json(['ok' => true, 'message' => $message]);
+        }
+
+        $_SESSION['flash'] = $message;
+        $referer = (string) ($_SERVER['HTTP_REFERER'] ?? '');
+        if ($referer !== '' && preg_match('#^https?://#i', $referer)) {
+            $this->redirect($referer);
+        }
+        $this->redirect('/');
     }
 
     public function deleteAccount(): void

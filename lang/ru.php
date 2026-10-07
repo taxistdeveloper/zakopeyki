@@ -53,6 +53,7 @@ return [
         'cart' => 'Корзина',
         'clear' => 'Очистить',
         'no_notifications' => 'Нет уведомлений',
+        'notifications_cleared' => 'Уведомления очищены',
         'no_notifications_guest' => 'Нет уведомлений — войдите в аккаунт',
         'lang_ru' => 'РУС',
         'lang_kk' => 'ҚАЗ',
@@ -1483,6 +1484,7 @@ return [
         'close' => 'Закрыть',
     ],
     'flash' => [
+        'notifications_cleared' => 'Уведомления очищены',
         'personal_saved' => 'Личные данные сохранены',
         'bio_saved' => 'Описание сохранено',
         'password_changed' => 'Пароль изменён',

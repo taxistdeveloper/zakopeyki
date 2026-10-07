@@ -104,6 +104,57 @@ function toggleNotifications() {
     document.getElementById('notification-dropdown')?.classList.toggle('hidden');
 }
 
+document.addEventListener('submit', function (e) {
+    const form = e.target;
+    if (!(form instanceof HTMLFormElement) || !form.classList.contains('js-clear-notifications')) {
+        return;
+    }
+    e.preventDefault();
+
+    const action = form.getAttribute('action') || '';
+    const btn = form.querySelector('button[type="submit"]');
+    if (btn) btn.disabled = true;
+
+    fetch(action, {
+        method: 'POST',
+        headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: new FormData(form),
+        credentials: 'same-origin',
+    })
+        .then(function (res) { return res.json().catch(function () { return null; }); })
+        .then(function (data) {
+            if (!data || !data.ok) {
+                if (btn) btn.disabled = false;
+                form.submit();
+                return;
+            }
+
+            const message = data.message
+                || (window.__i18n && window.__i18n['header.notifications_cleared'])
+                || 'Уведомления очищены';
+
+            document.getElementById('notification-badge')?.remove();
+
+            const list = document.querySelector('#notification-dropdown .max-h-64');
+            if (list) {
+                list.innerHTML = '<div class="p-4 text-emerald-600 dark:text-emerald-400 font-semibold">'
+                    + String(message).replace(/[<>&]/g, function (c) {
+                        return ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c] || c;
+                    })
+                    + '</div>';
+            }
+
+            form.remove();
+        })
+        .catch(function () {
+            if (btn) btn.disabled = false;
+            form.submit();
+        });
+});
+
 (function initTheme() {
     if (localStorage.getItem('theme') === 'dark') {
         document.documentElement.classList.add('dark');

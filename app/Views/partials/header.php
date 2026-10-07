@@ -94,7 +94,7 @@ $langSwitchUrl = static function (string $code) use ($lang): string {
                 <div class="px-4 py-2.5 border-b border-black/[0.06] dark:border-white/10 flex justify-between items-center">
                     <h5 class="font-display font-semibold text-sm"><?= htmlspecialchars(t('header.notifications')) ?></h5>
                     <?php if (Auth::check()): ?>
-                        <form method="post" action="<?= ProductHelper::url('/notifications/clear') ?>" class="inline">
+                        <form method="post" action="<?= ProductHelper::url('/notifications/clear') ?>" class="inline js-clear-notifications">
                             <?= csrf_field() ?>
                             <button type="submit" class="text-xs font-semibold text-brand-600 hover:underline"><?= htmlspecialchars(t('header.clear')) ?></button>
                         </form>
