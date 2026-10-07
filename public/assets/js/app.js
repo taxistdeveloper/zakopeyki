@@ -728,6 +728,8 @@ function openStoryViewer(groupIndex) {
     storyItemIndex = 0;
     document.getElementById('story-viewer')?.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
+    document.body.classList.add('story-viewer-open');
+    try { toggleAiAssistant(false); } catch (e) { /* ignore */ }
     sizeStoryFrame();
     renderStory();
 }
@@ -785,6 +787,7 @@ function closeStoryViewer() {
     hideStoryVideo();
     document.getElementById('story-viewer')?.classList.add('hidden');
     document.body.style.overflow = '';
+    document.body.classList.remove('story-viewer-open');
 }
 
 function currentStory() {

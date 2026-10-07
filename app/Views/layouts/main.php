@@ -1087,7 +1087,8 @@ function url(string $path = ''): string
         .live-shop-frame.is-live-mode #stream-hold-zone,
         .live-shop-frame.is-live-mode #stream-viewer-desc { display: none !important; }
         .live-shop-frame.is-live-mode #stream-progress { display: none !important; }
-        body.live-stream-open #ai-assistant { display: none !important; }
+        body.live-stream-open #ai-assistant,
+        body.story-viewer-open #ai-assistant { display: none !important; }
         body.live-stream-open .story-brand,
         body.live-stream-open .story-close-outer { display: none !important; }
 
