@@ -879,36 +879,28 @@ final class AIOrchestrator
     private function answerFromDocuments(string $message, array $articles, string $lang): string
     {
         $context = $this->rag->formatContextForPrompt($articles);
-        $pdfLinks = [];
-        foreach ($articles as $article) {
-            $content = (string) ($article['content'] ?? '');
-            if (preg_match('#https?://[^\s]+/about/document/[a-f0-9]{12}#i', $content, $m)) {
-                $title = (string) ($article['title'] ?? 'Документ');
-                $title = preg_replace('/\s*\(\d+\/\d+\)\s*$/u', '', $title) ?? $title;
-                $pdfLinks[$title] = $m[0];
-            }
-        }
-
-        $linkBlock = '';
-        if ($pdfLinks !== []) {
-            $lines = [];
-            foreach ($pdfLinks as $title => $url) {
-                $lines[] = '• ' . $title . ': ' . $url;
-            }
-            $linkBlock = "\n\nДокументы:\n" . implode("\n", $lines);
-        }
+        $pdfLinks = $this->collectPdfLinks($articles);
 
         try {
             if ($this->router->provider()->isAvailable()) {
                 $system = <<<PROMPT
 Вы — ZAK, помощник маркетплейса Zakopeyki.kz.
 Ответьте на вопрос пользователя ТОЛЬКО по фрагментам официальных документов ниже.
-Правила:
-1. Кратко и по делу (3–6 предложений или короткий список шагов).
+
+Формат ответа (обязательно):
+- Первая строка: короткий заголовок без кавычек (например: Ограничение Live и Stories)
+- Затем 1–2 предложения сути
+- Если есть шаги/пункты — маркированный или нумерованный список, каждый пункт с новой строки
+- Не вставляйте «(18/39)» и сырой текст документа целиком
+- Не пишите «По документу …» длинной простынёй
+- В конце одна строка: Источник: <короткое имя документа>
+- Без markdown-таблиц и без HTML
+
+Правила содержания:
+1. Кратко и по делу (до ~1200 символов).
 2. Не выдумывайте правила, которых нет в тексте.
-3. Если в документах нет ответа — честно скажите, чего не хватает, и предложите открыть PDF.
+3. Если данных мало — скажите об этом и предложите открыть PDF.
 4. Язык ответа: как у пользователя (ru/kk).
-5. В конце можно одной строкой назвать документ-источник.
 
 Документы:
 {$context}
@@ -922,25 +914,129 @@ PROMPT;
                 );
                 $text = trim((string) ($result['content'] ?? ''));
                 if ($text !== '') {
-                    return $text . $linkBlock;
+                    return $this->appendPdfLinks($text, $pdfLinks, $lang);
                 }
             }
         } catch (\Throwable) {
             // fallback ниже
         }
 
-        // Без LLM: сжатый ответ из лучших фрагментов
-        $best = $articles[0];
-        $body = trim((string) ($best['content'] ?? ''));
-        if (mb_strlen($body, 'UTF-8') > 900) {
-            $body = mb_substr($body, 0, 900, 'UTF-8') . '…';
-        }
-        $title = (string) ($best['title'] ?? 'Документ');
-        $intro = $lang === 'kk'
-            ? "«{$title}» құжаты бойынша:"
-            : "По документу «{$title}»:";
+        return $this->formatDocumentFallback($articles[0], $pdfLinks, $lang);
+    }
 
-        return $intro . "\n\n" . $body . $linkBlock;
+    /** @param list<array> $articles @return array<string,string> */
+    private function collectPdfLinks(array $articles): array
+    {
+        $pdfLinks = [];
+        foreach ($articles as $article) {
+            $content = (string) ($article['content'] ?? '');
+            if (preg_match('#https?://[^\s]+/about/document/[a-f0-9]{12}#i', $content, $m)) {
+                $title = (string) ($article['title'] ?? 'Документ');
+                $title = preg_replace('/\s*\(\d+\/\d+\)\s*$/u', '', $title) ?? $title;
+                $pdfLinks[$title] = $m[0];
+            }
+        }
+        return $pdfLinks;
+    }
+
+    /** @param array<string,string> $pdfLinks */
+    private function appendPdfLinks(string $text, array $pdfLinks, string $lang): string
+    {
+        if ($pdfLinks === []) {
+            return $text;
+        }
+        $label = $lang === 'kk' ? 'PDF құжат' : 'Открыть документ';
+        $lines = [];
+        foreach ($pdfLinks as $title => $url) {
+            $lines[] = '• [' . $title . '](' . $url . ') — ' . $label;
+        }
+        return rtrim($text) . "\n\n" . implode("\n", $lines);
+    }
+
+    /** @param array<string,mixed> $article @param array<string,string> $pdfLinks */
+    private function formatDocumentFallback(array $article, array $pdfLinks, string $lang): string
+    {
+        $rawTitle = (string) ($article['title'] ?? 'Документ');
+        $title = preg_replace('/\s*\(\d+\/\d+\)\s*$/u', '', $rawTitle) ?: $rawTitle;
+        $body = (string) ($article['content'] ?? '');
+        $body = preg_replace('#\s*Ссылка на PDF:\s*https?://\S+#ui', '', $body) ?? $body;
+        $body = $this->prettifyDocumentText($body);
+
+        $heading = $lang === 'kk' ? $title : $title;
+        $lead = $lang === 'kk'
+            ? 'Қысқаша құжат бойынша:'
+            : 'Кратко по документу:';
+
+        $parts = [
+            $heading,
+            '',
+            $lead,
+            '',
+            $body,
+        ];
+
+        return $this->appendPdfLinks(trim(implode("\n", $parts)), $pdfLinks, $lang);
+    }
+
+    private function prettifyDocumentText(string $text): string
+    {
+        $text = trim(preg_replace('/\s+/u', ' ', $text) ?? $text);
+        if ($text === '') {
+            return '';
+        }
+
+        // Разбиваем сплошной текст на пункты: "1. ", "14. ", "• "
+        $text = preg_replace('/\s+((?:\d{1,2}|[•●▪])[.)])\s+/u', "\n$1 ", $text) ?? $text;
+        // Заголовки вида "Часть 1." / "Раздел 3."
+        $text = preg_replace('/\s+((?:Часть|Раздел|Бөлім)\s+\d+[.:]?)/ui', "\n\n$1", $text) ?? $text;
+
+        $lines = preg_split('/\n+/u', $text) ?: [$text];
+        $out = [];
+        $budget = 1100;
+        $used = 0;
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+            // Нумерованные / маркированные → список
+            if (preg_match('/^(\d{1,2})[.)]\s+(.+)$/u', $line, $m)) {
+                $line = $m[1] . '. ' . $this->softWrapSentence($m[2], 220);
+            } elseif (preg_match('/^[•●▪]\s*(.+)$/u', $line, $m)) {
+                $line = '• ' . $this->softWrapSentence($m[1], 220);
+            } else {
+                $line = $this->softWrapSentence($line, 280);
+            }
+
+            $len = mb_strlen($line, 'UTF-8');
+            if ($used + $len > $budget) {
+                if ($out !== []) {
+                    $out[] = '…';
+                } else {
+                    $out[] = mb_substr($line, 0, $budget, 'UTF-8') . '…';
+                }
+                break;
+            }
+            $out[] = $line;
+            $used += $len + 1;
+        }
+
+        return implode("\n", $out);
+    }
+
+    private function softWrapSentence(string $text, int $max): string
+    {
+        $text = trim($text);
+        if (mb_strlen($text, 'UTF-8') <= $max) {
+            return $text;
+        }
+        $slice = mb_substr($text, 0, $max, 'UTF-8');
+        $break = mb_strrpos($slice, '. ', 0, 'UTF-8');
+        if ($break !== false && $break > (int) ($max * 0.45)) {
+            return trim(mb_substr($slice, 0, $break + 1, 'UTF-8'));
+        }
+        return rtrim($slice, " \t,;:") . '…';
     }
 
     private function escalate(AiRequest $request, IntentResult $intent): AiResponse

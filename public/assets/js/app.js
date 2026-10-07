@@ -16,6 +16,90 @@ function escapeAttr(value) {
     return escapeHtml(value).replace(/`/g, '&#96;');
 }
 
+/** Простое форматирование ответа ZAK: списки, ссылки, заголовок. */
+function formatAiBotHtml(text) {
+    const raw = String(text == null ? '' : text).replace(/\r\n/g, '\n').trim();
+    if (!raw) return '';
+
+    const lines = raw.split('\n');
+    let html = '';
+    let listType = null; // 'ul' | 'ol'
+
+    function closeList() {
+        if (listType) {
+            html += listType === 'ol' ? '</ol>' : '</ul>';
+            listType = null;
+        }
+    }
+
+    function inlineFormat(s) {
+        let out = escapeHtml(s);
+        // [title](url)
+        out = out.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, function (_, label, url) {
+            return '<a class="ai-msg-link" href="' + escapeAttr(url) + '" target="_blank" rel="noopener noreferrer">'
+                + escapeHtml(label) + '</a>';
+        });
+        // bare urls
+        out = out.replace(/(^|[\s(])(https?:\/\/[^\s<]+)/g, function (_, pre, url) {
+            const clean = url.replace(/[.,;:!?)]+$/, '');
+            const tail = url.slice(clean.length);
+            return pre + '<a class="ai-msg-link" href="' + escapeAttr(clean) + '" target="_blank" rel="noopener noreferrer">'
+                + escapeHtml(clean) + '</a>' + escapeHtml(tail);
+        });
+        // **bold**
+        out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        return out;
+    }
+
+    lines.forEach(function (line, idx) {
+        const trimmed = line.trim();
+        if (!trimmed) {
+            closeList();
+            return;
+        }
+
+        const ol = trimmed.match(/^(\d{1,2})[.)]\s+(.+)$/);
+        const ul = trimmed.match(/^[-•●▪]\s+(.+)$/);
+
+        if (ol) {
+            if (listType !== 'ol') {
+                closeList();
+                html += '<ol class="ai-msg-list ai-msg-list-ol">';
+                listType = 'ol';
+            }
+            html += '<li>' + inlineFormat(ol[2]) + '</li>';
+            return;
+        }
+        if (ul) {
+            if (listType !== 'ul') {
+                closeList();
+                html += '<ul class="ai-msg-list ai-msg-list-ul">';
+                listType = 'ul';
+            }
+            html += '<li>' + inlineFormat(ul[1]) + '</li>';
+            return;
+        }
+
+        closeList();
+        // Первая непустая строка — заголовок, если короткая и без точки в конце
+        if (idx === 0 || (html === '' && trimmed.length <= 90 && !/[.!?…]$/.test(trimmed))) {
+            const isFirstBlock = html.replace(/\s+/g, '') === '';
+            if (isFirstBlock) {
+                html += '<p class="ai-msg-title">' + inlineFormat(trimmed) + '</p>';
+                return;
+            }
+        }
+        if (/^(источник|source|құжат|документ)\s*:/i.test(trimmed)) {
+            html += '<p class="ai-msg-source">' + inlineFormat(trimmed) + '</p>';
+            return;
+        }
+        html += '<p class="ai-msg-p">' + inlineFormat(trimmed) + '</p>';
+    });
+
+    closeList();
+    return html;
+}
+
 (function installCsrf() {
     function injectForms(root) {
         const token = csrfToken();
@@ -5315,10 +5399,10 @@ function appendAiBot(text, products, suggestions, msgId, actions, documents) {
     bubble.className = 'ai-msg-bot max-w-[95%] px-3 py-2 space-y-2';
 
     if (text) {
-        const p = document.createElement('p');
-        p.className = 'text-[13px] leading-snug text-ink-900 dark:text-gray-100 whitespace-pre-wrap';
-        p.textContent = text;
-        bubble.appendChild(p);
+        const rich = document.createElement('div');
+        rich.className = 'ai-msg-rich text-[13px] leading-relaxed text-ink-900 dark:text-gray-100';
+        rich.innerHTML = formatAiBotHtml(text);
+        bubble.appendChild(rich);
     }
 
     if (documents && documents.length) {

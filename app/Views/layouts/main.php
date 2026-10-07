@@ -2091,6 +2091,52 @@ function url(string $path = ''): string
             background: rgba(42,40,36,0.95);
             border-color: rgba(255,255,255,0.08);
         }
+        .ai-msg-rich .ai-msg-title {
+            font-family: inherit;
+            font-weight: 700;
+            font-size: 13.5px;
+            line-height: 1.35;
+            margin: 0 0 0.45rem;
+            color: inherit;
+        }
+        .ai-msg-rich .ai-msg-p {
+            margin: 0 0 0.4rem;
+        }
+        .ai-msg-rich .ai-msg-p:last-child,
+        .ai-msg-rich .ai-msg-source:last-child,
+        .ai-msg-rich .ai-msg-list:last-child {
+            margin-bottom: 0;
+        }
+        .ai-msg-rich .ai-msg-list {
+            margin: 0.35rem 0 0.5rem;
+            padding-left: 1.15rem;
+            display: grid;
+            gap: 0.3rem;
+        }
+        .ai-msg-rich .ai-msg-list li {
+            padding-left: 0.1rem;
+        }
+        .ai-msg-rich .ai-msg-list-ul {
+            list-style: disc;
+        }
+        .ai-msg-rich .ai-msg-list-ol {
+            list-style: decimal;
+        }
+        .ai-msg-rich .ai-msg-source {
+            margin: 0.55rem 0 0;
+            font-size: 11px;
+            opacity: 0.72;
+        }
+        .ai-msg-rich .ai-msg-link {
+            color: #1F4D3A;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            word-break: break-word;
+        }
+        .dark .ai-msg-rich .ai-msg-link {
+            color: #C9A227;
+        }
         #ai-assistant-toggle {
             animation: aiFabFloat 3.2s ease-in-out infinite;
         }
