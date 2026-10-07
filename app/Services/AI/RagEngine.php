@@ -42,9 +42,21 @@ class RagEngine
     /** @return list<array> */
     public function searchContext(string $userQuery, ?int $limit = null): array
     {
+        // Подтягиваем PDF из «О нас» в KB (если файлы изменились)
+        try {
+            $sync = new AboutDocumentsKnowledgeSync($this->knowledge);
+            $result = $sync->syncIfNeeded();
+            if (!empty($result['synced'])) {
+                $this->bustSearchCache();
+            }
+        } catch (\Throwable) {
+            // поиск должен работать даже если sync упал
+        }
+
         $limit = $limit ?? (int) (AiConfig::get('rag_limit', 3));
         $ttl = (int) AiConfig::get('performance.cache_kb_ttl', 120);
-        $cacheKey = 'kb:' . md5(mb_strtolower(trim($userQuery), 'UTF-8') . '|' . $limit);
+        $expanded = $this->expandDocumentQuery($userQuery);
+        $cacheKey = 'kb:' . md5(mb_strtolower(trim($expanded), 'UTF-8') . '|' . $limit);
 
         if ($ttl > 0) {
             $cached = $this->cache->get($cacheKey);
@@ -53,12 +65,12 @@ class RagEngine
             }
         }
 
-        $fulltext = $this->knowledge->search($userQuery, max($limit, 5));
+        $fulltext = $this->knowledge->search($expanded, max($limit, 5));
 
         if (!AiConfig::get('vector.enabled', true)) {
             $result = array_slice($fulltext, 0, $limit);
         } else {
-            $vectorHits = $this->vectorSearch($userQuery, $limit);
+            $vectorHits = $this->vectorSearch($expanded, $limit);
             $result = $vectorHits === []
                 ? array_slice($fulltext, 0, $limit)
                 : $this->mergeResults($fulltext, $vectorHits, $limit);
@@ -69,6 +81,31 @@ class RagEngine
         }
 
         return $result;
+    }
+
+    /** Уточняет короткие запросы вроде «инструкция» → полный заголовок документа. */
+    private function expandDocumentQuery(string $query): string
+    {
+        $q = trim($query);
+        $lower = mb_strtolower($q, 'UTF-8');
+        $map = [
+            'инструкция' => 'инструкция пользователя zakopeyki',
+            'инструкцию' => 'инструкция пользователя zakopeyki',
+            'мануал' => 'мануал продавца zakopeyki',
+            'памятка' => 'краткая памятка продавца',
+            'оферта' => 'публичная оферта пользовательское соглашение',
+            'оферту' => 'публичная оферта пользовательское соглашение',
+            'политика' => 'политика конфиденциальности персональных данных',
+            'конфиденциальность' => 'политика конфиденциальности персональных данных',
+            'документы' => 'документы инструкция оферта мануал политика',
+            'документ' => 'документы инструкция оферта мануал политика',
+        ];
+        foreach ($map as $needle => $expanded) {
+            if ($lower === $needle || str_contains($lower, $needle)) {
+                return $q . ' ' . $expanded;
+            }
+        }
+        return $q;
     }
 
     public function formatContextForPrompt(array $articles): string

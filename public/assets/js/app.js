@@ -4911,8 +4911,26 @@ function aiWelcomeSuggestions() {
         { label: tJs('ai.suggest_exchange', 'Обмен'), message: tJs('ai.msg_exchange', 'ищу обмен') },
         { label: tJs('ai.suggest_services', 'Услуги'), message: tJs('ai.msg_services', 'ищу услуги') },
         { label: tJs('ai.suggest_sell', 'Как продать?'), message: tJs('ai.msg_sell', 'как разместить объявление') },
-        { label: tJs('ai.suggest_auctions', 'Аукционы'), message: tJs('ai.msg_auctions', 'аукционы') }
+        { label: tJs('ai.suggest_auctions', 'Аукционы'), message: tJs('ai.msg_auctions', 'аукционы') },
+        { label: tJs('ai.suggest_docs', 'Документы'), action: 'docs' }
     ];
+}
+
+function showAiDocuments() {
+    const docs = Array.isArray(window.__aiDocuments) ? window.__aiDocuments : [];
+    renderAiSuggestions([]);
+    if (!docs.length) {
+        appendAiBot(tJs('ai.docs_empty', 'Документы пока недоступны. Загляните в раздел «О нас».'), [], aiWelcomeSuggestions());
+        return;
+    }
+    appendAiBot(
+        tJs('ai.docs_intro', 'Документы платформы — те же, что в разделе «О нас». Откройте нужный PDF:'),
+        [],
+        aiWelcomeSuggestions().filter(function (s) { return s.action !== 'docs'; }),
+        null,
+        [],
+        docs
+    );
 }
 
 function showAiWelcome() {
@@ -5277,7 +5295,7 @@ function removeAiTyping(id) {
     document.getElementById(id)?.remove();
 }
 
-function appendAiBot(text, products, suggestions, msgId, actions) {
+function appendAiBot(text, products, suggestions, msgId, actions, documents) {
     const box = aiMessagesEl();
     if (!box) return;
 
@@ -5301,6 +5319,36 @@ function appendAiBot(text, products, suggestions, msgId, actions) {
         p.className = 'text-[13px] leading-snug text-ink-900 dark:text-gray-100 whitespace-pre-wrap';
         p.textContent = text;
         bubble.appendChild(p);
+    }
+
+    if (documents && documents.length) {
+        const list = document.createElement('div');
+        list.className = 'space-y-1.5 pt-0.5';
+        documents.forEach(function (doc) {
+            if (!doc || !doc.url) return;
+            const a = document.createElement('a');
+            a.href = doc.url;
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+            a.className = 'flex gap-2 items-center rounded-xl border border-ink-900/8 dark:border-white/10 bg-brand-50/70 dark:bg-brand-500/10 p-2 pr-2.5 no-underline hover:bg-brand-100/80 dark:hover:bg-brand-500/20 transition';
+            const icon = document.createElement('span');
+            icon.className = 'w-9 h-9 rounded-lg shrink-0 bg-brand-500/15 text-brand-700 dark:text-brand-300 inline-flex items-center justify-center';
+            icon.innerHTML = '<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>';
+            const meta = document.createElement('div');
+            meta.className = 'min-w-0 flex-1';
+            const title = document.createElement('div');
+            title.className = 'text-[12px] font-semibold text-ink-900 dark:text-white leading-snug';
+            title.textContent = doc.title || '';
+            const open = document.createElement('div');
+            open.className = 'text-[10px] text-brand-700 dark:text-brand-300 font-medium mt-0.5';
+            open.textContent = tJs('ai.docs_open', 'Открыть');
+            meta.appendChild(title);
+            meta.appendChild(open);
+            a.appendChild(icon);
+            a.appendChild(meta);
+            list.appendChild(a);
+        });
+        bubble.appendChild(list);
     }
 
     if (products && products.length) {
@@ -5513,6 +5561,10 @@ function renderAiSuggestions(suggestions) {
         btn.className = 'text-[11px] px-2.5 py-1 rounded-lg border border-brand-500/35 bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-200 dark:hover:bg-brand-500/20 transition cursor-pointer';
         btn.textContent = s.label || s.message || '';
         btn.addEventListener('click', function () {
+            if (s.action === 'docs') {
+                showAiDocuments();
+                return;
+            }
             sendAiSuggestion(s.message || s.label || '');
         });
         row.appendChild(btn);
@@ -5530,6 +5582,12 @@ document.addEventListener('DOMContentLoaded', function () {
         e.preventDefault();
         e.stopPropagation();
         toggleAiAssistant(false);
+    });
+    document.getElementById('ai-assistant-docs')?.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        initAiAssistant();
+        showAiDocuments();
     });
     document.getElementById('ai-assistant-clear')?.addEventListener('click', function (e) {
         e.preventDefault();

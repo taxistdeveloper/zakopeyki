@@ -33,7 +33,7 @@ class AiKnowledge extends Model
                 content TEXT NOT NULL,
                 keywords VARCHAR(512) NULL,
                 is_active TINYINT(1) NOT NULL DEFAULT 1,
-                source VARCHAR(32) NOT NULL DEFAULT 'seed',
+                source VARCHAR(96) NOT NULL DEFAULT 'seed',
                 created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 INDEX idx_ai_kb_category (category),
@@ -41,6 +41,21 @@ class AiKnowledge extends Model
                 FULLTEXT KEY ft_ai_knowledge_search (title, content, keywords)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
         );
+
+        // Починка старых таблиц без AUTO_INCREMENT / короткого source
+        try {
+            $pdo = $this->db;
+            $pdo->exec('ALTER TABLE ai_knowledge_base MODIFY source VARCHAR(96) NOT NULL DEFAULT \'seed\'');
+            $col = $pdo->query("SHOW COLUMNS FROM ai_knowledge_base LIKE 'id'")->fetch(\PDO::FETCH_ASSOC);
+            if ($col && !str_contains(strtolower((string) ($col['Extra'] ?? '')), 'auto_increment')) {
+                try {
+                    $pdo->exec('ALTER TABLE ai_knowledge_base ADD PRIMARY KEY (id)');
+                } catch (\Throwable) {
+                }
+                $pdo->exec('ALTER TABLE ai_knowledge_base MODIFY id INT UNSIGNED NOT NULL AUTO_INCREMENT');
+            }
+        } catch (\Throwable) {
+        }
 
         self::$ensured = true;
     }
@@ -142,10 +157,15 @@ class AiKnowledge extends Model
                     FROM ai_knowledge_base
                     WHERE is_active = 1
                       AND MATCH(title, content, keywords) AGAINST(? IN BOOLEAN MODE)
-                    ORDER BY relevance DESC
+                    ORDER BY
+                      CASE WHEN title LIKE ? THEN 2 ELSE 0 END
+                        + CASE WHEN title REGEXP '\\\\(1/' OR title NOT REGEXP '\\\\([0-9]+/' THEN 1 ELSE 0 END
+                        DESC,
+                      relevance DESC
                     LIMIT {$limit}";
             $stmt = $this->db->prepare($sql);
-            $stmt->execute([$cleaned, $boolean]);
+            $titleBoost = '%' . mb_substr($cleaned, 0, 24, 'UTF-8') . '%';
+            $stmt->execute([$cleaned, $boolean, $titleBoost]);
             $rows = $stmt->fetchAll() ?: [];
             if ($rows) {
                 return $rows;
@@ -159,9 +179,14 @@ class AiKnowledge extends Model
                 FROM ai_knowledge_base
                 WHERE is_active = 1
                   AND (title LIKE ? OR keywords LIKE ? OR content LIKE ?)
+                ORDER BY
+                  CASE WHEN title LIKE ? THEN 0 ELSE 1 END,
+                  CASE WHEN title REGEXP '\\\\(1/' THEN 0 ELSE 1 END,
+                  id ASC
                 LIMIT {$limit}";
         $stmt = $this->db->prepare($sql);
-        $stmt->execute([$like, $like, $like]);
+        $titleBoost = '%' . mb_substr($cleaned, 0, 24, 'UTF-8') . '%';
+        $stmt->execute([$like, $like, $like, $titleBoost]);
         return $stmt->fetchAll() ?: [];
     }
 

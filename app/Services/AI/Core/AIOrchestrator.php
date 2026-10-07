@@ -835,16 +835,23 @@ final class AIOrchestrator
     {
         $articles = $this->rag->searchContext($message);
         if ($articles !== []) {
-            $best = $articles[0];
-            $text = (string) ($best['title'] ?? '') . "\n\n" . (string) ($best['content'] ?? '');
+            $answer = $this->answerFromDocuments($message, $articles, $intent->language);
+            $citations = [];
+            foreach (array_slice($articles, 0, 3) as $article) {
+                $citations[] = (string) ($article['title'] ?? 'knowledge');
+            }
             return new AiResponse(
                 responseType: 'TEXT',
-                message: $text,
-                citations: [(string) ($best['title'] ?? 'knowledge')],
-                confidence: 0.7,
+                message: $answer,
+                citations: $citations,
+                confidence: 0.78,
                 intent: $intent->intent->value,
                 suggestions: $this->defaultSuggestions($intent->language),
-                data: ['rag_source' => $best['source'] ?? 'fulltext', 'memories_used' => count($memories)],
+                data: [
+                    'rag_source' => $articles[0]['source'] ?? 'fulltext',
+                    'memories_used' => count($memories),
+                    'docs_used' => count($articles),
+                ],
             );
         }
 
@@ -866,6 +873,74 @@ final class AIOrchestrator
                 confidence: 0.4,
             );
         }
+    }
+
+    /** @param list<array> $articles */
+    private function answerFromDocuments(string $message, array $articles, string $lang): string
+    {
+        $context = $this->rag->formatContextForPrompt($articles);
+        $pdfLinks = [];
+        foreach ($articles as $article) {
+            $content = (string) ($article['content'] ?? '');
+            if (preg_match('#https?://[^\s]+/about/document/[a-f0-9]{12}#i', $content, $m)) {
+                $title = (string) ($article['title'] ?? 'Документ');
+                $title = preg_replace('/\s*\(\d+\/\d+\)\s*$/u', '', $title) ?? $title;
+                $pdfLinks[$title] = $m[0];
+            }
+        }
+
+        $linkBlock = '';
+        if ($pdfLinks !== []) {
+            $lines = [];
+            foreach ($pdfLinks as $title => $url) {
+                $lines[] = '• ' . $title . ': ' . $url;
+            }
+            $linkBlock = "\n\nДокументы:\n" . implode("\n", $lines);
+        }
+
+        try {
+            if ($this->router->provider()->isAvailable()) {
+                $system = <<<PROMPT
+Вы — ZAK, помощник маркетплейса Zakopeyki.kz.
+Ответьте на вопрос пользователя ТОЛЬКО по фрагментам официальных документов ниже.
+Правила:
+1. Кратко и по делу (3–6 предложений или короткий список шагов).
+2. Не выдумывайте правила, которых нет в тексте.
+3. Если в документах нет ответа — честно скажите, чего не хватает, и предложите открыть PDF.
+4. Язык ответа: как у пользователя (ru/kk).
+5. В конце можно одной строкой назвать документ-источник.
+
+Документы:
+{$context}
+PROMPT;
+                $result = $this->router->provider()->chat(
+                    [
+                        ['role' => 'system', 'content' => $system],
+                        ['role' => 'user', 'content' => $message],
+                    ],
+                    0.15
+                );
+                $text = trim((string) ($result['content'] ?? ''));
+                if ($text !== '') {
+                    return $text . $linkBlock;
+                }
+            }
+        } catch (\Throwable) {
+            // fallback ниже
+        }
+
+        // Без LLM: сжатый ответ из лучших фрагментов
+        $best = $articles[0];
+        $body = trim((string) ($best['content'] ?? ''));
+        if (mb_strlen($body, 'UTF-8') > 900) {
+            $body = mb_substr($body, 0, 900, 'UTF-8') . '…';
+        }
+        $title = (string) ($best['title'] ?? 'Документ');
+        $intro = $lang === 'kk'
+            ? "«{$title}» құжаты бойынша:"
+            : "По документу «{$title}»:";
+
+        return $intro . "\n\n" . $body . $linkBlock;
     }
 
     private function escalate(AiRequest $request, IntentResult $intent): AiResponse

@@ -72,6 +72,11 @@ final class IntentDetector
             return Intent::Greeting;
         }
 
+        // Вопросы по официальным документам «О нас»
+        if (preg_match('/(инструкц|мануал|памятк|оферт|политик\s*конфиден|конфиденциальн|пользовательск(ое|ого)\s+соглашен|документ(ы|ов)?\b)/u', $lower)) {
+            return Intent::Support;
+        }
+
         if (preg_match('/(где|статус).*(посылк|доставк|заказ)|посылка|трек|tracking|жеткізу/u', $lower)) {
             return Intent::DeliveryStatus;
         }

@@ -2433,6 +2433,7 @@ function url(string $path = ''): string
                     </div>
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
+                    <button type="button" id="ai-assistant-docs" class="w-8 h-8 rounded-xl hover:bg-ink-900/5 dark:hover:bg-white/10 text-ink-700 dark:text-gray-300 cursor-pointer inline-flex items-center justify-center" title="<?= htmlspecialchars(t('ai.suggest_docs')) ?>" aria-label="<?= htmlspecialchars(t('ai.suggest_docs')) ?>"><?= \App\Helpers\IconHelper::svg('file', 'w-4 h-4') ?></button>
                     <button type="button" id="ai-assistant-clear" class="w-8 h-8 rounded-xl hover:bg-ink-900/5 dark:hover:bg-white/10 text-ink-700 dark:text-gray-300 cursor-pointer inline-flex items-center justify-center" title="<?= htmlspecialchars(t('ai.clear')) ?>" aria-label="<?= htmlspecialchars(t('ai.clear')) ?>"><?= \App\Helpers\IconHelper::svg('trash', 'w-4 h-4') ?></button>
                     <button type="button" id="ai-assistant-close" class="w-8 h-8 rounded-xl hover:bg-ink-900/5 dark:hover:bg-white/10 text-ink-700 dark:text-gray-300 cursor-pointer" aria-label="<?= htmlspecialchars(t('ai.close')) ?>">✕</button>
                 </div>
@@ -2492,6 +2493,9 @@ function url(string $path = ''): string
         window.__aiStreamUrl = <?= js_encode(url('/ai/chat/stream')) ?>;
         window.__aiMessagesUrl = <?= js_encode(url('/ai/chat/messages')) ?>;
         window.__aiClearUrl = <?= js_encode(url('/ai/chat/clear')) ?>;
+        window.__aiDocuments = <?= js_encode(array_map(static function (array $d): array {
+            return ['title' => $d['title'], 'url' => $d['url']];
+        }, \App\Helpers\AboutDocumentsHelper::all())) ?>;
         window.__aiFeedbackUrl = <?= js_encode(url('/ai/chat/feedback')) ?>;
         window.__aiImageUrl = <?= js_encode(url('/ai/image')) ?>;
         window.__aiConfirmUrl = <?= js_encode(url('/ai/action/confirm')) ?>;
@@ -2515,7 +2519,7 @@ function url(string $path = ''): string
             'ai.suggest_auctions', 'ai.msg_free', 'ai.msg_exchange', 'ai.msg_services', 'ai.msg_sell',
             'ai.msg_auctions', 'ai.error_reply', 'ai.error_network', 'ai.status_ai',
             'ai.status_closed', 'ai.csat_ask', 'ai.csat_thanks', 'ai.pending',
-            'ai.clear', 'ai.clear_confirm',
+            'ai.clear', 'ai.clear_confirm', 'ai.suggest_docs', 'ai.docs_intro', 'ai.docs_empty', 'ai.docs_open',
             'js.now',
             'js.live_host', 'js.login_to_stream', 'js.stream_fail', 'js.stream_desc',
             'js.you', 'js.stream_error', 'js.live_connecting', 'js.live_waiting',

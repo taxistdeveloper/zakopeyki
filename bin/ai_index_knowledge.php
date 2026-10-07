@@ -17,6 +17,10 @@ use App\Services\AI\RagEngine;
 echo "Ensuring AI platform schema...\n";
 (new AiPlatformSchema())->ensure();
 
+echo "Syncing About PDF documents...\n";
+$aboutSync = (new \App\Services\AI\AboutDocumentsKnowledgeSync())->syncIfNeeded(true);
+echo json_encode($aboutSync, JSON_UNESCAPED_UNICODE) . "\n";
+
 $rag = new RagEngine(null, new OllamaProvider());
 echo "Reindexing knowledge base...\n";
 
