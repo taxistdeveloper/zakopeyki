@@ -96,7 +96,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
     <?php elseif ($hasCategoryFilters): ?>
         <form method="get" action="<?= ProductHelper::url('/catalog/' . rawurlencode($section)) ?>"
               id="catalog-category-filters"
-              class="rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white/90 dark:bg-white/[0.04] p-4 sm:p-5 shadow-soft backdrop-blur">
+              class="relative z-20 rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white/90 dark:bg-white/[0.04] p-4 sm:p-5 shadow-soft backdrop-blur">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                     <label class="block text-xs font-bold mb-1.5 text-ink-800 dark:text-gray-200"><?= htmlspecialchars(t('catalog.section')) ?></label>
