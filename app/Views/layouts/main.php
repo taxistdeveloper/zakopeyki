@@ -2432,7 +2432,10 @@ function url(string $path = ''): string
                         <p class="text-[11px] text-ink-700/70 dark:text-gray-400 truncate" id="ai-status-text"><?= htmlspecialchars(t('ai.status_ai')) ?></p>
                     </div>
                 </div>
-                <button type="button" id="ai-assistant-close" class="shrink-0 w-8 h-8 rounded-xl hover:bg-ink-900/5 dark:hover:bg-white/10 text-ink-700 dark:text-gray-300 cursor-pointer" aria-label="<?= htmlspecialchars(t('ai.close')) ?>">✕</button>
+                <div class="flex items-center gap-1 shrink-0">
+                    <button type="button" id="ai-assistant-clear" class="w-8 h-8 rounded-xl hover:bg-ink-900/5 dark:hover:bg-white/10 text-ink-700 dark:text-gray-300 cursor-pointer inline-flex items-center justify-center" title="<?= htmlspecialchars(t('ai.clear')) ?>" aria-label="<?= htmlspecialchars(t('ai.clear')) ?>"><?= \App\Helpers\IconHelper::svg('trash', 'w-4 h-4') ?></button>
+                    <button type="button" id="ai-assistant-close" class="w-8 h-8 rounded-xl hover:bg-ink-900/5 dark:hover:bg-white/10 text-ink-700 dark:text-gray-300 cursor-pointer" aria-label="<?= htmlspecialchars(t('ai.close')) ?>">✕</button>
+                </div>
             </div>
             <div id="ai-chat-messages" class="flex-1 overflow-y-auto p-3 space-y-3 text-sm select-text"></div>
             <div id="ai-chat-suggestions" class="px-3 pb-2 flex flex-wrap gap-1.5 shrink-0"></div>
@@ -2488,6 +2491,7 @@ function url(string $path = ''): string
         window.__aiChatUrl = <?= js_encode(url('/ai/chat')) ?>;
         window.__aiStreamUrl = <?= js_encode(url('/ai/chat/stream')) ?>;
         window.__aiMessagesUrl = <?= js_encode(url('/ai/chat/messages')) ?>;
+        window.__aiClearUrl = <?= js_encode(url('/ai/chat/clear')) ?>;
         window.__aiFeedbackUrl = <?= js_encode(url('/ai/chat/feedback')) ?>;
         window.__aiImageUrl = <?= js_encode(url('/ai/image')) ?>;
         window.__aiConfirmUrl = <?= js_encode(url('/ai/action/confirm')) ?>;
@@ -2509,8 +2513,9 @@ function url(string $path = ''): string
         window.__i18n = <?= js_encode(\App\Core\Lang::forJs([
             'ai.welcome', 'ai.suggest_free', 'ai.suggest_exchange', 'ai.suggest_services', 'ai.suggest_sell',
             'ai.suggest_auctions', 'ai.msg_free', 'ai.msg_exchange', 'ai.msg_services', 'ai.msg_sell',
-            'ai.msg_auctions', 'ai.error_reply', 'ai.error_network', 'ai.status_ai', 'ai.status_human',
-            'ai.status_closed', 'ai.csat_ask', 'ai.csat_thanks', 'ai.waiting_operator', 'ai.pending',
+            'ai.msg_auctions', 'ai.error_reply', 'ai.error_network', 'ai.status_ai',
+            'ai.status_closed', 'ai.csat_ask', 'ai.csat_thanks', 'ai.pending',
+            'ai.clear', 'ai.clear_confirm',
             'js.now',
             'js.live_host', 'js.login_to_stream', 'js.stream_fail', 'js.stream_desc',
             'js.you', 'js.stream_error', 'js.live_connecting', 'js.live_waiting',

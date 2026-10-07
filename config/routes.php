@@ -126,6 +126,7 @@ $router->post('/cart/{id}/remove', [CartController::class, 'remove']);
 $router->post('/ai/chat', [AiAssistantController::class, 'chat']);
 $router->post('/ai/chat/stream', [AiAssistantController::class, 'stream']);
 $router->get('/ai/chat/messages', [AiAssistantController::class, 'messages']);
+$router->post('/ai/chat/clear', [AiAssistantController::class, 'clear']);
 $router->post('/ai/chat/feedback', [AiAssistantController::class, 'feedback']);
 $router->post('/ai/voice', [AiAssistantController::class, 'voice']);
 $router->post('/ai/image', [AiAssistantController::class, 'image']);

@@ -21,6 +21,8 @@ return [
     'few_shot_limit' => 2,
     'max_message_length' => 1000,
     'escalate_on_empty_rag' => true,
+    /** Живой оператор в чате ZAK (пока выключен) */
+    'human_operator_enabled' => false,
 
     /** Платформенный оркестратор (вместо узкого support-only) */
     'orchestrator_enabled' => true,

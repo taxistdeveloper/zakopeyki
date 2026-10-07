@@ -861,7 +861,7 @@ final class AIOrchestrator
         } catch (\Throwable) {
             return new AiResponse(
                 responseType: 'TEXT',
-                message: 'Я не могу подтвердить эту информацию по имеющимся данным. Уточните вопрос или напишите «оператор».',
+                message: 'Я не могу подтвердить эту информацию по имеющимся данным. Уточните вопрос — помогу разобраться.',
                 intent: $intent->intent->value,
                 confidence: 0.4,
             );
@@ -870,6 +870,18 @@ final class AIOrchestrator
 
     private function escalate(AiRequest $request, IntentResult $intent): AiResponse
     {
+        if (empty($this->config['human_operator_enabled'])) {
+            return new AiResponse(
+                responseType: 'TEXT',
+                message: 'Сейчас доступен только ZAK — помощник Zakopeyki. '
+                    . 'Опишите вопрос подробнее: помогу с каталогом, доставкой, безопасной сделкой и объявлениями.',
+                confidence: $intent->confidence,
+                intent: $intent->intent->value,
+                action: 'replied',
+                suggestions: $this->defaultSuggestions($intent->language),
+            );
+        }
+
         if ($request->conversationId) {
             $this->support->updateStatus($request->conversationId, 'human_escalated');
         }
@@ -889,17 +901,17 @@ final class AIOrchestrator
             'kk' => [
                 ['label' => 'Іздеу', 'message' => 'айфон 15 тап'],
                 ['label' => 'Жеткізу', 'message' => 'менің жіберілімім қайда'],
-                ['label' => 'Оператор', 'message' => 'оператор'],
+                ['label' => 'Қалай сату?', 'message' => 'хабарландыруды қалай орналастыру'],
             ],
             'en' => [
                 ['label' => 'Search', 'message' => 'find iPhone 15'],
                 ['label' => 'Delivery', 'message' => 'where is my package'],
-                ['label' => 'Operator', 'message' => 'operator'],
+                ['label' => 'How to sell?', 'message' => 'how to post a listing'],
             ],
             default => [
                 ['label' => 'Найти iPhone', 'message' => 'найди iPhone 15 до 300000 в Алматы'],
                 ['label' => 'Моя посылка', 'message' => 'где моя посылка'],
-                ['label' => 'Оператор', 'message' => 'оператор'],
+                ['label' => 'Как продать?', 'message' => 'как разместить объявление'],
             ],
         };
     }

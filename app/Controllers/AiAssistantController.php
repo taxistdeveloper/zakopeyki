@@ -95,8 +95,16 @@ class AiAssistantController extends Controller
                 $userId
             );
 
+            $operatorOn = !empty($cfg['human_operator_enabled']);
+
+            // Оператор временно выключен — продолжаем диалог с ZAK
+            if (($conversation['status'] ?? '') === 'human_escalated' && !$operatorOn) {
+                $support->updateStatus($conversationId, 'ai_active');
+                $conversation['status'] = 'ai_active';
+            }
+
             // Если уже эскалирован — только сохраняем сообщение, ждём оператора
-            if (($conversation['status'] ?? '') === 'human_escalated') {
+            if (($conversation['status'] ?? '') === 'human_escalated' && $operatorOn) {
                 $this->json([
                     'ok' => true,
                     'reply' => 'Сообщение передано оператору. Ожидайте ответа в этом чате.',
@@ -238,6 +246,42 @@ class AiAssistantController extends Controller
                 ];
             }, $messages),
         ]);
+    }
+
+    /** Закрыть текущий диалог и начать новый (очистка чата на клиенте). */
+    public function clear(): void
+    {
+        $raw = file_get_contents('php://input');
+        $data = is_string($raw) && $raw !== '' ? json_decode($raw, true) : null;
+        if (!is_array($data)) {
+            $data = $_POST;
+        }
+
+        $conversationId = (int) ($data['conversation_id'] ?? 0);
+        $guestToken = isset($data['guest_token']) ? trim((string) $data['guest_token']) : null;
+        if ($guestToken === '') {
+            $guestToken = null;
+        }
+
+        if ($conversationId <= 0) {
+            $this->json(['ok' => true, 'cleared' => true]);
+        }
+
+        $support = new AiSupport();
+        $conversation = $support->getConversationById($conversationId);
+        if (!$conversation) {
+            $this->json(['ok' => true, 'cleared' => true]);
+        }
+
+        if (!$this->canAccessConversation($conversation, $guestToken)) {
+            $this->json(['ok' => false, 'error' => 'Нет доступа'], 403);
+        }
+
+        if (($conversation['status'] ?? '') !== 'closed') {
+            $support->updateStatus($conversationId, 'closed');
+        }
+
+        $this->json(['ok' => true, 'cleared' => true]);
     }
 
     public function feedback(): void

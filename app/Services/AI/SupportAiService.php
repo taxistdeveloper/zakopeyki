@@ -74,8 +74,8 @@ class SupportAiService
         }
 
         if ($intent === IntentClassifier::INTENT_GREETING) {
-            $responseText = 'Здравствуйте! Я официальный AI-ассистент zakopeyki.kz. '
-                . 'Помогу с безопасными сделками, доставкой, модерацией, поиском в каталоге или вызову оператора. Чем помочь?';
+            $responseText = 'Здравствуйте! Я ZAK — помощник zakopeyki.kz. '
+                . 'Помогу с безопасными сделками, доставкой, модерацией и поиском в каталоге. Чем помочь?';
             $aiId = $this->support->addMessage($conversationId, 'ai', $responseText, $confidence);
             $this->support->logIntent($userMessageId, $intent, $confidence, $method, $messageText, $responseText);
 
@@ -162,7 +162,7 @@ class SupportAiService
                 'confidence' => $confidence,
                 'intent' => $intent,
                 'products' => [],
-                'suggestions' => [['label' => 'Оператор', 'message' => 'оператор']],
+                'suggestions' => [['label' => 'Как войти?', 'message' => 'как войти']],
                 'ai_message_id' => $aiId,
             ];
         }
@@ -193,7 +193,7 @@ class SupportAiService
                     $status = (string) $order['status'];
                     $responseText = "Заказ #{$orderId}: текущий статус — «{$status}». "
                         . 'Подробности смотрите в разделе «Мои заказы». '
-                        . 'Если нужна помощь со спором или возвратом — напишите «оператор».';
+                        . 'Если нужна помощь со спором или возвратом — напишите, как открыть спор.';
                     $aiId = $this->support->addMessage($conversationId, 'ai', $responseText, $confidence);
                     return [
                         'action' => 'replied',
@@ -203,7 +203,7 @@ class SupportAiService
                         'products' => [],
                         'suggestions' => [
                             ['label' => 'Открыть спор', 'message' => 'как открыть спор'],
-                            ['label' => 'Оператор', 'message' => 'оператор'],
+                            ['label' => 'Доставка', 'message' => 'сроки доставки'],
                         ],
                         'ai_message_id' => $aiId,
                     ];
@@ -332,6 +332,23 @@ PROMPT;
         float $confidence,
         string $messageText
     ): array {
+        if (empty($this->config['human_operator_enabled'])) {
+            $responseText = 'Сейчас доступен только ZAK — помощник Zakopeyki. '
+                . 'Опишите вопрос подробнее: помогу с каталогом, доставкой, безопасной сделкой и размещением объявлений.';
+            $aiId = $this->support->addMessage($conversationId, 'ai', $responseText, $confidence);
+            $this->support->logIntent($userMessageId, IntentClassifier::INTENT_ESCALATE, $confidence, 'replied', $messageText, $responseText);
+
+            return [
+                'action' => 'replied',
+                'response' => $responseText,
+                'confidence' => $confidence,
+                'intent' => $intent,
+                'products' => [],
+                'suggestions' => $this->supportSuggestions(),
+                'ai_message_id' => $aiId,
+            ];
+        }
+
         $this->support->updateStatus($conversationId, 'human_escalated');
         $responseText = 'Ваш диалог переведён на оператора первой линии zakopeyki.kz. '
             . 'Специалист подключится к чату в течение 2–5 минут. Можете уточнить детали здесь.';
@@ -356,7 +373,7 @@ PROMPT;
             ['label' => 'Безопасная сделка', 'message' => 'как работает безопасная сделка'],
             ['label' => 'Доставка', 'message' => 'сроки доставки'],
             ['label' => 'Модерация', 'message' => 'почему отклонили объявление'],
-            ['label' => 'Оператор', 'message' => 'оператор'],
+            ['label' => 'Как продать?', 'message' => 'как разместить объявление'],
         ];
     }
 

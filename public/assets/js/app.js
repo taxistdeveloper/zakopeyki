@@ -4901,18 +4901,59 @@ function initAiAssistant() {
     if (aiConversationId) {
         loadAiHistory();
     } else {
-        appendAiBot(
-            tJs('ai.welcome', 'Привет! Я помощник Zakopeyki. Ищу товары и услуги в каталоге, отвечаю по безопасной сделке и доставке. Что нужно?'),
-            [],
-            [
-                { label: tJs('ai.suggest_free', 'Бесплатно'), message: tJs('ai.msg_free', 'что отдают бесплатно') },
-                { label: tJs('ai.suggest_exchange', 'Обмен'), message: tJs('ai.msg_exchange', 'ищу обмен') },
-                { label: tJs('ai.suggest_services', 'Услуги'), message: tJs('ai.msg_services', 'ищу услуги') },
-                { label: tJs('ai.suggest_sell', 'Как продать?'), message: tJs('ai.msg_sell', 'как разместить объявление') },
-                { label: tJs('ai.suggest_auctions', 'Аукционы'), message: tJs('ai.msg_auctions', 'аукционы') }
-            ]
-        );
+        showAiWelcome();
     }
+}
+
+function aiWelcomeSuggestions() {
+    return [
+        { label: tJs('ai.suggest_free', 'Бесплатно'), message: tJs('ai.msg_free', 'что отдают бесплатно') },
+        { label: tJs('ai.suggest_exchange', 'Обмен'), message: tJs('ai.msg_exchange', 'ищу обмен') },
+        { label: tJs('ai.suggest_services', 'Услуги'), message: tJs('ai.msg_services', 'ищу услуги') },
+        { label: tJs('ai.suggest_sell', 'Как продать?'), message: tJs('ai.msg_sell', 'как разместить объявление') },
+        { label: tJs('ai.suggest_auctions', 'Аукционы'), message: tJs('ai.msg_auctions', 'аукционы') }
+    ];
+}
+
+function showAiWelcome() {
+    const box = aiMessagesEl();
+    if (box) box.innerHTML = '';
+    renderAiSuggestions([]);
+    appendAiBot(
+        tJs('ai.welcome', 'Привет! Я помощник Zakopeyki. Ищу товары и услуги в каталоге, отвечаю по безопасной сделке и доставке. Что нужно?'),
+        [],
+        aiWelcomeSuggestions()
+    );
+}
+
+function clearAiChat() {
+    if (aiChatBusy) return;
+    const ok = window.confirm(
+        tJs('ai.clear_confirm', 'Очистить переписку с ZAK и начать заново?')
+    );
+    if (!ok) return;
+
+    const convId = aiConversationId;
+    stopAiPolling();
+    aiChatBusy = false;
+    aiLastMessageId = 0;
+    aiConversationId = null;
+    aiConversationStatus = 'ai_active';
+    try { localStorage.removeItem('zk_ai_conv_id'); } catch (e) { /* ignore */ }
+    updateAiHeaderStatus('ai_active');
+    showAiWelcome();
+
+    if (!convId) return;
+
+    fetch(window.__aiClearUrl || '/ai/chat/clear', {
+        method: 'POST',
+        headers: aiCsrfHeaders(),
+        credentials: 'same-origin',
+        body: JSON.stringify({
+            conversation_id: convId,
+            guest_token: aiGuestToken
+        })
+    }).catch(function () { /* ignore */ });
 }
 
 function sendAiSuggestion(message) {
@@ -5005,9 +5046,6 @@ function applyAiResponse(data) {
         data.actions || []
     );
 
-    if (data.conversation_status === 'human_escalated') {
-        startAiPolling();
-    }
 }
 
 function sendAiMessageStream(body, typingId) {
@@ -5188,12 +5226,10 @@ function updateAiHeaderStatus(status) {
     aiConversationStatus = status || 'ai_active';
     const el = document.getElementById('ai-status-text');
     if (!el) return;
-    if (status === 'human_escalated') {
-        el.textContent = tJs('ai.status_human', 'Подключён оператор');
-    } else if (status === 'closed') {
+    if (status === 'closed') {
         el.textContent = tJs('ai.status_closed', 'Диалог завершён');
     } else {
-        el.textContent = tJs('ai.status_ai', 'Онлайн · AI-помощник');
+        el.textContent = tJs('ai.status_ai', 'Онлайн · ZAK');
     }
 }
 
@@ -5494,6 +5530,11 @@ document.addEventListener('DOMContentLoaded', function () {
         e.preventDefault();
         e.stopPropagation();
         toggleAiAssistant(false);
+    });
+    document.getElementById('ai-assistant-clear')?.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        clearAiChat();
     });
 });
 
