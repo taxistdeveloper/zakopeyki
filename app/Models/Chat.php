@@ -234,7 +234,7 @@ class Chat extends Model
             ? t('chat.notify_about', ['name' => $senderName, 'title' => $label])
             : t('chat.notify', ['name' => $senderName]);
 
-        (new Notification())->createFor($peerId, $notice);
+        (new Notification())->createFor($peerId, $notice, '/chat/' . $conversationId);
 
         $msgStmt = $this->db->prepare(
             'SELECT m.*, u.name AS sender_name, u.avatar AS sender_avatar, u.avatar_file AS sender_avatar_file

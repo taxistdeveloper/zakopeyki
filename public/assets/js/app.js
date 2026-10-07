@@ -5804,6 +5804,7 @@ document.addEventListener('keydown', function (e) {
         const btn = e.target.closest("[data-chat-open]");
         if (!btn) return;
         e.preventDefault();
+        document.getElementById("notification-dropdown")?.classList.add("hidden");
         openSellerChat({
             product_id: btn.getAttribute("data-product-id"),
             order_id: btn.getAttribute("data-order-id"),

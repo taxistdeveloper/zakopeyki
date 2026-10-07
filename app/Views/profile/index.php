@@ -452,10 +452,28 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                     <div class="text-center py-20 rounded-2xl border border-dashed border-black/10 dark:border-white/10 text-gray-400 text-sm"><?= htmlspecialchars(t('profile.no_notifications')) ?></div>
                 <?php else: ?>
                     <div class="rounded-2xl border border-black/[0.06] dark:border-white/10 overflow-hidden divide-y divide-black/[0.04] dark:divide-white/5">
-                        <?php foreach ($notifications as $n): ?>
-                            <div class="px-4 py-3.5 text-sm <?= empty($n['is_read']) ? 'bg-brand-50/50 font-medium' : 'text-gray-600 dark:text-gray-300' ?>">
-                                <?= htmlspecialchars($n['message']) ?>
-                            </div>
+                        <?php foreach ($notifications as $n):
+                            $nLink = trim((string) ($n['link'] ?? ''));
+                            $nChatId = preg_match('#^/chat/(\d+)$#', $nLink, $m) ? (int) $m[1] : 0;
+                            $nClass = 'block w-full text-left px-4 py-3.5 text-sm '
+                                . (empty($n['is_read']) ? 'bg-brand-50/50 font-medium' : 'text-gray-600 dark:text-gray-300');
+                        ?>
+                            <?php if ($nChatId > 0): ?>
+                                <button type="button"
+                                        data-chat-open
+                                        data-conversation-id="<?= $nChatId ?>"
+                                        class="<?= $nClass ?> hover:bg-brand-50/80 dark:hover:bg-white/5 transition cursor-pointer">
+                                    <?= htmlspecialchars($n['message']) ?>
+                                </button>
+                            <?php elseif ($nLink !== ''): ?>
+                                <a href="<?= ProductHelper::url($nLink) ?>" class="<?= $nClass ?> hover:bg-brand-50/80 dark:hover:bg-white/5 transition">
+                                    <?= htmlspecialchars($n['message']) ?>
+                                </a>
+                            <?php else: ?>
+                                <div class="<?= $nClass ?>">
+                                    <?= htmlspecialchars($n['message']) ?>
+                                </div>
+                            <?php endif; ?>
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>

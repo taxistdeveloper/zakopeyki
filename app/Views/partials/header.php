@@ -104,10 +104,28 @@ $langSwitchUrl = static function (string $code) use ($lang): string {
                     <?php if (empty($notifications)): ?>
                         <div class="p-4 text-gray-400"><?= htmlspecialchars(Auth::check() ? t('header.no_notifications') : t('header.no_notifications_guest')) ?></div>
                     <?php else: ?>
-                        <?php foreach ($notifications as $n): ?>
-                            <div class="p-3.5 hover:bg-brand-50/60 dark:hover:bg-white/5 transition <?= empty($n['is_read']) ? 'font-semibold' : 'text-gray-600 dark:text-gray-300' ?>">
-                                <?= htmlspecialchars($n['message']) ?>
-                            </div>
+                        <?php foreach ($notifications as $n):
+                            $nLink = trim((string) ($n['link'] ?? ''));
+                            $nChatId = preg_match('#^/chat/(\d+)$#', $nLink, $m) ? (int) $m[1] : 0;
+                            $nClass = 'block w-full text-left p-3.5 hover:bg-brand-50/60 dark:hover:bg-white/5 transition '
+                                . (empty($n['is_read']) ? 'font-semibold' : 'text-gray-600 dark:text-gray-300');
+                        ?>
+                            <?php if ($nChatId > 0): ?>
+                                <button type="button"
+                                        data-chat-open
+                                        data-conversation-id="<?= $nChatId ?>"
+                                        class="<?= $nClass ?> cursor-pointer">
+                                    <?= htmlspecialchars($n['message']) ?>
+                                </button>
+                            <?php elseif ($nLink !== ''): ?>
+                                <a href="<?= ProductHelper::url($nLink) ?>" class="<?= $nClass ?>">
+                                    <?= htmlspecialchars($n['message']) ?>
+                                </a>
+                            <?php else: ?>
+                                <div class="<?= $nClass ?>">
+                                    <?= htmlspecialchars($n['message']) ?>
+                                </div>
+                            <?php endif; ?>
                         <?php endforeach; ?>
                     <?php endif; ?>
                 </div>

@@ -8,6 +8,27 @@ class Notification extends Model
 {
     protected string $table = 'notifications';
 
+    private static bool $linkEnsured = false;
+
+    public function __construct()
+    {
+        parent::__construct();
+        $this->ensureLinkColumn();
+    }
+
+    private function ensureLinkColumn(): void
+    {
+        if (self::$linkEnsured) {
+            return;
+        }
+        try {
+            $this->db->exec('ALTER TABLE notifications ADD COLUMN link VARCHAR(255) NULL DEFAULT NULL AFTER message');
+        } catch (\PDOException) {
+            // column already exists
+        }
+        self::$linkEnsured = true;
+    }
+
     public function forUser(int $userId, int $limit = 20): array
     {
         $stmt = $this->db->prepare(
@@ -38,9 +59,9 @@ class Notification extends Model
         $stmt->execute([$userId]);
     }
 
-    public function createFor(int $userId, string $message): void
+    public function createFor(int $userId, string $message, ?string $link = null): void
     {
-        $stmt = $this->db->prepare('INSERT INTO notifications (user_id, message) VALUES (?, ?)');
-        $stmt->execute([$userId, $message]);
+        $stmt = $this->db->prepare('INSERT INTO notifications (user_id, message, link) VALUES (?, ?, ?)');
+        $stmt->execute([$userId, $message, $link]);
     }
 }
