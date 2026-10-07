@@ -1189,6 +1189,9 @@ return [
         'send_failed' => 'Не удалось отправить',
         'notify' => 'Новое сообщение от :name',
         'notify_about' => ':name написал(а) по «:title»',
+        'story_reply' => 'Ответ на историю',
+        'story_open' => 'Открыть историю',
+        'story_gone' => 'История больше недоступна',
     ],
     'support' => [
         'eyebrow' => 'Служба поддержки',

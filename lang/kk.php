@@ -1189,6 +1189,9 @@ return [
         'send_failed' => 'Жіберу сәтсіз',
         'notify' => ':name-ден жаңа хабарлама',
         'notify_about' => ':name «:title» туралы жазды',
+        'story_reply' => 'Сториске жауап',
+        'story_open' => 'Стористі ашу',
+        'story_gone' => 'Сторис енді қолжетімсіз',
     ],
     'support' => [
         'eyebrow' => 'Қолдау қызметі',

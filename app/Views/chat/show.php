@@ -42,9 +42,63 @@ $sendUrl = ProductHelper::url('/chat/' . (int) $conversation['id'] . '/send');
         <?php endif; ?>
         <?php foreach ($messages as $m):
             $mine = (int) $m['sender_id'] === (int) $meId;
+            $storyPayload = null;
+            if (!empty($m['story_ref_id']) && !empty($m['story_user_id'])) {
+                $storyUser = [
+                    'name' => (string) ($m['story_user_name'] ?? ''),
+                    'avatar' => (string) ($m['story_user_avatar'] ?? ''),
+                    'avatar_file' => $m['story_user_avatar_file'] ?? null,
+                ];
+                $storyPayload = [
+                    'id' => (int) $m['story_ref_id'],
+                    'user_id' => (int) $m['story_user_id'],
+                    'user_name' => $storyUser['name'],
+                    'user_avatar' => AvatarHelper::initial($storyUser),
+                    'avatar_url' => AvatarHelper::url($storyUser),
+                    'image' => $m['story_image'] ?? null,
+                    'caption' => (string) ($m['story_caption'] ?? ''),
+                    'bg_color' => (string) ($m['story_bg_color'] ?? '#2563EB'),
+                    'emoji' => (string) ($m['story_emoji'] ?? '✨'),
+                    'created_at' => (string) ($m['story_created_at'] ?? ''),
+                    'comments_enabled' => (int) ($m['story_comments_enabled'] ?? 1),
+                    'product' => null,
+                ];
+            }
+            $storyImage = (string) ($storyPayload['image'] ?? '');
+            $isStoryVideo = (bool) preg_match('/\.(mp4|webm|mov)(\?|$)/i', $storyImage);
+            $storyBg = preg_match('/^#[0-9A-Fa-f]{6}$/', (string) ($storyPayload['bg_color'] ?? ''))
+                ? $storyPayload['bg_color']
+                : '#2563EB';
         ?>
             <div class="chat-msg flex <?= $mine ? 'justify-end' : 'justify-start' ?>" data-id="<?= (int) $m['id'] ?>">
                 <div class="max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed <?= $mine ? 'bg-brand-600 text-white rounded-br-md' : 'bg-ink-100 dark:bg-white/10 text-ink-800 dark:text-gray-200 rounded-bl-md' ?>">
+                    <?php if ($storyPayload): ?>
+                        <button type="button"
+                                class="chat-story-card relative block w-[148px] overflow-hidden rounded-xl border <?= $mine ? 'border-white/25' : 'border-black/10 dark:border-white/15' ?> text-left mb-2"
+                                data-chat-story
+                                data-story="<?= htmlspecialchars(json_encode($storyPayload, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8') ?>">
+                            <span class="relative block aspect-[9/16] w-full bg-black overflow-hidden">
+                                <?php if ($storyImage !== ''): ?>
+                                    <?php if ($isStoryVideo): ?>
+                                        <video src="<?= htmlspecialchars(ProductHelper::url('public/uploads/stories/' . basename($storyImage))) ?>" muted playsinline preload="metadata" class="absolute inset-0 w-full h-full object-cover"></video>
+                                    <?php else: ?>
+                                        <img src="<?= htmlspecialchars(ProductHelper::url('public/uploads/stories/' . basename($storyImage))) ?>" alt="" class="absolute inset-0 w-full h-full object-cover">
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <span class="absolute inset-0 flex flex-col items-center justify-center px-3" style="background:linear-gradient(160deg,<?= htmlspecialchars($storyBg) ?>,#111)">
+                                        <span class="text-3xl leading-none"><?= htmlspecialchars((string) $storyPayload['emoji']) ?></span>
+                                        <?php if ($storyPayload['caption'] !== ''): ?>
+                                            <span class="mt-2 text-[11px] text-white text-center line-clamp-3"><?= htmlspecialchars($storyPayload['caption']) ?></span>
+                                        <?php endif; ?>
+                                    </span>
+                                <?php endif; ?>
+                                <span class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1.5">
+                                    <span class="block text-[10px] font-semibold text-white/95"><?= htmlspecialchars(t('chat.story_reply')) ?></span>
+                                    <span class="block text-[9px] text-white/70"><?= htmlspecialchars(t('chat.story_open')) ?></span>
+                                </span>
+                            </span>
+                        </button>
+                    <?php endif; ?>
                     <p class="whitespace-pre-wrap break-words"><?= nl2br(htmlspecialchars($m['body'])) ?></p>
                     <p class="text-[10px] mt-1 <?= $mine ? 'text-white/60' : 'text-gray-400' ?>"><?= htmlspecialchars(substr((string) $m['created_at'], 11, 5)) ?></p>
                 </div>
@@ -72,6 +126,60 @@ $sendUrl = ProductHelper::url('/chat/' . (int) $conversation['id'] . '/send');
     }
     scrollBottom();
 
+    function escapeHtml(s) {
+        return String(s || '')
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function storyCardHtml(story, mine) {
+        if (!story || !story.id) return '';
+        const label = escapeHtml((window.__i18n && window.__i18n['chat.story_reply']) || 'Ответ на историю');
+        const openLabel = escapeHtml((window.__i18n && window.__i18n['chat.story_open']) || 'Открыть историю');
+        const base = window.__storyUploadBase || '';
+        let media = '';
+        if (story.image) {
+            const src = escapeHtml(base + story.image);
+            if (/\.(mp4|webm|mov)(\?|$)/i.test(String(story.image))) {
+                media = '<video src="' + src + '" muted playsinline preload="metadata" class="absolute inset-0 w-full h-full object-cover"></video>';
+            } else {
+                media = '<img src="' + src + '" alt="" class="absolute inset-0 w-full h-full object-cover">';
+            }
+        } else {
+            const c1 = /^#[0-9A-Fa-f]{6}$/.test(String(story.bg_color || '')) ? story.bg_color : '#2563EB';
+            media = '<div class="absolute inset-0 flex flex-col items-center justify-center px-3" style="background:linear-gradient(160deg,' + escapeHtml(c1) + ',#111)">' +
+                '<span class="text-3xl leading-none">' + escapeHtml(story.emoji || '✨') + '</span>' +
+                (story.caption ? '<span class="mt-2 text-[11px] text-white text-center line-clamp-3">' + escapeHtml(story.caption) + '</span>' : '') +
+                '</div>';
+        }
+        const border = mine ? 'border-white/25' : 'border-black/10 dark:border-white/15';
+        return '<button type="button" class="chat-story-card relative block w-[148px] overflow-hidden rounded-xl border ' + border + ' text-left mb-2" data-chat-story>' +
+            '<span class="relative block aspect-[9/16] w-full bg-black overflow-hidden">' + media +
+            '<span class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1.5">' +
+            '<span class="block text-[10px] font-semibold text-white/95">' + label + '</span>' +
+            '<span class="block text-[9px] text-white/70">' + openLabel + '</span></span></span></button>';
+    }
+
+    function bindStoryCard(wrap, story) {
+        const card = wrap.querySelector('[data-chat-story]');
+        if (!card || !story) return;
+        card.addEventListener('click', function (e) {
+            e.preventDefault();
+            if (typeof window.openStoryFromChat === 'function') window.openStoryFromChat(story);
+        });
+    }
+
+    document.querySelectorAll('#chat-thread [data-chat-story]').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            try {
+                const story = JSON.parse(btn.getAttribute('data-story') || '{}');
+                if (story && story.id && typeof window.openStoryFromChat === 'function') {
+                    window.openStoryFromChat(story);
+                }
+            } catch (err) {}
+        });
+    });
+
     function appendMessage(m) {
         if (!thread || !m || !m.id) return;
         if (thread.querySelector('[data-id="' + m.id + '"]')) return;
@@ -86,12 +194,12 @@ $sendUrl = ProductHelper::url('/chat/' . (int) $conversation['id'] . '/send');
             ? 'bg-brand-600 text-white rounded-br-md'
             : 'bg-ink-100 dark:bg-white/10 text-ink-800 dark:text-gray-200 rounded-bl-md';
         const timeClass = m.is_mine ? 'text-white/60' : 'text-gray-400';
-        const body = String(m.body || '')
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-            .replace(/\n/g, '<br>');
+        const body = escapeHtml(m.body).replace(/\n/g, '<br>');
         wrap.innerHTML = '<div class="max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ' + bubbleClass + '">' +
+            storyCardHtml(m.story, !!m.is_mine) +
             '<p class="whitespace-pre-wrap break-words">' + body + '</p>' +
-            '<p class="text-[10px] mt-1 ' + timeClass + '">' + time + '</p></div>';
+            '<p class="text-[10px] mt-1 ' + timeClass + '">' + escapeHtml(time) + '</p></div>';
+        bindStoryCard(wrap, m.story);
         thread.appendChild(wrap);
         lastId = Math.max(lastId, m.id);
         scrollBottom();

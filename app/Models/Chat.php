@@ -44,6 +44,7 @@ class Chat extends Model
                 conversation_id INT UNSIGNED NOT NULL,
                 sender_id INT UNSIGNED NOT NULL,
                 body TEXT NOT NULL,
+                story_id INT UNSIGNED NULL DEFAULT NULL,
                 is_read TINYINT(1) NOT NULL DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 INDEX idx_conv (conversation_id),
@@ -52,8 +53,29 @@ class Chat extends Model
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
         );
 
+        try {
+            $this->db->exec('ALTER TABLE chat_messages ADD COLUMN story_id INT UNSIGNED NULL DEFAULT NULL AFTER body');
+        } catch (\PDOException) {
+            // column already exists
+        }
+
         self::$ensured = true;
     }
+
+    private function messageSelectSql(): string
+    {
+        return 'SELECT m.*,
+                       u.name AS sender_name, u.avatar AS sender_avatar, u.avatar_file AS sender_avatar_file,
+                       s.id AS story_ref_id, s.image AS story_image, s.caption AS story_caption,
+                       s.bg_color AS story_bg_color, s.emoji AS story_emoji,
+                       s.created_at AS story_created_at, s.user_id AS story_user_id,
+                       s.comments_enabled AS story_comments_enabled,
+                       su.name AS story_user_name, su.avatar AS story_user_avatar,
+                       su.avatar_file AS story_user_avatar_file
+                FROM chat_messages m
+                JOIN users u ON u.id = m.sender_id
+                LEFT JOIN stories s ON s.id = m.story_id
+                LEFT JOIN users su ON su.id = s.user_id';
 
     /** @return array{ok: bool, conversation_id?: int, error?: string} */
     public function start(int $meId, int $otherId, int $productId = 0, int $orderId = 0): array
@@ -162,14 +184,10 @@ class Chat extends Model
     /** @return list<array> */
     public function messages(int $conversationId, int $afterId = 0, int $limit = 100): array
     {
+        $select = $this->messageSelectSql();
         if ($afterId > 0) {
             $stmt = $this->db->prepare(
-                'SELECT m.*, u.name AS sender_name, u.avatar AS sender_avatar, u.avatar_file AS sender_avatar_file
-                 FROM chat_messages m
-                 JOIN users u ON u.id = m.sender_id
-                 WHERE m.conversation_id = ? AND m.id > ?
-                 ORDER BY m.id ASC
-                 LIMIT ?'
+                $select . ' WHERE m.conversation_id = ? AND m.id > ? ORDER BY m.id ASC LIMIT ?'
             );
             $stmt->bindValue(1, $conversationId, \PDO::PARAM_INT);
             $stmt->bindValue(2, $afterId, \PDO::PARAM_INT);
@@ -179,12 +197,7 @@ class Chat extends Model
         }
 
         $stmt = $this->db->prepare(
-            'SELECT m.*, u.name AS sender_name, u.avatar AS sender_avatar, u.avatar_file AS sender_avatar_file
-             FROM chat_messages m
-             JOIN users u ON u.id = m.sender_id
-             WHERE m.conversation_id = ?
-             ORDER BY m.id DESC
-             LIMIT ?'
+            $select . ' WHERE m.conversation_id = ? ORDER BY m.id DESC LIMIT ?'
         );
         $stmt->bindValue(1, $conversationId, \PDO::PARAM_INT);
         $stmt->bindValue(2, $limit, \PDO::PARAM_INT);
@@ -194,7 +207,7 @@ class Chat extends Model
     }
 
     /** @return array{ok: bool, message?: array, error?: string} */
-    public function send(int $conversationId, int $senderId, string $body): array
+    public function send(int $conversationId, int $senderId, string $body, ?int $storyId = null): array
     {
         $conv = $this->findForUser($conversationId, $senderId);
         if (!$conv) {
@@ -209,12 +222,23 @@ class Chat extends Model
             return ['ok' => false, 'error' => t('chat.too_long')];
         }
 
-        $preview = mb_substr($body, 0, 120);
+        $storyId = $storyId && $storyId > 0 ? $storyId : null;
+        if ($storyId !== null) {
+            $storyCheck = $this->db->prepare('SELECT id FROM stories WHERE id = ? LIMIT 1');
+            $storyCheck->execute([$storyId]);
+            if (!$storyCheck->fetch()) {
+                $storyId = null;
+            }
+        }
+
+        $preview = $storyId
+            ? (t('chat.story_reply') . ': ' . mb_substr($body, 0, 80))
+            : mb_substr($body, 0, 120);
 
         $stmt = $this->db->prepare(
-            'INSERT INTO chat_messages (conversation_id, sender_id, body, is_read) VALUES (?, ?, ?, 0)'
+            'INSERT INTO chat_messages (conversation_id, sender_id, body, story_id, is_read) VALUES (?, ?, ?, ?, 0)'
         );
-        $stmt->execute([$conversationId, $senderId, $body]);
+        $stmt->execute([$conversationId, $senderId, $body, $storyId]);
         $messageId = (int) $this->db->lastInsertId();
 
         $upd = $this->db->prepare(
@@ -236,12 +260,7 @@ class Chat extends Model
 
         (new Notification())->createFor($peerId, $notice, '/chat/' . $conversationId);
 
-        $msgStmt = $this->db->prepare(
-            'SELECT m.*, u.name AS sender_name, u.avatar AS sender_avatar, u.avatar_file AS sender_avatar_file
-             FROM chat_messages m
-             JOIN users u ON u.id = m.sender_id
-             WHERE m.id = ?'
-        );
+        $msgStmt = $this->db->prepare($this->messageSelectSql() . ' WHERE m.id = ?');
         $msgStmt->execute([$messageId]);
         $message = $msgStmt->fetch() ?: null;
 

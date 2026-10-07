@@ -2458,6 +2458,7 @@ function url(string $path = ''): string
     </div>
     <?php endif; ?>
 
+    <?php \App\Core\View::partial('partials/story-viewer'); ?>
     <?php \App\Core\View::partial('partials/chat-drawer'); ?>
     <?php \App\Core\View::partial('partials/seller-profile-modal'); ?>
     <?php \App\Core\View::partial('partials/buy-choice-modal'); ?>
@@ -2499,6 +2500,11 @@ function url(string $path = ''): string
         window.__medalFrameUrl2x = <?= js_encode(\App\Helpers\AvatarHelper::frameUrl(true)) ?>;
         window.__chatStartUrl = <?= js_encode(url('/chat/start')) ?>;
         window.__chatBaseUrl = <?= js_encode(rtrim(url('/chat'), '/') . '/') ?>;
+        window.__storyGroups = window.__storyGroups || [];
+        window.__storyUploadBase = window.__storyUploadBase || <?= js_encode(url('public/uploads/stories/')) ?>;
+        window.__storyDeleteBase = window.__storyDeleteBase || <?= js_encode(rtrim(url('/stories'), '/') . '/') ?>;
+        window.__currentUserId = <?= (int) (\App\Core\Auth::id() ?? 0) ?>;
+        window.__isAdmin = <?= \App\Core\Auth::isAdmin() ? 'true' : 'false' ?>;
         window.__lang = <?= js_encode(\App\Core\Lang::current()) ?>;
         window.__i18n = <?= js_encode(\App\Core\Lang::forJs([
             'ai.welcome', 'ai.suggest_free', 'ai.suggest_exchange', 'ai.suggest_services', 'ai.suggest_sell',
@@ -2540,6 +2546,7 @@ function url(string $path = ''): string
             'header.city', 'header.city_choose', 'header.city_detect', 'header.city_detecting', 'header.city_denied',
             'header.notifications_cleared',
             'chat.title', 'chat.start_hint', 'chat.send_failed', 'chat.start_failed',
+            'chat.story_reply', 'chat.story_open', 'home.story_reply_prefix',
             'product.close_photo', 'product.prev_photo', 'product.next_photo', 'product.zoom',
             'product.qty_only',
         ])) ?>;

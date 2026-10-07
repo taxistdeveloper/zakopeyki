@@ -839,7 +839,46 @@ function closeStoryViewer() {
     document.getElementById('story-viewer')?.classList.add('hidden');
     document.body.style.overflow = '';
     document.body.classList.remove('story-viewer-open');
+    window.__storyOpenedFromChat = false;
+    if (Array.isArray(window.__storyGroups)) {
+        window.__storyGroups = window.__storyGroups.filter(function (g) { return !g || !g._chatTemp; });
+    }
 }
+
+/** Открыть сторис из ответа в чате (полный просмотр). */
+function openStoryFromChat(story) {
+    if (!story || !story.id || !document.getElementById('story-viewer')) {
+        return;
+    }
+    window.__storyOpenedFromChat = true;
+    window.__storyGroups = window.__storyGroups || [];
+    const group = {
+        _chatTemp: true,
+        user_id: Number(story.user_id) || 0,
+        user_name: story.user_name || '',
+        user_avatar: story.user_avatar || '?',
+        avatar_url: story.avatar_url || null,
+        is_following: !!story.is_following,
+        product: story.product || null,
+        stories: [Object.assign({}, story, { product: story.product || null })]
+    };
+    let gi = -1;
+    for (let i = 0; i < window.__storyGroups.length; i++) {
+        const g = window.__storyGroups[i];
+        if (g && g._chatTemp && g.stories && g.stories[0] && Number(g.stories[0].id) === Number(story.id)) {
+            gi = i;
+            window.__storyGroups[i] = group;
+            break;
+        }
+    }
+    if (gi < 0) {
+        window.__storyGroups.push(group);
+        gi = window.__storyGroups.length - 1;
+    }
+    openStoryViewer(gi);
+}
+
+window.openStoryFromChat = openStoryFromChat;
 
 function currentStory() {
     const groups = window.__storyGroups || [];
@@ -1020,12 +1059,13 @@ function renderStory() {
     const reply = document.getElementById('story-reply-input');
     const replyBar = document.querySelector('#story-viewer .story-reply-bar');
     const commentsOn = String(story.comments_enabled == null ? '1' : story.comments_enabled) !== '0';
+    const fromChat = !!window.__storyOpenedFromChat;
     if (reply) {
-        reply.disabled = !commentsOn;
-        if (!commentsOn) reply.value = '';
+        reply.disabled = !commentsOn || fromChat;
+        if (!commentsOn || fromChat) reply.value = '';
     }
-    if (replyBar && !commentsOn) {
-        replyBar.classList.add('hidden');
+    if (replyBar) {
+        replyBar.classList.toggle('hidden', fromChat || !commentsOn);
     }
 
     const groups = window.__storyGroups || [];
@@ -1061,10 +1101,10 @@ function updateStoryFollowBtn(group) {
     const isOwn = !!(window.__currentUserId && userId && Number(window.__currentUserId) === userId);
     const canReply = !!(userId && !isOwn);
     if (msgBtn) {
-        msgBtn.classList.toggle('hidden', !canReply);
+        msgBtn.classList.toggle('hidden', !canReply || !!window.__storyOpenedFromChat);
     }
     if (replyBar) {
-        replyBar.classList.toggle('hidden', !canReply);
+        replyBar.classList.toggle('hidden', !canReply || !!window.__storyOpenedFromChat);
     }
     if (!btn) return;
     if (!userId || isOwn) {
@@ -1241,8 +1281,7 @@ async function openStoryMessage() {
     const productId = ctx.story && ctx.story.product && ctx.story.product.id
         ? Number(ctx.story.product.id)
         : 0;
-    const prefix = storyI18n('home.story_reply_prefix', 'Ответ на историю');
-    const bodyText = prefix + ':\n' + text;
+    const storyId = ctx.story && ctx.story.id ? Number(ctx.story.id) : 0;
     const chatBase = window.__chatBaseUrl || '/chat/';
 
     try {
@@ -1266,7 +1305,8 @@ async function openStoryMessage() {
             return;
         }
 
-        const sendBody = new URLSearchParams({ body: bodyText });
+        const sendBody = new URLSearchParams({ body: text });
+        if (storyId > 0) sendBody.set('story_id', String(storyId));
         const sendRes = await fetch(chatBase + startData.conversation_id + '/send', {
             method: 'POST',
             headers: {
@@ -5650,6 +5690,34 @@ document.addEventListener('keydown', function (e) {
             .replace(/"/g, "&quot;");
     }
 
+    function storyCardHtml(story, mine) {
+        if (!story || !story.id) return "";
+        const label = escapeHtml(t("chat.story_reply", t("home.story_reply_prefix", "Ответ на историю")));
+        const openLabel = escapeHtml(t("chat.story_open", "Открыть историю"));
+        const base = window.__storyUploadBase || "";
+        let media = "";
+        if (story.image) {
+            const src = escapeHtml(base + story.image);
+            if (/\.(mp4|webm|mov)(\?|$)/i.test(String(story.image))) {
+                media = "<video src=\"" + src + "\" muted playsinline preload=\"metadata\" class=\"absolute inset-0 w-full h-full object-cover\"></video>";
+            } else {
+                media = "<img src=\"" + src + "\" alt=\"\" class=\"absolute inset-0 w-full h-full object-cover\">";
+            }
+        } else {
+            const c1 = /^#[0-9A-Fa-f]{6}$/.test(String(story.bg_color || "")) ? story.bg_color : "#2563EB";
+            media = "<div class=\"absolute inset-0 flex flex-col items-center justify-center px-3\" style=\"background:linear-gradient(160deg," + escapeHtml(c1) + ",#111)\">" +
+                "<span class=\"text-3xl leading-none\">" + escapeHtml(story.emoji || "✨") + "</span>" +
+                (story.caption ? "<span class=\"mt-2 text-[11px] text-white text-center line-clamp-3\">" + escapeHtml(story.caption) + "</span>" : "") +
+                "</div>";
+        }
+        const border = mine ? "border-white/25" : "border-black/10 dark:border-white/15";
+        return "<button type=\"button\" class=\"chat-story-card group relative block w-[148px] overflow-hidden rounded-xl border " + border + " text-left mb-2 focus:outline-none focus:ring-2 focus:ring-brand-400\" data-chat-story>" +
+            "<span class=\"relative block aspect-[9/16] w-full bg-black overflow-hidden\">" + media +
+            "<span class=\"absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1.5\">" +
+            "<span class=\"block text-[10px] font-semibold text-white/95\">" + label + "</span>" +
+            "<span class=\"block text-[9px] text-white/70\">" + openLabel + "</span></span></span></button>";
+    }
+
     function appendMessage(m, clearEmpty) {
         if (!messagesEl || !m || !m.id) return;
         if (messagesEl.querySelector("[data-id=\"" + m.id + "\"]")) return;
@@ -5667,10 +5735,24 @@ document.addEventListener('keydown', function (e) {
             : "bg-ink-100 dark:bg-white/10 text-ink-800 dark:text-gray-200 rounded-bl-md";
         const timeCls = mine ? "text-white/60" : "text-gray-400";
         const body = escapeHtml(m.body).replace(/\n/g, "<br>");
+        const storyHtml = storyCardHtml(m.story, mine);
         wrap.innerHTML =
             "<div class=\"max-w-[82%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed " + bubble + "\">" +
+            storyHtml +
             "<p class=\"whitespace-pre-wrap break-words\">" + body + "</p>" +
             "<p class=\"text-[10px] mt-1 " + timeCls + "\">" + escapeHtml(time) + "</p></div>";
+        if (m.story) {
+            const card = wrap.querySelector("[data-chat-story]");
+            if (card) {
+                card.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (typeof window.openStoryFromChat === "function") {
+                        window.openStoryFromChat(m.story);
+                    }
+                });
+            }
+        }
         messagesEl.appendChild(wrap);
         lastId = Math.max(lastId, Number(m.id) || 0);
         scrollBottom();

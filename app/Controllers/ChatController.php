@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Core\Auth;
 use App\Core\Controller;
+use App\Helpers\AvatarHelper;
 use App\Models\Chat;
 use App\Models\Notification;
 use App\Models\Order;
@@ -159,7 +160,13 @@ class ChatController extends Controller
     public function send(string $id): void
     {
         Auth::requireLogin();
-        $result = (new Chat())->send((int) $id, Auth::id(), (string) ($_POST['body'] ?? ''));
+        $storyId = (int) ($_POST['story_id'] ?? 0);
+        $result = (new Chat())->send(
+            (int) $id,
+            Auth::id(),
+            (string) ($_POST['body'] ?? ''),
+            $storyId > 0 ? $storyId : null
+        );
         $wantsJson = $this->wantsJson();
 
         if ($wantsJson) {
@@ -243,11 +250,40 @@ class ChatController extends Controller
         if (!$m) {
             return null;
         }
+
+        $story = null;
+        if (!empty($m['story_ref_id']) || !empty($m['story_id'])) {
+            $storyId = (int) ($m['story_ref_id'] ?? $m['story_id']);
+            if ($storyId > 0 && !empty($m['story_user_id'])) {
+                $storyUser = [
+                    'name' => (string) ($m['story_user_name'] ?? ''),
+                    'avatar' => (string) ($m['story_user_avatar'] ?? ''),
+                    'avatar_file' => $m['story_user_avatar_file'] ?? null,
+                ];
+                $story = [
+                    'id' => $storyId,
+                    'user_id' => (int) $m['story_user_id'],
+                    'user_name' => $storyUser['name'],
+                    'user_avatar' => AvatarHelper::initial($storyUser),
+                    'avatar_url' => AvatarHelper::url($storyUser),
+                    'image' => $m['story_image'] ?? null,
+                    'caption' => (string) ($m['story_caption'] ?? ''),
+                    'bg_color' => (string) ($m['story_bg_color'] ?? '#2563EB'),
+                    'emoji' => (string) ($m['story_emoji'] ?? '✨'),
+                    'created_at' => (string) ($m['story_created_at'] ?? ''),
+                    'comments_enabled' => (int) ($m['story_comments_enabled'] ?? 1),
+                    'product' => null,
+                ];
+            }
+        }
+
         return [
             'id' => (int) $m['id'],
             'sender_id' => (int) $m['sender_id'],
             'sender_name' => (string) ($m['sender_name'] ?? ''),
             'body' => (string) $m['body'],
+            'story_id' => (int) ($m['story_id'] ?? 0),
+            'story' => $story,
             'created_at' => (string) ($m['created_at'] ?? ''),
             'is_mine' => (int) $m['sender_id'] === Auth::id(),
         ];
