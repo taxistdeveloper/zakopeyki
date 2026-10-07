@@ -967,11 +967,14 @@ function renderStory() {
     updateStoryFavoriteBtn(storyProduct || null);
 
     const reply = document.getElementById('story-reply-input');
+    const replyBar = document.querySelector('#story-viewer .story-reply-bar');
+    const commentsOn = String(story.comments_enabled == null ? '1' : story.comments_enabled) !== '0';
     if (reply) {
-        const commentsOn = String(story.comments_enabled == null ? '1' : story.comments_enabled) !== '0';
-        reply.classList.toggle('hidden', !commentsOn);
         reply.disabled = !commentsOn;
         if (!commentsOn) reply.value = '';
+    }
+    if (replyBar && !commentsOn) {
+        replyBar.classList.add('hidden');
     }
 
     const groups = window.__storyGroups || [];
@@ -1002,10 +1005,15 @@ function renderStory() {
 function updateStoryFollowBtn(group) {
     const btn = document.getElementById('story-follow-btn');
     const msgBtn = document.getElementById('story-message-btn');
+    const replyBar = document.querySelector('#story-viewer .story-reply-bar');
     const userId = Number(group && group.user_id) || 0;
     const isOwn = !!(window.__currentUserId && userId && Number(window.__currentUserId) === userId);
+    const canReply = !!(userId && !isOwn);
     if (msgBtn) {
-        msgBtn.classList.toggle('hidden', !userId || isOwn);
+        msgBtn.classList.toggle('hidden', !canReply);
+    }
+    if (replyBar) {
+        replyBar.classList.toggle('hidden', !canReply);
     }
     if (!btn) return;
     if (!userId || isOwn) {
@@ -1158,7 +1166,7 @@ function bindStoryChrome() {
     });
 }
 
-function openStoryMessage() {
+async function openStoryMessage() {
     const ctx = currentStory();
     if (!ctx) return;
     if (!window.__isLoggedIn) {
@@ -1169,14 +1177,75 @@ function openStoryMessage() {
     if (!userId || (window.__currentUserId && Number(window.__currentUserId) === userId)) {
         return;
     }
+
+    const reply = document.getElementById('story-reply-input');
+    const text = (reply && reply.value || '').trim();
+    if (!text) {
+        reply?.focus();
+        return;
+    }
+    if (window.__storyReplySending) return;
+    window.__storyReplySending = true;
+
     const productId = ctx.story && ctx.story.product && ctx.story.product.id
         ? Number(ctx.story.product.id)
         : 0;
-    let url = (window.__chatStartUrl || '/chat/start') + '?user_id=' + encodeURIComponent(String(userId));
-    if (productId > 0) {
-        url += '&product_id=' + encodeURIComponent(String(productId));
+    const prefix = storyI18n('home.story_reply_prefix', 'Ответ на историю');
+    const bodyText = prefix + ':\n' + text;
+    const chatBase = window.__chatBaseUrl || '/chat/';
+
+    try {
+        const startBody = new URLSearchParams();
+        startBody.set('user_id', String(userId));
+        if (productId > 0) startBody.set('product_id', String(productId));
+
+        const startRes = await fetch(window.__chatStartUrl || (chatBase + 'start'), {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            credentials: 'same-origin',
+            body: startBody.toString()
+        });
+        const startData = await startRes.json();
+        if (!startData.ok || !startData.conversation_id) {
+            alert(startData.error || storyI18n('chat.start_failed', 'Не удалось открыть чат'));
+            return;
+        }
+
+        const sendBody = new URLSearchParams({ body: bodyText });
+        const sendRes = await fetch(chatBase + startData.conversation_id + '/send', {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            credentials: 'same-origin',
+            body: sendBody.toString()
+        });
+        const sendData = await sendRes.json();
+        if (!sendData.ok) {
+            alert(sendData.error || storyI18n('chat.send_failed', 'Не удалось отправить'));
+            return;
+        }
+
+        reply.value = '';
+        const sentLabel = storyI18n('home.story_reply_sent', 'Сообщение отправлено');
+        const prevPh = reply.placeholder;
+        reply.placeholder = sentLabel;
+        reply.blur();
+        setTimeout(function () {
+            if (reply.placeholder === sentLabel) reply.placeholder = prevPh;
+        }, 2200);
+        resumeStoryTimer();
+    } catch (e) {
+        alert(storyI18n('chat.send_failed', 'Не удалось отправить'));
+    } finally {
+        window.__storyReplySending = false;
     }
-    window.location.href = url;
 }
 
 function shareCurrentStory() {

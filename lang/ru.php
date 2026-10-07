@@ -241,6 +241,8 @@ return [
         'confirm_close_stream' => 'Закрыть стрим?',
         'story_reply' => 'Ответить...',
         'story_message' => 'Отправить сообщение',
+        'story_reply_prefix' => 'Ответ на историю',
+        'story_reply_sent' => 'Сообщение отправлено',
         'story_like' => 'Нравится',
         'story_share' => 'Поделиться',
         'story_link_copied' => 'Ссылка скопирована',

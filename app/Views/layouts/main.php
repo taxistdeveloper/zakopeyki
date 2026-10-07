@@ -2533,6 +2533,7 @@ function url(string $path = ''): string
             'profile.edit', 'profile.delete', 'profile.confirm_delete_lot',
             'home.story_link_copied',
             'home.story_message', 'home.story_share', 'home.story_reply',
+            'home.story_reply_prefix', 'home.story_reply_sent',
             'home.story_create_draft_saved', 'home.story_create_need_content', 'home.story_create_need_photo',
             'home.story_create_product_pick_need',
             'home.story_create_video_long', 'home.story_create_video_wait', 'home.story_create_file_big', 'home.story_create_media_bad',
