@@ -573,6 +573,38 @@ class DeliveryOrder extends Model
         return $stmt->fetchAll() ?: [];
     }
 
+    /**
+     * Phase 8: ACCEPTED / pending create — limited background poll (GET /orders/{uuid}).
+     * Skip rows updated in the last 3 seconds (CDEK first-poll recommendation).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function findCdekPendingPoll(int $limit = 30): array
+    {
+        $limit = max(1, min(100, $limit));
+        $sql = "SELECT d.*
+                FROM delivery_orders d
+                INNER JOIN logistics_providers lp ON lp.id = d.logistics_provider_id AND lp.code = 'cdek'
+                WHERE d.status = ?
+                  AND d.cdek_api_status IN ('pending', 'accepted')
+                  AND (
+                        (d.cdek_uuid IS NOT NULL AND d.cdek_uuid <> '')
+                     OR (d.logistics_order_id IS NOT NULL AND d.logistics_order_id <> '')
+                     OR (d.order_number IS NOT NULL AND d.order_number <> '')
+                  )
+                  AND (d.last_synced_at IS NULL OR d.last_synced_at <= (NOW() - INTERVAL 3 SECOND))
+                ORDER BY d.last_synced_at ASC, d.id ASC
+                LIMIT {$limit}";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([self::STATUS_CDEK_ORDER_PENDING]);
+        return $stmt->fetchAll() ?: [];
+    }
+
+    public function getDb(): \PDO
+    {
+        return $this->db;
+    }
+
     public function logApiCall(
         ?int $deliveryOrderId,
         ?int $providerId,

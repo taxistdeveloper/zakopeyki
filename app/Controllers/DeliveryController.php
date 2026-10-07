@@ -252,6 +252,42 @@ class DeliveryController extends Controller
     }
 
     /**
+     * POST /delivery/{id}/cdek/register — регистрация CDEK после PAID.
+     * Frontend не передаёт payload/amount/uuid/im_number — всё с backend.
+     */
+    public function registerCdek(string $id): void
+    {
+        Auth::requireLogin();
+        unset(
+            $_POST['cdek_uuid'],
+            $_POST['logistics_order_id'],
+            $_POST['order_number'],
+            $_POST['im_number'],
+            $_POST['amount'],
+            $_POST['total_amount'],
+            $_POST['quote_id'],
+            $_POST['payment_id'],
+            $_POST['shipment_point'],
+            $_POST['delivery_point'],
+            $_POST['tariff_code']
+        );
+
+        $result = (new DeliveryService())->createLogisticsOrder((int) $id, Auth::id());
+        if (!($result['ok'] ?? false)) {
+            $_SESSION['error'] = $result['error'] ?? t('delivery.cdek_create_failed');
+            $this->redirect('/delivery/' . (int) $id);
+            return;
+        }
+
+        if (!empty($result['async'])) {
+            $_SESSION['flash'] = t('delivery.cdek_register_accepted');
+        } else {
+            $_SESSION['flash'] = t('delivery.cdek_register_success');
+        }
+        $this->redirect('/delivery/' . (int) $id);
+    }
+
+    /**
      * Локальный справочник ПВЗ (не прямой прокси в CDEK).
      * GET /delivery/cdek/points?city=&city_code=&q=&type=
      */

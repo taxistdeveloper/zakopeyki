@@ -635,9 +635,33 @@ class DeliveryService
         return (new DeliveryPaymentService($this->orders))->canCreateCdekOrder($deliveryOrderId);
     }
 
-    /** @return array{ok: bool, error?: string, deferred?: bool} */
-    public function createLogisticsOrder(int $deliveryOrderId): array
+    /**
+     * Phase 8: регистрация CDEK после PAID через CdekOrderRegistrationService.
+     * Не вызывается автоматически из onPaymentConfirmed.
+     *
+     * @return array{ok: bool, error?: string, deferred?: bool, status?: string, cdek_uuid?: string|null, async?: bool}
+     */
+    public function createLogisticsOrder(int $deliveryOrderId, ?int $actorId = null): array
     {
+        $row = $this->orders->findWithDetails($deliveryOrderId);
+        if (!$row) {
+            return ['ok' => false, 'error' => t('delivery.not_found')];
+        }
+
+        $providerCode = (string) ($row['logistics_code'] ?? 'stub');
+        if ($providerCode === 'cdek' || $providerCode === '' || $providerCode === 'stub') {
+            if (!DeliveryModelService::isOrderCreateEnabled()) {
+                $fsm = new DeliveryStatusMachine();
+                $model = new DeliveryModelService($this->orders, null, $fsm, $this);
+                return $model->markCreatePending($deliveryOrderId);
+            }
+
+            return (new \App\Services\Cdek\CdekOrderRegistrationService(
+                $this->orders
+            ))->register($deliveryOrderId, $actorId);
+        }
+
+        // Non-CDEK stub providers (legacy path).
         $gate = $this->canCreateCdekOrder($deliveryOrderId);
         if (!($gate['ok'] ?? false)) {
             return [
@@ -648,39 +672,9 @@ class DeliveryService
             ];
         }
 
-        $row = $this->orders->findWithDetails($deliveryOrderId);
-        if (!$row) {
-            return ['ok' => false, 'error' => t('delivery.not_found')];
-        }
-
         $existingUuid = (string) ($row['cdek_uuid'] ?? $row['logistics_order_id'] ?? '');
         if ($existingUuid !== '') {
-            return ['ok' => true];
-        }
-
-        $fsm = new DeliveryStatusMachine();
-        if (!$fsm->isCreateAllowed(
-            (string) $row['status'],
-            (string) ($row['cdek_api_status'] ?? DeliveryStatusMachine::API_NONE),
-            null
-        )) {
-            return ['ok' => false, 'error' => t('delivery.bad_status')];
-        }
-
-        // Phase 2/7 gate: реальные POST /v2/orders для CDEK отключены до Phase 8.
-        $providerCode = (string) ($row['logistics_code'] ?? 'stub');
-        if ($providerCode === 'cdek' && !DeliveryModelService::isOrderCreateEnabled()) {
-            $model = new DeliveryModelService($this->orders, null, $fsm, $this);
-            return $model->markCreatePending($deliveryOrderId);
-        }
-
-        // Защита от race: два payment-callback не должны параллельно дергать create.
-        $row = $this->orders->findWithDetails($deliveryOrderId);
-        if (!$row) {
-            return ['ok' => false, 'error' => t('delivery.not_found')];
-        }
-        if (!empty($row['logistics_order_id']) || !empty($row['cdek_uuid'])) {
-            return ['ok' => true];
+            return ['ok' => true, 'cdek_uuid' => $existingUuid];
         }
 
         $avr = $this->avrPayload($deliveryOrderId);
@@ -693,15 +687,6 @@ class DeliveryService
                 'last_error_code' => 'create_failed',
                 'last_error_message' => mb_substr($e->getMessage(), 0, 255),
             ]);
-            $this->orders->logEvent(
-                $deliveryOrderId,
-                null,
-                'system',
-                'logistics_create_failed',
-                DeliveryOrder::STATUS_PAID,
-                DeliveryOrder::STATUS_CDEK_ORDER_FAILED,
-                DeliveryPii::redactPayload(['error' => $e->getMessage()])
-            );
             return ['ok' => false, 'error' => $e->getMessage()];
         }
 
@@ -715,30 +700,9 @@ class DeliveryService
             'status' => DeliveryOrder::STATUS_ORDER_CREATED,
             'accepted_at' => date('Y-m-d H:i:s'),
             'last_synced_at' => date('Y-m-d H:i:s'),
-            'last_error_code' => null,
-            'last_error_message' => null,
         ]);
-        $this->orders->logEvent(
-            $deliveryOrderId,
-            null,
-            'system',
-            'logistics_order_created',
-            DeliveryOrder::STATUS_PAID,
-            DeliveryOrder::STATUS_ORDER_CREATED,
-            DeliveryPii::redactPayload($result)
-        );
 
-        if ($tracking !== '') {
-            $this->orders->addTrackingEvent($deliveryOrderId, [
-                'tracking_number' => $tracking,
-                'carrier_status' => 'created',
-                'carrier_message' => t('delivery.tracking_created'),
-                'event_at' => date('Y-m-d H:i:s'),
-            ]);
-            $this->orders->transitionStatus($deliveryOrderId, DeliveryOrder::STATUS_ACCEPTED, null, 'logistics', 'accepted');
-        }
-
-        return ['ok' => true];
+        return ['ok' => true, 'cdek_uuid' => $uuid !== '' ? $uuid : null];
     }
 
     /**

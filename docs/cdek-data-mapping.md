@@ -554,3 +554,33 @@ Zakopeyki Point A (delivery_senders / listing)
 Point A/B/shipment/weight/dims/mode change → `invalidateQuotes` → require new calculate.  
 Same request_hash + shipping_version → reuse without duplicate chaos.
 
+---
+
+## 16. Phase 8 — OrderCreate after PAID
+
+> Full flow: `docs/cdek-order-registration.md`.
+
+| Step | Implementation |
+|---|---|
+| Gate | `DeliveryPaymentService::canCreateCdekOrder` |
+| Trigger | `POST /delivery/{id}/cdek/register` → `CdekOrderRegistrationService` |
+| Payload | `CdekOrderPayloadBuilder` ← server AVR (seller=sender, buyer=recipient) |
+| IM | `delivery_orders.order_number` stable UNIQUE |
+| POST | `CdekOrderService::create` → `Client::post('/orders')` |
+| 202 | `CDEK_ORDER_PENDING` + `cdek_uuid`; **not** final CREATED |
+| Poll | `bin/cdek_order_poll.php` → `GET /orders/{uuid}` (fallback `im_number`) |
+| SUCCESSFUL | `DELIVERY_ORDER_CREATED` → `DELIVERY_ACCEPTED` |
+| INVALID | `CDEK_ORDER_FAILED` + `last_error_*` |
+
+### 16.1 Roles (reaffirmed)
+
+| Actor | OrderCreate |
+|---|---|
+| Seller | `sender` + Point A |
+| Buyer | `recipient` + Point B + payer |
+| Zakopeyki | operator / API account only |
+
+### 16.2 GAP
+
+АВР / legal billing party for marketplace + platform CDEK contract — still **GAP** (confirm with CDEK).
+

@@ -106,12 +106,12 @@ True only if:
 - paid amount ≥ deliveryAmountToPay
 - currency match
 - no cdek_uuid yet
-- cdek_api_status not in-flight (pending/accepted/created)
+- cdek_api_status ≠ created; UUID+accepted already registered (poll path)
 - status ∈ {DELIVERY_PAID, CDEK_ORDER_PENDING, CDEK_ORDER_FAILED}
 
-Used by `DeliveryService::createLogisticsOrder` — frontend cannot bypass.
+Used by `CdekOrderRegistrationService` / `DeliveryService::createLogisticsOrder` — frontend cannot bypass.
 
-API: `GET /delivery/{id}/cdek-ready`
+API: `GET /delivery/{id}/cdek-ready` · `POST /delivery/{id}/cdek/register`
 
 ---
 
@@ -132,6 +132,7 @@ API: `GET /delivery/{id}/cdek-ready`
 | POST | `/delivery/{id}/pay` — create intent |
 | GET | `/delivery/{id}/payment` — status |
 | GET | `/delivery/{id}/cdek-ready` — gate |
+| POST | `/delivery/{id}/cdek/register` — Phase 8 CDEK create (PAID only) |
 | POST | `/payments/freedompay/result` — webhook |
 
 ---
@@ -140,4 +141,4 @@ API: `GET /delivery/{id}/cdek-ready`
 
 1. Refund after CDEK order created — separate lifecycle.  
 2. Additional acquirers beyond FreedomPay — factory ready, adapters TBD.  
-3. Actual `POST /v2/orders` — Phase 8.
+3. Inbound CDEK webhooks — next stage (poll fallback exists: `bin/cdek_order_poll.php`).

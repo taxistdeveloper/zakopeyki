@@ -314,11 +314,13 @@ class DeliveryPaymentService
         $checks['not_already_registered'] = $uuid === '';
 
         $apiStatus = (string) ($row['cdek_api_status'] ?? DeliveryStatusMachine::API_NONE);
-        $checks['not_in_flight'] = !in_array($apiStatus, [
-            DeliveryStatusMachine::API_PENDING,
-            DeliveryStatusMachine::API_ACCEPTED,
-            DeliveryStatusMachine::API_CREATED,
-        ], true);
+        // UUID already stored → not creatable (idempotent poll path).
+        // PENDING without UUID may retry after timeout. CREATED always blocks.
+        $checks['not_in_flight'] = $apiStatus !== DeliveryStatusMachine::API_CREATED
+            && !($uuid !== '' && in_array($apiStatus, [
+                DeliveryStatusMachine::API_PENDING,
+                DeliveryStatusMachine::API_ACCEPTED,
+            ], true));
 
         // Delivery must be DELIVERY_PAID (or failed create retry).
         $status = (string) ($row['status'] ?? '');

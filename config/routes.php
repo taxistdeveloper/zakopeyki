@@ -71,6 +71,7 @@ $router->post('/delivery/{id}/quote', [DeliveryController::class, 'selectQuote']
 $router->post('/delivery/{id}/quotes/calculate', [DeliveryController::class, 'calculateQuotes']);
 $router->get('/delivery/{id}/payment', [DeliveryController::class, 'paymentStatus']);
 $router->get('/delivery/{id}/cdek-ready', [DeliveryController::class, 'cdekReady']);
+$router->post('/delivery/{id}/cdek/register', [DeliveryController::class, 'registerCdek']);
 $router->post('/delivery/{id}/pay', [DeliveryController::class, 'pay']);
 $router->post('/webhooks/delivery/status', [DeliveryController::class, 'logisticsWebhook']);
 $router->get('/orders', [OrderController::class, 'index']);

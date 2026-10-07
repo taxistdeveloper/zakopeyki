@@ -60,6 +60,11 @@ class CdekOrderService
      *   logistics_order_id?: string,
      *   tracking_number?: string|null,
      *   already_existed?: bool,
+     *   async?: bool,
+     *   internal_status?: string,
+     *   request_state?: string|null,
+     *   request_uuid?: string|null,
+     *   http_status?: int|null,
      *   request_id?: string,
      *   payload_hash?: string,
      *   error?: string,
@@ -83,6 +88,11 @@ class CdekOrderService
                 'logistics_order_id' => $existingUuid,
                 'tracking_number' => $fetched['cdek_number'] ?? null,
                 'already_existed' => true,
+                'async' => empty($fetched['cdek_number']),
+                'internal_status' => !empty($fetched['cdek_number'])
+                    ? CdekApiResponse::STATUS_SUCCESSFUL
+                    : CdekApiResponse::STATUS_ACCEPTED,
+                'request_state' => $fetched['request_state'] ?? null,
                 'request_id' => $fetched['request_id'] ?? null,
             ];
         }
@@ -140,11 +150,23 @@ class CdekOrderService
             $payload = $built['payload'];
             $extraHeaders = ['developer-key: ' . $built['developer_key']];
 
-            $res = $this->client->post('/orders', $payload, $extraHeaders);
-            if (!$res['ok']) {
-                // v2_similar_request / duplicate — попробуем найти уже созданный.
-                $cdekCode = $res['error_mapped']['cdek_code'] ?? '';
-                if ($cdekCode === 'v2_similar_order_exists' || ($res['code'] ?? 0) === 400) {
+            // Order create: no automatic retry (Client enforces). Prefer typed call semantics.
+            $res = $this->client->post('/orders', $payload, $extraHeaders, [
+                'idempotent' => false,
+                'allow_retry' => false,
+            ]);
+            $http = (int) ($res['code'] ?? 0);
+            $internal = (string) ($res['internal_status'] ?? '');
+
+            if (!$res['ok'] || $internal === CdekApiResponse::STATUS_INVALID || $internal === CdekApiResponse::STATUS_ERROR) {
+                // Duplicate IM / similar order — resolve by im_number, do NOT mint a new number.
+                $cdekCode = (string) ($res['error_mapped']['cdek_code'] ?? '');
+                $mappedInternal = (string) ($res['error_mapped']['internal_code'] ?? '');
+                if (
+                    $mappedInternal === CdekErrorMapper::INTERNAL_DUPLICATE
+                    || in_array($cdekCode, ['v2_similar_order_exists', 'v2_order_number_already_used', 'v2_im_number_already_used'], true)
+                    || $http === 400
+                ) {
                     $again = $this->findByImNumber($orderNumber);
                     if ($again['ok'] && !empty($again['uuid'])) {
                         return [
@@ -152,6 +174,11 @@ class CdekOrderService
                             'logistics_order_id' => (string) $again['uuid'],
                             'tracking_number' => $again['cdek_number'] ?? null,
                             'already_existed' => true,
+                            'async' => empty($again['cdek_number']),
+                            'internal_status' => !empty($again['cdek_number'])
+                                ? CdekApiResponse::STATUS_SUCCESSFUL
+                                : CdekApiResponse::STATUS_ACCEPTED,
+                            'http_status' => $http,
                             'request_id' => $res['request_id'] ?? null,
                             'payload_hash' => $built['payload_hash'],
                         ];
@@ -162,13 +189,15 @@ class CdekOrderService
                     'ok' => false,
                     'error' => $res['error'] ?? 'CDEK order create failed',
                     'error_mapped' => $res['error_mapped'] ?? null,
+                    'internal_status' => $internal !== '' ? $internal : CdekApiResponse::STATUS_ERROR,
+                    'http_status' => $http,
                     'request_id' => $res['request_id'] ?? null,
                     'payload_hash' => $built['payload_hash'],
                 ];
             }
 
             $entity = is_array($res['data']['entity'] ?? null) ? $res['data']['entity'] : [];
-            $uuid = (string) ($entity['uuid'] ?? '');
+            $uuid = (string) ($entity['uuid'] ?? $res['cdek_uuid'] ?? '');
             if ($uuid === '') {
                 $mapped = $this->errorMapper->mapLocal(
                     CdekErrorMapper::INTERNAL_UNKNOWN,
@@ -178,28 +207,33 @@ class CdekOrderService
                     'ok' => false,
                     'error' => $mapped['message'],
                     'error_mapped' => $mapped,
+                    'internal_status' => CdekApiResponse::STATUS_ERROR,
+                    'http_status' => $http,
                     'request_id' => $res['request_id'] ?? null,
                 ];
             }
 
             $cdekNumber = isset($entity['cdek_number']) && $entity['cdek_number'] !== ''
                 ? (string) $entity['cdek_number']
-                : null;
+                : (isset($res['cdek_number']) && $res['cdek_number'] !== '' ? (string) $res['cdek_number'] : null);
 
-            // Create асинхронный: номер часто появляется позже — один soft poll.
-            if ($cdekNumber === null) {
-                usleep(250000);
-                $fetched = $this->getByUuid($uuid);
-                if (!empty($fetched['cdek_number'])) {
-                    $cdekNumber = (string) $fetched['cdek_number'];
-                }
-            }
+            // HTTP 202 / ACCEPTED = async accept. Do NOT aggressive-poll here (Phase 8: deferred poll job).
+            $isAsync = $http === 202
+                || in_array($internal, [CdekApiResponse::STATUS_ACCEPTED, CdekApiResponse::STATUS_PROCESSING], true)
+                || $cdekNumber === null;
 
             return [
                 'ok' => true,
                 'logistics_order_id' => $uuid,
                 'tracking_number' => $cdekNumber,
                 'already_existed' => false,
+                'async' => $isAsync,
+                'internal_status' => $internal !== ''
+                    ? $internal
+                    : ($isAsync ? CdekApiResponse::STATUS_ACCEPTED : CdekApiResponse::STATUS_SUCCESSFUL),
+                'request_state' => $res['request_state'] ?? null,
+                'request_uuid' => $res['request_uuid'] ?? null,
+                'http_status' => $http,
                 'request_id' => $res['request_id'] ?? null,
                 'payload_hash' => $built['payload_hash'],
             ];
@@ -230,6 +264,12 @@ class CdekOrderService
         }
 
         $entity = is_array($res['data']['entity'] ?? null) ? $res['data']['entity'] : [];
+        $requests = is_array($res['data']['requests'] ?? null) ? $res['data']['requests'] : [];
+        $requestState = null;
+        if ($requests !== [] && is_array($requests[0] ?? null)) {
+            $requestState = isset($requests[0]['state']) ? (string) $requests[0]['state'] : null;
+        }
+
         return [
             'ok' => true,
             'uuid' => (string) ($entity['uuid'] ?? $uuid),
@@ -237,6 +277,9 @@ class CdekOrderService
                 ? (string) $entity['cdek_number']
                 : null,
             'statuses' => is_array($entity['statuses'] ?? null) ? $entity['statuses'] : [],
+            'requests' => $requests,
+            'request_state' => $requestState,
+            'internal_status' => (string) ($res['internal_status'] ?? ''),
             'request_id' => $res['request_id'] ?? null,
             'raw' => $entity,
         ];

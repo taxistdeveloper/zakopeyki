@@ -85,6 +85,12 @@ class CdekOrderPayloadBuilder
             }
 
             $tariffCode = $this->parseTariffCode((string) ($service['service_code'] ?? ''));
+            if ($tariffCode === null && isset($service['tariff_code']) && $service['tariff_code'] !== '' && $service['tariff_code'] !== null) {
+                $tariffCode = (int) $service['tariff_code'];
+                if ($tariffCode <= 0) {
+                    $tariffCode = null;
+                }
+            }
             if ($tariffCode === null) {
                 throw new \InvalidArgumentException('tariff_code is required');
             }

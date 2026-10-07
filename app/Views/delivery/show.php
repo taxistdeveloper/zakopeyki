@@ -343,9 +343,34 @@ $missingForQuotes = $missingForQuotes ?? [];
             </a>
         </div>
     <?php elseif (!empty($isBuyer) && $status === DeliveryOrder::STATUS_PAID): ?>
-        <div class="bg-emerald-50/80 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40 rounded-[24px] p-5 text-sm">
+        <div class="bg-emerald-50/80 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40 rounded-[24px] p-5 text-sm space-y-3">
             <p class="font-semibold text-emerald-900 dark:text-emerald-100"><?= htmlspecialchars(t('delivery.payment_paid_title')) ?></p>
-            <p class="text-emerald-800/90 dark:text-emerald-200/90 mt-1"><?= htmlspecialchars(t('delivery.payment_paid_hint')) ?></p>
+            <p class="text-emerald-800/90 dark:text-emerald-200/90"><?= htmlspecialchars(t('delivery.payment_paid_hint')) ?></p>
+            <form method="post" action="<?= ProductHelper::url('/delivery/' . (int) $d['id'] . '/cdek/register') ?>">
+                <?= csrf_field() ?>
+                <button type="submit" class="<?= $btn ?> bg-brand-600 hover:bg-brand-500 text-white">
+                    <?= htmlspecialchars(t('delivery.cdek_register_btn')) ?>
+                </button>
+            </form>
+        </div>
+    <?php elseif (!empty($isBuyer) && $status === DeliveryOrder::STATUS_CDEK_ORDER_PENDING): ?>
+        <div class="bg-blue-50/80 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/40 rounded-[24px] p-5 text-sm space-y-2">
+            <p class="font-semibold text-blue-900 dark:text-blue-100"><?= htmlspecialchars(t('delivery.cdek_pending_title')) ?></p>
+            <p class="text-blue-800/90 dark:text-blue-200/90"><?= htmlspecialchars(t('delivery.cdek_pending_hint')) ?></p>
+            <?php if (!empty($d['cdek_uuid'])): ?>
+                <p class="text-xs text-gray-500 font-mono"><?= htmlspecialchars((string) $d['cdek_uuid']) ?></p>
+            <?php endif; ?>
+        </div>
+    <?php elseif (!empty($isBuyer) && $status === DeliveryOrder::STATUS_CDEK_ORDER_FAILED): ?>
+        <div class="bg-red-50/80 dark:bg-red-950/20 border border-red-200 dark:border-red-800/40 rounded-[24px] p-5 text-sm space-y-3">
+            <p class="font-semibold text-red-900 dark:text-red-100"><?= htmlspecialchars(t('delivery.cdek_failed_title')) ?></p>
+            <p class="text-red-800/90 dark:text-red-200/90"><?= htmlspecialchars(t('delivery.cdek_failed_hint')) ?></p>
+            <form method="post" action="<?= ProductHelper::url('/delivery/' . (int) $d['id'] . '/cdek/register') ?>">
+                <?= csrf_field() ?>
+                <button type="submit" class="<?= $btn ?> bg-brand-600 hover:bg-brand-500 text-white">
+                    <?= htmlspecialchars(t('delivery.cdek_register_retry_btn')) ?>
+                </button>
+            </form>
         </div>
     <?php endif; ?>
 

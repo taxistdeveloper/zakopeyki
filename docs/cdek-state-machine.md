@@ -56,11 +56,12 @@ DELIVERED
 Side states: CANCELLED, EXCEPTION, CDEK_ORDER_FAILED, REFUND_REQUIRED
 ```
 
-### Phase 7 barrier
+### Phase 7–8 barrier
 
-`DELIVERY_PAID` **does not** auto-call CDEK create.  
-Registration only after `DeliveryPaymentService::canCreateCdekOrder()` (paid + quote + A/B/shipment).  
-See `docs/cdek-payment-flow.md`.
+`DELIVERY_PAID` **does not** auto-call CDEK create from payment webhook.  
+Registration via `CdekOrderRegistrationService` after `canCreateCdekOrder()` + payment barrier.  
+HTTP **202 ACCEPTED** → `CDEK_ORDER_PENDING` (uuid stored); **SUCCESSFUL** → `DELIVERY_ORDER_CREATED`; **INVALID** → `CDEK_ORDER_FAILED`.  
+See `docs/cdek-payment-flow.md`, `docs/cdek-order-registration.md`.
 
 ### Status meanings
 
@@ -73,9 +74,9 @@ See `docs/cdek-payment-flow.md`.
 | `DELIVERY_ORDER_READY_FOR_PAYMENT` | Quote selected | Buyer |
 | `DELIVERY_PAYMENT_PENDING` | Acquirer session opened | Buyer + gateway |
 | `DELIVERY_PAID` | **100% delivery paid confirmed** | Gateway webhook only |
-| `CDEK_ORDER_PENDING` | Create accepted / waiting uuid | Phase 8 |
-| `DELIVERY_ORDER_CREATED` | CDEK uuid stored | System after POST /orders |
-| `DELIVERY_ACCEPTED` | CDEK accepted for processing | Webhook/reconcile |
+| `CDEK_ORDER_PENDING` | POST accepted (202) / waiting SUCCESSFUL | Phase 8 register + poll |
+| `DELIVERY_ORDER_CREATED` | CDEK processing SUCCESSFUL (uuid + typically cdek_number) | Poll / reconcile |
+| `DELIVERY_ACCEPTED` | Logistics accepted for shipping | Poll SUCCESSFUL → accepted; later webhook |
 | `SHIPMENT_RECEIVED` | Parcel at CDEK | Webhook (mapping gap today) |
 | `IN_TRANSIT` | Moving / at pickup point | Webhook/reconcile |
 | `DELIVERED` | Delivered to recipient | Webhook/reconcile |
@@ -164,9 +165,10 @@ Listing CDEK-ready (Point A)
   → FreedomPay delivery charge
   → PAYMENT confirmed (server)
   → DELIVERY_PAID
-  → POST /v2/orders
-  → DELIVERY_ORDER_CREATED
-  → ORDER_STATUS webhooks…
+  → (buyer) POST /delivery/{id}/cdek/register
+  → POST /v2/orders → 202 ACCEPTED + uuid → CDEK_ORDER_PENDING
+  → poll GET /orders/{uuid} → SUCCESSFUL → DELIVERY_ORDER_CREATED → DELIVERY_ACCEPTED
+  → (next stage) ORDER_STATUS webhooks…
   → DELIVERED
 ```
 
