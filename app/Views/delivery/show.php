@@ -1,6 +1,7 @@
 <?php
 use App\Helpers\ProductHelper;
 use App\Models\DeliveryOrder;
+use App\Services\Cdek\CdekStatusCatalog;
 
 $d = $delivery;
 $status = $d['status'] ?? '';
@@ -163,7 +164,9 @@ $missingForQuotes = $missingForQuotes ?? [];
                     <option value="courier" <?= ($recipient['delivery_mode'] ?? 'courier') === 'courier' ? 'selected' : '' ?>><?= htmlspecialchars(t('delivery.mode_courier')) ?></option>
                     <option value="pvz" <?= ($recipient['delivery_mode'] ?? '') === 'pvz' ? 'selected' : '' ?>><?= htmlspecialchars(t('delivery.mode_pvz')) ?></option>
                 </select>
-                <input type="text" name="city" id="delivery-recipient-city" required value="<?= htmlspecialchars($recipient['city'] ?? '') ?>" placeholder="<?= htmlspecialchars(t('delivery.city')) ?>" class="<?= $input ?>">
+                <input type="text" name="city" id="delivery-recipient-city" required value="<?= htmlspecialchars($recipient['city'] ?? '') ?>" placeholder="<?= htmlspecialchars(t('delivery.city')) ?>" class="<?= $input ?>" autocomplete="off" list="cdek-city-datalist">
+                <input type="hidden" name="cdek_city_code" id="delivery-cdek-city-code" value="<?= htmlspecialchars((string) ($recipient['cdek_city_code'] ?? '')) ?>">
+                <datalist id="cdek-city-datalist"></datalist>
                 <input type="text" name="street" value="<?= htmlspecialchars($recipient['street'] ?? '') ?>" placeholder="<?= htmlspecialchars(t('delivery.street')) ?>" class="<?= $input ?>">
                 <input type="text" name="building" value="<?= htmlspecialchars($recipient['building'] ?? '') ?>" placeholder="<?= htmlspecialchars(t('delivery.building')) ?>" class="<?= $input ?>">
                 <input type="text" name="apartment" value="<?= htmlspecialchars($recipient['apartment'] ?? '') ?>" placeholder="<?= htmlspecialchars(t('delivery.apartment')) ?>" class="<?= $input ?>">
@@ -179,16 +182,42 @@ $missingForQuotes = $missingForQuotes ?? [];
         <script>
         (function () {
             var cityInput = document.getElementById('delivery-recipient-city');
+            var cityCodeInput = document.getElementById('delivery-cdek-city-code');
+            var cityList = document.getElementById('cdek-city-datalist');
             var codeInput = document.getElementById('delivery-pvz-code');
             var nameInput = document.getElementById('delivery-pvz-name');
             var list = document.getElementById('cdek-pvz-datalist');
             if (!cityInput || !codeInput || !list) return;
             var timer = null;
             var pointsUrl = <?= json_encode(ProductHelper::url('/delivery/cdek/points'), JSON_UNESCAPED_SLASHES) ?>;
+            var citiesUrl = <?= json_encode(ProductHelper::url('/delivery/cdek/cities'), JSON_UNESCAPED_SLASHES) ?>;
+            var deliveryId = <?= (int) $d['id'] ?>;
+            function loadCities() {
+                var q = (cityInput.value || '').trim();
+                if (q.length < 2) return;
+                fetch(citiesUrl + '?q=' + encodeURIComponent(q) + '&country_code=KZ', { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        if (!cityList || !data || !data.cities) return;
+                        cityList.innerHTML = '';
+                        data.cities.forEach(function (c) {
+                            var opt = document.createElement('option');
+                            opt.value = c.full_name || '';
+                            opt.label = String(c.code);
+                            opt.dataset.code = String(c.code);
+                            cityList.appendChild(opt);
+                        });
+                        var exact = data.cities.filter(function (c) { return (c.full_name || '') === cityInput.value; });
+                        if (exact.length === 1 && cityCodeInput) {
+                            cityCodeInput.value = exact[0].code;
+                            loadPoints();
+                        }
+                    }).catch(function () {});
+            }
             function loadPoints() {
-                var city = (cityInput.value || '').trim();
-                var q = (codeInput.value || '').trim();
-                var url = pointsUrl + '?limit=40&city=' + encodeURIComponent(city) + '&q=' + encodeURIComponent(q);
+                var cityCode = (cityCodeInput && cityCodeInput.value) || '';
+                if (!cityCode) return;
+                var url = pointsUrl + '?limit=40&type=ALL&city_code=' + encodeURIComponent(cityCode) + '&delivery_id=' + deliveryId;
                 fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
                     .then(function (r) { return r.json(); })
                     .then(function (data) {
@@ -201,20 +230,30 @@ $missingForQuotes = $missingForQuotes ?? [];
                             list.appendChild(opt);
                         });
                         var match = data.points.find(function (p) { return p.code === codeInput.value; });
-                        if (match && nameInput) {
-                            nameInput.value = match.name || match.address || match.code;
-                        }
-                    })
-                    .catch(function () {});
+                        if (match && nameInput) nameInput.value = match.name || match.address || match.code;
+                    }).catch(function () {});
             }
             function schedule() {
                 clearTimeout(timer);
-                timer = setTimeout(loadPoints, 300);
+                timer = setTimeout(function () {
+                    if (cityCodeInput) cityCodeInput.value = '';
+                    loadCities();
+                }, 350);
             }
             cityInput.addEventListener('input', schedule);
-            codeInput.addEventListener('input', schedule);
+            cityInput.addEventListener('change', function () {
+                if (!cityList || !cityCodeInput) return;
+                var opts = cityList.querySelectorAll('option');
+                for (var i = 0; i < opts.length; i++) {
+                    if (opts[i].value === cityInput.value && opts[i].dataset.code) {
+                        cityCodeInput.value = opts[i].dataset.code;
+                        loadPoints();
+                        return;
+                    }
+                }
+            });
             codeInput.addEventListener('change', loadPoints);
-            if ((codeInput.value || cityInput.value)) loadPoints();
+            if (cityCodeInput && cityCodeInput.value) loadPoints();
         })();
         </script>
     <?php elseif ($recipient): ?>
@@ -374,6 +413,104 @@ $missingForQuotes = $missingForQuotes ?? [];
         </div>
     <?php endif; ?>
 
+    <?php if ((!empty($isBuyer) || !empty($isSeller) || !empty($isAdmin)) && !empty($d['cdek_uuid'])): ?>
+        <div class="bg-white/90 dark:bg-white/[0.04] rounded-[24px] border border-black/[0.06] dark:border-white/10 p-5 space-y-3 shadow-soft">
+            <h2 class="font-display font-bold text-ink-900 dark:text-white"><?= htmlspecialchars(t('delivery.print_title')) ?></h2>
+            <p class="text-xs text-gray-500"><?= htmlspecialchars(t('delivery.print_hint')) ?></p>
+            <form method="post" action="<?= ProductHelper::url('/delivery/' . (int) $d['id'] . '/print-forms') ?>" class="flex flex-col sm:flex-row gap-2">
+                <?= csrf_field() ?>
+                <select name="form_type" class="<?= $input ?>">
+                    <?php foreach (($printTypes ?? []) as $printType): ?>
+                        <option value="<?= htmlspecialchars($printType) ?>"><?= htmlspecialchars($printType) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <button type="submit" class="<?= $btn ?> sm:w-auto px-5 bg-brand-600 hover:bg-brand-500 text-white">
+                    <?= htmlspecialchars(t('delivery.print_request_btn')) ?>
+                </button>
+            </form>
+            <?php if (!empty($printForms)): ?>
+                <ul class="space-y-2 text-sm">
+                    <?php foreach ($printForms as $form): ?>
+                        <li class="flex flex-wrap items-center justify-between gap-2 border border-black/[0.06] dark:border-white/10 rounded-xl px-3 py-2">
+                            <span><?= htmlspecialchars((string) ($form['form_type'] ?? '')) ?> · <?= htmlspecialchars((string) ($form['status'] ?? '')) ?></span>
+                            <?php if (!empty($form['download_path'])): ?>
+                                <a class="text-brand-600 font-semibold hover:underline" href="<?= ProductHelper::url((string) $form['download_path']) ?>">
+                                    <?= htmlspecialchars(t('delivery.print_download')) ?>
+                                </a>
+                            <?php endif; ?>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
+
+    <?php if (!empty($deliveryProblems)): ?>
+        <div class="bg-amber-50/80 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 rounded-[24px] p-5 text-sm space-y-2">
+            <h2 class="font-display font-bold text-amber-950 dark:text-amber-100"><?= htmlspecialchars(t('delivery.problem_title')) ?></h2>
+            <p class="text-amber-900/90 dark:text-amber-100/90"><?= htmlspecialchars(t('delivery.problem_neutral')) ?></p>
+            <?php foreach ($deliveryProblems as $problem): ?>
+                <p class="text-xs text-amber-800/80 dark:text-amber-200/80">
+                    <?= htmlspecialchars((string) ($problem['summary'] ?? '')) ?>
+                    <?php if (!empty($problem['occurred_at'])): ?> · <?= htmlspecialchars((string) $problem['occurred_at']) ?><?php endif; ?>
+                    <?php if (!empty($isAdmin) && !empty($problem['problem_code'])): ?>
+                        <span class="font-mono"><?= htmlspecialchars((string) $problem['problem_code']) ?></span>
+                    <?php endif; ?>
+                </p>
+            <?php endforeach; ?>
+            <p class="text-xs text-gray-500"><?= htmlspecialchars(t('delivery.problem_actions_unavailable')) ?></p>
+        </div>
+    <?php endif; ?>
+
+    <?php if (!empty($trackingSummary)): ?>
+        <?php $trackAudience = !empty($isSeller) && empty($isBuyer) ? 'seller' : 'buyer'; ?>
+        <div class="bg-white/90 dark:bg-white/[0.04] rounded-[24px] border border-black/[0.06] dark:border-white/10 p-5 space-y-3 shadow-soft">
+            <h2 class="font-display font-bold text-ink-900 dark:text-white"><?= htmlspecialchars(t('delivery.tracking_title')) ?></h2>
+            <dl class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div>
+                    <dt class="text-xs text-gray-400"><?= htmlspecialchars(t('delivery.track_layer_delivery')) ?></dt>
+                    <dd class="font-semibold text-ink-800 dark:text-gray-100"><?= htmlspecialchars((string) ($trackingSummary['delivery_status_label'] ?? '')) ?></dd>
+                </div>
+                <div>
+                    <dt class="text-xs text-gray-400"><?= htmlspecialchars(t('delivery.track_layer_payment')) ?></dt>
+                    <dd class="font-semibold text-ink-800 dark:text-gray-100"><?= htmlspecialchars((string) ($trackingSummary['payment_status'] ?? '')) ?></dd>
+                </div>
+                <div>
+                    <dt class="text-xs text-gray-400"><?= htmlspecialchars(t('delivery.track_layer_registration')) ?></dt>
+                    <dd class="font-semibold text-ink-800 dark:text-gray-100"><?= htmlspecialchars((string) ($trackingSummary['registration_status'] ?? '')) ?></dd>
+                </div>
+                <div>
+                    <dt class="text-xs text-gray-400"><?= htmlspecialchars(t('delivery.track_layer_carrier')) ?></dt>
+                    <dd class="font-semibold text-ink-800 dark:text-gray-100"><?= htmlspecialchars((string) ($trackingSummary['carrier_status_label'] ?? '')) ?></dd>
+                </div>
+            </dl>
+            <p class="text-sm text-ink-800 dark:text-gray-100"><?= htmlspecialchars((string) ($trackingSummary['last_event_text'] ?? '')) ?></p>
+            <?php if (!empty($trackingSummary['updated_at'])): ?>
+                <p class="text-xs text-gray-400"><?= htmlspecialchars(t('delivery.track_updated')) ?>: <?= htmlspecialchars((string) $trackingSummary['updated_at']) ?></p>
+            <?php endif; ?>
+            <?php if (!empty($trackingSummary['eta'])): ?>
+                <p class="text-xs text-gray-500"><?= htmlspecialchars(t('delivery.track_eta')) ?>: <?= htmlspecialchars((string) $trackingSummary['eta']) ?></p>
+            <?php endif; ?>
+            <?php if (!empty($trackingSummary['completed'])): ?>
+                <p class="text-xs font-semibold text-emerald-700 dark:text-emerald-300"><?= htmlspecialchars(t('delivery.track_completed')) ?></p>
+            <?php endif; ?>
+            <?php if (!empty($trackingSummary['print_forms_available'])): ?>
+                <p class="text-xs text-gray-500"><?= htmlspecialchars(t('delivery.track_print_ready')) ?></p>
+            <?php endif; ?>
+            <?php if (!empty($isAdmin) && !empty($trackingSummary['cdek_status_code'])): ?>
+                <p class="text-[10px] font-mono text-gray-400"><?= htmlspecialchars((string) $trackingSummary['cdek_status_code']) ?></p>
+            <?php endif; ?>
+            <?php if (!empty($d['logistics_order_id']) || !empty($d['cdek_uuid'])): ?>
+                <form method="post" action="<?= ProductHelper::url('/delivery/' . (int) $d['id'] . '/tracking/refresh') ?>">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="<?= $btn ?> bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 text-ink-800 dark:text-gray-100">
+                        <?= htmlspecialchars(t('delivery.track_refresh')) ?>
+                    </button>
+                </form>
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
+
     <?php if ($tracking !== []): ?>
         <div class="bg-white/90 dark:bg-white/[0.04] rounded-[24px] border border-black/[0.06] dark:border-white/10 p-5 space-y-3 shadow-soft">
             <h2 class="font-display font-bold text-ink-900 dark:text-white"><?= htmlspecialchars(t('delivery.tracking_title')) ?></h2>
@@ -383,7 +520,15 @@ $missingForQuotes = $missingForQuotes ?? [];
             <div class="space-y-2">
                 <?php foreach ($tracking as $event): ?>
                     <div class="text-sm border-l-2 border-brand-300 pl-3">
-                        <p class="font-semibold text-ink-800 dark:text-gray-200"><?= htmlspecialchars($event['carrier_message'] ?? $event['carrier_status'] ?? '') ?></p>
+                        <?php
+                        $eventCode = (string) ($event['carrier_status'] ?? '');
+                        $eventText = ($eventCode !== '' && CdekStatusCatalog::isKnown($eventCode))
+                            ? CdekStatusCatalog::text($eventCode, $trackAudience ?? 'buyer')
+                            : (trim((string) ($event['carrier_message'] ?? '')) !== ''
+                                ? (string) $event['carrier_message']
+                                : CdekStatusCatalog::text($eventCode, $trackAudience ?? 'buyer'));
+                        ?>
+                        <p class="font-semibold text-ink-800 dark:text-gray-200"><?= htmlspecialchars($eventText) ?></p>
                         <p class="text-xs text-gray-400"><?= htmlspecialchars($event['event_at'] ?? '') ?><?php if (!empty($event['tracking_number'])): ?> · <?= htmlspecialchars($event['tracking_number']) ?><?php endif; ?></p>
                     </div>
                 <?php endforeach; ?>

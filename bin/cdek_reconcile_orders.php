@@ -5,7 +5,8 @@ declare(strict_types=1);
 
 /**
  * Reconciliation открытых CDEK-доставок: GET /orders/{uuid} → локальный FSM.
- *
+ * Webhook остаётся основным источником. Этот cron — сверка и пропущенные события.
+ * Частота ограничена tracking_poll_after (обычно 10 минут, при 429/5xx — дольше).
  * php bin/cdek_reconcile_orders.php
  * php bin/cdek_reconcile_orders.php 100
  *

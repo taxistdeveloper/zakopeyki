@@ -256,9 +256,12 @@ class CdekOrderService
 
         $res = $this->client->get('/orders/' . rawurlencode($uuid));
         if (!$res['ok']) {
+            $mapped = is_array($res['error_mapped'] ?? null) ? $res['error_mapped'] : [];
             return [
                 'ok' => false,
                 'error' => $res['error'] ?? 'get order failed',
+                'http_status' => (int) ($res['code'] ?? $mapped['http_status'] ?? 0),
+                'error_type' => isset($mapped['error_type']) ? (string) $mapped['error_type'] : null,
                 'request_id' => $res['request_id'] ?? null,
             ];
         }
@@ -280,6 +283,7 @@ class CdekOrderService
             'requests' => $requests,
             'request_state' => $requestState,
             'internal_status' => (string) ($res['internal_status'] ?? ''),
+            'http_status' => (int) ($res['code'] ?? 200),
             'request_id' => $res['request_id'] ?? null,
             'raw' => $entity,
         ];

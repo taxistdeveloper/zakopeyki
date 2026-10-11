@@ -1,5 +1,7 @@
 # CDEK API Client (Phase 3)
 
+> Исторический документ слоя HTTP-клиента. Сквозной сценарий после фаз 4–13 описан в `docs/cdek-launch-checklist.md` и тематических `docs/cdek-*.md`. Абзац ниже про «не реализовано» относится только к моменту фазы 3.
+
 Backend-интеграционный слой CDEK для Zakopeyki.kz.  
 Скрывает детали OpenAPI v2 от бизнес-логики delivery / checkout.
 

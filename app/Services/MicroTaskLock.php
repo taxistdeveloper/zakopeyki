@@ -54,4 +54,12 @@ class MicroTaskLock
             fclose($fh);
         }
     }
+
+    public function release(string $key): void
+    {
+        $file = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'zk_lock_' . preg_replace('/[^a-zA-Z0-9_\-]/', '_', $key) . '.lock';
+        if (is_file($file)) {
+            @unlink($file);
+        }
+    }
 }

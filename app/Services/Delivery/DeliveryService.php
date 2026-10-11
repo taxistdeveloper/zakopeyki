@@ -9,7 +9,7 @@ use App\Models\Notification;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
-use App\Services\Cdek\CdekDeliveryPointsSyncService;
+use App\Services\Cdek\CdekLocationService;
 
 class DeliveryService
 {
@@ -409,28 +409,31 @@ class DeliveryService
         $city = $pointB['data']['city'];
         $mode = $pointB['data']['delivery_mode'];
 
+        $locations = new CdekLocationService();
+        $cityCode = (int) ($pointB['data']['cdek_city_code'] ?? 0);
+        $confirmedCity = $locations->confirmCity($cityCode, (string) ($pointB['data']['country'] ?? 'KZ'));
+        if (!($confirmedCity['ok'] ?? false)) {
+            return ['ok' => false, 'error' => $confirmedCity['error'] ?? t('delivery.city_not_found')];
+        }
+        $city = (string) ($confirmedCity['city']['city'] ?? $city);
+        $pointB['data']['city'] = $city;
+        $pointB['data']['cdek_city_code'] = (int) $confirmedCity['city']['code'];
+        if (!empty($confirmedCity['city']['region'])) {
+            $pointB['data']['region'] = (string) $confirmedCity['city']['region'];
+        }
+
         $pvzCode = (string) ($pointB['data']['pvz_code'] ?? '');
         $pvzName = $pointB['data']['pvz_name'] ?? null;
         if ($mode === 'pvz') {
             if ($pvzCode === '') {
                 return ['ok' => false, 'error' => t('delivery.pvz_required')];
             }
-
-            $weightKg = null;
-            if (!empty($row['shipment']['billed_gross_weight'])) {
-                $weightKg = (float) $row['shipment']['billed_gross_weight'];
-            } elseif (!empty($row['shipment']['gross_weight'])) {
-                $weightKg = (float) $row['shipment']['gross_weight'];
-            }
-
-            $dir = new CdekDeliveryPointsSyncService();
-            $validated = $dir->validateCode($pvzCode, $city, $weightKg);
-            if (!$validated['ok']) {
+            $shipment = is_array($row['shipment'] ?? null) ? $row['shipment'] : [];
+            $validated = $locations->confirmDeliveryPoint($pvzCode, $this->shipmentPointFilters($shipment, (int) $pointB['data']['cdek_city_code']));
+            if (!($validated['ok'] ?? false)) {
                 return ['ok' => false, 'error' => $validated['error'] ?? t('delivery.pvz_not_found')];
             }
-
             $point = $validated['point'];
-            // Канонические значения из справочника — не доверяем frontend name/city для PVZ.
             $pvzCode = (string) $point['code'];
             $pvzName = (string) ($point['name'] ?? $point['address'] ?? $pvzCode);
             if (!empty($point['city'])) {
@@ -440,8 +443,17 @@ class DeliveryService
             $pointB['data']['delivery_point'] = $pvzCode;
             $pointB['data']['pvz_name'] = $pvzName;
             $pointB['data']['city'] = $city;
-            if (!empty($point['city_code'])) {
-                $pointB['data']['cdek_city_code'] = (int) $point['city_code'];
+            $pointB['data']['cdek_city_code'] = (int) ($point['city_code'] ?? $pointB['data']['cdek_city_code']);
+            $pointB['data']['latitude'] = $point['latitude'] ?? null;
+            $pointB['data']['longitude'] = $point['longitude'] ?? null;
+            $pointB['data']['postal_code'] = $point['postal_code'] ?? ($pointB['data']['postal_code'] ?? null);
+        } else {
+            $postal = trim((string) ($pointB['data']['postal_code'] ?? ''));
+            if ($postal !== '') {
+                $codes = $locations->postalCodes((int) $pointB['data']['cdek_city_code']);
+                if (($codes['ok'] ?? false) && ($codes['postal_codes'] ?? []) !== [] && !in_array($postal, $codes['postal_codes'], true)) {
+                    return ['ok' => false, 'error' => t('delivery.postal_not_in_city')];
+                }
             }
         }
 
@@ -972,6 +984,21 @@ class DeliveryService
             DeliveryOrder::STATUS_QUOTE_RECEIVED,
             DeliveryOrder::STATUS_READY_FOR_PAYMENT,
         ], true);
+    }
+
+    /** @param array<string, mixed> $shipment @return array<string, mixed> */
+    private function shipmentPointFilters(array $shipment, int $cityCode): array
+    {
+        $weight = (float) ($shipment['billed_gross_weight'] ?? $shipment['gross_weight'] ?? $shipment['item_weight'] ?? 0);
+        return [
+            'city_code' => $cityCode,
+            'country_code' => 'KZ',
+            'weight_kg' => $weight > 0 ? $weight : null,
+            'length_cm' => (int) round((float) ($shipment['billed_length'] ?? $shipment['package_length'] ?? $shipment['item_length'] ?? 0)),
+            'width_cm' => (int) round((float) ($shipment['billed_width'] ?? $shipment['package_width'] ?? $shipment['item_width'] ?? 0)),
+            'height_cm' => (int) round((float) ($shipment['billed_height'] ?? $shipment['package_height'] ?? $shipment['item_height'] ?? 0)),
+            'type' => 'ALL',
+        ];
     }
 
     private function positiveFloat(mixed $value): ?float

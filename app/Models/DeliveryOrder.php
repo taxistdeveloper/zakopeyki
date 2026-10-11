@@ -339,6 +339,10 @@ class DeliveryOrder extends Model
             'last_synced_at' => 'DATETIME DEFAULT NULL',
             'last_error_code' => 'VARCHAR(64) DEFAULT NULL',
             'last_error_message' => 'VARCHAR(255) DEFAULT NULL',
+            'planned_delivery_date' => 'DATE DEFAULT NULL',
+            'last_carrier_event_at' => 'DATETIME DEFAULT NULL',
+            'tracking_poll_after' => 'DATETIME DEFAULT NULL',
+            'tracking_poll_attempts' => 'SMALLINT UNSIGNED NOT NULL DEFAULT 0',
         ]);
         $this->ensureTableColumns('delivery_senders', [
             'company' => 'VARCHAR(255) DEFAULT NULL',
@@ -574,6 +578,94 @@ class DeliveryOrder extends Model
     }
 
     /**
+     * Незавершённые CDEK-заказы, которым пора сделать GET /orders/{uuid}.
+     * Финальные статусы и ещё не наступивший tracking_poll_after не выбираются.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function findCdekDueForTracking(int $limit = 50): array
+    {
+        $limit = max(1, min(200, $limit));
+        $statuses = [
+            self::STATUS_PAID,
+            self::STATUS_CDEK_ORDER_PENDING,
+            self::STATUS_ORDER_CREATED,
+            self::STATUS_ACCEPTED,
+            self::STATUS_SHIPMENT_RECEIVED,
+            self::STATUS_IN_TRANSIT,
+            self::STATUS_EXCEPTION,
+        ];
+        $placeholders = implode(',', array_fill(0, count($statuses), '?'));
+        $sql = "SELECT d.*
+                FROM delivery_orders d
+                INNER JOIN logistics_providers lp ON lp.id = d.logistics_provider_id AND lp.code = 'cdek'
+                WHERE d.logistics_order_id IS NOT NULL
+                  AND d.logistics_order_id != ''
+                  AND d.status IN ($placeholders)
+                  AND (d.tracking_poll_after IS NULL OR d.tracking_poll_after <= NOW())
+                ORDER BY COALESCE(d.tracking_poll_after, '1970-01-01 00:00:00') ASC, d.id ASC
+                LIMIT {$limit}";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(array_values($statuses));
+        return $stmt->fetchAll() ?: [];
+    }
+
+    /**
+     * Короткий lease, чтобы два cron не опрашивали один заказ одновременно.
+     */
+    public function claimTrackingPoll(int $id): bool
+    {
+        if ($id <= 0) {
+            return false;
+        }
+        $seconds = 120;
+        $stmt = $this->db->prepare(
+            "UPDATE delivery_orders
+             SET tracking_poll_after = DATE_ADD(NOW(), INTERVAL {$seconds} SECOND)
+             WHERE id = ?
+               AND (tracking_poll_after IS NULL OR tracking_poll_after <= NOW())"
+        );
+        $stmt->execute([$id]);
+        return $stmt->rowCount() > 0;
+    }
+
+    public function scheduleTrackingPoll(int $id, int $seconds): void
+    {
+        if ($id <= 0) {
+            return;
+        }
+        $seconds = max(0, $seconds);
+        $this->db->prepare(
+            "UPDATE delivery_orders
+             SET tracking_poll_after = DATE_ADD(NOW(), INTERVAL {$seconds} SECOND)
+             WHERE id = ?"
+        )->execute([$id]);
+    }
+
+    public function requestTrackingRefresh(int $id): bool
+    {
+        if ($id <= 0) {
+            return false;
+        }
+        $done = [
+            self::STATUS_DELIVERED,
+            self::STATUS_CANCELLED,
+            self::STATUS_REFUND_REQUIRED,
+        ];
+        $placeholders = implode(',', array_fill(0, count($done), '?'));
+        $stmt = $this->db->prepare(
+            "UPDATE delivery_orders
+             SET tracking_poll_after = NOW()
+             WHERE id = ?
+               AND logistics_order_id IS NOT NULL
+               AND logistics_order_id != ''
+               AND status NOT IN ($placeholders)"
+        );
+        $stmt->execute(array_merge([$id], $done));
+        return $stmt->rowCount() > 0;
+    }
+
+    /**
      * Phase 8: ACCEPTED / pending create — limited background poll (GET /orders/{uuid}).
      * Skip rows updated in the last 3 seconds (CDEK first-poll recommendation).
      *
@@ -684,7 +776,8 @@ class DeliveryOrder extends Model
     {
         $stmt = $this->db->prepare(
             'SELECT d.*, lp.name AS logistics_name, lp.code AS logistics_code,
-                    p.title AS product_title, p.type AS product_type, o.product_id AS product_id
+                    p.title AS product_title, p.type AS product_type, o.product_id AS product_id,
+                    o.status AS purchase_status
              FROM delivery_orders d
              JOIN logistics_providers lp ON lp.id = d.logistics_provider_id
              JOIN orders o ON o.id = d.order_id

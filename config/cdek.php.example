@@ -27,9 +27,10 @@ $defaultApiUrl = $testMode === 1
     : 'https://api.cdek.ru/v2';
 
 return [
-    // OAuth client_id / client_secret (CDEK names: account / secure_password)
-    'account' => getenv('CDEK_ACCOUNT') ?: 'wqGwiQx0gg8mLtiEKsUinjVSICCjtTEP',
-    'secure_password' => getenv('CDEK_SECURE_PASSWORD') ?: 'RmAmgvSgSl1yirlz9QupbzOJVqhCxcP5',
+    // OAuth client_id / client_secret (CDEK names: account / secure_password).
+    // Пустые значения без env: клиент не аутентифицируется. Не подставлять ключи в этот файл.
+    'account' => getenv('CDEK_ACCOUNT') ?: '',
+    'secure_password' => getenv('CDEK_SECURE_PASSWORD') ?: '',
 
     'api_url' => getenv('CDEK_API_URL') ?: $defaultApiUrl,
     'environment' => $testMode === 1 ? 'test' : 'production',
@@ -62,6 +63,9 @@ return [
     // OAuth token cache
     'token_cache_path' => getenv('CDEK_TOKEN_CACHE') ?: '',
     'redis_token_key' => getenv('CDEK_REDIS_TOKEN_KEY') ?: 'cdek:oauth:access_token',
+
+    // WaybillRequestDto.type. KZ-шаблона в enum OpenAPI нет — GAP, default tpl_russia.
+    'print_default_type' => getenv('CDEK_PRINT_DEFAULT_TYPE') ?: 'tpl_russia',
 
     // Inbound webhook shared secret (registration URL configured later)
     'webhook_token' => getenv('CDEK_WEBHOOK_TOKEN') ?: '',

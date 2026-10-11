@@ -6,6 +6,7 @@ use App\Models\DeliveryOrder;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductListingShipping;
+use App\Services\Cdek\CdekLocationService;
 use App\Services\Cdek\CdekDeliveryPointsSyncService;
 use App\Services\Listing\ListingShippingService;
 
@@ -24,6 +25,7 @@ class BuyerPointBService
     /** @var object{validateCode?: callable}|CdekDeliveryPointsSyncService */
     private object $points;
     private DeliveryService $delivery;
+    private ?CdekLocationService $locations;
 
     /**
      * @param object|null $points CdekDeliveryPointsSyncService or stub with validateCode()
@@ -32,12 +34,14 @@ class BuyerPointBService
         ?DeliveryPointValidator $validator = null,
         ?ListingShippingService $listingShipping = null,
         ?object $points = null,
-        ?DeliveryService $delivery = null
+        ?DeliveryService $delivery = null,
+        ?CdekLocationService $locations = null
     ) {
         $this->validator = $validator ?? new DeliveryPointValidator();
         $this->listingShipping = $listingShipping ?? new ListingShippingService();
         $this->points = $points ?? new CdekDeliveryPointsSyncService();
         $this->delivery = $delivery ?? new DeliveryService();
+        $this->locations = $locations;
     }
 
     /**
@@ -124,16 +128,8 @@ class BuyerPointBService
             return $this->fail('shipment_incomplete', 'item_weight', ['shipment']);
         }
 
-        // Resolve city code if missing.
         $city = trim((string) ($input['city'] ?? $input['recipient_city'] ?? ''));
         $cityCode = $this->validator->nullableIntPublic($input['cdek_city_code'] ?? null);
-        if ($cityCode === null && $city !== '') {
-            $resolved = $this->listingShipping->resolveCityCode($city, (string) ($input['country'] ?? 'KZ'));
-            if ($resolved !== null) {
-                $cityCode = (int) $resolved['code'];
-                $input['cdek_city_code'] = $cityCode;
-            }
-        }
 
         $normalized = [
             'name' => $input['name'] ?? $input['recipient_name'] ?? '',
@@ -165,20 +161,50 @@ class BuyerPointBService
 
         $data = $pointB['data'];
         $mode = (string) $data['delivery_mode'];
+        $locations = $this->locations ?? new CdekLocationService();
+        $country = (string) ($data['country'] ?? 'KZ');
+
+        if (empty($data['cdek_city_code'])) {
+            $suggested = $locations->suggestCities((string) $data['city'], $country);
+            if (!($suggested['ok'] ?? false) || ($suggested['cities'] ?? []) === []) {
+                return $this->fail('cdek_city_code_required', 'city', ['city'], $suggested['error'] ?? null);
+            }
+            if (count($suggested['cities']) !== 1) {
+                return $this->fail('city_ambiguous', 'city', ['cdek_city_code']);
+            }
+            $data['cdek_city_code'] = (int) $suggested['cities'][0]['code'];
+        }
+
+        $cityOk = $locations->confirmCity((int) $data['cdek_city_code'], $country);
+        if (!($cityOk['ok'] ?? false)) {
+            return $this->fail('cdek_city_code_required', 'cdek_city_code', ['cdek_city_code'], $cityOk['error'] ?? null);
+        }
+        $data['cdek_city_code'] = (int) $cityOk['city']['code'];
+        if (!empty($cityOk['city']['city'])) {
+            $data['city'] = (string) $cityOk['city']['city'];
+        }
+        if (!empty($cityOk['city']['region'])) {
+            $data['region'] = (string) $cityOk['city']['region'];
+        }
+        $data['country'] = (string) ($cityOk['city']['country_code'] ?? $country);
+
+        $shipmentFilters = [
+            'city_code' => (int) $data['cdek_city_code'],
+            'country_code' => $data['country'],
+            'weight_kg' => $weight > 0 ? $weight : null,
+            'length_cm' => (int) round((float) ($shipping['package_length'] ?? $shipping['item_length'] ?? 0)),
+            'width_cm' => (int) round((float) ($shipping['package_width'] ?? $shipping['item_width'] ?? 0)),
+            'height_cm' => (int) round((float) ($shipping['package_height'] ?? $shipping['item_height'] ?? 0)),
+            'type' => 'ALL',
+        ];
 
         if ($mode === DeliveryPointValidator::MODE_PVZ) {
             $pvzCode = (string) ($data['pvz_code'] ?? '');
-            $validated = $this->points->validateCode($pvzCode, (string) $data['city'], $weight > 0 ? $weight : null);
-            if (!$validated['ok']) {
-                return $this->fail(
-                    'pvz_invalid',
-                    'pvz_code',
-                    ['pvz_code'],
-                    (string) ($validated['error'] ?? t('delivery.pvz_not_found'))
-                );
+            $validated = $locations->confirmDeliveryPoint($pvzCode, $shipmentFilters);
+            if (!($validated['ok'] ?? false)) {
+                return $this->fail('pvz_invalid', 'pvz_code', ['pvz_code'], (string) ($validated['error'] ?? t('delivery.pvz_not_found')));
             }
             $point = $validated['point'];
-            // Не доверяем frontend: канонические значения из справочника.
             $data['pvz_code'] = (string) $point['code'];
             $data['delivery_point'] = (string) $point['code'];
             $data['pvz_name'] = (string) ($point['name'] ?? $point['address'] ?? $point['code']);
@@ -188,22 +214,23 @@ class BuyerPointBService
             if (!empty($point['city_code'])) {
                 $data['cdek_city_code'] = (int) $point['city_code'];
             }
-            if (isset($point['latitude']) && $point['latitude'] !== null && $point['latitude'] !== '') {
-                $data['latitude'] = (float) $point['latitude'];
-            }
-            if (isset($point['longitude']) && $point['longitude'] !== null && $point['longitude'] !== '') {
-                $data['longitude'] = (float) $point['longitude'];
-            }
-            // City mismatch vs listing origin is OK (destination can differ).
+            $data['latitude'] = $point['latitude'] ?? null;
+            $data['longitude'] = $point['longitude'] ?? null;
+            $data['postal_code'] = $point['postal_code'] ?: ($data['postal_code'] ?? null);
+            $data['point_snapshot'] = $point;
         } else {
-            // Door: require street already validated; require city code for calculator readiness.
-            if (empty($data['cdek_city_code'])) {
-                return $this->fail('cdek_city_code_required', 'cdek_city_code', ['cdek_city_code']);
-            }
             $postal = (string) ($data['postal_code'] ?? '');
             if ($postal !== '' && !$this->validator->isValidPostalCode($postal, (string) $data['country'])) {
                 return $this->fail('recipient_postal_invalid', 'postal_code', ['postal_code']);
             }
+            if ($postal !== '') {
+                $codes = $locations->postalCodes((int) $data['cdek_city_code']);
+                if (($codes['ok'] ?? false) && ($codes['postal_codes'] ?? []) !== [] && !in_array($postal, $codes['postal_codes'], true)) {
+                    return $this->fail('recipient_postal_invalid', 'postal_code', ['postal_code']);
+                }
+                $data['postal_verified'] = (bool) ($codes['ok'] ?? false);
+            }
+            $data['address_verified'] = false;
         }
 
         $snapshot = [

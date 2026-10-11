@@ -150,7 +150,8 @@ $canCard = $fpConfigured || $simPayments;
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <input type="text" name="name" value="<?= htmlspecialchars((string) ($pointBOld['name'] ?? $pointBOld['recipient_name'] ?? ($user['name'] ?? ''))) ?>" placeholder="<?= htmlspecialchars(t('delivery.name')) ?>" class="<?= $input ?? 'w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-2.5 text-sm' ?>" id="checkout-recipient-name">
                     <input type="tel" name="phone" value="<?= htmlspecialchars((string) ($pointBOld['phone'] ?? $pointBOld['recipient_phone'] ?? ($user['phone'] ?? ''))) ?>" placeholder="<?= htmlspecialchars(t('delivery.phone')) ?>" class="<?= $input ?? 'w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-2.5 text-sm' ?>">
-                    <input type="text" name="city" id="checkout-recipient-city" value="<?= htmlspecialchars((string) ($pointBOld['city'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('delivery.city')) ?>" class="<?= $input ?? 'w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-2.5 text-sm' ?>">
+                    <input type="text" name="city" id="checkout-recipient-city" value="<?= htmlspecialchars((string) ($pointBOld['city'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('delivery.city')) ?>" class="<?= $input ?? 'w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-2.5 text-sm' ?>" list="checkout-cdek-city-datalist" autocomplete="off">
+                    <datalist id="checkout-cdek-city-datalist"></datalist>
                     <input type="number" name="cdek_city_code" id="checkout-cdek-city-code" value="<?= htmlspecialchars((string) ($pointBOld['cdek_city_code'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('listing_shipping.cdek_city_code')) ?>" class="<?= $input ?? 'w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-2.5 text-sm' ?>" readonly>
                     <input type="text" name="postal_code" value="<?= htmlspecialchars((string) ($pointBOld['postal_code'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('listing_shipping.postal_code')) ?>" class="<?= $input ?? 'w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-2.5 text-sm' ?> checkout-door-field">
                     <input type="text" name="region" value="<?= htmlspecialchars((string) ($pointBOld['region'] ?? '')) ?>" placeholder="<?= htmlspecialchars(t('listing_shipping.region')) ?>" class="<?= $input ?? 'w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-2.5 text-sm' ?> checkout-door-field">
@@ -173,6 +174,7 @@ $canCard = $fpConfigured || $simPayments;
                 if (!block) return;
                 var citiesUrl = <?= json_encode(\App\Helpers\ProductHelper::url('/delivery/cdek/cities'), JSON_UNESCAPED_SLASHES) ?>;
                 var pointsUrl = <?= json_encode(\App\Helpers\ProductHelper::url('/delivery/cdek/points'), JSON_UNESCAPED_SLASHES) ?>;
+                var productId = <?= (int) ($item['id'] ?? 0) ?>;
                 var cityTimer = null, pvzTimer = null;
 
                 function isCdekSelected() {
@@ -195,19 +197,35 @@ $canCard = $fpConfigured || $simPayments;
                     });
                 }
                 function resolveCity() {
-                    var city = (document.getElementById('checkout-recipient-city')?.value || '').trim();
+                    var cityEl = document.getElementById('checkout-recipient-city');
+                    var city = (cityEl?.value || '').trim();
                     var codeInput = document.getElementById('checkout-cdek-city-code');
                     var status = document.getElementById('checkout-cdek-city-status');
+                    var cityList = document.getElementById('checkout-cdek-city-datalist');
                     if (!codeInput || city.length < 2) return;
-                    fetch(citiesUrl + '?city=' + encodeURIComponent(city) + '&country_code=KZ', {
+                    fetch(citiesUrl + '?q=' + encodeURIComponent(city) + '&country_code=KZ', {
                         credentials: 'same-origin', headers: { 'Accept': 'application/json' }
                     }).then(function (r) { return r.json(); }).then(function (data) {
-                        if (data && data.ok && data.code) {
-                            codeInput.value = data.code;
-                            if (status) status.textContent = (data.city || city) + ' → ' + data.code;
+                        if (!data || !data.ok || !data.cities) {
+                            if (status) status.textContent = <?= json_encode(t('listing_shipping.cdek_city_not_found'), JSON_UNESCAPED_UNICODE) ?>;
+                            return;
+                        }
+                        if (cityList) {
+                            cityList.innerHTML = '';
+                            data.cities.forEach(function (c) {
+                                var opt = document.createElement('option');
+                                opt.value = c.full_name || '';
+                                opt.dataset.code = String(c.code);
+                                cityList.appendChild(opt);
+                            });
+                        }
+                        if (data.cities.length === 1) {
+                            codeInput.value = data.cities[0].code;
+                            if (status) status.textContent = (data.cities[0].full_name || city) + ' → ' + data.cities[0].code;
                             loadPvz();
                         } else if (status) {
-                            status.textContent = <?= json_encode(t('listing_shipping.cdek_city_not_found'), JSON_UNESCAPED_UNICODE) ?>;
+                            status.textContent = <?= json_encode(t('delivery.city_pick_from_list'), JSON_UNESCAPED_UNICODE) ?>;
+                            codeInput.value = '';
                         }
                     }).catch(function () {});
                 }
@@ -216,11 +234,10 @@ $canCard = $fpConfigured || $simPayments;
                     var codeInput = document.getElementById('checkout-pvz-code');
                     var nameInput = document.getElementById('checkout-pvz-name');
                     if (!list || !codeInput || !isPvz()) return;
-                    var city = (document.getElementById('checkout-recipient-city')?.value || '').trim();
                     var cityCode = (document.getElementById('checkout-cdek-city-code')?.value || '').trim();
-                    var q = (codeInput.value || '').trim();
-                    var url = pointsUrl + '?limit=40&type=PVZ&city=' + encodeURIComponent(city) + '&q=' + encodeURIComponent(q);
-                    if (cityCode) url += '&city_code=' + encodeURIComponent(cityCode);
+                    if (!cityCode) return;
+                    var url = pointsUrl + '?limit=40&type=ALL&city_code=' + encodeURIComponent(cityCode);
+                    if (productId) url += '&product_id=' + encodeURIComponent(productId);
                     fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
                         .then(function (r) { return r.json(); })
                         .then(function (data) {

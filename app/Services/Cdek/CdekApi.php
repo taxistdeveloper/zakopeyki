@@ -228,6 +228,46 @@ class CdekApi
         );
     }
 
+    /**
+     * POST /v2/orders/{uuid}/refusal — тела в OpenAPI нет, ответ 202.
+     * Повтор при timeout запрещён: неизвестно, принял ли CDEK вызов.
+     */
+    public function refuseOrder(string $uuid): CdekApiResponse
+    {
+        return $this->client->call(
+            'POST',
+            '/orders/' . rawurlencode($uuid) . '/refusal',
+            [],
+            null,
+            [],
+            ['idempotent' => false, 'allow_retry' => false]
+        );
+    }
+
+    /**
+     * POST /v2/orders/{uuid}/clientReturn.
+     * CreateClientReturnRequestDto: обязателен только tariff_code.
+     *
+     * @param array{tariff_code: int} $body
+     */
+    public function clientReturn(string $uuid, array $body): CdekApiResponse
+    {
+        return $this->client->call(
+            'POST',
+            '/orders/' . rawurlencode($uuid) . '/clientReturn',
+            $body,
+            null,
+            [],
+            ['idempotent' => false, 'allow_retry' => false]
+        );
+    }
+
+    /** GET /v2/orders/{orderUuid}/intakes */
+    public function getOrderIntakes(string $orderUuid): CdekApiResponse
+    {
+        return $this->client->call('GET', '/orders/' . rawurlencode($orderUuid) . '/intakes');
+    }
+
     // ─── Print ──────────────────────────────────────────────────
 
     /**
@@ -256,6 +296,30 @@ class CdekApi
     public function getPrintOrderPdf(string $uuid): CdekApiResponse
     {
         return $this->client->call('GET', '/print/orders/' . rawurlencode($uuid) . '.pdf');
+    }
+
+    /**
+     * Сырой PDF. Не логирует тело. Лимит проверяет вызывающий сервис.
+     *
+     * @return array{ok: bool, code: int, body: string, error?: string|null}
+     */
+    public function downloadPrintOrderPdf(string $uuid): array
+    {
+        $res = $this->client->request(
+            'GET',
+            '/print/orders/' . rawurlencode($uuid) . '.pdf',
+            null,
+            null,
+            [],
+            ['idempotent' => true, 'allow_retry' => true]
+        );
+        $code = (int) ($res['code'] ?? 0);
+        return [
+            'ok' => $code === 200,
+            'code' => $code,
+            'body' => (string) ($res['body'] ?? ''),
+            'error' => $res['error'] ?? null,
+        ];
     }
 
     // ─── Webhooks (registration only; inbound processing = later stage) ──

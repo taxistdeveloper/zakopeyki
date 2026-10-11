@@ -1,5 +1,7 @@
 # CDEK Integration Audit — Zakopeyki.kz
 
+> **Stage:** исходный аудит и проект (2026-10-05), не описание текущего кода.  
+> Фактическая реализация и блокеры запуска: `docs/cdek-launch-checklist.md`, `docs/cdek-known-gaps.md`.  
 > **Stage:** technical audit & design only. **No implementation in this stage.**  
 > **Sources:** current codebase + `openapi_api_v2_integration.json`.  
 > **Missing source:** `Интеграция.docx` was **not found** in the workspace or common user folders → see §26 / §27.  

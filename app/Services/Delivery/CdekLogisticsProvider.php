@@ -8,6 +8,8 @@ use App\Services\Cdek\CdekCalculatorResponseMapper;
 use App\Services\Cdek\CdekCalculatorService;
 use App\Services\Cdek\CdekErrorMapper;
 use App\Services\Cdek\CdekOrderService;
+use App\Services\Cdek\CdekStatusCatalog;
+use App\Services\Cdek\CdekTrackingPolicy;
 use App\Services\Cdek\CdekQuoteReuseService;
 use App\Services\Cdek\Client as CdekClient;
 
@@ -294,30 +296,20 @@ class CdekLogisticsProvider implements LogisticsProviderInterface
 
         return [
             'delivery_order_id' => $deliveryOrderId,
-            'status' => $mapped ?? $statusCode,
+            'status' => $mapped ?? CdekStatusCatalog::GROUP_UNKNOWN,
+            'raw_code' => $statusCode,
+            'event_at' => CdekTrackingPolicy::normalizeEventAt(
+                (string) ($attrs['status_date_time'] ?? $payload['date_time'] ?? '')
+            ),
             'tracking_number' => $cdekNumber !== '' ? $cdekNumber : null,
-            'message' => $attrs['status_reason_code'] ?? $attrs['city'] ?? null,
-            'location' => $attrs['city'] ?? null,
+            'message' => CdekStatusCatalog::text($statusCode, 'buyer'),
+            'location' => isset($attrs['city']) && is_scalar($attrs['city']) ? (string) $attrs['city'] : null,
         ];
     }
 
     private function mapCdekStatus(string $code): ?string
     {
-        $code = strtoupper(trim($code));
-        return match ($code) {
-            'ACCEPTED', 'CREATED', 'RECEIVED_AT_SHIPMENT_WAREHOUSE',
-            'READY_FOR_SHIPMENT_IN_SENDER_CITY', 'READY_FOR_SHIPMENT_IN_TRANSIT_CITY',
-            'PASSED_TO_CARRIER_AT_SENDER_CITY' => 'ACCEPTED',
-            'TAKEN_BY_TRANSPORTER_FROM_SENDER_CITY', 'SENT_TO_RECIPIENT_CITY',
-            'ACCEPTED_AT_RECIPIENT_CITY_WAREHOUSE', 'ACCEPTED_AT_TRANSIT_WAREHOUSE',
-            'TAKEN_BY_COURIER', 'RECEIVED_AT_SENDER_WAREHOUSE',
-            'RETURNED_TO_SENDER_CITY' => 'IN_TRANSIT',
-            'READY_FOR_PICKUP', 'ACCEPTED_AT_PICK_UP_POINT',
-            'POSTOMAT_POSTED', 'POSTOMAT_SEIZED' => 'READY_FOR_PICKUP',
-            'DELIVERED', 'POSTOMAT_RECEIVED' => 'DELIVERED',
-            'NOT_DELIVERED', 'INVALID', 'REMOVED_FROM_PICKUP_POINT' => 'EXCEPTION',
-            default => null,
-        };
+        return CdekStatusCatalog::group($code);
     }
 
     private function logApi(

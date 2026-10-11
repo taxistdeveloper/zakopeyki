@@ -138,16 +138,16 @@ awaiting_payment → escrowed → shipped → delivered → completed
 |---|---|---|
 | `DELIVERY_PAID` | (none yet) | Allow `POST /v2/orders` |
 | `DELIVERY_ORDER_CREATED` | Create response entity.uuid / request ACCEPTED | Store `logistics_order_id`; notify parties |
-| `DELIVERY_ACCEPTED` | `ACCEPTED`, `CREATED`, `RECEIVED_AT_SHIPMENT_WAREHOUSE`, `READY_FOR_SHIPMENT_IN_SENDER_CITY`, `READY_FOR_SHIPMENT_IN_TRANSIT_CITY`, `PASSED_TO_CARRIER_AT_SENDER_CITY` | Transition; write tracking |
+| `DELIVERY_ACCEPTED` | `ACCEPTED`, `RECEIVED_AT_SHIPMENT_WAREHOUSE`, `READY_FOR_SHIPMENT_IN_SENDER_CITY`, `READY_FOR_SHIPMENT_IN_TRANSIT_CITY`, `PASSED_TO_CARRIER_AT_SENDER_CITY`. Код `CREATED` больше не переводит FSM в этот статус: для пользователя это только регистрация. | Transition; write tracking |
 | `SHIPMENT_RECEIVED` | *(intended; not produced by current mapper)* | Future: map warehouse-received codes explicitly |
 | `IN_TRANSIT` | `TAKEN_BY_TRANSPORTER_FROM_SENDER_CITY`, `SENT_TO_RECIPIENT_CITY`, `ACCEPTED_AT_RECIPIENT_CITY_WAREHOUSE`, `ACCEPTED_AT_TRANSIT_WAREHOUSE`, `TAKEN_BY_COURIER`, `RECEIVED_AT_SENDER_WAREHOUSE`, `RETURNED_TO_SENDER_CITY`, plus pickup codes collapsed (`READY_FOR_PICKUP`, `ACCEPTED_AT_PICK_UP_POINT`, `POSTOMAT_*`) | Tracking update; buyer notify |
 | `DELIVERED` | `DELIVERED`, `POSTOMAT_RECEIVED` | Set `delivered_at`; notify; **optional** bridge to P2P |
 | `EXCEPTION` | `NOT_DELIVERED`, `INVALID`, `REMOVED_FROM_PICKUP_POINT` | Alert ops; stop happy-path; evaluate refund |
 | (store only) | Webhook `ORDER_MODIFIED` | Save event; optional GET order |
-| (store + alert) | Webhook `DELIV_PROBLEM` | Save; may force `EXCEPTION` |
+| (store + alert) | Webhook `DELIV_PROBLEM` | Save problem (`code`, `create_date` only). Do **not** force EXCEPTION, refusal, or clientReturn. See `docs/cdek-delivery-problems-refusal-returns.md`. |
 | (store) | `DELIV_AGREEMENT`, `COURIER_INFO` | Save; UI optional |
 | (store / refresh PVZ) | `OFFICE_AVAILABILITY` | Save; may enqueue points sync |
-| (store) | `PRINT_FORM` | Save; unlock label download later |
+| (store print form only) | `PRINT_FORM` | Metadata + READY if `url` present. **Not** proof of delivery. PDF download is a separate job (`bin/cdek_print_poll.php`). |
 
 Webhook type enum (registration): see OpenAPI `WebhookDto.type`.
 

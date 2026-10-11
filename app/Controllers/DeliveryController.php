@@ -4,13 +4,16 @@ namespace App\Controllers;
 
 use App\Core\Auth;
 use App\Core\Controller;
-use App\Models\CdekDeliveryPoint;
 use App\Models\DeliveryOrder;
+use App\Models\DeliveryPrintForm;
 use App\Models\Notification;
+use App\Services\Cdek\CdekDeliveryActionService;
+use App\Services\Cdek\CdekDeliveryProblemService;
 use App\Models\Order;
+use App\Services\Cdek\CdekPrintFormService;
+use App\Services\Cdek\CdekTrackingService;
 use App\Services\Delivery\DeliveryService;
 use App\Services\Delivery\PackagingRecommendationService;
-use App\Services\Listing\ListingShippingService;
 
 class DeliveryController extends Controller
 {
@@ -69,6 +72,16 @@ class DeliveryController extends Controller
             'unread' => $n->unreadCount($uid),
             'flash' => $_SESSION['flash'] ?? null,
             'error' => $_SESSION['error'] ?? null,
+            'printForms' => (new CdekPrintFormService())->listForUser($deliveryOrderId, $uid, $isAdmin)['forms'] ?? [],
+            'printTypes' => CdekPrintFormService::allowedTypes(),
+            'trackingSummary' => CdekTrackingService::summaryForUser(
+                $delivery,
+                $uid,
+                $isAdmin,
+                (new DeliveryPrintForm())->findForDelivery($deliveryOrderId)
+            )['summary'] ?? null,
+            'deliveryProblems' => (new CdekDeliveryProblemService())->listForUser($deliveryOrderId, $uid, $isAdmin)['problems'] ?? [],
+            'cdekActions' => (new CdekDeliveryActionService())->listForUser($deliveryOrderId, $uid, $isAdmin),
         ]);
         unset($_SESSION['flash'], $_SESSION['error']);
     }
@@ -288,59 +301,172 @@ class DeliveryController extends Controller
     }
 
     /**
-     * Локальный справочник ПВЗ (не прямой прокси в CDEK).
-     * GET /delivery/cdek/points?city=&city_code=&q=&type=
+     * GET /delivery/cdek/points — живой список CDEK, фильтр по city_code и shipment заказа/товара.
      */
     public function cdekPoints(): void
     {
         Auth::requireLogin();
+        $filters = $this->serverPointFilters();
+        if (($filters['city_code'] ?? 0) <= 0 && trim((string) ($_GET['code'] ?? '')) === '') {
+            $this->json(['ok' => false, 'error' => t('delivery.city_code_required'), 'error_code' => 'city_code_required'], 422);
+            return;
+        }
+        $result = (new \App\Services\Cdek\CdekLocationService())->searchDeliveryPoints($filters, true);
+        $code = ($result['ok'] ?? false) ? 200 : 422;
+        $this->json($result, $code);
+    }
 
-        $points = new CdekDeliveryPoint();
-        $rows = $points->search([
-            'city' => trim((string) ($_GET['city'] ?? '')),
-            'city_code' => (int) ($_GET['city_code'] ?? 0) ?: null,
-            'q' => trim((string) ($_GET['q'] ?? '')),
-            'type' => trim((string) ($_GET['type'] ?? '')),
-            'country_code' => strtoupper(trim((string) ($_GET['country_code'] ?? 'KZ'))) ?: 'KZ',
-            'limit' => (int) ($_GET['limit'] ?? 30),
-            'offset' => (int) ($_GET['offset'] ?? 0),
-        ]);
-
-        $public = array_map(static fn(array $r): array => CdekDeliveryPoint::toPublic($r), $rows);
-
-        $this->json([
-            'ok' => true,
-            'points' => $public,
-            'count' => count($public),
-            'directory_total' => $points->countActive('KZ'),
-        ]);
+    /** GET /delivery/cdek/points/{code} */
+    public function cdekPoint(string $code): void
+    {
+        Auth::requireLogin();
+        $filters = $this->serverPointFilters();
+        $result = (new \App\Services\Cdek\CdekLocationService())->confirmDeliveryPoint($code, $filters);
+        $this->json($result, ($result['ok'] ?? false) ? 200 : 404);
     }
 
     /**
-     * Resolve city → CDEK city code for seller Point A (via CdekApi client).
-     * GET /delivery/cdek/cities?city=&country_code=
+     * GET /delivery/cdek/cities?q= or ?city=
      */
     public function cdekCities(): void
     {
         Auth::requireLogin();
-
-        $city = trim((string) ($_GET['city'] ?? ''));
+        $city = trim((string) ($_GET['q'] ?? $_GET['city'] ?? $_GET['name'] ?? ''));
         $country = strtoupper(trim((string) ($_GET['country_code'] ?? 'KZ'))) ?: 'KZ';
-        if ($city === '') {
-            $this->json(['ok' => false, 'error' => 'city_required'], 422);
+        $result = (new \App\Services\Cdek\CdekLocationService())->suggestCities($city, $country);
+        if (!($result['ok'] ?? false)) {
+            $this->json($result, 422);
+            return;
         }
-
-        $found = (new ListingShippingService())->resolveCityCode($city, $country);
-        if ($found === null) {
-            $this->json(['ok' => false, 'error' => 'city_not_found', 'city' => $city], 404);
+        $cities = $result['cities'] ?? [];
+        $payload = $result;
+        if (count($cities) === 1) {
+            $payload['code'] = (int) $cities[0]['code'];
+            $payload['city'] = (string) $cities[0]['full_name'];
+            $payload['country_code'] = (string) $cities[0]['country_code'];
         }
+        $this->json($payload);
+    }
 
-        $this->json([
-            'ok' => true,
-            'code' => (int) $found['code'],
-            'city' => (string) ($found['city'] ?? $city),
-            'country_code' => (string) ($found['country_code'] ?? $country),
-        ]);
+    /** GET /delivery/cdek/cities/{code} */
+    public function cdekCity(string $code): void
+    {
+        Auth::requireLogin();
+        $country = strtoupper(trim((string) ($_GET['country_code'] ?? 'KZ'))) ?: 'KZ';
+        $result = (new \App\Services\Cdek\CdekLocationService())->confirmCity((int) $code, $country);
+        $this->json($result, ($result['ok'] ?? false) ? 200 : 404);
+    }
+
+    /** GET /delivery/cdek/regions */
+    public function cdekRegions(): void
+    {
+        Auth::requireLogin();
+        $result = (new \App\Services\Cdek\CdekLocationService())->searchRegions(
+            strtoupper(trim((string) ($_GET['country_code'] ?? 'KZ'))) ?: 'KZ',
+            (string) ($_GET['lang'] ?? 'rus'),
+            trim((string) ($_GET['q'] ?? ''))
+        );
+        $this->json($result, ($result['ok'] ?? false) ? 200 : 422);
+    }
+
+    /** GET /delivery/cdek/postal-codes?city_code= */
+    public function cdekPostalCodes(): void
+    {
+        Auth::requireLogin();
+        $result = (new \App\Services\Cdek\CdekLocationService())->postalCodes((int) ($_GET['city_code'] ?? 0));
+        $this->json($result, ($result['ok'] ?? false) ? 200 : 422);
+    }
+
+    /** GET /delivery/cdek/coordinates?latitude=&longitude= */
+    public function cdekCoordinates(): void
+    {
+        Auth::requireLogin();
+        if (!isset($_GET['latitude'], $_GET['longitude']) || $_GET['latitude'] === '' || $_GET['longitude'] === '') {
+            $this->json(['ok' => false, 'error_code' => 'coordinates_required'], 422);
+            return;
+        }
+        $result = (new \App\Services\Cdek\CdekLocationService())->cityByCoordinates(
+            (float) $_GET['latitude'],
+            (float) $_GET['longitude']
+        );
+        $this->json($result, ($result['ok'] ?? false) ? 200 : 422);
+    }
+
+    /** POST /delivery/{id}/point-b/validate */
+    public function validatePointB(string $id): void
+    {
+        Auth::requireLogin();
+        unset($_POST['amount'], $_POST['total_amount'], $_POST['quote_id']);
+        $row = (new DeliveryOrder())->findWithDetails((int) $id);
+        if (!$row) {
+            $this->json(['ok' => false, 'error' => 'not_found'], 404);
+            return;
+        }
+        if ((int) ($row['buyer_user_id'] ?? 0) !== Auth::id() && !Auth::can('disputes')) {
+            $this->json(['ok' => false, 'error' => 'forbidden'], 403);
+            return;
+        }
+        $productId = (int) ($row['product_id'] ?? 0);
+        $result = (new \App\Services\Delivery\BuyerPointBService())->validateForCheckout(
+            $productId,
+            (int) $row['buyer_user_id'],
+            'cdek',
+            $_POST
+        );
+        $safe = [
+            'ok' => (bool) ($result['ok'] ?? false),
+            'error' => $result['error'] ?? null,
+            'error_code' => $result['error_code'] ?? null,
+        ];
+        if (!empty($result['snapshot']['point_b']) && is_array($result['snapshot']['point_b'])) {
+            $b = $result['snapshot']['point_b'];
+            $safe['point_b'] = [
+                'delivery_mode' => $b['delivery_mode'] ?? null,
+                'city' => $b['city'] ?? null,
+                'cdek_city_code' => $b['cdek_city_code'] ?? null,
+                'region' => $b['region'] ?? null,
+                'pvz_code' => $b['pvz_code'] ?? null,
+                'pvz_name' => $b['pvz_name'] ?? null,
+                'postal_code' => $b['postal_code'] ?? null,
+                'address_verified' => $b['address_verified'] ?? null,
+            ];
+        }
+        $this->json($safe, ($safe['ok'] ?? false) ? 200 : 422);
+    }
+
+    /** @return array<string, mixed> */
+    private function serverPointFilters(): array
+    {
+        $filters = [
+            'city_code' => (int) ($_GET['city_code'] ?? 0),
+            'country_code' => strtoupper(trim((string) ($_GET['country_code'] ?? 'KZ'))) ?: 'KZ',
+            'type' => strtoupper(trim((string) ($_GET['type'] ?? 'PVZ'))),
+            'code' => trim((string) ($_GET['code'] ?? '')),
+            'limit' => (int) ($_GET['limit'] ?? 30),
+            'lang' => (string) ($_GET['lang'] ?? 'rus'),
+        ];
+        $deliveryId = (int) ($_GET['delivery_id'] ?? 0);
+        $productId = (int) ($_GET['product_id'] ?? 0);
+        $shipment = [];
+        if ($deliveryId > 0) {
+            $row = (new DeliveryOrder())->findWithDetails($deliveryId);
+            $uid = Auth::id();
+            if ($row && ((int) $row['buyer_user_id'] === $uid || (int) $row['seller_user_id'] === $uid || Auth::can('disputes'))) {
+                $shipment = is_array($row['shipment'] ?? null) ? $row['shipment'] : [];
+            }
+        } elseif ($productId > 0) {
+            $shipping = (new \App\Services\Listing\ListingShippingService())->findForProduct($productId);
+            if (is_array($shipping)) {
+                $shipment = $shipping;
+            }
+        }
+        if ($shipment !== []) {
+            $filters['weight_kg'] = (float) ($shipment['billed_gross_weight'] ?? $shipment['gross_weight'] ?? $shipment['item_weight'] ?? 0);
+            $filters['length_cm'] = (int) round((float) ($shipment['billed_length'] ?? $shipment['package_length'] ?? $shipment['item_length'] ?? 0));
+            $filters['width_cm'] = (int) round((float) ($shipment['billed_width'] ?? $shipment['package_width'] ?? $shipment['item_width'] ?? 0));
+            $filters['height_cm'] = (int) round((float) ($shipment['billed_height'] ?? $shipment['package_height'] ?? $shipment['item_height'] ?? 0));
+        }
+        return $filters;
     }
 
     /**
@@ -373,5 +499,242 @@ class DeliveryController extends Controller
             $code = in_array($err, ['unauthorized', 'webhook_token_not_configured'], true) ? 401 : 422;
         }
         $this->json($result, $code);
+    }
+
+    /** GET /delivery/{id}/tracking — сохранённая сводка, без запроса в CDEK. */
+    public function tracking(string $id): void
+    {
+        Auth::requireLogin();
+        $deliveryOrderId = (int) $id;
+        $delivery = (new DeliveryOrder())->findWithDetails($deliveryOrderId);
+        if (!$delivery) {
+            $this->json(['ok' => false, 'error' => 'not_found'], 404);
+            return;
+        }
+        $forms = (new DeliveryPrintForm())->findForDelivery($deliveryOrderId);
+        $result = CdekTrackingService::summaryForUser($delivery, Auth::id(), Auth::can('disputes'), $forms);
+        if (empty($result['ok'])) {
+            $this->json(['ok' => false, 'error' => 'forbidden'], 403);
+            return;
+        }
+        $this->json($result);
+    }
+
+    /** POST /delivery/{id}/tracking/refresh — только ставит сверку в очередь, CDEK не вызывается. */
+    public function refreshTracking(string $id): void
+    {
+        Auth::requireLogin();
+        $deliveryOrderId = (int) $id;
+        $orders = new DeliveryOrder();
+        $delivery = $orders->findWithDetails($deliveryOrderId);
+        if (!$delivery) {
+            $this->json(['ok' => false, 'error' => 'not_found'], 404);
+            return;
+        }
+        $forms = (new DeliveryPrintForm())->findForDelivery($deliveryOrderId);
+        $result = CdekTrackingService::summaryForUser($delivery, Auth::id(), Auth::can('disputes'), $forms);
+        if (empty($result['ok'])) {
+            $this->json(['ok' => false, 'error' => 'forbidden'], 403);
+            return;
+        }
+        $uuid = trim((string) ($delivery['logistics_order_id'] ?? $delivery['cdek_uuid'] ?? ''));
+        $scheduled = false;
+        if ($uuid === '') {
+            $result['refresh_scheduled'] = false;
+            $result['error'] = 'missing_uuid';
+        } else {
+            $scheduled = $orders->requestTrackingRefresh($deliveryOrderId);
+            $result['refresh_scheduled'] = $scheduled;
+        }
+        if ($this->wantsJson()) {
+            $this->json($result);
+            return;
+        }
+        $_SESSION['flash'] = $scheduled
+            ? t('delivery.track_refresh_scheduled')
+            : t('delivery.track_refresh_idle');
+        $this->redirect('/delivery/' . $deliveryOrderId);
+    }
+
+    /** GET /delivery/{id}/problems */
+    public function deliveryProblems(string $id): void
+    {
+        Auth::requireLogin();
+        $result = (new CdekDeliveryProblemService())->listForUser((int) $id, Auth::id(), Auth::can('disputes'));
+        $this->json($result, $this->actionHttpCode($result));
+    }
+
+    /** GET /delivery/{id}/cdek-actions */
+    public function cdekActions(string $id): void
+    {
+        Auth::requireLogin();
+        $result = (new CdekDeliveryActionService())->listForUser((int) $id, Auth::id(), Auth::can('disputes'));
+        $this->json($result, $this->actionHttpCode($result));
+    }
+
+    /** POST /delivery/{id}/cdek-actions/refusal */
+    public function requestRefusal(string $id): void
+    {
+        $this->requestCdekAction((int) $id, 'refusal');
+    }
+
+    /** POST /delivery/{id}/cdek-actions/client-return */
+    public function requestClientReturn(string $id): void
+    {
+        $this->requestCdekAction((int) $id, 'client_return');
+    }
+
+    /** GET /delivery/{id}/cdek-actions/{actionId} */
+    public function cdekActionStatus(string $id, string $actionId): void
+    {
+        Auth::requireLogin();
+        $service = new CdekDeliveryActionService();
+        $list = $service->listForUser((int) $id, Auth::id(), Auth::can('disputes'));
+        if (empty($list['ok'])) {
+            $this->json($list, $this->actionHttpCode($list));
+            return;
+        }
+        $found = null;
+        foreach ($list['actions'] ?? [] as $action) {
+            if ((int) ($action['id'] ?? 0) === (int) $actionId) {
+                $found = $action;
+                break;
+            }
+        }
+        if ($found === null) {
+            $this->json(['ok' => false, 'error_code' => 'not_found'], 404);
+            return;
+        }
+        $this->json(['ok' => true, 'action' => $found]);
+    }
+
+    private function requestCdekAction(int $deliveryOrderId, string $type): void
+    {
+        Auth::requireLogin();
+        unset($_POST['cdek_uuid'], $_POST['access_token'], $_POST['client_secret']);
+        $result = (new CdekDeliveryActionService())->request(
+            $deliveryOrderId,
+            Auth::id(),
+            Auth::can('disputes'),
+            $type,
+            [
+                'confirm' => (string) ($_POST['confirm'] ?? ''),
+                'reason' => (string) ($_POST['reason'] ?? ''),
+                'tariff_code' => $_POST['tariff_code'] ?? null,
+            ]
+        );
+        if ($this->wantsJson()) {
+            $this->json($result, $this->actionHttpCode($result));
+            return;
+        }
+        $_SESSION[($result['ok'] ?? false) ? 'flash' : 'error'] = t(
+            'delivery.cdek_action_error_' . (string) ($result['error_code'] ?? 'failed')
+        );
+        $this->redirect('/delivery/' . $deliveryOrderId);
+    }
+
+    /** @param array{ok?: bool, error_code?: string} $result */
+    private function actionHttpCode(array $result): int
+    {
+        if ($result['ok'] ?? false) {
+            return 200;
+        }
+        return match ((string) ($result['error_code'] ?? '')) {
+            'forbidden' => 403,
+            'not_found' => 404,
+            default => 422,
+        };
+    }
+
+    /** GET /delivery/{id}/print-forms */
+    public function printForms(string $id): void
+    {
+        Auth::requireLogin();
+        $result = (new CdekPrintFormService())->listForUser((int) $id, Auth::id(), Auth::can('disputes'));
+        $this->json($result, $this->printHttpCode($result));
+    }
+
+    /** POST /delivery/{id}/print-forms — тип формы с whitelist, без CDEK credentials. */
+    public function requestPrintForm(string $id): void
+    {
+        Auth::requireLogin();
+        unset($_POST['cdek_uuid'], $_POST['print_uuid'], $_POST['file_url'], $_POST['url']);
+        $type = trim((string) ($_POST['form_type'] ?? ''));
+        $result = (new CdekPrintFormService())->request((int) $id, Auth::id(), Auth::can('disputes'), $type !== '' ? $type : null);
+        if ($this->wantsJson()) {
+            $this->json($result, $this->printHttpCode($result));
+            return;
+        }
+        $_SESSION[$result['ok'] ?? false ? 'flash' : 'error'] = ($result['ok'] ?? false)
+            ? (!empty($result['async']) ? t('delivery.print_accepted') : t('delivery.print_ready'))
+            : ($result['error'] ?? t('delivery.print_failed'));
+        $this->redirect('/delivery/' . (int) $id);
+    }
+
+    /** GET /delivery/{id}/print-forms/{formId} */
+    public function printFormStatus(string $id, string $formId): void
+    {
+        Auth::requireLogin();
+        $list = (new CdekPrintFormService())->listForUser((int) $id, Auth::id(), Auth::can('disputes'));
+        if (!($list['ok'] ?? false)) {
+            $this->json($list, $this->printHttpCode($list));
+            return;
+        }
+        foreach ($list['forms'] as $form) {
+            if ((int) ($form['id'] ?? 0) === (int) $formId) {
+                $this->json(['ok' => true, 'form' => $form]);
+                return;
+            }
+        }
+        $this->json(['ok' => false, 'error' => t('delivery.print_not_found'), 'error_code' => 'not_found'], 404);
+    }
+
+    /** GET /delivery/{id}/print-forms/{formId}/file */
+    public function downloadPrintForm(string $id, string $formId): void
+    {
+        Auth::requireLogin();
+        $result = (new CdekPrintFormService())->downloadForUser(
+            (int) $id,
+            (int) $formId,
+            Auth::id(),
+            Auth::can('disputes')
+        );
+        if (!($result['ok'] ?? false)) {
+            $this->json([
+                'ok' => false,
+                'error' => $result['error'] ?? t('delivery.print_unavailable'),
+                'error_code' => $result['error_code'] ?? 'download_failed',
+            ], $this->printHttpCode($result));
+            return;
+        }
+        $filename = (string) ($result['filename'] ?? 'cdek-waybill.pdf');
+        $body = (string) ($result['body'] ?? '');
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Length: ' . strlen($body));
+        header('X-Content-Type-Options: nosniff');
+        header('Cache-Control: private, no-store');
+        echo $body;
+        exit;
+    }
+
+    /** @param array{ok?: bool, error_code?: string} $result */
+    private function printHttpCode(array $result): int
+    {
+        if ($result['ok'] ?? false) {
+            return 200;
+        }
+        return match ((string) ($result['error_code'] ?? '')) {
+            'forbidden' => 403,
+            'not_found' => 404,
+            'invalid_type' => 422,
+            default => 422,
+        };
+    }
+
+    private function wantsJson(): bool
+    {
+        $accept = (string) ($_SERVER['HTTP_ACCEPT'] ?? '');
+        return str_contains($accept, 'application/json') || (($_GET['format'] ?? '') === 'json');
     }
 }
