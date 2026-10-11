@@ -27,7 +27,9 @@ final class AboutDocumentsKnowledgeSync
      */
     public function syncIfNeeded(bool $force = false): array
     {
-        $docs = AboutDocumentsHelper::all();
+        // Индекс всегда по русским PDF: список на «О нас» зависит от языка,
+        // а смена языка не должна перезаписывать базу знаний.
+        $docs = AboutDocumentsHelper::all('ru');
         if ($docs === []) {
             return ['synced' => false, 'documents' => 0, 'articles' => 0, 'reason' => 'no_docs'];
         }
@@ -65,7 +67,7 @@ final class AboutDocumentsKnowledgeSync
         );
 
         foreach ($docs as $doc) {
-            $path = AboutDocumentsHelper::directory() . DIRECTORY_SEPARATOR . $doc['file'];
+            $path = AboutDocumentsHelper::directory('ru') . DIRECTORY_SEPARATOR . $doc['file'];
             if (!is_file($path)) {
                 continue;
             }
@@ -149,7 +151,7 @@ final class AboutDocumentsKnowledgeSync
     {
         $parts = [];
         foreach ($docs as $doc) {
-            $path = AboutDocumentsHelper::directory() . DIRECTORY_SEPARATOR . $doc['file'];
+            $path = AboutDocumentsHelper::directory('ru') . DIRECTORY_SEPARATOR . $doc['file'];
             $mtime = is_file($path) ? (string) filemtime($path) : '0';
             $size = is_file($path) ? (string) filesize($path) : '0';
             $parts[] = $doc['slug'] . ':' . $mtime . ':' . $size;

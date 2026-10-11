@@ -8,7 +8,7 @@ if (!Auth::check() || Auth::listingRulesAccepted()) {
     return;
 }
 
-$sellerManualUrl = ProductHelper::url('/about/document/' . AboutDocumentsHelper::slugFor('Мануал продавца.pdf'));
+$sellerManualUrl = ProductHelper::url('/about/document/' . AboutDocumentsHelper::slugForKey('seller_manual'));
 $publicOfferUrl = ProductHelper::url('/offer');
 $acceptUrl = ProductHelper::url('/profile/listing-rules');
 ?>
