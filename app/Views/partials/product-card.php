@@ -184,24 +184,26 @@ $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" s
     </a>
     <?php endif; ?>
     <div class="absolute top-2.5 right-2.5 z-20 flex flex-col items-end gap-1.5">
-        <button type="button"
-                class="favorite-btn w-8 h-8 rounded-xl bg-white/90 dark:bg-ink-900/80 border border-black/[0.06] dark:border-white/10 shadow-sm flex items-center justify-center transition hover:scale-105 <?= $favorited ? 'is-favorited text-red-500' : 'text-gray-400 hover:text-red-500' ?>"
-                data-product-id="<?= (int) $item['id'] ?>"
-                data-favorited="<?= $favorited ? '1' : '0' ?>"
-                aria-label="<?= htmlspecialchars($favorited ? t('card.unfavorite') : t('card.favorite')) ?>"
-                title="<?= htmlspecialchars($canFavorite ? ($favorited ? t('card.unfavorite') : t('card.favorite')) : t('card.favorite_login')) ?>">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="<?= $favorited ? 'currentColor' : 'none' ?>" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
-            </svg>
-        </button>
+        <div class="flex items-center gap-1.5">
+            <?php if ($isOwn): ?>
+                <?php \App\Core\View::partial('partials/lot-boost', [
+                    'product' => $item,
+                    'ui' => (new \App\Services\Boost\BoostService())->cardState((int) Auth::id(), $item),
+                    'placement' => 'overlay',
+                ]); ?>
+            <?php endif; ?>
+            <button type="button"
+                    class="favorite-btn w-8 h-8 rounded-xl bg-white/90 dark:bg-ink-900/80 border border-black/[0.06] dark:border-white/10 shadow-sm flex items-center justify-center transition hover:scale-105 <?= $favorited ? 'is-favorited text-red-500' : 'text-gray-400 hover:text-red-500' ?>"
+                    data-product-id="<?= (int) $item['id'] ?>"
+                    data-favorited="<?= $favorited ? '1' : '0' ?>"
+                    aria-label="<?= htmlspecialchars($favorited ? t('card.unfavorite') : t('card.favorite')) ?>"
+                    title="<?= htmlspecialchars($canFavorite ? ($favorited ? t('card.unfavorite') : t('card.favorite')) : t('card.favorite_login')) ?>">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="<?= $favorited ? 'currentColor' : 'none' ?>" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+                </svg>
+            </button>
+        </div>
         <?php \App\Core\View::partial('partials/share-buttons', ['item' => $item, 'overlay' => true]); ?>
-        <?php if ($isOwn): ?>
-            <?php \App\Core\View::partial('partials/lot-boost', [
-                'product' => $item,
-                'ui' => (new \App\Services\Boost\BoostService())->cardState((int) Auth::id(), $item),
-                'placement' => 'overlay',
-            ]); ?>
-        <?php endif; ?>
     </div>
     <div class="px-3.5 pt-3 pb-3.5 flex flex-col flex-1 gap-2">
         <div class="space-y-1">
