@@ -1941,7 +1941,12 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                         btn.disabled = true;
                         btn.setAttribute('aria-busy', 'true');
                         var wait = form.getAttribute('data-boost-wait');
-                        if (wait) btn.textContent = wait;
+                        if (wait && btn.querySelector('svg')) {
+                            btn.setAttribute('aria-label', wait);
+                            btn.setAttribute('title', wait);
+                        } else if (wait) {
+                            btn.textContent = wait;
+                        }
                     }
                     var scroller = profileLotsScroller();
                     try { sessionStorage.setItem('profileLotsScroll', String(scroller ? scroller.scrollTop : window.scrollY)); } catch (e) {}
