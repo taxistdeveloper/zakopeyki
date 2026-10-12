@@ -122,6 +122,7 @@ $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" s
             <?= ProductHelper::icon($item['type'], 'w-10 h-10 text-brand-500/70') ?>
         </a>
         <?php endif; ?>
+        <?php if (!$isOwn): ?>
         <button type="button"
                 class="favorite-btn absolute top-2 right-2 z-20 w-8 h-8 rounded-full bg-white/95 dark:bg-ink-900/80 shadow-sm flex items-center justify-center transition hover:scale-105 <?= $favorited ? 'is-favorited text-red-500' : 'text-gray-400 hover:text-red-500' ?>"
                 data-product-id="<?= (int) $item['id'] ?>"
@@ -131,6 +132,7 @@ $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" s
                 <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
             </svg>
         </button>
+        <?php endif; ?>
     </div>
     <div class="p-3 flex flex-col flex-1 gap-2">
         <h3 class="text-[13px] font-semibold line-clamp-2 min-h-[2.4rem] text-ink-800 dark:text-gray-200 leading-snug">
@@ -191,7 +193,7 @@ $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" s
                     'ui' => (new \App\Services\Boost\BoostService())->cardState((int) Auth::id(), $item),
                     'placement' => 'overlay',
                 ]); ?>
-            <?php endif; ?>
+            <?php else: ?>
             <button type="button"
                     class="favorite-btn w-8 h-8 rounded-xl bg-white/90 dark:bg-ink-900/80 border border-black/[0.06] dark:border-white/10 shadow-sm flex items-center justify-center transition hover:scale-105 <?= $favorited ? 'is-favorited text-red-500' : 'text-gray-400 hover:text-red-500' ?>"
                     data-product-id="<?= (int) $item['id'] ?>"
@@ -202,6 +204,7 @@ $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" s
                     <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
                 </svg>
             </button>
+            <?php endif; ?>
         </div>
         <?php \App\Core\View::partial('partials/share-buttons', ['item' => $item, 'overlay' => true]); ?>
     </div>

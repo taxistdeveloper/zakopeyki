@@ -172,6 +172,7 @@ $waOutlineBtn = 'flex-1 min-w-0 inline-flex items-center justify-center gap-2 h-
                 <?php endif; ?>
             </div>
 
+            <?php if (!$isOwnProduct): ?>
             <button type="button"
                     class="favorite-btn absolute top-3 right-3 z-20 w-9 h-9 rounded-full bg-white/95 dark:bg-ink-900/80 shadow-sm flex items-center justify-center transition hover:scale-105 <?= !empty($isFavorite) ? 'is-favorited text-red-500' : 'text-gray-400 hover:text-red-500' ?>"
                     data-product-id="<?= (int) $item['id'] ?>"
@@ -181,6 +182,7 @@ $waOutlineBtn = 'flex-1 min-w-0 inline-flex items-center justify-center gap-2 h-
                     <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
                 </svg>
             </button>
+            <?php endif; ?>
 
             <?php if ($hasGallery): ?>
                 <button type="button" data-gallery-prev class="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white/95 dark:bg-ink-900/80 shadow-sm flex items-center justify-center text-ink-800 dark:text-white hover:scale-105 transition" aria-label="<?= htmlspecialchars(t('product.prev_photo')) ?>">
