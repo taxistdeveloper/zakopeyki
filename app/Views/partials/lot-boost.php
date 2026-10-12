@@ -44,7 +44,23 @@ $placement = (string) ($placement ?? 'row');
 $buttonLabel = $continue ? t('boost.ui_continue') : t($buttonKey, ['amount' => $amount]);
 ?>
 <?php if ($placement === 'overlay'): ?>
-<div class="relative max-w-[11rem]"
+<?php
+$lit = in_array($code, ['applied', 'applied_off', 'pending_wait', 'pending_pay', 'processing', 'processing_off'], true);
+$flameTone = match ($code) {
+    'failed', 'failed_off', 'gateway', 'disabled_pending', 'ineligible' => 'text-red-500',
+    'pending_wait', 'pending_pay', 'processing', 'processing_off' => 'text-amber-500',
+    default => 'text-orange-500 hover:text-orange-600',
+};
+$flameLabel = $continue
+    ? $buttonLabel
+    : t('boost.ui_overlay', ['amount' => $amount]);
+$flameTitle = ($canPurchase || $continue)
+    ? $flameLabel
+    : ($message !== '' ? $message : t('boost.ui_title'));
+$flameBtn = 'w-8 h-8 rounded-xl bg-white/90 dark:bg-ink-900/80 border border-black/[0.06] dark:border-white/10 shadow-sm flex items-center justify-center transition hover:scale-105 ' . $flameTone;
+$flameSvg = '<svg class="w-4 h-4" viewBox="0 0 24 24" fill="' . ($lit ? 'currentColor' : 'none') . '" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>';
+?>
+<div class="relative"
      data-boost-card="<?= $productId ?>"
      data-boost-code="<?= htmlspecialchars($code) ?>"
      data-boost-offer>
@@ -59,16 +75,19 @@ $buttonLabel = $continue ? t('boost.ui_continue') : t($buttonKey, ['amount' => $
                 <input type="hidden" name="idempotency_key" value="<?= htmlspecialchars($idempotencyKey) ?>">
             <?php endif; ?>
             <button type="submit"
-                    class="h-8 px-2.5 rounded-xl bg-white/95 dark:bg-ink-900/85 border border-black/[0.06] dark:border-white/10 shadow-sm text-[10px] font-bold whitespace-nowrap text-brand-700 dark:text-brand-300 hover:text-brand-800 transition"
-                    title="<?= htmlspecialchars(t('boost.ui_desc')) ?>"
-                    aria-label="<?= htmlspecialchars(t('boost.ui_title') . '. ' . $buttonLabel . '. ' . t('boost.ui_desc')) ?>">
-                <?= htmlspecialchars($continue ? $buttonLabel : t('boost.ui_overlay', ['amount' => $amount])) ?>
+                    class="<?= $flameBtn ?>"
+                    title="<?= htmlspecialchars($flameTitle) ?>"
+                    aria-label="<?= htmlspecialchars(t('boost.ui_title') . '. ' . $flameLabel . '. ' . t('boost.ui_desc')) ?>">
+                <?= $flameSvg ?>
             </button>
         </form>
-    <?php elseif ($message !== ''): ?>
-        <p class="rounded-xl bg-white/95 dark:bg-ink-900/85 border border-black/[0.06] dark:border-white/10 shadow-sm px-2 py-1 text-[10px] leading-snug <?= $tone ?>" role="status">
-            <?= htmlspecialchars($message) ?>
-        </p>
+    <?php else: ?>
+        <span class="<?= $flameBtn ?> cursor-default hover:scale-100"
+              role="status"
+              title="<?= htmlspecialchars($flameTitle) ?>"
+              aria-label="<?= htmlspecialchars($flameTitle) ?>">
+            <?= $flameSvg ?>
+        </span>
     <?php endif; ?>
 </div>
 <?php return; endif; ?>
