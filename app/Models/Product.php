@@ -93,6 +93,13 @@ class Product extends Model
                          )
                    )"
             );
+
+            $sortCol = $this->db->query("SHOW COLUMNS FROM products LIKE 'sort_at'")->fetch();
+            if (!$sortCol) {
+                $this->db->exec('ALTER TABLE products ADD COLUMN sort_at DATETIME NULL DEFAULT NULL AFTER created_at');
+                $this->db->exec('UPDATE products SET sort_at = created_at, updated_at = updated_at WHERE sort_at IS NULL');
+            }
+            $this->ensureIndex('products', 'idx_products_sort', 'INDEX idx_products_sort (sort_at, id)');
         } catch (\Throwable $e) {
             // ignore on fresh/broken installs
         }
@@ -140,10 +147,26 @@ class Product extends Model
             $params[] = $category . ' / %';
         }
 
-        $sql .= ' ORDER BY p.created_at DESC';
+        $sql .= ' ' . \App\Services\Boost\BoostPolicy::catalogOrderSql();
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll();
+    }
+
+    /**
+     * Поднятие в каталоге. created_at и updated_at не меняются.
+     */
+    public function applyBoostSort(int $id, int $userId, string $sortAt): bool
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE products
+             SET sort_at = ?, updated_at = updated_at
+             WHERE id = ? AND user_id = ? AND status = 'active'
+               AND type IN ('used','new','auction','free','exchange','service')"
+        );
+        $stmt->execute([$sortAt, $id, $userId]);
+
+        return $stmt->rowCount() === 1;
     }
 
     /**

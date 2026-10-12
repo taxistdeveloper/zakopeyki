@@ -121,6 +121,7 @@ class AdminController extends Controller
             'recentErrors' => $recentErrors,
             'amlBlockedCount' => $amlBlockedCount,
             'stubMode' => $stubMode,
+            'boostEnabled' => $isAdmin && (new \App\Services\Boost\BoostService())->isEnabled(),
             'canProducts' => $canProducts,
             'canTickets' => $canTickets,
             'canAi' => $canAi,
@@ -165,6 +166,43 @@ class AdminController extends Controller
             $_SESSION['error'] = t('admin.site_toggle_failed');
         }
 
+        $this->redirect('/admin');
+    }
+
+    private function requireBoostAdmin(): void
+    {
+        Auth::requireLogin();
+        $role = (string) (Auth::user()['role'] ?? '');
+        if (!\App\Services\Boost\BoostPolicy::canToggle($role)) {
+            http_response_code(403);
+            echo 'Доступ запрещён';
+            exit;
+        }
+    }
+
+    public function toggleBoost(): void
+    {
+        $this->requireBoostAdmin();
+
+        $enabled = isset($_POST['enabled']) && (string) $_POST['enabled'] === '1';
+        $ok = (new \App\Services\Boost\BoostService())->setEnabled($enabled);
+        $_SESSION[$ok ? 'flash' : 'error'] = $ok
+            ? ($enabled ? t('admin.boost_enabled_flash') : t('admin.boost_disabled_flash'))
+            : t('admin.boost_toggle_failed');
+        $this->redirect('/admin');
+    }
+
+    public function recoverBoost(): void
+    {
+        $this->requireBoostAdmin();
+
+        $result = (new \App\Services\Boost\BoostService())->recoverUnapplied();
+        if (empty($result['ok'])) {
+            $_SESSION['error'] = t('admin.boost_recover_disabled');
+            $this->redirect('/admin');
+            return;
+        }
+        $_SESSION['flash'] = t('admin.boost_recovered', ['n' => (string) ($result['applied'] ?? 0)]);
         $this->redirect('/admin');
     }
 

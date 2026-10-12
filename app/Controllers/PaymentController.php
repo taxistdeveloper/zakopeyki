@@ -5,9 +5,12 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Controller;
 use App\Helpers\ActivityLogger;
+use App\Models\BoostOrder;
 use App\Models\DeliveryPayment;
 use App\Models\Order;
 use App\Models\Payment;
+use App\Services\Boost\BoostPolicy;
+use App\Services\Boost\BoostService;
 use App\Services\FreedomPay\Client as FreedomPayClient;
 
 class PaymentController extends Controller
@@ -57,6 +60,11 @@ class PaymentController extends Controller
 
         if (DeliveryPayment::isDeliveryPgOrderId($pgOrderId)) {
             $this->handleDeliveryFreedomPayResult($fp, $scriptName, $pgOrderId, $pgPaymentId, $pgAmount, $pgResult, $canReject);
+            return;
+        }
+
+        if (BoostPolicy::isBoostPgOrderId($pgOrderId)) {
+            $this->handleBoostFreedomPayResult($fp, $scriptName, $pgOrderId, $pgPaymentId, $pgAmount, $pgResult, $canReject);
             return;
         }
 
@@ -132,6 +140,10 @@ class PaymentController extends Controller
         Auth::requireLogin();
         $params = FreedomPayClient::requestParams();
         $pgOrderId = (string) ($params['pg_order_id'] ?? '');
+        if ($pgOrderId !== '' && BoostPolicy::isBoostPgOrderId($pgOrderId)) {
+            $this->redirectBoostReturn($pgOrderId);
+            return;
+        }
         if ($pgOrderId !== '' && DeliveryPayment::isDeliveryPgOrderId($pgOrderId)) {
             $payment = (new DeliveryPayment())->findByPgOrderId($pgOrderId);
             if ($payment && (int) ($payment['buyer_user_id'] ?? 0) === Auth::id()) {
@@ -174,6 +186,10 @@ class PaymentController extends Controller
         Auth::requireLogin();
         $params = FreedomPayClient::requestParams();
         $pgOrderId = (string) ($params['pg_order_id'] ?? '');
+        if ($pgOrderId !== '' && BoostPolicy::isBoostPgOrderId($pgOrderId)) {
+            $this->redirectBoostReturn($pgOrderId);
+            return;
+        }
         if ($pgOrderId !== '' && DeliveryPayment::isDeliveryPgOrderId($pgOrderId)) {
             $payment = (new DeliveryPayment())->findByPgOrderId($pgOrderId);
             if ($payment) {
@@ -222,7 +238,7 @@ class PaymentController extends Controller
         $params = FreedomPayClient::requestParams();
         if (!empty($params['pg_order_id'])) {
             $pgOrderId = (string) $params['pg_order_id'];
-            if (DeliveryPayment::isDeliveryPgOrderId($pgOrderId)) {
+            if (DeliveryPayment::isDeliveryPgOrderId($pgOrderId) || BoostPolicy::isBoostPgOrderId($pgOrderId)) {
                 return 0;
             }
             $payment = (new Payment())->findByPgOrderId($pgOrderId);
@@ -303,6 +319,69 @@ class PaymentController extends Controller
             'pg_status' => 'ok',
             'pg_description' => 'Failure recorded',
         ]));
+    }
+
+    private function handleBoostFreedomPayResult(
+        FreedomPayClient $fp,
+        string $scriptName,
+        string $pgOrderId,
+        string $pgPaymentId,
+        string $pgAmount,
+        int $pgResult,
+        bool $canReject
+    ): void {
+        $params = FreedomPayClient::requestParams();
+        $pgCurrency = isset($params['pg_currency']) ? (string) $params['pg_currency'] : null;
+        $done = (new BoostService())->handleGatewayResult(
+            $pgOrderId,
+            $pgPaymentId,
+            $pgAmount,
+            $pgResult,
+            $canReject,
+            $pgCurrency
+        );
+
+        $gateway = (string) ($done['gateway'] ?? 'error');
+        if ($gateway === 'ok') {
+            $this->xmlOut($fp->xmlResponse($scriptName, [
+                'pg_status' => 'ok',
+                'pg_description' => !empty($done['applied']) ? 'Boost applied' : 'Boost recorded',
+            ]));
+            return;
+        }
+        if ($gateway === 'rejected' && $canReject) {
+            $this->xmlOut($fp->xmlResponse($scriptName, [
+                'pg_status' => 'rejected',
+                'pg_description' => (string) ($done['error'] ?? 'Cannot accept payment'),
+            ]));
+            return;
+        }
+        $this->xmlOut($fp->xmlResponse($scriptName, [
+            'pg_status' => 'error',
+            'pg_description' => (string) ($done['error'] ?? 'Processing error'),
+        ]));
+    }
+
+    private function redirectBoostReturn(string $pgOrderId): void
+    {
+        $order = (new BoostOrder())->findByPgOrderId($pgOrderId);
+        if (!$order || (int) ($order['user_id'] ?? 0) !== (int) Auth::id()) {
+            $_SESSION['error'] = t('boost.err_not_found');
+            $this->redirect('/profile?tab=lots');
+            return;
+        }
+
+        $status = (string) ($order['status'] ?? '');
+        if ($status === BoostPolicy::STATUS_APPLIED) {
+            $_SESSION['flash'] = t('boost.applied');
+        } elseif ($status === BoostPolicy::STATUS_PAID || $status === BoostPolicy::STATUS_APPLY_FAILED) {
+            $_SESSION['flash'] = t('boost.paid_waiting');
+        } elseif ($status === BoostPolicy::STATUS_PENDING) {
+            $_SESSION['flash'] = t('boost.payment_pending');
+        } else {
+            $_SESSION['error'] = t('boost.payment_failed');
+        }
+        $this->redirect('/profile?tab=lots');
     }
 
     private function xmlOut(string $xml): void

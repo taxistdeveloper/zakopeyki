@@ -3,6 +3,7 @@ use App\Helpers\ProductHelper;
 use App\Helpers\AvatarHelper;
 use App\Helpers\IconHelper;
 use App\Models\Bonus;
+use App\Services\Boost\BoostPolicy;
 
 $user = $user ?? [];
 $tab = $tab ?? 'personal';
@@ -38,6 +39,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
 $kycStatus = \App\Services\AMLService::userListingStatus($user);
 $accountLimit = $accountLimit ?? [];
 $businessSubscription = $businessSubscription ?? null;
+$boostStates = $boostStates ?? [];
 $isBusinessAccount = !empty($accountLimit['is_business']);
 ?>
 <section class="max-w-5xl mx-auto space-y-5 pb-8">
@@ -1862,10 +1864,16 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                     <p class="text-sm text-gray-400"><?= htmlspecialchars(t('profile.no_lots')) ?></p>
                 <?php else: ?>
                     <div class="space-y-2">
-                        <?php foreach ($lotProducts as $p):
+                        <?php
+                        $boostWatch = false;
+                        foreach ($lotProducts as $p):
                             $thumb = ProductHelper::imageUrl($p);
+                            $boostUi = $boostStates[(int) $p['id']] ?? ['code' => 'hidden', 'can_purchase' => false, 'continue_payment' => false, 'notice' => null];
+                            if ((string) ($boostUi['code'] ?? 'hidden') !== 'hidden') {
+                                $boostWatch = true;
+                            }
                         ?>
-                            <div class="flex flex-col sm:flex-row sm:items-center gap-3 bg-white dark:bg-white/5 border border-black/[0.06] dark:border-white/10 rounded-2xl px-4 py-3.5 <?= !empty($editing) && (int) $editing['id'] === (int) $p['id'] ? 'border-brand-400/60 shadow-soft' : '' ?>">
+                            <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 bg-white dark:bg-white/5 border border-black/[0.06] dark:border-white/10 rounded-2xl px-4 py-3.5 <?= !empty($editing) && (int) $editing['id'] === (int) $p['id'] ? 'border-brand-400/60 shadow-soft' : '' ?>">
                                 <a href="<?= ProductHelper::url('/product/' . $p['id']) ?>" class="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition">
                                     <div class="w-12 h-12 rounded-xl overflow-hidden bg-brand-50 dark:bg-white/5 flex-shrink-0 flex items-center justify-center">
                                         <?php if ($thumb): ?>
@@ -1909,6 +1917,7 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                                         </form>
                                     </div>
                                 </div>
+                                <?php \App\Core\View::partial('partials/lot-boost', ['product' => $p, 'ui' => $boostUi]); ?>
                             </div>
                         <?php endforeach; ?>
                     </div>
@@ -1923,6 +1932,83 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                     try { sessionStorage.setItem('profileLotsScroll', String(scroller ? scroller.scrollTop : window.scrollY)); } catch (e) {}
                     return true;
                 }
+                function profileBoostSubmit(form, msg) {
+                    if (!form || form.getAttribute('data-boost-locked') === '1') return false;
+                    if (!confirm(msg)) return false;
+                    form.setAttribute('data-boost-locked', '1');
+                    var btn = form.querySelector('button[type="submit"]');
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.setAttribute('aria-busy', 'true');
+                        var wait = form.getAttribute('data-boost-wait');
+                        if (wait) btn.textContent = wait;
+                    }
+                    var scroller = profileLotsScroller();
+                    try { sessionStorage.setItem('profileLotsScroll', String(scroller ? scroller.scrollTop : window.scrollY)); } catch (e) {}
+                    return true;
+                }
+                <?php if (!empty($boostWatch)): ?>
+                (function () {
+                    var url = <?= json_encode(ProductHelper::url('/profile/lots/boost-status'), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+                    var started = Date.now();
+                    var failures = 0;
+                    function tick() {
+                        if (Date.now() - started > 900000) return;
+                        if (document.hidden) {
+                            setTimeout(tick, 5000);
+                            return;
+                        }
+                        var cards = document.querySelectorAll('[data-boost-card]');
+                        if (!cards.length) return;
+                        fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+                            .then(function (response) { return response.ok ? response.json() : Promise.reject(); })
+                            .then(function (data) {
+                                failures = 0;
+                                var byId = {};
+                                (data && data.items ? data.items : []).forEach(function (item) {
+                                    byId[String(item.id)] = item;
+                                });
+                                cards.forEach(function (card) {
+                                    var item = byId[card.getAttribute('data-boost-card')];
+                                    var form = card.querySelector('form');
+                                    var refresh = card.querySelector('[data-boost-refresh]');
+                                    if (!item) {
+                                        if (form) form.remove();
+                                        if (refresh) refresh.hidden = false;
+                                        card.removeAttribute('data-boost-card');
+                                        return;
+                                    }
+                                    var changed = item.code !== card.getAttribute('data-boost-code');
+                                    if (changed) {
+                                        card.setAttribute('data-boost-code', item.code);
+                                        var live = card.querySelector('[data-boost-message]');
+                                        if (live && item.message) live.textContent = item.message;
+                                        if (refresh) refresh.hidden = false;
+                                        if (form) form.remove();
+                                        return;
+                                    }
+                                    if (!item.can_purchase && !item.continue_payment && form) {
+                                        form.remove();
+                                        if (refresh) refresh.hidden = false;
+                                    }
+                                });
+                                if (document.querySelector('[data-boost-card]') && Date.now() - started < 900000) {
+                                    setTimeout(tick, 5000);
+                                }
+                            })
+                            .catch(function () {
+                                failures += 1;
+                                if (failures >= 3) {
+                                    document.querySelectorAll('[data-boost-card] [data-boost-offline]').forEach(function (node) {
+                                        node.hidden = false;
+                                    });
+                                }
+                                if (Date.now() - started < 900000) setTimeout(tick, 8000);
+                            });
+                    }
+                    setTimeout(tick, 5000);
+                })();
+                <?php endif; ?>
                 (function () {
                     var saved = null;
                     try {

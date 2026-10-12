@@ -56,6 +56,11 @@ class Setting extends Model
         return $value;
     }
 
+    public function forget(string $key): void
+    {
+        unset(self::$cache[$key]);
+    }
+
     public function set(string $key, string $value): void
     {
         $stmt = $this->db->prepare(

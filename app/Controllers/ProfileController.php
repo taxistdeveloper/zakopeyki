@@ -15,6 +15,7 @@ use App\Models\Review;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Services\AMLService;
+use App\Services\Boost\BoostService;
 use App\Services\BusinessPackageService;
 use App\Services\Listing\ListingShippingService;
 use App\Services\MicroTaskService;
@@ -126,12 +127,18 @@ class ProfileController extends Controller
             $listingShipping = (new ListingShippingService())->findForProduct((int) $editProduct['id']);
         }
 
+        $products = (new Product())->byUser(Auth::id());
+        $boostStates = $tab === 'lots'
+            ? (new BoostService())->statesForProducts((int) Auth::id(), $products)
+            : [];
+
         $this->view('profile/index', [
             'title' => t('profile.title'),
             'currentNav' => 'profile',
             'tab' => $tab,
             'user' => $profileUser,
-            'products' => (new Product())->byUser(Auth::id()),
+            'products' => $products,
+            'boostStates' => $boostStates,
             'favorites' => $favorites,
             'favoriteIds' => $favoriteIds,
             'followingUsers' => $followingUsers,
