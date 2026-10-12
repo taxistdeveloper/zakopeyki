@@ -16,6 +16,7 @@ final class BoostPolicy
 
     /** Соседние контуры, которые этот переключатель не меняет. */
     public const UNRELATED_CONTROLS = [
+        'highlight_enabled',
         'stub_mode',
         'business_packages.priority_boost',
         'business_usage.boosts',

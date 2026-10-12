@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Models\Wallet;
 use App\Services\AMLService;
 use App\Services\Boost\BoostService;
+use App\Services\Highlight\HighlightService;
 use App\Services\BusinessPackageService;
 use App\Services\Listing\ListingShippingService;
 use App\Services\MicroTaskService;
@@ -131,6 +132,9 @@ class ProfileController extends Controller
         $boostStates = $tab === 'lots'
             ? (new BoostService())->statesForProducts((int) Auth::id(), $products)
             : [];
+        $highlightStates = $tab === 'lots'
+            ? (new HighlightService())->statesForProducts((int) Auth::id(), $products)
+            : [];
 
         $this->view('profile/index', [
             'title' => t('profile.title'),
@@ -139,6 +143,7 @@ class ProfileController extends Controller
             'user' => $profileUser,
             'products' => $products,
             'boostStates' => $boostStates,
+            'highlightStates' => $highlightStates,
             'favorites' => $favorites,
             'favoriteIds' => $favoriteIds,
             'followingUsers' => $followingUsers,

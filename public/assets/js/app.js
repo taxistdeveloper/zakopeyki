@@ -404,6 +404,42 @@ document.addEventListener('click', function (e) {
     }
 });
 
+function syncHighlightMarks() {
+    var now = Date.now();
+    document.querySelectorAll('[data-highlight-until]').forEach(function (el) {
+        var until = Date.parse(el.getAttribute('data-highlight-until') || '');
+        if (!until || until > now) return;
+        el.classList.remove('highlight-card');
+        el.removeAttribute('data-highlight-until');
+        el.querySelectorAll('[data-highlight-sticker]').forEach(function (node) {
+            node.remove();
+        });
+    });
+}
+document.addEventListener('DOMContentLoaded', function () {
+    syncHighlightMarks();
+    setInterval(syncHighlightMarks, 30000);
+});
+
+function profileHighlightSubmit(form, msg) {
+    if (!form || form.getAttribute('data-highlight-locked') === '1') return false;
+    if (!confirm(msg)) return false;
+    form.setAttribute('data-highlight-locked', '1');
+    var btn = form.querySelector('button[type="submit"]');
+    if (btn) {
+        btn.disabled = true;
+        btn.setAttribute('aria-busy', 'true');
+        var wait = form.getAttribute('data-highlight-wait');
+        if (wait && btn.querySelector('svg')) {
+            btn.setAttribute('aria-label', wait);
+            btn.setAttribute('title', wait);
+        } else if (wait) {
+            btn.textContent = wait;
+        }
+    }
+    return true;
+}
+
 function profileBoostSubmit(form, msg) {
     if (!form || form.getAttribute('data-boost-locked') === '1') return false;
     if (!confirm(msg)) return false;

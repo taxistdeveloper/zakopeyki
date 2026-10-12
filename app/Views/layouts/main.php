@@ -1949,6 +1949,29 @@ function url(string $path = ''): string
             font-size: 14px;
             text-align: left;
         }
+        .highlight-card {
+            background-color: #fffbeb !important;
+            box-shadow: inset 0 0 0 2px #f59e0b;
+        }
+        html.dark .highlight-card,
+        .dark .highlight-card {
+            background-color: rgba(245, 158, 11, 0.14) !important;
+            box-shadow: inset 0 0 0 2px #fbbf24;
+        }
+        .highlight-sticker {
+            display: inline-flex;
+            align-items: center;
+            pointer-events: none;
+            background: #f59e0b;
+            color: #111111;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            line-height: 1;
+            padding: 4px 7px;
+            border-radius: 8px;
+            text-transform: uppercase;
+        }
         .story-product-card {
             display: flex;
             align-items: center;

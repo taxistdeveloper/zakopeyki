@@ -24,6 +24,7 @@ use App\Controllers\SupportController;
 use App\Controllers\UserController;
 use App\Controllers\WalletController;
 use App\Controllers\BoostController;
+use App\Controllers\HighlightController;
 use App\Controllers\BonusController;
 use App\Controllers\BusinessController;
 use App\Controllers\MicroTaskCompletionController;
@@ -173,6 +174,8 @@ $router->post('/profile/store', [ProfileController::class, 'store']);
 $router->post('/profile/author/enable', [ProfileController::class, 'enableCourseAuthor']);
 $router->get('/profile/lots/boost-status', [BoostController::class, 'status']);
 $router->post('/profile/lots/{id}/boost', [BoostController::class, 'purchase']);
+$router->get('/profile/lots/highlight-status', [HighlightController::class, 'status']);
+$router->post('/profile/lots/{id}/highlight', [HighlightController::class, 'purchase']);
 $router->post('/profile/lots/{id}/update', [ProfileController::class, 'updateLot']);
 $router->post('/profile/lots/{id}/delete', [ProfileController::class, 'deleteLot']);
 $router->post('/profile/gigs/{id}/update', [ProfileController::class, 'updateGig']);
@@ -301,5 +304,7 @@ $router->post('/admin/site-status', [AdminController::class, 'toggleSiteStatus']
 $router->post('/admin/boost', [AdminController::class, 'toggleBoost']);
 $router->post('/admin/boost/recover', [AdminController::class, 'recoverBoost']);
 $router->post('/admin/three-lifts', [AdminController::class, 'toggleThreeLifts']);
+$router->post('/admin/highlight', [AdminController::class, 'toggleHighlight']);
+$router->post('/admin/highlight/recover', [AdminController::class, 'recoverHighlight']);
 
 return $router;

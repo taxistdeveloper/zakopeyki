@@ -123,6 +123,7 @@ class AdminController extends Controller
             'stubMode' => $stubMode,
             'boostEnabled' => $isAdmin && (new \App\Services\Boost\BoostService())->isEnabled(),
             'threeLiftsEnabled' => $isAdmin && (new \App\Services\ThreeLifts\ThreeLiftsService())->isEnabled(),
+            'highlightEnabled' => $isAdmin && (new \App\Services\Highlight\HighlightService())->isEnabled(),
             'canProducts' => $canProducts,
             'canTickets' => $canTickets,
             'canAi' => $canAi,
@@ -241,6 +242,43 @@ class AdminController extends Controller
         } else {
             $_SESSION['error'] = t('admin.three_lifts_toggle_failed');
         }
+        $this->redirect('/admin');
+    }
+
+    private function requireHighlightAdmin(): void
+    {
+        Auth::requireLogin();
+        $role = (string) (Auth::user()['role'] ?? '');
+        if (!\App\Services\Highlight\HighlightPolicy::canToggle($role)) {
+            http_response_code(403);
+            echo 'Доступ запрещён';
+            exit;
+        }
+    }
+
+    public function toggleHighlight(): void
+    {
+        $this->requireHighlightAdmin();
+
+        $enabled = isset($_POST['enabled']) && (string) $_POST['enabled'] === '1';
+        $ok = (new \App\Services\Highlight\HighlightService())->setEnabled($enabled);
+        $_SESSION[$ok ? 'flash' : 'error'] = $ok
+            ? ($enabled ? t('admin.highlight_enabled_flash') : t('admin.highlight_disabled_flash'))
+            : t('admin.highlight_toggle_failed');
+        $this->redirect('/admin');
+    }
+
+    public function recoverHighlight(): void
+    {
+        $this->requireHighlightAdmin();
+
+        $result = (new \App\Services\Highlight\HighlightService())->recoverUnapplied();
+        if (empty($result['ok'])) {
+            $_SESSION['error'] = t('admin.highlight_recover_disabled');
+            $this->redirect('/admin');
+            return;
+        }
+        $_SESSION['flash'] = t('admin.highlight_recovered', ['n' => (string) ($result['applied'] ?? 0)]);
         $this->redirect('/admin');
     }
 

@@ -40,6 +40,7 @@ $kycStatus = \App\Services\AMLService::userListingStatus($user);
 $accountLimit = $accountLimit ?? [];
 $businessSubscription = $businessSubscription ?? null;
 $boostStates = $boostStates ?? [];
+$highlightStates = $highlightStates ?? [];
 $isBusinessAccount = !empty($accountLimit['is_business']);
 ?>
 <section class="max-w-5xl mx-auto space-y-5 pb-8">
@@ -1866,14 +1867,25 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                     <div class="space-y-2">
                         <?php
                         $boostWatch = false;
+                        $highlightWatch = false;
                         foreach ($lotProducts as $p):
                             $thumb = ProductHelper::imageUrl($p);
                             $boostUi = $boostStates[(int) $p['id']] ?? ['code' => 'hidden', 'can_purchase' => false, 'continue_payment' => false, 'notice' => null];
                             if ((string) ($boostUi['code'] ?? 'hidden') !== 'hidden') {
                                 $boostWatch = true;
                             }
+                            $highlightUi = $highlightStates[(int) $p['id']] ?? ['code' => 'hidden', 'can_purchase' => false, 'continue_payment' => false, 'notice' => null, 'ends_at' => null];
+                            if ((string) ($highlightUi['code'] ?? 'hidden') !== 'hidden') {
+                                $highlightWatch = true;
+                            }
+                            $lotHighlight = \App\Services\Highlight\HighlightService::presentation($p);
+                            $lotHighlightOn = !empty($lotHighlight['active']);
+                            $lotHighlightIso = $lotHighlightOn
+                                ? \App\Services\Highlight\HighlightPolicy::isoUntil((string) ($lotHighlight['ends_at'] ?? ''))
+                                : '';
                         ?>
-                            <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 bg-white dark:bg-white/5 border border-black/[0.06] dark:border-white/10 rounded-2xl px-4 py-3.5 <?= !empty($editing) && (int) $editing['id'] === (int) $p['id'] ? 'border-brand-400/60 shadow-soft' : '' ?>">
+                            <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 bg-white dark:bg-white/5 border border-black/[0.06] dark:border-white/10 rounded-2xl px-4 py-3.5 <?= !empty($editing) && (int) $editing['id'] === (int) $p['id'] ? 'border-brand-400/60 shadow-soft' : '' ?><?= $lotHighlightOn ? ' highlight-card' : '' ?>"
+                                 <?= $lotHighlightOn ? 'data-highlight-until="' . htmlspecialchars($lotHighlightIso) . '"' : '' ?>>
                                 <a href="<?= ProductHelper::url('/product/' . $p['id']) ?>" class="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition">
                                     <div class="w-12 h-12 rounded-xl overflow-hidden bg-brand-50 dark:bg-white/5 flex-shrink-0 flex items-center justify-center">
                                         <?php if ($thumb): ?>
@@ -1883,7 +1895,12 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                                         <?php endif; ?>
                                     </div>
                                     <div class="min-w-0">
-                                        <div class="text-sm font-semibold truncate"><?= htmlspecialchars($p['title']) ?></div>
+                                        <div class="text-sm font-semibold truncate flex items-center gap-1.5">
+                                            <span class="truncate"><?= htmlspecialchars($p['title']) ?></span>
+                                            <?php if ($lotHighlightOn): ?>
+                                                <?php \App\Core\View::partial('partials/highlight-sticker'); ?>
+                                            <?php endif; ?>
+                                        </div>
                                         <div class="text-[10px] text-gray-400 mt-0.5">
                                             <?= ProductHelper::label($p['type']) ?>
                                             <?php if (in_array($p['type'], ProductHelper::PRODUCT_TYPES_WITH_CATEGORY, true) && !empty($p['category'])): ?>
@@ -1918,6 +1935,7 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                                     </div>
                                 </div>
                                 <?php \App\Core\View::partial('partials/lot-boost', ['product' => $p, 'ui' => $boostUi]); ?>
+                                <?php \App\Core\View::partial('partials/lot-highlight', ['product' => $p, 'ui' => $highlightUi]); ?>
                             </div>
                         <?php endforeach; ?>
                     </div>
@@ -2005,6 +2023,68 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                                 failures += 1;
                                 if (failures >= 3) {
                                     document.querySelectorAll('[data-boost-card] [data-boost-offline]').forEach(function (node) {
+                                        node.hidden = false;
+                                    });
+                                }
+                                if (Date.now() - started < 900000) setTimeout(tick, 8000);
+                            });
+                    }
+                    setTimeout(tick, 5000);
+                })();
+                <?php endif; ?>
+                <?php if (!empty($highlightWatch)): ?>
+                (function () {
+                    var url = <?= json_encode(ProductHelper::url('/profile/lots/highlight-status'), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+                    var started = Date.now();
+                    var failures = 0;
+                    function tick() {
+                        if (Date.now() - started > 900000) return;
+                        if (document.hidden) {
+                            setTimeout(tick, 5000);
+                            return;
+                        }
+                        var cards = document.querySelectorAll('[data-highlight-watch]');
+                        if (!cards.length) return;
+                        fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' }, cache: 'no-store' })
+                            .then(function (response) { return response.ok ? response.json() : Promise.reject(); })
+                            .then(function (data) {
+                                failures = 0;
+                                var byId = {};
+                                (data && data.items ? data.items : []).forEach(function (item) {
+                                    byId[String(item.id)] = item;
+                                });
+                                cards.forEach(function (card) {
+                                    var item = byId[card.getAttribute('data-highlight-card')];
+                                    var form = card.querySelector('form');
+                                    var refresh = card.querySelector('[data-highlight-refresh]');
+                                    if (!item) {
+                                        if (form) form.remove();
+                                        if (refresh) refresh.hidden = false;
+                                        card.removeAttribute('data-highlight-watch');
+                                        return;
+                                    }
+                                    var changed = item.code !== card.getAttribute('data-highlight-code');
+                                    if (changed) {
+                                        card.setAttribute('data-highlight-code', item.code);
+                                        var live = card.querySelector('[data-highlight-message]');
+                                        if (live && item.message) live.textContent = item.message;
+                                        if (refresh) refresh.hidden = false;
+                                        if (form) form.remove();
+                                        return;
+                                    }
+                                    if (!item.can_purchase && !item.continue_payment && form) {
+                                        form.remove();
+                                        if (refresh) refresh.hidden = false;
+                                    }
+                                });
+                                if (document.querySelector('[data-highlight-watch]') && Date.now() - started < 900000) {
+                                    setTimeout(tick, 5000);
+                                }
+                            })
+                            .catch(function () {
+                                failures += 1;
+                                if (failures >= 3) {
+                                    document.querySelectorAll('[data-highlight-card] [data-highlight-offline]').forEach(function (node) {
                                         node.hidden = false;
                                     });
                                 }

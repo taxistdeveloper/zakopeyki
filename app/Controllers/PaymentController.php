@@ -7,10 +7,13 @@ use App\Core\Controller;
 use App\Helpers\ActivityLogger;
 use App\Models\BoostOrder;
 use App\Models\DeliveryPayment;
+use App\Models\HighlightOrder;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Services\Boost\BoostPolicy;
 use App\Services\Boost\BoostService;
+use App\Services\Highlight\HighlightPolicy;
+use App\Services\Highlight\HighlightService;
 use App\Services\FreedomPay\Client as FreedomPayClient;
 
 class PaymentController extends Controller
@@ -65,6 +68,11 @@ class PaymentController extends Controller
 
         if (BoostPolicy::isBoostPgOrderId($pgOrderId)) {
             $this->handleBoostFreedomPayResult($fp, $scriptName, $pgOrderId, $pgPaymentId, $pgAmount, $pgResult, $canReject);
+            return;
+        }
+
+        if (HighlightPolicy::isHighlightPgOrderId($pgOrderId)) {
+            $this->handleHighlightFreedomPayResult($fp, $scriptName, $pgOrderId, $pgPaymentId, $pgAmount, $pgResult, $canReject);
             return;
         }
 
@@ -144,6 +152,10 @@ class PaymentController extends Controller
             $this->redirectBoostReturn($pgOrderId);
             return;
         }
+        if ($pgOrderId !== '' && HighlightPolicy::isHighlightPgOrderId($pgOrderId)) {
+            $this->redirectHighlightReturn($pgOrderId);
+            return;
+        }
         if ($pgOrderId !== '' && DeliveryPayment::isDeliveryPgOrderId($pgOrderId)) {
             $payment = (new DeliveryPayment())->findByPgOrderId($pgOrderId);
             if ($payment && (int) ($payment['buyer_user_id'] ?? 0) === Auth::id()) {
@@ -188,6 +200,10 @@ class PaymentController extends Controller
         $pgOrderId = (string) ($params['pg_order_id'] ?? '');
         if ($pgOrderId !== '' && BoostPolicy::isBoostPgOrderId($pgOrderId)) {
             $this->redirectBoostReturn($pgOrderId);
+            return;
+        }
+        if ($pgOrderId !== '' && HighlightPolicy::isHighlightPgOrderId($pgOrderId)) {
+            $this->redirectHighlightReturn($pgOrderId);
             return;
         }
         if ($pgOrderId !== '' && DeliveryPayment::isDeliveryPgOrderId($pgOrderId)) {
@@ -238,7 +254,7 @@ class PaymentController extends Controller
         $params = FreedomPayClient::requestParams();
         if (!empty($params['pg_order_id'])) {
             $pgOrderId = (string) $params['pg_order_id'];
-            if (DeliveryPayment::isDeliveryPgOrderId($pgOrderId) || BoostPolicy::isBoostPgOrderId($pgOrderId)) {
+            if (DeliveryPayment::isDeliveryPgOrderId($pgOrderId) || BoostPolicy::isBoostPgOrderId($pgOrderId) || HighlightPolicy::isHighlightPgOrderId($pgOrderId)) {
                 return 0;
             }
             $payment = (new Payment())->findByPgOrderId($pgOrderId);
@@ -382,6 +398,76 @@ class PaymentController extends Controller
             $_SESSION['error'] = t('boost.payment_failed');
         }
         $this->redirect('/profile?tab=lots');
+    }
+
+    private function redirectHighlightReturn(string $pgOrderId): void
+    {
+        $order = (new HighlightOrder())->findByPgOrderId($pgOrderId);
+        if (!$order || (int) ($order['user_id'] ?? 0) !== (int) Auth::id()) {
+            $_SESSION['error'] = t('highlight.err_not_found');
+            $this->redirect('/profile?tab=lots');
+            return;
+        }
+
+        $status = (string) ($order['status'] ?? '');
+        $until = HighlightPolicy::formatUntil(isset($order['ends_at']) ? (string) $order['ends_at'] : null);
+        $running = HighlightPolicy::windowActive(
+            isset($order['starts_at']) ? (string) $order['starts_at'] : null,
+            isset($order['ends_at']) ? (string) $order['ends_at'] : null
+        );
+        if (($status === HighlightPolicy::STATUS_APPLIED || $status === HighlightPolicy::STATUS_EXPIRED) && $running) {
+            $_SESSION['flash'] = t('highlight.active', ['until' => $until]);
+        } elseif ($status === HighlightPolicy::STATUS_APPLIED || $status === HighlightPolicy::STATUS_EXPIRED) {
+            $_SESSION['flash'] = t('highlight.expired');
+        } elseif ($status === HighlightPolicy::STATUS_PAID || $status === HighlightPolicy::STATUS_APPLY_FAILED) {
+            $_SESSION['flash'] = t('highlight.paid_waiting');
+        } elseif ($status === HighlightPolicy::STATUS_PENDING) {
+            $_SESSION['flash'] = t('highlight.payment_pending');
+        } else {
+            $_SESSION['error'] = t('highlight.payment_failed');
+        }
+        $this->redirect('/profile?tab=lots');
+    }
+
+    private function handleHighlightFreedomPayResult(
+        FreedomPayClient $fp,
+        string $scriptName,
+        string $pgOrderId,
+        string $pgPaymentId,
+        string $pgAmount,
+        int $pgResult,
+        bool $canReject
+    ): void {
+        $params = FreedomPayClient::requestParams();
+        $pgCurrency = isset($params['pg_currency']) ? (string) $params['pg_currency'] : null;
+        $done = (new HighlightService())->handleGatewayResult(
+            $pgOrderId,
+            $pgPaymentId,
+            $pgAmount,
+            $pgResult,
+            $canReject,
+            $pgCurrency
+        );
+
+        $gateway = (string) ($done['gateway'] ?? 'error');
+        if ($gateway === 'ok') {
+            $this->xmlOut($fp->xmlResponse($scriptName, [
+                'pg_status' => 'ok',
+                'pg_description' => !empty($done['applied']) ? 'Highlight applied' : 'Highlight recorded',
+            ]));
+            return;
+        }
+        if ($gateway === 'rejected' && $canReject) {
+            $this->xmlOut($fp->xmlResponse($scriptName, [
+                'pg_status' => 'rejected',
+                'pg_description' => (string) ($done['error'] ?? 'Cannot accept payment'),
+            ]));
+            return;
+        }
+        $this->xmlOut($fp->xmlResponse($scriptName, [
+            'pg_status' => 'error',
+            'pg_description' => (string) ($done['error'] ?? 'Processing error'),
+        ]));
     }
 
     private function xmlOut(string $xml): void

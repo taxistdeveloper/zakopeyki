@@ -108,18 +108,30 @@ if ($canManage) {
     $ownerActionsHtml = (string) ob_get_clean();
 }
 $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>';
+$highlightView = \App\Services\Highlight\HighlightService::presentation($item);
+$highlightOn = !empty($highlightView['active']);
+$highlightIso = $highlightOn
+    ? \App\Services\Highlight\HighlightPolicy::isoUntil((string) ($highlightView['ends_at'] ?? ''))
+    : '';
 ?>
 <?php if ($mini): ?>
-<article class="bg-white dark:bg-white/[0.04] rounded-2xl border border-black/[0.06] dark:border-white/10 overflow-hidden hover:shadow-soft transition duration-300 flex flex-col h-full cursor-pointer group relative"
-         data-card-href="<?= htmlspecialchars($showUrl) ?>">
+<article class="bg-white dark:bg-white/[0.04] rounded-2xl border border-black/[0.06] dark:border-white/10 overflow-hidden hover:shadow-soft transition duration-300 flex flex-col h-full cursor-pointer group relative<?= $highlightOn ? ' highlight-card' : '' ?>"
+         data-card-href="<?= htmlspecialchars($showUrl) ?>"
+         <?= $highlightOn ? 'data-highlight-until="' . htmlspecialchars($highlightIso) . '"' : '' ?>>
     <div class="relative">
         <?php if ($imageUrl): ?>
         <a href="<?= $showUrl ?>" class="photo-wm aspect-[4/3] bg-ink-100 dark:bg-white/10 relative block overflow-hidden">
             <img src="<?= htmlspecialchars($imageUrl) ?>" alt="" class="absolute inset-0 w-full h-full object-cover transition duration-300 group-hover:scale-105 pointer-events-none">
+            <?php if ($highlightOn): ?>
+                <span class="absolute bottom-2 right-2 z-[6]"><?php \App\Core\View::partial('partials/highlight-sticker'); ?></span>
+            <?php endif; ?>
         </a>
         <?php else: ?>
         <a href="<?= $showUrl ?>" class="aspect-[4/3] bg-gradient-to-br from-ink-100 via-brand-50 to-accent-50 dark:from-white/10 dark:via-brand-900/20 dark:to-transparent relative flex items-center justify-center">
             <?= ProductHelper::icon($item['type'], 'w-10 h-10 text-brand-500/70') ?>
+            <?php if ($highlightOn): ?>
+                <span class="absolute bottom-2 right-2 z-[6]"><?php \App\Core\View::partial('partials/highlight-sticker'); ?></span>
+            <?php endif; ?>
         </a>
         <?php endif; ?>
         <?php if (!$isOwn): ?>
@@ -157,8 +169,9 @@ $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" s
     </div>
 </article>
 <?php else: ?>
-<article class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 overflow-hidden shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition duration-300 flex flex-col h-full cursor-pointer group backdrop-blur-sm relative"
-         data-card-href="<?= htmlspecialchars($showUrl) ?>">
+<article class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 overflow-hidden shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition duration-300 flex flex-col h-full cursor-pointer group backdrop-blur-sm relative<?= $highlightOn ? ' highlight-card' : '' ?>"
+         data-card-href="<?= htmlspecialchars($showUrl) ?>"
+         <?= $highlightOn ? 'data-highlight-until="' . htmlspecialchars($highlightIso) . '"' : '' ?>>
     <?php if ($imageUrl): ?>
     <a href="<?= $showUrl ?>"
        class="photo-wm aspect-[4/3] bg-ink-100 dark:bg-white/10 relative block overflow-hidden shrink-0 cursor-zoom-in"
@@ -167,6 +180,9 @@ $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" s
        data-lightbox-gallery="<?= htmlspecialchars(json_encode(array_values($imageUrls ?: [$imageUrl]), JSON_UNESCAPED_SLASHES)) ?>"
        aria-label="<?= htmlspecialchars(t('product.zoom')) ?>">
         <img src="<?= htmlspecialchars($imageUrl) ?>" alt="" class="absolute inset-0 w-full h-full object-cover transition duration-300 group-hover:scale-105 pointer-events-none">
+        <?php if ($highlightOn): ?>
+            <span class="absolute bottom-2.5 right-2.5 z-[6]"><?php \App\Core\View::partial('partials/highlight-sticker'); ?></span>
+        <?php endif; ?>
         <span class="absolute top-2.5 left-2.5 z-[6] text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg shadow-sm <?= $badge['class'] ?>">
             <?= htmlspecialchars($badge['text']) ?>
         </span>
@@ -177,6 +193,9 @@ $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" s
     <?php else: ?>
     <a href="<?= $showUrl ?>" class="aspect-[4/3] bg-gradient-to-br from-ink-100 via-brand-50 to-accent-50 dark:from-white/10 dark:via-brand-900/20 dark:to-transparent relative flex items-center justify-center overflow-hidden shrink-0">
         <span class="transition duration-300 group-hover:scale-110"><?= ProductHelper::icon($item['type'], 'w-14 h-14 text-brand-500/70') ?></span>
+        <?php if ($highlightOn): ?>
+            <span class="absolute bottom-2.5 right-2.5 z-[6]"><?php \App\Core\View::partial('partials/highlight-sticker'); ?></span>
+        <?php endif; ?>
         <span class="absolute top-2.5 left-2.5 z-[6] text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg shadow-sm <?= $badge['class'] ?>">
             <?= htmlspecialchars($badge['text']) ?>
         </span>
@@ -191,6 +210,11 @@ $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" s
                 <?php \App\Core\View::partial('partials/lot-boost', [
                     'product' => $item,
                     'ui' => (new \App\Services\Boost\BoostService())->cardState((int) Auth::id(), $item),
+                    'placement' => 'overlay',
+                ]); ?>
+                <?php \App\Core\View::partial('partials/lot-highlight', [
+                    'product' => $item,
+                    'ui' => (new \App\Services\Highlight\HighlightService())->cardState((int) Auth::id(), $item),
                     'placement' => 'overlay',
                 ]); ?>
             <?php else: ?>
