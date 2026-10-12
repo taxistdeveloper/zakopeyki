@@ -300,5 +300,6 @@ $router->post('/admin/toggle/{id}', [AdminController::class, 'toggleStatus']);
 $router->post('/admin/site-status', [AdminController::class, 'toggleSiteStatus']);
 $router->post('/admin/boost', [AdminController::class, 'toggleBoost']);
 $router->post('/admin/boost/recover', [AdminController::class, 'recoverBoost']);
+$router->post('/admin/three-lifts', [AdminController::class, 'toggleThreeLifts']);
 
 return $router;

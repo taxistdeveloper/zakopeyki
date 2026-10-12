@@ -12,6 +12,7 @@ $hasNav = true;
 $recentErrors = (int) ($recentErrors ?? 0);
 $stubMode = !empty($stubMode);
 $boostEnabled = !empty($boostEnabled);
+$threeLiftsEnabled = !empty($threeLiftsEnabled);
 ?>
 <section class="space-y-6 fade-up">
     <div>
@@ -178,6 +179,34 @@ $boostEnabled = !empty($boostEnabled);
                     </button>
                 </form>
             </div>
+        </div>
+    </div>
+
+    <div class="rounded-[22px] border shadow-soft overflow-hidden <?= $threeLiftsEnabled
+        ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/40'
+        : 'bg-white/90 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/10' ?>">
+        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
+            <div class="min-w-0">
+                <p class="text-[10px] font-semibold uppercase tracking-[0.14em] <?= $threeLiftsEnabled ? 'text-emerald-600' : 'text-gray-500' ?>">
+                    <?= htmlspecialchars(t('admin.three_lifts_status')) ?>
+                </p>
+                <h3 class="font-display font-bold text-ink-900 dark:text-white mt-0.5">
+                    <?= htmlspecialchars($threeLiftsEnabled ? t('admin.three_lifts_on') : t('admin.three_lifts_off')) ?>
+                </h3>
+                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.three_lifts_hint')) ?></p>
+            </div>
+            <form method="post" action="<?= ProductHelper::url('/admin/three-lifts') ?>" class="shrink-0">
+                <?= csrf_field() ?>
+                <input type="hidden" name="expected" value="<?= $threeLiftsEnabled ? '1' : '0' ?>">
+                <input type="hidden" name="enabled" value="<?= $threeLiftsEnabled ? '0' : '1' ?>">
+                <button type="submit"
+                    class="h-10 px-4 rounded-xl text-xs font-bold text-white transition <?= $threeLiftsEnabled
+                        ? 'bg-amber-600 hover:bg-amber-700'
+                        : 'bg-emerald-600 hover:bg-emerald-700' ?>"
+                    onclick="return confirm(<?= json_encode($threeLiftsEnabled ? t('admin.three_lifts_disable_confirm') : t('admin.three_lifts_enable_confirm')) ?>)">
+                    <?= htmlspecialchars($threeLiftsEnabled ? t('admin.three_lifts_disable_action') : t('admin.three_lifts_enable_action')) ?>
+                </button>
+            </form>
         </div>
     </div>
     <?php endif; ?>

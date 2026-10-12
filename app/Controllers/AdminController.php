@@ -122,6 +122,7 @@ class AdminController extends Controller
             'amlBlockedCount' => $amlBlockedCount,
             'stubMode' => $stubMode,
             'boostEnabled' => $isAdmin && (new \App\Services\Boost\BoostService())->isEnabled(),
+            'threeLiftsEnabled' => $isAdmin && (new \App\Services\ThreeLifts\ThreeLiftsService())->isEnabled(),
             'canProducts' => $canProducts,
             'canTickets' => $canTickets,
             'canAi' => $canAi,
@@ -203,6 +204,43 @@ class AdminController extends Controller
             return;
         }
         $_SESSION['flash'] = t('admin.boost_recovered', ['n' => (string) ($result['applied'] ?? 0)]);
+        $this->redirect('/admin');
+    }
+
+    private function requireThreeLiftsAdmin(): void
+    {
+        Auth::requireLogin();
+        $role = (string) (Auth::user()['role'] ?? '');
+        if (!\App\Services\ThreeLifts\ThreeLiftsPolicy::canToggle($role)) {
+            http_response_code(403);
+            echo 'Доступ запрещён';
+            exit;
+        }
+    }
+
+    public function toggleThreeLifts(): void
+    {
+        $this->requireThreeLiftsAdmin();
+
+        $enabled = isset($_POST['enabled']) && (string) $_POST['enabled'] === '1';
+        $expected = null;
+        if (isset($_POST['expected']) && ((string) $_POST['expected'] === '1' || (string) $_POST['expected'] === '0')) {
+            $expected = (string) $_POST['expected'] === '1';
+        }
+        $result = (new \App\Services\ThreeLifts\ThreeLiftsService())->setEnabled($enabled, $expected);
+        if (!empty($result['ok']) && !empty($result['unchanged'])) {
+            $_SESSION['flash'] = $enabled
+                ? t('admin.three_lifts_already_on')
+                : t('admin.three_lifts_already_off');
+        } elseif (!empty($result['ok'])) {
+            $_SESSION['flash'] = $enabled
+                ? t('admin.three_lifts_enabled_flash')
+                : t('admin.three_lifts_disabled_flash');
+        } elseif (($result['error_code'] ?? '') === 'conflict') {
+            $_SESSION['error'] = t('admin.three_lifts_conflict');
+        } else {
+            $_SESSION['error'] = t('admin.three_lifts_toggle_failed');
+        }
         $this->redirect('/admin');
     }
 

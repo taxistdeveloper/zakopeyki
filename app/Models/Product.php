@@ -22,6 +22,7 @@ class Product extends Model
             return;
         }
         try {
+            $this->ensurePrimaryAutoIncrement('products');
             $cols = $this->db->query("SHOW COLUMNS FROM products LIKE 'image'")->fetchAll();
             if (!$cols) {
                 $this->db->exec('ALTER TABLE products ADD COLUMN image VARCHAR(255) DEFAULT NULL AFTER location');
