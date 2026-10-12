@@ -404,6 +404,20 @@ document.addEventListener('click', function (e) {
     }
 });
 
+function profileBoostSubmit(form, msg) {
+    if (!form || form.getAttribute('data-boost-locked') === '1') return false;
+    if (!confirm(msg)) return false;
+    form.setAttribute('data-boost-locked', '1');
+    var btn = form.querySelector('button[type="submit"]');
+    if (btn) {
+        btn.disabled = true;
+        btn.setAttribute('aria-busy', 'true');
+        var wait = form.getAttribute('data-boost-wait');
+        if (wait) btn.textContent = wait;
+    }
+    return true;
+}
+
 /* ===== Product share menu ===== */
 function closeShareMenus(except) {
     document.querySelectorAll('[data-share-menu]').forEach(function (menu) {

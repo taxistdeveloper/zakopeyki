@@ -83,6 +83,30 @@ final class BoostService
         return $this->statesForProducts($userId, $this->products->byUser($userId));
     }
 
+    /**
+     * Состояние одной карточки. Повторные карточки того же владельца не читают базу заново.
+     *
+     * @param array<string, mixed> $product
+     * @return array{code: string, can_purchase: bool, continue_payment: bool, notice: ?string}
+     */
+    public function cardState(int $userId, array $product): array
+    {
+        static $cache = [];
+        if (!isset($cache[$userId])) {
+            try {
+                $cache[$userId] = $this->statesForUser($userId);
+            } catch (Throwable) {
+                $cache[$userId] = [];
+            }
+        }
+        $id = (int) ($product['id'] ?? 0);
+        if (isset($cache[$userId][$id])) {
+            return $cache[$userId][$id];
+        }
+
+        return BoostPolicy::uiState(false, $product, $userId, null, false);
+    }
+
     public function isEnabled(): bool
     {
         try {

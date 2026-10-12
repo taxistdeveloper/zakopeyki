@@ -195,6 +195,7 @@ final class BoostUiTest extends TestCase
             'boost.ui_desc',
             'boost.ui_available',
             'boost.ui_buy',
+            'boost.ui_overlay',
             'boost.ui_again',
             'boost.ui_retry',
             'boost.ui_continue',

@@ -40,7 +40,39 @@ $confirm = $continue
     : t($confirmKey, ['title' => $title, 'amount' => $amount]);
 $action = ProductHelper::url('/profile/lots/' . $productId . '/boost');
 $idempotencyKey = $canPurchase ? ('ui' . bin2hex(random_bytes(8))) : '';
+$placement = (string) ($placement ?? 'row');
+$buttonLabel = $continue ? t('boost.ui_continue') : t($buttonKey, ['amount' => $amount]);
 ?>
+<?php if ($placement === 'overlay'): ?>
+<div class="relative max-w-[11rem]"
+     data-boost-card="<?= $productId ?>"
+     data-boost-code="<?= htmlspecialchars($code) ?>"
+     data-boost-offer>
+    <?php if ($canPurchase || $continue): ?>
+        <form method="post"
+              action="<?= htmlspecialchars($action) ?>"
+              autocomplete="off"
+              data-boost-wait="<?= htmlspecialchars(t('boost.ui_wait')) ?>"
+              onsubmit="return profileBoostSubmit(this, <?= json_encode($confirm, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>);">
+            <?= csrf_field() ?>
+            <?php if ($idempotencyKey !== ''): ?>
+                <input type="hidden" name="idempotency_key" value="<?= htmlspecialchars($idempotencyKey) ?>">
+            <?php endif; ?>
+            <button type="submit"
+                    class="h-8 px-2.5 rounded-xl bg-white/95 dark:bg-ink-900/85 border border-black/[0.06] dark:border-white/10 shadow-sm text-[10px] font-bold whitespace-nowrap text-brand-700 dark:text-brand-300 hover:text-brand-800 transition"
+                    title="<?= htmlspecialchars(t('boost.ui_desc')) ?>"
+                    aria-label="<?= htmlspecialchars(t('boost.ui_title') . '. ' . $buttonLabel . '. ' . t('boost.ui_desc')) ?>">
+                <?= htmlspecialchars($continue ? $buttonLabel : t('boost.ui_overlay', ['amount' => $amount])) ?>
+            </button>
+        </form>
+    <?php elseif ($message !== ''): ?>
+        <p class="rounded-xl bg-white/95 dark:bg-ink-900/85 border border-black/[0.06] dark:border-white/10 shadow-sm px-2 py-1 text-[10px] leading-snug <?= $tone ?>" role="status">
+            <?= htmlspecialchars($message) ?>
+        </p>
+    <?php endif; ?>
+</div>
+<?php return; endif; ?>
+
 <div class="w-full basis-full border-t border-black/[0.06] dark:border-white/10 pt-2.5 mt-1"
      data-boost-card="<?= $productId ?>"
      data-boost-code="<?= htmlspecialchars($code) ?>"

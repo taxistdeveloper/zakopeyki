@@ -183,7 +183,7 @@ $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" s
         <?php endif; ?>
     </a>
     <?php endif; ?>
-    <div class="absolute top-2.5 right-2.5 z-20 flex flex-col gap-1.5">
+    <div class="absolute top-2.5 right-2.5 z-20 flex flex-col items-end gap-1.5">
         <button type="button"
                 class="favorite-btn w-8 h-8 rounded-xl bg-white/90 dark:bg-ink-900/80 border border-black/[0.06] dark:border-white/10 shadow-sm flex items-center justify-center transition hover:scale-105 <?= $favorited ? 'is-favorited text-red-500' : 'text-gray-400 hover:text-red-500' ?>"
                 data-product-id="<?= (int) $item['id'] ?>"
@@ -195,6 +195,13 @@ $cartIcon = '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" s
             </svg>
         </button>
         <?php \App\Core\View::partial('partials/share-buttons', ['item' => $item, 'overlay' => true]); ?>
+        <?php if ($isOwn): ?>
+            <?php \App\Core\View::partial('partials/lot-boost', [
+                'product' => $item,
+                'ui' => (new \App\Services\Boost\BoostService())->cardState((int) Auth::id(), $item),
+                'placement' => 'overlay',
+            ]); ?>
+        <?php endif; ?>
     </div>
     <div class="px-3.5 pt-3 pb-3.5 flex flex-col flex-1 gap-2">
         <div class="space-y-1">
