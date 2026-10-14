@@ -133,11 +133,17 @@ $topFixedXlOn = !empty($topFixedXlView['active']);
 $topFixedXlIso = $topFixedXlOn
     ? \App\Services\TopFixedXl\TopFixedXlPolicy::isoUntil((string) ($topFixedXlView['ends_at'] ?? ''))
     : '';
+$vipView = \App\Services\Vip\VipService::presentation($item);
+$vipOn = !empty($vipView['active']);
+$vipIso = $vipOn
+    ? \App\Services\Vip\VipPolicy::isoUntil((string) ($vipView['ends_at'] ?? ''))
+    : '';
 ?>
 <section class="max-w-5xl mx-auto space-y-5 fade-up pb-8<?= $highlightOn ? ' highlight-card rounded-[28px] p-3 sm:p-4' : '' ?><?= $topFixedOn ? ' top-fixed-card' : '' ?><?= $topFixedXlOn ? ' top-fixed-xl-card' : '' ?>"
          <?= $highlightOn ? 'data-highlight-until="' . htmlspecialchars($highlightIso) . '"' : '' ?>
          <?= $topFixedOn ? 'data-top-fixed-until="' . htmlspecialchars($topFixedIso) . '"' : '' ?>
-         <?= $topFixedXlOn ? 'data-top-fixed-xl-until="' . htmlspecialchars($topFixedXlIso) . '"' : '' ?>>
+         <?= $topFixedXlOn ? 'data-top-fixed-xl-until="' . htmlspecialchars($topFixedXlIso) . '"' : '' ?>
+         <?= $vipOn ? 'data-vip-until="' . htmlspecialchars($vipIso) . '"' : '' ?>>
     <?php if ($flash): ?>
         <div class="bg-emerald-50 dark:bg-emerald-900/25 text-emerald-800 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800/40 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars($flash) ?></div>
     <?php endif; ?>
@@ -253,6 +259,9 @@ $topFixedXlIso = $topFixedXlOn
         <?php endif; ?>
         <?php if ($highlightOn): ?>
             <?php View::partial('partials/highlight-sticker'); ?>
+        <?php endif; ?>
+        <?php if ($vipOn): ?>
+            <?php View::partial('partials/vip-sticker'); ?>
         <?php endif; ?>
     </div>
 

@@ -184,6 +184,10 @@ class Product extends Model
         } else {
             $sql .= ' ' . \App\Services\Boost\BoostPolicy::catalogOrderSql();
         }
+        try {
+            (new \App\Services\Vip\VipService())->runDueLifts(10);
+        } catch (\Throwable) {
+        }
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll();

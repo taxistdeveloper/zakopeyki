@@ -12,6 +12,7 @@ use App\Models\Order;
 use App\Models\Payment;
 use App\Models\TopFixedOrder;
 use App\Models\TopFixedXlOrder;
+use App\Models\VipOrder;
 use App\Services\Boost\BoostPolicy;
 use App\Services\Boost\BoostService;
 use App\Services\Highlight\HighlightPolicy;
@@ -20,6 +21,8 @@ use App\Services\TopFixed\TopFixedPolicy;
 use App\Services\TopFixed\TopFixedService;
 use App\Services\TopFixedXl\TopFixedXlPolicy;
 use App\Services\TopFixedXl\TopFixedXlService;
+use App\Services\Vip\VipPolicy;
+use App\Services\Vip\VipService;
 use App\Services\FreedomPay\Client as FreedomPayClient;
 
 class PaymentController extends Controller
@@ -89,6 +92,11 @@ class PaymentController extends Controller
 
         if (TopFixedPolicy::isTopFixedPgOrderId($pgOrderId)) {
             $this->handleTopFixedFreedomPayResult($fp, $scriptName, $pgOrderId, $pgPaymentId, $pgAmount, $pgResult, $canReject);
+            return;
+        }
+
+        if (VipPolicy::isVipPgOrderId($pgOrderId)) {
+            $this->handleVipFreedomPayResult($fp, $scriptName, $pgOrderId, $pgPaymentId, $pgAmount, $pgResult, $canReject);
             return;
         }
 
@@ -180,6 +188,10 @@ class PaymentController extends Controller
             $this->redirectTopFixedReturn($pgOrderId);
             return;
         }
+        if ($pgOrderId !== '' && VipPolicy::isVipPgOrderId($pgOrderId)) {
+            $this->redirectVipReturn($pgOrderId);
+            return;
+        }
         if ($pgOrderId !== '' && DeliveryPayment::isDeliveryPgOrderId($pgOrderId)) {
             $payment = (new DeliveryPayment())->findByPgOrderId($pgOrderId);
             if ($payment && (int) ($payment['buyer_user_id'] ?? 0) === Auth::id()) {
@@ -238,6 +250,10 @@ class PaymentController extends Controller
             $this->redirectTopFixedReturn($pgOrderId);
             return;
         }
+        if ($pgOrderId !== '' && VipPolicy::isVipPgOrderId($pgOrderId)) {
+            $this->redirectVipReturn($pgOrderId);
+            return;
+        }
         if ($pgOrderId !== '' && DeliveryPayment::isDeliveryPgOrderId($pgOrderId)) {
             $payment = (new DeliveryPayment())->findByPgOrderId($pgOrderId);
             if ($payment) {
@@ -286,7 +302,7 @@ class PaymentController extends Controller
         $params = FreedomPayClient::requestParams();
         if (!empty($params['pg_order_id'])) {
             $pgOrderId = (string) $params['pg_order_id'];
-            if (DeliveryPayment::isDeliveryPgOrderId($pgOrderId) || BoostPolicy::isBoostPgOrderId($pgOrderId) || HighlightPolicy::isHighlightPgOrderId($pgOrderId) || TopFixedPolicy::isTopFixedPgOrderId($pgOrderId) || TopFixedXlPolicy::isTopFixedXlPgOrderId($pgOrderId)) {
+            if (DeliveryPayment::isDeliveryPgOrderId($pgOrderId) || BoostPolicy::isBoostPgOrderId($pgOrderId) || HighlightPolicy::isHighlightPgOrderId($pgOrderId) || TopFixedPolicy::isTopFixedPgOrderId($pgOrderId) || TopFixedXlPolicy::isTopFixedXlPgOrderId($pgOrderId) || VipPolicy::isVipPgOrderId($pgOrderId)) {
                 return 0;
             }
             $payment = (new Payment())->findByPgOrderId($pgOrderId);
@@ -489,6 +505,75 @@ class PaymentController extends Controller
             $_SESSION['error'] = t('top_fixed_xl.payment_failed');
         }
         $this->redirect('/profile?tab=lots');
+    }
+
+    private function redirectVipReturn(string $pgOrderId): void
+    {
+        $order = (new VipOrder())->findByPgOrderId($pgOrderId);
+        if (!$order || (int) ($order['user_id'] ?? 0) !== (int) Auth::id()) {
+            $_SESSION['error'] = t('vip.err_not_found');
+            $this->redirect('/profile?tab=lots');
+            return;
+        }
+
+        $status = (string) ($order['status'] ?? '');
+        $until = VipPolicy::formatUntil(isset($order['ends_at']) ? (string) $order['ends_at'] : null);
+        $left = (string) (new \App\Models\VipLift())->pendingCount((int) ($order['id'] ?? 0));
+        $running = VipPolicy::windowActive(
+            isset($order['starts_at']) ? (string) $order['starts_at'] : null,
+            isset($order['ends_at']) ? (string) $order['ends_at'] : null
+        );
+        if (($status === VipPolicy::STATUS_APPLIED || $status === VipPolicy::STATUS_EXPIRED) && $running) {
+            $_SESSION['flash'] = t('vip.active', ['until' => $until, 'left' => $left]);
+        } elseif ($status === VipPolicy::STATUS_APPLIED || $status === VipPolicy::STATUS_EXPIRED) {
+            $_SESSION['flash'] = t('vip.expired');
+        } elseif ($status === VipPolicy::STATUS_PAID || $status === VipPolicy::STATUS_APPLY_FAILED) {
+            $_SESSION['flash'] = t('vip.paid_waiting');
+        } elseif ($status === VipPolicy::STATUS_PENDING) {
+            $_SESSION['flash'] = t('vip.payment_pending');
+        } else {
+            $_SESSION['error'] = t('vip.payment_failed');
+        }
+        $this->redirect('/profile?tab=lots');
+    }
+
+    private function handleVipFreedomPayResult(
+        FreedomPayClient $fp,
+        string $scriptName,
+        string $pgOrderId,
+        string $pgPaymentId,
+        string $pgAmount,
+        int $pgResult,
+        bool $canReject
+    ): void {
+        $pgCurrency = (string) (FreedomPayClient::requestParams()['pg_currency'] ?? '');
+        $done = (new VipService())->handleGatewayResult(
+            $pgOrderId,
+            $pgPaymentId,
+            $pgAmount,
+            $pgResult,
+            $canReject,
+            $pgCurrency !== '' ? $pgCurrency : null
+        );
+        $gateway = (string) ($done['gateway'] ?? 'error');
+        if ($gateway === 'ok') {
+            $this->xmlOut($fp->xmlResponse($scriptName, [
+                'pg_status' => 'ok',
+                'pg_description' => !empty($done['applied']) ? 'VIP applied' : 'VIP recorded',
+            ]));
+            return;
+        }
+        if ($gateway === 'rejected' && $canReject) {
+            $this->xmlOut($fp->xmlResponse($scriptName, [
+                'pg_status' => 'rejected',
+                'pg_description' => (string) ($done['error'] ?? 'Cannot accept payment'),
+            ]));
+            return;
+        }
+        $this->xmlOut($fp->xmlResponse($scriptName, [
+            'pg_status' => 'error',
+            'pg_description' => (string) ($done['error'] ?? 'Processing error'),
+        ]));
     }
 
     private function handleTopFixedXlFreedomPayResult(

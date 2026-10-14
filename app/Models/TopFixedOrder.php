@@ -26,6 +26,7 @@ class TopFixedOrder extends Model
             public_id CHAR(32) NOT NULL,
             user_id INT UNSIGNED NOT NULL,
             product_id INT UNSIGNED NOT NULL,
+            vip_order_id INT UNSIGNED DEFAULT NULL,
             amount INT UNSIGNED NOT NULL,
             category VARCHAR(255) DEFAULT NULL,
             status VARCHAR(32) NOT NULL DEFAULT 'pending_payment',
@@ -45,6 +46,7 @@ class TopFixedOrder extends Model
             UNIQUE KEY uq_top_fixed_pg (pg_order_id),
             UNIQUE KEY uq_top_fixed_open (open_key),
             UNIQUE KEY uq_top_fixed_idem (idempotency_key),
+            UNIQUE KEY uq_top_fixed_vip (vip_order_id),
             INDEX idx_top_fixed_product (product_id),
             INDEX idx_top_fixed_user (user_id),
             INDEX idx_top_fixed_status (status),
@@ -66,6 +68,11 @@ class TopFixedOrder extends Model
         $category = $this->db->query("SHOW COLUMNS FROM top_fixed_orders LIKE 'category'")->fetch();
         if (!$category) {
             $this->db->exec('ALTER TABLE top_fixed_orders ADD COLUMN category VARCHAR(255) DEFAULT NULL AFTER amount');
+        }
+        $vip = $this->db->query("SHOW COLUMNS FROM top_fixed_orders LIKE 'vip_order_id'")->fetch();
+        if (!$vip) {
+            $this->db->exec('ALTER TABLE top_fixed_orders ADD COLUMN vip_order_id INT UNSIGNED DEFAULT NULL AFTER product_id');
+            $this->db->exec('ALTER TABLE top_fixed_orders ADD UNIQUE KEY uq_top_fixed_vip (vip_order_id)');
         }
         self::$ensured = true;
     }
@@ -106,7 +113,7 @@ class TopFixedOrder extends Model
     public function findActiveByProduct(int $productId, bool $forUpdate, string $now): ?array
     {
         $sql = "SELECT * FROM top_fixed_orders
-                WHERE product_id = ? AND status = 'applied' AND starts_at <= ? AND ends_at > ?
+                WHERE product_id = ? AND vip_order_id IS NULL AND status = 'applied' AND starts_at <= ? AND ends_at > ?
                 ORDER BY ends_at DESC LIMIT 1";
         if ($forUpdate) {
             $sql .= ' FOR UPDATE';
@@ -259,7 +266,7 @@ class TopFixedOrder extends Model
         $limit = max(1, min(100, $limit));
         $stmt = $this->db->prepare(
             "SELECT * FROM top_fixed_orders
-             WHERE status IN ('paid','apply_failed')
+             WHERE vip_order_id IS NULL AND status IN ('paid','apply_failed')
              ORDER BY id ASC
              LIMIT {$limit}"
         );
@@ -276,7 +283,7 @@ class TopFixedOrder extends Model
     public function latestByUser(int $userId): array
     {
         $stmt = $this->db->prepare(
-            'SELECT * FROM top_fixed_orders WHERE user_id = ? ORDER BY id DESC'
+            'SELECT * FROM top_fixed_orders WHERE user_id = ? AND vip_order_id IS NULL ORDER BY id DESC'
         );
         $stmt->execute([$userId]);
         $rows = $stmt->fetchAll() ?: [];
@@ -289,6 +296,48 @@ class TopFixedOrder extends Model
         }
 
         return $byProduct;
+    }
+
+    public function findByVipOrderId(int $vipOrderId): ?array
+    {
+        $stmt = $this->db->prepare('SELECT * FROM top_fixed_orders WHERE vip_order_id = ? LIMIT 1');
+        $stmt->execute([$vipOrderId]);
+        $row = $stmt->fetch();
+
+        return $row ?: null;
+    }
+
+    /**
+     * Эффект VIP. Цена всегда 0. Чужие строки закрепления не обновляются.
+     */
+    public function insertVipGrant(int $vipOrderId, int $userId, int $productId, string $category, string $startsAt, string $endsAt): int
+    {
+        $existing = $this->findByVipOrderId($vipOrderId);
+        if ($existing) {
+            return (int) $existing['id'];
+        }
+        $now = date('Y-m-d H:i:s');
+        $stmt = $this->db->prepare(
+            'INSERT INTO top_fixed_orders (
+                public_id, user_id, product_id, vip_order_id, amount, category, status,
+                open_key, pg_order_id, paid_at, applied_at, starts_at, ends_at
+             ) VALUES (?, ?, ?, ?, 0, ?, ?, NULL, ?, ?, ?, ?, ?)'
+        );
+        $stmt->execute([
+            bin2hex(random_bytes(16)),
+            $userId,
+            $productId,
+            $vipOrderId,
+            $category,
+            TopFixedPolicy::STATUS_APPLIED,
+            'zk-vipcomp-tf-' . $vipOrderId,
+            $now,
+            $now,
+            $startsAt,
+            $endsAt,
+        ]);
+
+        return (int) $this->db->lastInsertId();
     }
 
     public static function isDuplicate(PDOException $e): bool

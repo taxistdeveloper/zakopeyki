@@ -19,6 +19,7 @@ use App\Services\Boost\BoostService;
 use App\Services\Highlight\HighlightService;
 use App\Services\TopFixed\TopFixedService;
 use App\Services\TopFixedXl\TopFixedXlService;
+use App\Services\Vip\VipService;
 use App\Services\BusinessPackageService;
 use App\Services\Listing\ListingShippingService;
 use App\Services\MicroTaskService;
@@ -143,6 +144,9 @@ class ProfileController extends Controller
         $topFixedXlStates = $tab === 'lots'
             ? (new TopFixedXlService())->statesForProducts((int) Auth::id(), $products)
             : [];
+        $vipStates = $tab === 'lots'
+            ? (new VipService())->statesForProducts((int) Auth::id(), $products)
+            : [];
 
         $this->view('profile/index', [
             'title' => t('profile.title'),
@@ -154,6 +158,7 @@ class ProfileController extends Controller
             'highlightStates' => $highlightStates,
             'topFixedStates' => $topFixedStates,
             'topFixedXlStates' => $topFixedXlStates,
+            'vipStates' => $vipStates,
             'favorites' => $favorites,
             'favoriteIds' => $favoriteIds,
             'followingUsers' => $followingUsers,

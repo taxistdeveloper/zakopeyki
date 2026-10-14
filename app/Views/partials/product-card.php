@@ -123,15 +123,21 @@ $topFixedXlOn = !empty($topFixedXlView['active']);
 $topFixedXlIso = $topFixedXlOn
     ? \App\Services\TopFixedXl\TopFixedXlPolicy::isoUntil((string) ($topFixedXlView['ends_at'] ?? ''))
     : '';
+$vipView = \App\Services\Vip\VipService::presentation($item);
+$vipOn = !empty($vipView['active']);
+$vipIso = $vipOn
+    ? \App\Services\Vip\VipPolicy::isoUntil((string) ($vipView['ends_at'] ?? ''))
+    : '';
 $promoClass = ($highlightOn ? ' highlight-card' : '') . ($topFixedOn ? ' top-fixed-card' : '') . ($topFixedXlOn ? ' top-fixed-xl-card' : '');
-$promoMarks = $highlightOn || $topFixedOn || $topFixedXlOn;
+$promoMarks = $highlightOn || $topFixedOn || $topFixedXlOn || $vipOn;
 ?>
 <?php if ($mini): ?>
 <article class="bg-white dark:bg-white/[0.04] rounded-2xl border border-black/[0.06] dark:border-white/10 overflow-hidden hover:shadow-soft transition duration-300 flex flex-col h-full cursor-pointer group relative<?= $promoClass ?>"
          data-card-href="<?= htmlspecialchars($showUrl) ?>"
          <?= $highlightOn ? 'data-highlight-until="' . htmlspecialchars($highlightIso) . '"' : '' ?>
          <?= $topFixedOn ? 'data-top-fixed-until="' . htmlspecialchars($topFixedIso) . '"' : '' ?>
-         <?= $topFixedXlOn ? 'data-top-fixed-xl-until="' . htmlspecialchars($topFixedXlIso) . '"' : '' ?>>
+         <?= $topFixedXlOn ? 'data-top-fixed-xl-until="' . htmlspecialchars($topFixedXlIso) . '"' : '' ?>
+         <?= $vipOn ? 'data-vip-until="' . htmlspecialchars($vipIso) . '"' : '' ?>>
     <div class="relative">
         <?php if ($imageUrl): ?>
         <a href="<?= $showUrl ?>" class="photo-wm aspect-[4/3] bg-ink-100 dark:bg-white/10 relative block overflow-hidden">
@@ -141,6 +147,7 @@ $promoMarks = $highlightOn || $topFixedOn || $topFixedXlOn;
                     <?php if ($topFixedXlOn): ?><?php \App\Core\View::partial('partials/top-fixed-xl-sticker'); ?><?php endif; ?>
                     <?php if ($topFixedOn): ?><?php \App\Core\View::partial('partials/top-fixed-sticker'); ?><?php endif; ?>
                     <?php if ($highlightOn): ?><?php \App\Core\View::partial('partials/highlight-sticker'); ?><?php endif; ?>
+                    <?php if ($vipOn): ?><?php \App\Core\View::partial('partials/vip-sticker'); ?><?php endif; ?>
                 </span>
             <?php endif; ?>
         </a>
@@ -152,6 +159,7 @@ $promoMarks = $highlightOn || $topFixedOn || $topFixedXlOn;
                     <?php if ($topFixedXlOn): ?><?php \App\Core\View::partial('partials/top-fixed-xl-sticker'); ?><?php endif; ?>
                     <?php if ($topFixedOn): ?><?php \App\Core\View::partial('partials/top-fixed-sticker'); ?><?php endif; ?>
                     <?php if ($highlightOn): ?><?php \App\Core\View::partial('partials/highlight-sticker'); ?><?php endif; ?>
+                    <?php if ($vipOn): ?><?php \App\Core\View::partial('partials/vip-sticker'); ?><?php endif; ?>
                 </span>
             <?php endif; ?>
         </a>
@@ -195,7 +203,8 @@ $promoMarks = $highlightOn || $topFixedOn || $topFixedXlOn;
          data-card-href="<?= htmlspecialchars($showUrl) ?>"
          <?= $highlightOn ? 'data-highlight-until="' . htmlspecialchars($highlightIso) . '"' : '' ?>
          <?= $topFixedOn ? 'data-top-fixed-until="' . htmlspecialchars($topFixedIso) . '"' : '' ?>
-         <?= $topFixedXlOn ? 'data-top-fixed-xl-until="' . htmlspecialchars($topFixedXlIso) . '"' : '' ?>>
+         <?= $topFixedXlOn ? 'data-top-fixed-xl-until="' . htmlspecialchars($topFixedXlIso) . '"' : '' ?>
+         <?= $vipOn ? 'data-vip-until="' . htmlspecialchars($vipIso) . '"' : '' ?>>
     <?php if ($imageUrl): ?>
     <a href="<?= $showUrl ?>"
        class="photo-wm aspect-[4/3] bg-ink-100 dark:bg-white/10 relative block overflow-hidden shrink-0 cursor-zoom-in"
@@ -209,6 +218,7 @@ $promoMarks = $highlightOn || $topFixedOn || $topFixedXlOn;
                 <?php if ($topFixedXlOn): ?><?php \App\Core\View::partial('partials/top-fixed-xl-sticker'); ?><?php endif; ?>
                 <?php if ($topFixedOn): ?><?php \App\Core\View::partial('partials/top-fixed-sticker'); ?><?php endif; ?>
                 <?php if ($highlightOn): ?><?php \App\Core\View::partial('partials/highlight-sticker'); ?><?php endif; ?>
+                <?php if ($vipOn): ?><?php \App\Core\View::partial('partials/vip-sticker'); ?><?php endif; ?>
             </span>
         <?php endif; ?>
         <span class="absolute top-2.5 left-2.5 z-[6] text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg shadow-sm <?= $badge['class'] ?>">
@@ -226,6 +236,7 @@ $promoMarks = $highlightOn || $topFixedOn || $topFixedXlOn;
                 <?php if ($topFixedXlOn): ?><?php \App\Core\View::partial('partials/top-fixed-xl-sticker'); ?><?php endif; ?>
                 <?php if ($topFixedOn): ?><?php \App\Core\View::partial('partials/top-fixed-sticker'); ?><?php endif; ?>
                 <?php if ($highlightOn): ?><?php \App\Core\View::partial('partials/highlight-sticker'); ?><?php endif; ?>
+                <?php if ($vipOn): ?><?php \App\Core\View::partial('partials/vip-sticker'); ?><?php endif; ?>
             </span>
         <?php endif; ?>
         <span class="absolute top-2.5 left-2.5 z-[6] text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg shadow-sm <?= $badge['class'] ?>">
@@ -257,6 +268,11 @@ $promoMarks = $highlightOn || $topFixedOn || $topFixedXlOn;
                 <?php \App\Core\View::partial('partials/lot-top-fixed-xl', [
                     'product' => $item,
                     'ui' => (new \App\Services\TopFixedXl\TopFixedXlService())->cardState((int) Auth::id(), $item),
+                    'placement' => 'overlay',
+                ]); ?>
+                <?php \App\Core\View::partial('partials/lot-vip', [
+                    'product' => $item,
+                    'ui' => (new \App\Services\Vip\VipService())->cardState((int) Auth::id(), $item),
                     'placement' => 'overlay',
                 ]); ?>
             <?php else: ?>

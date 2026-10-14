@@ -2008,6 +2008,20 @@ function url(string $path = ''): string
             border-radius: 8px;
             text-transform: uppercase;
         }
+        .vip-sticker {
+            display: inline-flex;
+            align-items: center;
+            pointer-events: none;
+            background: #b45309;
+            color: #ffffff;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            line-height: 1;
+            padding: 4px 7px;
+            border-radius: 8px;
+            text-transform: uppercase;
+        }
         .story-product-card {
             display: flex;
             align-items: center;

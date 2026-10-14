@@ -27,6 +27,7 @@ use App\Controllers\BoostController;
 use App\Controllers\HighlightController;
 use App\Controllers\TopFixedController;
 use App\Controllers\TopFixedXlController;
+use App\Controllers\VipController;
 use App\Controllers\BonusController;
 use App\Controllers\BusinessController;
 use App\Controllers\MicroTaskCompletionController;
@@ -182,6 +183,8 @@ $router->get('/profile/lots/top-fixed-status', [TopFixedController::class, 'stat
 $router->post('/profile/lots/{id}/top-fixed', [TopFixedController::class, 'purchase']);
 $router->get('/profile/lots/top-fixed-xl-status', [TopFixedXlController::class, 'status']);
 $router->post('/profile/lots/{id}/top-fixed-xl', [TopFixedXlController::class, 'purchase']);
+$router->get('/profile/lots/vip-status', [VipController::class, 'status']);
+$router->post('/profile/lots/{id}/vip', [VipController::class, 'purchase']);
 $router->post('/profile/lots/{id}/update', [ProfileController::class, 'updateLot']);
 $router->post('/profile/lots/{id}/delete', [ProfileController::class, 'deleteLot']);
 $router->post('/profile/gigs/{id}/update', [ProfileController::class, 'updateGig']);
@@ -316,5 +319,7 @@ $router->post('/admin/top-fixed', [AdminController::class, 'toggleTopFixed']);
 $router->post('/admin/top-fixed/recover', [AdminController::class, 'recoverTopFixed']);
 $router->post('/admin/top-fixed-xl', [AdminController::class, 'toggleTopFixedXl']);
 $router->post('/admin/top-fixed-xl/recover', [AdminController::class, 'recoverTopFixedXl']);
+$router->post('/admin/vip', [AdminController::class, 'toggleVip']);
+$router->post('/admin/vip/recover', [AdminController::class, 'recoverVip']);
 
 return $router;

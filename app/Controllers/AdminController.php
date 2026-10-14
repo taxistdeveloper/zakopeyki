@@ -126,6 +126,7 @@ class AdminController extends Controller
             'highlightEnabled' => $isAdmin && (new \App\Services\Highlight\HighlightService())->isEnabled(),
             'topFixedEnabled' => $isAdmin && (new \App\Services\TopFixed\TopFixedService())->isEnabled(),
             'topFixedXlEnabled' => $isAdmin && (new \App\Services\TopFixedXl\TopFixedXlService())->isEnabled(),
+            'vipEnabled' => $isAdmin && (new \App\Services\Vip\VipService())->isEnabled(),
             'canProducts' => $canProducts,
             'canTickets' => $canTickets,
             'canAi' => $canAi,
@@ -355,6 +356,43 @@ class AdminController extends Controller
             return;
         }
         $_SESSION['flash'] = t('admin.top_fixed_xl_recovered', ['n' => (string) ($result['applied'] ?? 0)]);
+        $this->redirect('/admin');
+    }
+
+    private function requireVipAdmin(): void
+    {
+        Auth::requireLogin();
+        $role = (string) (Auth::user()['role'] ?? '');
+        if (!\App\Services\Vip\VipPolicy::canToggle($role)) {
+            http_response_code(403);
+            echo 'Доступ запрещён';
+            exit;
+        }
+    }
+
+    public function toggleVip(): void
+    {
+        $this->requireVipAdmin();
+
+        $enabled = isset($_POST['enabled']) && (string) $_POST['enabled'] === '1';
+        $ok = (new \App\Services\Vip\VipService())->setEnabled($enabled);
+        $_SESSION[$ok ? 'flash' : 'error'] = $ok
+            ? ($enabled ? t('admin.vip_enabled_flash') : t('admin.vip_disabled_flash'))
+            : t('admin.vip_toggle_failed');
+        $this->redirect('/admin');
+    }
+
+    public function recoverVip(): void
+    {
+        $this->requireVipAdmin();
+
+        $result = (new \App\Services\Vip\VipService())->recoverUnapplied();
+        if (empty($result['ok'])) {
+            $_SESSION['error'] = t('admin.vip_recover_disabled');
+            $this->redirect('/admin');
+            return;
+        }
+        $_SESSION['flash'] = t('admin.vip_recovered', ['n' => (string) ($result['applied'] ?? 0)]);
         $this->redirect('/admin');
     }
 

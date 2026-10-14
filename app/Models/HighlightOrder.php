@@ -26,6 +26,7 @@ class HighlightOrder extends Model
             public_id CHAR(32) NOT NULL,
             user_id INT UNSIGNED NOT NULL,
             product_id INT UNSIGNED NOT NULL,
+            vip_order_id INT UNSIGNED DEFAULT NULL,
             amount INT UNSIGNED NOT NULL,
             status VARCHAR(32) NOT NULL DEFAULT 'pending_payment',
             open_key VARCHAR(32) DEFAULT NULL,
@@ -44,6 +45,7 @@ class HighlightOrder extends Model
             UNIQUE KEY uq_highlight_pg (pg_order_id),
             UNIQUE KEY uq_highlight_open (open_key),
             UNIQUE KEY uq_highlight_idem (idempotency_key),
+            UNIQUE KEY uq_highlight_vip (vip_order_id),
             INDEX idx_highlight_product (product_id),
             INDEX idx_highlight_user (user_id),
             INDEX idx_highlight_status (status),
@@ -57,6 +59,11 @@ class HighlightOrder extends Model
             return;
         }
         $this->db->exec(self::schemaSql());
+        $vip = $this->db->query("SHOW COLUMNS FROM highlight_orders LIKE 'vip_order_id'")->fetch();
+        if (!$vip) {
+            $this->db->exec('ALTER TABLE highlight_orders ADD COLUMN vip_order_id INT UNSIGNED DEFAULT NULL AFTER product_id');
+            $this->db->exec('ALTER TABLE highlight_orders ADD UNIQUE KEY uq_highlight_vip (vip_order_id)');
+        }
         self::$ensured = true;
     }
 
@@ -96,7 +103,7 @@ class HighlightOrder extends Model
     public function findActiveByProduct(int $productId, bool $forUpdate, string $now): ?array
     {
         $sql = "SELECT * FROM highlight_orders
-                WHERE product_id = ? AND status = 'applied' AND starts_at <= ? AND ends_at > ?
+                WHERE product_id = ? AND vip_order_id IS NULL AND status = 'applied' AND starts_at <= ? AND ends_at > ?
                 ORDER BY ends_at DESC LIMIT 1";
         if ($forUpdate) {
             $sql .= ' FOR UPDATE';
@@ -245,7 +252,7 @@ class HighlightOrder extends Model
         $limit = max(1, min(100, $limit));
         $stmt = $this->db->prepare(
             "SELECT * FROM highlight_orders
-             WHERE status IN ('paid','apply_failed')
+             WHERE vip_order_id IS NULL AND status IN ('paid','apply_failed')
              ORDER BY id ASC
              LIMIT {$limit}"
         );
@@ -262,7 +269,7 @@ class HighlightOrder extends Model
     public function latestByUser(int $userId): array
     {
         $stmt = $this->db->prepare(
-            'SELECT * FROM highlight_orders WHERE user_id = ? ORDER BY id DESC'
+            'SELECT * FROM highlight_orders WHERE user_id = ? AND vip_order_id IS NULL ORDER BY id DESC'
         );
         $stmt->execute([$userId]);
         $rows = $stmt->fetchAll() ?: [];
@@ -275,6 +282,47 @@ class HighlightOrder extends Model
         }
 
         return $byProduct;
+    }
+
+    public function findByVipOrderId(int $vipOrderId): ?array
+    {
+        $stmt = $this->db->prepare('SELECT * FROM highlight_orders WHERE vip_order_id = ? LIMIT 1');
+        $stmt->execute([$vipOrderId]);
+        $row = $stmt->fetch();
+
+        return $row ?: null;
+    }
+
+    /**
+     * Эффект VIP. Цена всегда 0. Чужие строки выделения не обновляются.
+     */
+    public function insertVipGrant(int $vipOrderId, int $userId, int $productId, string $startsAt, string $endsAt): int
+    {
+        $existing = $this->findByVipOrderId($vipOrderId);
+        if ($existing) {
+            return (int) $existing['id'];
+        }
+        $now = date('Y-m-d H:i:s');
+        $stmt = $this->db->prepare(
+            'INSERT INTO highlight_orders (
+                public_id, user_id, product_id, vip_order_id, amount, status,
+                open_key, pg_order_id, paid_at, applied_at, starts_at, ends_at
+             ) VALUES (?, ?, ?, ?, 0, ?, NULL, ?, ?, ?, ?, ?)'
+        );
+        $stmt->execute([
+            bin2hex(random_bytes(16)),
+            $userId,
+            $productId,
+            $vipOrderId,
+            HighlightPolicy::STATUS_APPLIED,
+            'zk-vipcomp-hl-' . $vipOrderId,
+            $now,
+            $now,
+            $startsAt,
+            $endsAt,
+        ]);
+
+        return (int) $this->db->lastInsertId();
     }
 
     public static function isDuplicate(PDOException $e): bool

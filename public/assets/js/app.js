@@ -428,6 +428,17 @@ function syncTopFixedMarks() {
         });
     });
 }
+function syncVipMarks() {
+    var now = Date.now();
+    document.querySelectorAll('[data-vip-until]').forEach(function (el) {
+        var until = Date.parse(el.getAttribute('data-vip-until') || '');
+        if (!until || until > now) return;
+        el.removeAttribute('data-vip-until');
+        el.querySelectorAll('[data-vip-sticker]').forEach(function (node) {
+            node.remove();
+        });
+    });
+}
 function syncTopFixedXlMarks() {
     var now = Date.now();
     document.querySelectorAll('[data-top-fixed-xl-until]').forEach(function (el) {
@@ -444,12 +455,33 @@ document.addEventListener('DOMContentLoaded', function () {
     syncHighlightMarks();
     syncTopFixedMarks();
     syncTopFixedXlMarks();
+    syncVipMarks();
     setInterval(function () {
         syncHighlightMarks();
         syncTopFixedMarks();
         syncTopFixedXlMarks();
+        syncVipMarks();
     }, 30000);
 });
+
+function profileVipSubmit(form, msg) {
+    if (!form || form.getAttribute('data-vip-locked') === '1') return false;
+    if (!confirm(msg)) return false;
+    form.setAttribute('data-vip-locked', '1');
+    var btn = form.querySelector('button[type="submit"]');
+    if (btn) {
+        btn.disabled = true;
+        btn.setAttribute('aria-busy', 'true');
+        var wait = form.getAttribute('data-vip-wait');
+        if (wait && btn.querySelector('svg')) {
+            btn.setAttribute('aria-label', wait);
+            btn.setAttribute('title', wait);
+        } else if (wait) {
+            btn.textContent = wait;
+        }
+    }
+    return true;
+}
 
 function profileTopFixedXlSubmit(form, msg) {
     if (!form || form.getAttribute('data-top-fixed-xl-locked') === '1') return false;
