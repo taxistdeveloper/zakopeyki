@@ -17,6 +17,8 @@ use App\Models\Wallet;
 use App\Services\AMLService;
 use App\Services\Boost\BoostService;
 use App\Services\Highlight\HighlightService;
+use App\Services\TopFixed\TopFixedService;
+use App\Services\TopFixedXl\TopFixedXlService;
 use App\Services\BusinessPackageService;
 use App\Services\Listing\ListingShippingService;
 use App\Services\MicroTaskService;
@@ -135,6 +137,12 @@ class ProfileController extends Controller
         $highlightStates = $tab === 'lots'
             ? (new HighlightService())->statesForProducts((int) Auth::id(), $products)
             : [];
+        $topFixedStates = $tab === 'lots'
+            ? (new TopFixedService())->statesForProducts((int) Auth::id(), $products)
+            : [];
+        $topFixedXlStates = $tab === 'lots'
+            ? (new TopFixedXlService())->statesForProducts((int) Auth::id(), $products)
+            : [];
 
         $this->view('profile/index', [
             'title' => t('profile.title'),
@@ -144,6 +152,8 @@ class ProfileController extends Controller
             'products' => $products,
             'boostStates' => $boostStates,
             'highlightStates' => $highlightStates,
+            'topFixedStates' => $topFixedStates,
+            'topFixedXlStates' => $topFixedXlStates,
             'favorites' => $favorites,
             'favoriteIds' => $favoriteIds,
             'followingUsers' => $followingUsers,

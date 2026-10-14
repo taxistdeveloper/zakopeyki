@@ -29,6 +29,8 @@ final class HighlightPolicy
     public const UNRELATED_CONTROLS = [
         'boost_enabled',
         'three_lifts_enabled',
+        'top_fixed_enabled',
+        'top_fixed_xl_enabled',
         'stub_mode',
         'business_packages.priority_boost',
         'business_usage.boosts',

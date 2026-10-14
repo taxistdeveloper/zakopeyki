@@ -123,9 +123,21 @@ $highlightOn = !empty($highlightView['active']);
 $highlightIso = $highlightOn
     ? \App\Services\Highlight\HighlightPolicy::isoUntil((string) ($highlightView['ends_at'] ?? ''))
     : '';
+$topFixedView = \App\Services\TopFixed\TopFixedService::presentation($item);
+$topFixedOn = !empty($topFixedView['active']);
+$topFixedIso = $topFixedOn
+    ? \App\Services\TopFixed\TopFixedPolicy::isoUntil((string) ($topFixedView['ends_at'] ?? ''))
+    : '';
+$topFixedXlView = \App\Services\TopFixedXl\TopFixedXlService::presentation($item);
+$topFixedXlOn = !empty($topFixedXlView['active']);
+$topFixedXlIso = $topFixedXlOn
+    ? \App\Services\TopFixedXl\TopFixedXlPolicy::isoUntil((string) ($topFixedXlView['ends_at'] ?? ''))
+    : '';
 ?>
-<section class="max-w-5xl mx-auto space-y-5 fade-up pb-8<?= $highlightOn ? ' highlight-card rounded-[28px] p-3 sm:p-4' : '' ?>"
-         <?= $highlightOn ? 'data-highlight-until="' . htmlspecialchars($highlightIso) . '"' : '' ?>>
+<section class="max-w-5xl mx-auto space-y-5 fade-up pb-8<?= $highlightOn ? ' highlight-card rounded-[28px] p-3 sm:p-4' : '' ?><?= $topFixedOn ? ' top-fixed-card' : '' ?><?= $topFixedXlOn ? ' top-fixed-xl-card' : '' ?>"
+         <?= $highlightOn ? 'data-highlight-until="' . htmlspecialchars($highlightIso) . '"' : '' ?>
+         <?= $topFixedOn ? 'data-top-fixed-until="' . htmlspecialchars($topFixedIso) . '"' : '' ?>
+         <?= $topFixedXlOn ? 'data-top-fixed-xl-until="' . htmlspecialchars($topFixedXlIso) . '"' : '' ?>>
     <?php if ($flash): ?>
         <div class="bg-emerald-50 dark:bg-emerald-900/25 text-emerald-800 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800/40 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars($flash) ?></div>
     <?php endif; ?>
@@ -233,6 +245,12 @@ $highlightIso = $highlightOn
 
     <div class="flex flex-wrap items-center gap-2">
         <h1 class="font-display text-[1.45rem] sm:text-2xl font-bold tracking-tight leading-tight text-ink-900 dark:text-white"><?= htmlspecialchars($item['title']) ?></h1>
+        <?php if ($topFixedXlOn): ?>
+            <?php View::partial('partials/top-fixed-xl-sticker'); ?>
+        <?php endif; ?>
+        <?php if ($topFixedOn): ?>
+            <?php View::partial('partials/top-fixed-sticker'); ?>
+        <?php endif; ?>
         <?php if ($highlightOn): ?>
             <?php View::partial('partials/highlight-sticker'); ?>
         <?php endif; ?>

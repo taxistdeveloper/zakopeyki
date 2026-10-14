@@ -124,6 +124,8 @@ class AdminController extends Controller
             'boostEnabled' => $isAdmin && (new \App\Services\Boost\BoostService())->isEnabled(),
             'threeLiftsEnabled' => $isAdmin && (new \App\Services\ThreeLifts\ThreeLiftsService())->isEnabled(),
             'highlightEnabled' => $isAdmin && (new \App\Services\Highlight\HighlightService())->isEnabled(),
+            'topFixedEnabled' => $isAdmin && (new \App\Services\TopFixed\TopFixedService())->isEnabled(),
+            'topFixedXlEnabled' => $isAdmin && (new \App\Services\TopFixedXl\TopFixedXlService())->isEnabled(),
             'canProducts' => $canProducts,
             'canTickets' => $canTickets,
             'canAi' => $canAi,
@@ -279,6 +281,80 @@ class AdminController extends Controller
             return;
         }
         $_SESSION['flash'] = t('admin.highlight_recovered', ['n' => (string) ($result['applied'] ?? 0)]);
+        $this->redirect('/admin');
+    }
+
+    private function requireTopFixedAdmin(): void
+    {
+        Auth::requireLogin();
+        $role = (string) (Auth::user()['role'] ?? '');
+        if (!\App\Services\TopFixed\TopFixedPolicy::canToggle($role)) {
+            http_response_code(403);
+            echo 'Доступ запрещён';
+            exit;
+        }
+    }
+
+    public function toggleTopFixed(): void
+    {
+        $this->requireTopFixedAdmin();
+
+        $enabled = isset($_POST['enabled']) && (string) $_POST['enabled'] === '1';
+        $ok = (new \App\Services\TopFixed\TopFixedService())->setEnabled($enabled);
+        $_SESSION[$ok ? 'flash' : 'error'] = $ok
+            ? ($enabled ? t('admin.top_fixed_enabled_flash') : t('admin.top_fixed_disabled_flash'))
+            : t('admin.top_fixed_toggle_failed');
+        $this->redirect('/admin');
+    }
+
+    public function recoverTopFixed(): void
+    {
+        $this->requireTopFixedAdmin();
+
+        $result = (new \App\Services\TopFixed\TopFixedService())->recoverUnapplied();
+        if (empty($result['ok'])) {
+            $_SESSION['error'] = t('admin.top_fixed_recover_disabled');
+            $this->redirect('/admin');
+            return;
+        }
+        $_SESSION['flash'] = t('admin.top_fixed_recovered', ['n' => (string) ($result['applied'] ?? 0)]);
+        $this->redirect('/admin');
+    }
+
+    private function requireTopFixedXlAdmin(): void
+    {
+        Auth::requireLogin();
+        $role = (string) (Auth::user()['role'] ?? '');
+        if (!\App\Services\TopFixedXl\TopFixedXlPolicy::canToggle($role)) {
+            http_response_code(403);
+            echo 'Доступ запрещён';
+            exit;
+        }
+    }
+
+    public function toggleTopFixedXl(): void
+    {
+        $this->requireTopFixedXlAdmin();
+
+        $enabled = isset($_POST['enabled']) && (string) $_POST['enabled'] === '1';
+        $ok = (new \App\Services\TopFixedXl\TopFixedXlService())->setEnabled($enabled);
+        $_SESSION[$ok ? 'flash' : 'error'] = $ok
+            ? ($enabled ? t('admin.top_fixed_xl_enabled_flash') : t('admin.top_fixed_xl_disabled_flash'))
+            : t('admin.top_fixed_xl_toggle_failed');
+        $this->redirect('/admin');
+    }
+
+    public function recoverTopFixedXl(): void
+    {
+        $this->requireTopFixedXlAdmin();
+
+        $result = (new \App\Services\TopFixedXl\TopFixedXlService())->recoverUnapplied();
+        if (empty($result['ok'])) {
+            $_SESSION['error'] = t('admin.top_fixed_xl_recover_disabled');
+            $this->redirect('/admin');
+            return;
+        }
+        $_SESSION['flash'] = t('admin.top_fixed_xl_recovered', ['n' => (string) ($result['applied'] ?? 0)]);
         $this->redirect('/admin');
     }
 

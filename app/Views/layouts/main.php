@@ -1972,6 +1972,42 @@ function url(string $path = ''): string
             border-radius: 8px;
             text-transform: uppercase;
         }
+        .top-fixed-card {
+            outline: 2px solid #0284c7;
+            outline-offset: -2px;
+        }
+        .top-fixed-sticker {
+            display: inline-flex;
+            align-items: center;
+            pointer-events: none;
+            background: #0284c7;
+            color: #ffffff;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            line-height: 1;
+            padding: 4px 7px;
+            border-radius: 8px;
+            text-transform: uppercase;
+        }
+        .top-fixed-xl-card {
+            outline: 2px solid #6d28d9;
+            outline-offset: -2px;
+        }
+        .top-fixed-xl-sticker {
+            display: inline-flex;
+            align-items: center;
+            pointer-events: none;
+            background: #6d28d9;
+            color: #ffffff;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            line-height: 1;
+            padding: 4px 7px;
+            border-radius: 8px;
+            text-transform: uppercase;
+        }
         .story-product-card {
             display: flex;
             align-items: center;

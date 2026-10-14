@@ -14,6 +14,8 @@ $stubMode = !empty($stubMode);
 $boostEnabled = !empty($boostEnabled);
 $threeLiftsEnabled = !empty($threeLiftsEnabled);
 $highlightEnabled = !empty($highlightEnabled);
+$topFixedEnabled = !empty($topFixedEnabled);
+$topFixedXlEnabled = !empty($topFixedXlEnabled);
 ?>
 <section class="space-y-6 fade-up">
     <div>
@@ -242,6 +244,80 @@ $highlightEnabled = !empty($highlightEnabled);
                             : 'bg-emerald-600 hover:bg-emerald-700' ?>"
                         onclick="return confirm(<?= json_encode($highlightEnabled ? t('admin.highlight_disable_confirm') : t('admin.highlight_enable_confirm')) ?>)">
                         <?= htmlspecialchars($highlightEnabled ? t('admin.highlight_disable_action') : t('admin.highlight_enable_action')) ?>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="rounded-[22px] border shadow-soft overflow-hidden <?= $topFixedEnabled
+        ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/40'
+        : 'bg-white/90 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/10' ?>">
+        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
+            <div class="min-w-0">
+                <p class="text-[10px] font-semibold uppercase tracking-[0.14em] <?= $topFixedEnabled ? 'text-emerald-600' : 'text-gray-500' ?>">
+                    <?= htmlspecialchars(t('admin.top_fixed_status')) ?>
+                </p>
+                <h3 class="font-display font-bold text-ink-900 dark:text-white mt-0.5">
+                    <?= htmlspecialchars($topFixedEnabled ? t('admin.top_fixed_on') : t('admin.top_fixed_off')) ?>
+                </h3>
+                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.top_fixed_hint')) ?></p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 shrink-0">
+                <?php if ($topFixedEnabled): ?>
+                    <form method="post" action="<?= ProductHelper::url('/admin/top-fixed/recover') ?>">
+                        <?= csrf_field() ?>
+                        <button type="submit" class="h-10 px-4 rounded-xl text-xs font-bold border border-black/10 dark:border-white/15 text-ink-800 dark:text-gray-200">
+                            <?= htmlspecialchars(t('admin.top_fixed_recover')) ?>
+                        </button>
+                    </form>
+                <?php endif; ?>
+                <form method="post" action="<?= ProductHelper::url('/admin/top-fixed') ?>">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="enabled" value="<?= $topFixedEnabled ? '0' : '1' ?>">
+                    <button type="submit"
+                        class="h-10 px-4 rounded-xl text-xs font-bold text-white transition <?= $topFixedEnabled
+                            ? 'bg-amber-600 hover:bg-amber-700'
+                            : 'bg-emerald-600 hover:bg-emerald-700' ?>"
+                        onclick="return confirm(<?= json_encode($topFixedEnabled ? t('admin.top_fixed_disable_confirm') : t('admin.top_fixed_enable_confirm')) ?>)">
+                        <?= htmlspecialchars($topFixedEnabled ? t('admin.top_fixed_disable_action') : t('admin.top_fixed_enable_action')) ?>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="rounded-[22px] border shadow-soft overflow-hidden <?= $topFixedXlEnabled
+        ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/40'
+        : 'bg-white/90 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/10' ?>">
+        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
+            <div class="min-w-0">
+                <p class="text-[10px] font-semibold uppercase tracking-[0.14em] <?= $topFixedXlEnabled ? 'text-emerald-600' : 'text-gray-500' ?>">
+                    <?= htmlspecialchars(t('admin.top_fixed_xl_status')) ?>
+                </p>
+                <h3 class="font-display font-bold text-ink-900 dark:text-white mt-0.5">
+                    <?= htmlspecialchars($topFixedXlEnabled ? t('admin.top_fixed_xl_on') : t('admin.top_fixed_xl_off')) ?>
+                </h3>
+                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.top_fixed_xl_hint')) ?></p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 shrink-0">
+                <?php if ($topFixedXlEnabled): ?>
+                    <form method="post" action="<?= ProductHelper::url('/admin/top-fixed-xl/recover') ?>">
+                        <?= csrf_field() ?>
+                        <button type="submit" class="h-10 px-4 rounded-xl text-xs font-bold border border-black/10 dark:border-white/15 text-ink-800 dark:text-gray-200">
+                            <?= htmlspecialchars(t('admin.top_fixed_xl_recover')) ?>
+                        </button>
+                    </form>
+                <?php endif; ?>
+                <form method="post" action="<?= ProductHelper::url('/admin/top-fixed-xl') ?>">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="enabled" value="<?= $topFixedXlEnabled ? '0' : '1' ?>">
+                    <button type="submit"
+                        class="h-10 px-4 rounded-xl text-xs font-bold text-white transition <?= $topFixedXlEnabled
+                            ? 'bg-amber-600 hover:bg-amber-700'
+                            : 'bg-emerald-600 hover:bg-emerald-700' ?>"
+                        onclick="return confirm(<?= json_encode($topFixedXlEnabled ? t('admin.top_fixed_xl_disable_confirm') : t('admin.top_fixed_xl_enable_confirm')) ?>)">
+                        <?= htmlspecialchars($topFixedXlEnabled ? t('admin.top_fixed_xl_disable_action') : t('admin.top_fixed_xl_enable_action')) ?>
                     </button>
                 </form>
             </div>

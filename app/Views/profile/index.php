@@ -41,6 +41,8 @@ $accountLimit = $accountLimit ?? [];
 $businessSubscription = $businessSubscription ?? null;
 $boostStates = $boostStates ?? [];
 $highlightStates = $highlightStates ?? [];
+$topFixedStates = $topFixedStates ?? [];
+$topFixedXlStates = $topFixedXlStates ?? [];
 $isBusinessAccount = !empty($accountLimit['is_business']);
 ?>
 <section class="max-w-5xl mx-auto space-y-5 pb-8">
@@ -1868,6 +1870,8 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                         <?php
                         $boostWatch = false;
                         $highlightWatch = false;
+                        $topFixedWatch = false;
+                        $topFixedXlWatch = false;
                         foreach ($lotProducts as $p):
                             $thumb = ProductHelper::imageUrl($p);
                             $boostUi = $boostStates[(int) $p['id']] ?? ['code' => 'hidden', 'can_purchase' => false, 'continue_payment' => false, 'notice' => null];
@@ -1878,14 +1882,34 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                             if ((string) ($highlightUi['code'] ?? 'hidden') !== 'hidden') {
                                 $highlightWatch = true;
                             }
+                            $topFixedUi = $topFixedStates[(int) $p['id']] ?? ['code' => 'hidden', 'can_purchase' => false, 'continue_payment' => false, 'notice' => null, 'ends_at' => null, 'category' => null];
+                            if ((string) ($topFixedUi['code'] ?? 'hidden') !== 'hidden') {
+                                $topFixedWatch = true;
+                            }
+                            $topFixedXlUi = $topFixedXlStates[(int) $p['id']] ?? ['code' => 'hidden', 'can_purchase' => false, 'continue_payment' => false, 'notice' => null, 'ends_at' => null, 'category' => null];
+                            if ((string) ($topFixedXlUi['code'] ?? 'hidden') !== 'hidden') {
+                                $topFixedXlWatch = true;
+                            }
                             $lotHighlight = \App\Services\Highlight\HighlightService::presentation($p);
                             $lotHighlightOn = !empty($lotHighlight['active']);
                             $lotHighlightIso = $lotHighlightOn
                                 ? \App\Services\Highlight\HighlightPolicy::isoUntil((string) ($lotHighlight['ends_at'] ?? ''))
                                 : '';
+                            $lotTopFixed = \App\Services\TopFixed\TopFixedService::presentation($p);
+                            $lotTopFixedOn = !empty($lotTopFixed['active']);
+                            $lotTopFixedIso = $lotTopFixedOn
+                                ? \App\Services\TopFixed\TopFixedPolicy::isoUntil((string) ($lotTopFixed['ends_at'] ?? ''))
+                                : '';
+                            $lotTopFixedXl = \App\Services\TopFixedXl\TopFixedXlService::presentation($p);
+                            $lotTopFixedXlOn = !empty($lotTopFixedXl['active']);
+                            $lotTopFixedXlIso = $lotTopFixedXlOn
+                                ? \App\Services\TopFixedXl\TopFixedXlPolicy::isoUntil((string) ($lotTopFixedXl['ends_at'] ?? ''))
+                                : '';
                         ?>
-                            <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 bg-white dark:bg-white/5 border border-black/[0.06] dark:border-white/10 rounded-2xl px-4 py-3.5 <?= !empty($editing) && (int) $editing['id'] === (int) $p['id'] ? 'border-brand-400/60 shadow-soft' : '' ?><?= $lotHighlightOn ? ' highlight-card' : '' ?>"
-                                 <?= $lotHighlightOn ? 'data-highlight-until="' . htmlspecialchars($lotHighlightIso) . '"' : '' ?>>
+                            <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 bg-white dark:bg-white/5 border border-black/[0.06] dark:border-white/10 rounded-2xl px-4 py-3.5 <?= !empty($editing) && (int) $editing['id'] === (int) $p['id'] ? 'border-brand-400/60 shadow-soft' : '' ?><?= $lotHighlightOn ? ' highlight-card' : '' ?><?= $lotTopFixedOn ? ' top-fixed-card' : '' ?><?= $lotTopFixedXlOn ? ' top-fixed-xl-card' : '' ?>"
+                                 <?= $lotHighlightOn ? 'data-highlight-until="' . htmlspecialchars($lotHighlightIso) . '"' : '' ?>
+                                 <?= $lotTopFixedOn ? 'data-top-fixed-until="' . htmlspecialchars($lotTopFixedIso) . '"' : '' ?>
+                                 <?= $lotTopFixedXlOn ? 'data-top-fixed-xl-until="' . htmlspecialchars($lotTopFixedXlIso) . '"' : '' ?>>
                                 <a href="<?= ProductHelper::url('/product/' . $p['id']) ?>" class="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition">
                                     <div class="w-12 h-12 rounded-xl overflow-hidden bg-brand-50 dark:bg-white/5 flex-shrink-0 flex items-center justify-center">
                                         <?php if ($thumb): ?>
@@ -1897,6 +1921,12 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                                     <div class="min-w-0">
                                         <div class="text-sm font-semibold truncate flex items-center gap-1.5">
                                             <span class="truncate"><?= htmlspecialchars($p['title']) ?></span>
+                                            <?php if ($lotTopFixedXlOn): ?>
+                                                <?php \App\Core\View::partial('partials/top-fixed-xl-sticker'); ?>
+                                            <?php endif; ?>
+                                            <?php if ($lotTopFixedOn): ?>
+                                                <?php \App\Core\View::partial('partials/top-fixed-sticker'); ?>
+                                            <?php endif; ?>
                                             <?php if ($lotHighlightOn): ?>
                                                 <?php \App\Core\View::partial('partials/highlight-sticker'); ?>
                                             <?php endif; ?>
@@ -1936,6 +1966,8 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                                 </div>
                                 <?php \App\Core\View::partial('partials/lot-boost', ['product' => $p, 'ui' => $boostUi]); ?>
                                 <?php \App\Core\View::partial('partials/lot-highlight', ['product' => $p, 'ui' => $highlightUi]); ?>
+                                <?php \App\Core\View::partial('partials/lot-top-fixed', ['product' => $p, 'ui' => $topFixedUi]); ?>
+                                <?php \App\Core\View::partial('partials/lot-top-fixed-xl', ['product' => $p, 'ui' => $topFixedXlUi]); ?>
                             </div>
                         <?php endforeach; ?>
                     </div>
@@ -2085,6 +2117,130 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                                 failures += 1;
                                 if (failures >= 3) {
                                     document.querySelectorAll('[data-highlight-card] [data-highlight-offline]').forEach(function (node) {
+                                        node.hidden = false;
+                                    });
+                                }
+                                if (Date.now() - started < 900000) setTimeout(tick, 8000);
+                            });
+                    }
+                    setTimeout(tick, 5000);
+                })();
+                <?php endif; ?>
+                <?php if (!empty($topFixedWatch)): ?>
+                (function () {
+                    var url = <?= json_encode(ProductHelper::url('/profile/lots/top-fixed-status'), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+                    var started = Date.now();
+                    var failures = 0;
+                    function tick() {
+                        if (Date.now() - started > 900000) return;
+                        if (document.hidden) {
+                            setTimeout(tick, 5000);
+                            return;
+                        }
+                        var cards = document.querySelectorAll('[data-top-fixed-watch]');
+                        if (!cards.length) return;
+                        fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' }, cache: 'no-store' })
+                            .then(function (response) { return response.ok ? response.json() : Promise.reject(); })
+                            .then(function (data) {
+                                failures = 0;
+                                var byId = {};
+                                (data && data.items ? data.items : []).forEach(function (item) {
+                                    byId[String(item.id)] = item;
+                                });
+                                cards.forEach(function (card) {
+                                    var item = byId[card.getAttribute('data-top-fixed-card')];
+                                    var form = card.querySelector('form');
+                                    var refresh = card.querySelector('[data-top-fixed-refresh]');
+                                    if (!item) {
+                                        if (form) form.remove();
+                                        if (refresh) refresh.hidden = false;
+                                        card.removeAttribute('data-top-fixed-watch');
+                                        return;
+                                    }
+                                    var changed = item.code !== card.getAttribute('data-top-fixed-code');
+                                    if (changed) {
+                                        card.setAttribute('data-top-fixed-code', item.code);
+                                        var live = card.querySelector('[data-top-fixed-message]');
+                                        if (live && item.message) live.textContent = item.message;
+                                        if (refresh) refresh.hidden = false;
+                                        if (form) form.remove();
+                                        return;
+                                    }
+                                    if (!item.can_purchase && !item.continue_payment && form) {
+                                        form.remove();
+                                        if (refresh) refresh.hidden = false;
+                                    }
+                                });
+                                if (document.querySelector('[data-top-fixed-watch]') && Date.now() - started < 900000) {
+                                    setTimeout(tick, 5000);
+                                }
+                            })
+                            .catch(function () {
+                                failures += 1;
+                                if (failures >= 3) {
+                                    document.querySelectorAll('[data-top-fixed-card] [data-top-fixed-offline]').forEach(function (node) {
+                                        node.hidden = false;
+                                    });
+                                }
+                                if (Date.now() - started < 900000) setTimeout(tick, 8000);
+                            });
+                    }
+                    setTimeout(tick, 5000);
+                })();
+                <?php endif; ?>
+                <?php if (!empty($topFixedXlWatch)): ?>
+                (function () {
+                    var url = <?= json_encode(ProductHelper::url('/profile/lots/top-fixed-xl-status'), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+                    var started = Date.now();
+                    var failures = 0;
+                    function tick() {
+                        if (Date.now() - started > 900000) return;
+                        if (document.hidden) {
+                            setTimeout(tick, 5000);
+                            return;
+                        }
+                        var cards = document.querySelectorAll('[data-top-fixed-xl-watch]');
+                        if (!cards.length) return;
+                        fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' }, cache: 'no-store' })
+                            .then(function (response) { return response.ok ? response.json() : Promise.reject(); })
+                            .then(function (data) {
+                                failures = 0;
+                                var byId = {};
+                                (data && data.items ? data.items : []).forEach(function (item) {
+                                    byId[String(item.id)] = item;
+                                });
+                                cards.forEach(function (card) {
+                                    var item = byId[card.getAttribute('data-top-fixed-xl-card')];
+                                    var form = card.querySelector('form');
+                                    var refresh = card.querySelector('[data-top-fixed-xl-refresh]');
+                                    if (!item) {
+                                        if (form) form.remove();
+                                        if (refresh) refresh.hidden = false;
+                                        card.removeAttribute('data-top-fixed-xl-watch');
+                                        return;
+                                    }
+                                    var changed = item.code !== card.getAttribute('data-top-fixed-xl-code');
+                                    if (changed) {
+                                        card.setAttribute('data-top-fixed-xl-code', item.code);
+                                        var live = card.querySelector('[data-top-fixed-xl-message]');
+                                        if (live && item.message) live.textContent = item.message;
+                                        if (refresh) refresh.hidden = false;
+                                        if (form) form.remove();
+                                        return;
+                                    }
+                                    if (!item.can_purchase && !item.continue_payment && form) {
+                                        form.remove();
+                                        if (refresh) refresh.hidden = false;
+                                    }
+                                });
+                                if (document.querySelector('[data-top-fixed-xl-watch]') && Date.now() - started < 900000) {
+                                    setTimeout(tick, 5000);
+                                }
+                            })
+                            .catch(function () {
+                                failures += 1;
+                                if (failures >= 3) {
+                                    document.querySelectorAll('[data-top-fixed-xl-card] [data-top-fixed-xl-offline]').forEach(function (node) {
                                         node.hidden = false;
                                     });
                                 }

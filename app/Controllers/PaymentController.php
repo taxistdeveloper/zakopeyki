@@ -10,10 +10,16 @@ use App\Models\DeliveryPayment;
 use App\Models\HighlightOrder;
 use App\Models\Order;
 use App\Models\Payment;
+use App\Models\TopFixedOrder;
+use App\Models\TopFixedXlOrder;
 use App\Services\Boost\BoostPolicy;
 use App\Services\Boost\BoostService;
 use App\Services\Highlight\HighlightPolicy;
 use App\Services\Highlight\HighlightService;
+use App\Services\TopFixed\TopFixedPolicy;
+use App\Services\TopFixed\TopFixedService;
+use App\Services\TopFixedXl\TopFixedXlPolicy;
+use App\Services\TopFixedXl\TopFixedXlService;
 use App\Services\FreedomPay\Client as FreedomPayClient;
 
 class PaymentController extends Controller
@@ -73,6 +79,16 @@ class PaymentController extends Controller
 
         if (HighlightPolicy::isHighlightPgOrderId($pgOrderId)) {
             $this->handleHighlightFreedomPayResult($fp, $scriptName, $pgOrderId, $pgPaymentId, $pgAmount, $pgResult, $canReject);
+            return;
+        }
+
+        if (TopFixedXlPolicy::isTopFixedXlPgOrderId($pgOrderId)) {
+            $this->handleTopFixedXlFreedomPayResult($fp, $scriptName, $pgOrderId, $pgPaymentId, $pgAmount, $pgResult, $canReject);
+            return;
+        }
+
+        if (TopFixedPolicy::isTopFixedPgOrderId($pgOrderId)) {
+            $this->handleTopFixedFreedomPayResult($fp, $scriptName, $pgOrderId, $pgPaymentId, $pgAmount, $pgResult, $canReject);
             return;
         }
 
@@ -156,6 +172,14 @@ class PaymentController extends Controller
             $this->redirectHighlightReturn($pgOrderId);
             return;
         }
+        if ($pgOrderId !== '' && TopFixedXlPolicy::isTopFixedXlPgOrderId($pgOrderId)) {
+            $this->redirectTopFixedXlReturn($pgOrderId);
+            return;
+        }
+        if ($pgOrderId !== '' && TopFixedPolicy::isTopFixedPgOrderId($pgOrderId)) {
+            $this->redirectTopFixedReturn($pgOrderId);
+            return;
+        }
         if ($pgOrderId !== '' && DeliveryPayment::isDeliveryPgOrderId($pgOrderId)) {
             $payment = (new DeliveryPayment())->findByPgOrderId($pgOrderId);
             if ($payment && (int) ($payment['buyer_user_id'] ?? 0) === Auth::id()) {
@@ -206,6 +230,14 @@ class PaymentController extends Controller
             $this->redirectHighlightReturn($pgOrderId);
             return;
         }
+        if ($pgOrderId !== '' && TopFixedXlPolicy::isTopFixedXlPgOrderId($pgOrderId)) {
+            $this->redirectTopFixedXlReturn($pgOrderId);
+            return;
+        }
+        if ($pgOrderId !== '' && TopFixedPolicy::isTopFixedPgOrderId($pgOrderId)) {
+            $this->redirectTopFixedReturn($pgOrderId);
+            return;
+        }
         if ($pgOrderId !== '' && DeliveryPayment::isDeliveryPgOrderId($pgOrderId)) {
             $payment = (new DeliveryPayment())->findByPgOrderId($pgOrderId);
             if ($payment) {
@@ -254,7 +286,7 @@ class PaymentController extends Controller
         $params = FreedomPayClient::requestParams();
         if (!empty($params['pg_order_id'])) {
             $pgOrderId = (string) $params['pg_order_id'];
-            if (DeliveryPayment::isDeliveryPgOrderId($pgOrderId) || BoostPolicy::isBoostPgOrderId($pgOrderId) || HighlightPolicy::isHighlightPgOrderId($pgOrderId)) {
+            if (DeliveryPayment::isDeliveryPgOrderId($pgOrderId) || BoostPolicy::isBoostPgOrderId($pgOrderId) || HighlightPolicy::isHighlightPgOrderId($pgOrderId) || TopFixedPolicy::isTopFixedPgOrderId($pgOrderId) || TopFixedXlPolicy::isTopFixedXlPgOrderId($pgOrderId)) {
                 return 0;
             }
             $payment = (new Payment())->findByPgOrderId($pgOrderId);
@@ -427,6 +459,148 @@ class PaymentController extends Controller
             $_SESSION['error'] = t('highlight.payment_failed');
         }
         $this->redirect('/profile?tab=lots');
+    }
+
+    private function redirectTopFixedXlReturn(string $pgOrderId): void
+    {
+        $order = (new TopFixedXlOrder())->findByPgOrderId($pgOrderId);
+        if (!$order || (int) ($order['user_id'] ?? 0) !== (int) Auth::id()) {
+            $_SESSION['error'] = t('top_fixed_xl.err_not_found');
+            $this->redirect('/profile?tab=lots');
+            return;
+        }
+
+        $status = (string) ($order['status'] ?? '');
+        $until = TopFixedXlPolicy::formatUntil(isset($order['ends_at']) ? (string) $order['ends_at'] : null);
+        $category = (string) ($order['category'] ?? '');
+        $running = TopFixedXlPolicy::windowActive(
+            isset($order['starts_at']) ? (string) $order['starts_at'] : null,
+            isset($order['ends_at']) ? (string) $order['ends_at'] : null
+        );
+        if (($status === TopFixedXlPolicy::STATUS_APPLIED || $status === TopFixedXlPolicy::STATUS_EXPIRED) && $running) {
+            $_SESSION['flash'] = t('top_fixed_xl.active', ['until' => $until, 'category' => $category]);
+        } elseif ($status === TopFixedXlPolicy::STATUS_APPLIED || $status === TopFixedXlPolicy::STATUS_EXPIRED) {
+            $_SESSION['flash'] = t('top_fixed_xl.expired');
+        } elseif ($status === TopFixedXlPolicy::STATUS_PAID || $status === TopFixedXlPolicy::STATUS_APPLY_FAILED) {
+            $_SESSION['flash'] = t('top_fixed_xl.paid_waiting');
+        } elseif ($status === TopFixedXlPolicy::STATUS_PENDING) {
+            $_SESSION['flash'] = t('top_fixed_xl.payment_pending');
+        } else {
+            $_SESSION['error'] = t('top_fixed_xl.payment_failed');
+        }
+        $this->redirect('/profile?tab=lots');
+    }
+
+    private function handleTopFixedXlFreedomPayResult(
+        FreedomPayClient $fp,
+        string $scriptName,
+        string $pgOrderId,
+        string $pgPaymentId,
+        string $pgAmount,
+        int $pgResult,
+        bool $canReject
+    ): void {
+        $params = FreedomPayClient::requestParams();
+        $pgCurrency = isset($params['pg_currency']) ? (string) $params['pg_currency'] : null;
+        $done = (new TopFixedXlService())->handleGatewayResult(
+            $pgOrderId,
+            $pgPaymentId,
+            $pgAmount,
+            $pgResult,
+            $canReject,
+            $pgCurrency
+        );
+
+        $gateway = (string) ($done['gateway'] ?? 'error');
+        if ($gateway === 'ok') {
+            $this->xmlOut($fp->xmlResponse($scriptName, [
+                'pg_status' => 'ok',
+                'pg_description' => !empty($done['applied']) ? 'Top Fixed XL applied' : 'Top Fixed XL recorded',
+            ]));
+            return;
+        }
+        if ($gateway === 'rejected' && $canReject) {
+            $this->xmlOut($fp->xmlResponse($scriptName, [
+                'pg_status' => 'rejected',
+                'pg_description' => (string) ($done['error'] ?? 'Cannot accept payment'),
+            ]));
+            return;
+        }
+        $this->xmlOut($fp->xmlResponse($scriptName, [
+            'pg_status' => 'error',
+            'pg_description' => (string) ($done['error'] ?? 'Processing error'),
+        ]));
+    }
+
+    private function redirectTopFixedReturn(string $pgOrderId): void
+    {
+        $order = (new TopFixedOrder())->findByPgOrderId($pgOrderId);
+        if (!$order || (int) ($order['user_id'] ?? 0) !== (int) Auth::id()) {
+            $_SESSION['error'] = t('top_fixed.err_not_found');
+            $this->redirect('/profile?tab=lots');
+            return;
+        }
+
+        $status = (string) ($order['status'] ?? '');
+        $until = TopFixedPolicy::formatUntil(isset($order['ends_at']) ? (string) $order['ends_at'] : null);
+        $category = (string) ($order['category'] ?? '');
+        $running = TopFixedPolicy::windowActive(
+            isset($order['starts_at']) ? (string) $order['starts_at'] : null,
+            isset($order['ends_at']) ? (string) $order['ends_at'] : null
+        );
+        if (($status === TopFixedPolicy::STATUS_APPLIED || $status === TopFixedPolicy::STATUS_EXPIRED) && $running) {
+            $_SESSION['flash'] = t('top_fixed.active', ['until' => $until, 'category' => $category]);
+        } elseif ($status === TopFixedPolicy::STATUS_APPLIED || $status === TopFixedPolicy::STATUS_EXPIRED) {
+            $_SESSION['flash'] = t('top_fixed.expired');
+        } elseif ($status === TopFixedPolicy::STATUS_PAID || $status === TopFixedPolicy::STATUS_APPLY_FAILED) {
+            $_SESSION['flash'] = t('top_fixed.paid_waiting');
+        } elseif ($status === TopFixedPolicy::STATUS_PENDING) {
+            $_SESSION['flash'] = t('top_fixed.payment_pending');
+        } else {
+            $_SESSION['error'] = t('top_fixed.payment_failed');
+        }
+        $this->redirect('/profile?tab=lots');
+    }
+
+    private function handleTopFixedFreedomPayResult(
+        FreedomPayClient $fp,
+        string $scriptName,
+        string $pgOrderId,
+        string $pgPaymentId,
+        string $pgAmount,
+        int $pgResult,
+        bool $canReject
+    ): void {
+        $params = FreedomPayClient::requestParams();
+        $pgCurrency = isset($params['pg_currency']) ? (string) $params['pg_currency'] : null;
+        $done = (new TopFixedService())->handleGatewayResult(
+            $pgOrderId,
+            $pgPaymentId,
+            $pgAmount,
+            $pgResult,
+            $canReject,
+            $pgCurrency
+        );
+
+        $gateway = (string) ($done['gateway'] ?? 'error');
+        if ($gateway === 'ok') {
+            $this->xmlOut($fp->xmlResponse($scriptName, [
+                'pg_status' => 'ok',
+                'pg_description' => !empty($done['applied']) ? 'Top Fixed applied' : 'Top Fixed recorded',
+            ]));
+            return;
+        }
+        if ($gateway === 'rejected' && $canReject) {
+            $this->xmlOut($fp->xmlResponse($scriptName, [
+                'pg_status' => 'rejected',
+                'pg_description' => (string) ($done['error'] ?? 'Cannot accept payment'),
+            ]));
+            return;
+        }
+        $this->xmlOut($fp->xmlResponse($scriptName, [
+            'pg_status' => 'error',
+            'pg_description' => (string) ($done['error'] ?? 'Processing error'),
+        ]));
     }
 
     private function handleHighlightFreedomPayResult(

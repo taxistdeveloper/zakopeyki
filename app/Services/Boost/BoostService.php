@@ -11,6 +11,7 @@ use App\Models\BoostOrder;
 use App\Models\Product;
 use App\Models\Setting;
 use App\Services\Payment\FreedomPayGateway;
+use App\Services\Payment\LocalCheckout;
 use App\Services\Payment\PaymentGatewayInterface;
 use PDO;
 use PDOException;
@@ -18,7 +19,7 @@ use Throwable;
 
 /**
  * Заказ Boost, подтверждение оплаты FreedomPay и одно применение sort_at.
- * Симуляция оплаты не подтверждает услугу.
+ * Без настроенного FreedomPay услугу подтверждает только локальный флаг allow_simulated_payments.
  */
 final class BoostService
 {
@@ -50,12 +51,7 @@ final class BoostService
     public function statesForProducts(int $userId, array $products): array
     {
         $enabled = $this->isEnabled();
-        $gatewayReady = false;
-        try {
-            $gatewayReady = $this->gateway->isConfigured();
-        } catch (Throwable) {
-            $gatewayReady = false;
-        }
+        $gatewayReady = $this->checkoutReady();
         $orders = $this->orders->latestByUser($userId);
         $states = [];
         foreach ($products as $product) {
@@ -178,7 +174,7 @@ final class BoostService
         if ($block !== null) {
             return ['ok' => false, 'error_code' => $block];
         }
-        if (!$this->gateway->isConfigured()) {
+        if (!$this->checkoutReady()) {
             return ['ok' => false, 'error_code' => 'gateway_not_configured'];
         }
 
@@ -269,7 +265,9 @@ final class BoostService
             'pg_order_id' => $pgOrderId,
         ]);
 
-        return $this->initGateway($order);
+        return $this->localCheckout()
+            ? $this->completeLocal($order)
+            : $this->initGateway($order);
     }
 
     /**
@@ -485,6 +483,55 @@ final class BoostService
             'order_id' => $orderId,
             'status' => $status,
         ];
+    }
+
+    private function gatewayConfigured(): bool
+    {
+        try {
+            return $this->gateway->isConfigured();
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
+    private function localCheckout(): bool
+    {
+        return LocalCheckout::substituteForGateway($this->gatewayConfigured());
+    }
+
+    private function checkoutReady(): bool
+    {
+        return $this->gatewayConfigured() || $this->localCheckout();
+    }
+
+    /**
+     * Локальное подтверждение без списания. Тот же путь, что успешный callback FreedomPay.
+     *
+     * @param array<string, mixed> $order
+     * @return array<string, mixed>
+     */
+    private function completeLocal(array $order): array
+    {
+        $orderId = (int) $order['id'];
+        $this->handleGatewayResult(
+            (string) $order['pg_order_id'],
+            'sim-' . $orderId,
+            (string) BoostPolicy::PRICE_KZT,
+            1,
+            false,
+            'KZT'
+        );
+        $fresh = $this->orders->find($orderId);
+        if (is_array($fresh) && (string) ($fresh['status'] ?? '') === BoostPolicy::STATUS_APPLIED) {
+            ActivityLogger::info('boost.simulated_paid', 'Локальная оплата Boost без шлюза', 'boost_order', $orderId, [
+                'product_id' => (int) ($fresh['product_id'] ?? 0),
+                'amount' => BoostPolicy::PRICE_KZT,
+            ]);
+
+            return $this->presentExisting($fresh);
+        }
+
+        return ['ok' => false, 'error_code' => 'generic', 'order_id' => $orderId];
     }
 
     /**

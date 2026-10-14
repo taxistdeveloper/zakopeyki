@@ -113,24 +113,46 @@ $highlightOn = !empty($highlightView['active']);
 $highlightIso = $highlightOn
     ? \App\Services\Highlight\HighlightPolicy::isoUntil((string) ($highlightView['ends_at'] ?? ''))
     : '';
+$topFixedView = \App\Services\TopFixed\TopFixedService::presentation($item);
+$topFixedOn = !empty($topFixedView['active']);
+$topFixedIso = $topFixedOn
+    ? \App\Services\TopFixed\TopFixedPolicy::isoUntil((string) ($topFixedView['ends_at'] ?? ''))
+    : '';
+$topFixedXlView = \App\Services\TopFixedXl\TopFixedXlService::presentation($item);
+$topFixedXlOn = !empty($topFixedXlView['active']);
+$topFixedXlIso = $topFixedXlOn
+    ? \App\Services\TopFixedXl\TopFixedXlPolicy::isoUntil((string) ($topFixedXlView['ends_at'] ?? ''))
+    : '';
+$promoClass = ($highlightOn ? ' highlight-card' : '') . ($topFixedOn ? ' top-fixed-card' : '') . ($topFixedXlOn ? ' top-fixed-xl-card' : '');
+$promoMarks = $highlightOn || $topFixedOn || $topFixedXlOn;
 ?>
 <?php if ($mini): ?>
-<article class="bg-white dark:bg-white/[0.04] rounded-2xl border border-black/[0.06] dark:border-white/10 overflow-hidden hover:shadow-soft transition duration-300 flex flex-col h-full cursor-pointer group relative<?= $highlightOn ? ' highlight-card' : '' ?>"
+<article class="bg-white dark:bg-white/[0.04] rounded-2xl border border-black/[0.06] dark:border-white/10 overflow-hidden hover:shadow-soft transition duration-300 flex flex-col h-full cursor-pointer group relative<?= $promoClass ?>"
          data-card-href="<?= htmlspecialchars($showUrl) ?>"
-         <?= $highlightOn ? 'data-highlight-until="' . htmlspecialchars($highlightIso) . '"' : '' ?>>
+         <?= $highlightOn ? 'data-highlight-until="' . htmlspecialchars($highlightIso) . '"' : '' ?>
+         <?= $topFixedOn ? 'data-top-fixed-until="' . htmlspecialchars($topFixedIso) . '"' : '' ?>
+         <?= $topFixedXlOn ? 'data-top-fixed-xl-until="' . htmlspecialchars($topFixedXlIso) . '"' : '' ?>>
     <div class="relative">
         <?php if ($imageUrl): ?>
         <a href="<?= $showUrl ?>" class="photo-wm aspect-[4/3] bg-ink-100 dark:bg-white/10 relative block overflow-hidden">
             <img src="<?= htmlspecialchars($imageUrl) ?>" alt="" class="absolute inset-0 w-full h-full object-cover transition duration-300 group-hover:scale-105 pointer-events-none">
-            <?php if ($highlightOn): ?>
-                <span class="absolute bottom-2 right-2 z-[6]"><?php \App\Core\View::partial('partials/highlight-sticker'); ?></span>
+            <?php if ($promoMarks): ?>
+                <span class="absolute bottom-2 right-2 z-[6] flex flex-col items-end gap-1">
+                    <?php if ($topFixedXlOn): ?><?php \App\Core\View::partial('partials/top-fixed-xl-sticker'); ?><?php endif; ?>
+                    <?php if ($topFixedOn): ?><?php \App\Core\View::partial('partials/top-fixed-sticker'); ?><?php endif; ?>
+                    <?php if ($highlightOn): ?><?php \App\Core\View::partial('partials/highlight-sticker'); ?><?php endif; ?>
+                </span>
             <?php endif; ?>
         </a>
         <?php else: ?>
         <a href="<?= $showUrl ?>" class="aspect-[4/3] bg-gradient-to-br from-ink-100 via-brand-50 to-accent-50 dark:from-white/10 dark:via-brand-900/20 dark:to-transparent relative flex items-center justify-center">
             <?= ProductHelper::icon($item['type'], 'w-10 h-10 text-brand-500/70') ?>
-            <?php if ($highlightOn): ?>
-                <span class="absolute bottom-2 right-2 z-[6]"><?php \App\Core\View::partial('partials/highlight-sticker'); ?></span>
+            <?php if ($promoMarks): ?>
+                <span class="absolute bottom-2 right-2 z-[6] flex flex-col items-end gap-1">
+                    <?php if ($topFixedXlOn): ?><?php \App\Core\View::partial('partials/top-fixed-xl-sticker'); ?><?php endif; ?>
+                    <?php if ($topFixedOn): ?><?php \App\Core\View::partial('partials/top-fixed-sticker'); ?><?php endif; ?>
+                    <?php if ($highlightOn): ?><?php \App\Core\View::partial('partials/highlight-sticker'); ?><?php endif; ?>
+                </span>
             <?php endif; ?>
         </a>
         <?php endif; ?>
@@ -169,9 +191,11 @@ $highlightIso = $highlightOn
     </div>
 </article>
 <?php else: ?>
-<article class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 overflow-hidden shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition duration-300 flex flex-col h-full cursor-pointer group backdrop-blur-sm relative<?= $highlightOn ? ' highlight-card' : '' ?>"
+<article class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 overflow-hidden shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition duration-300 flex flex-col h-full cursor-pointer group backdrop-blur-sm relative<?= $promoClass ?>"
          data-card-href="<?= htmlspecialchars($showUrl) ?>"
-         <?= $highlightOn ? 'data-highlight-until="' . htmlspecialchars($highlightIso) . '"' : '' ?>>
+         <?= $highlightOn ? 'data-highlight-until="' . htmlspecialchars($highlightIso) . '"' : '' ?>
+         <?= $topFixedOn ? 'data-top-fixed-until="' . htmlspecialchars($topFixedIso) . '"' : '' ?>
+         <?= $topFixedXlOn ? 'data-top-fixed-xl-until="' . htmlspecialchars($topFixedXlIso) . '"' : '' ?>>
     <?php if ($imageUrl): ?>
     <a href="<?= $showUrl ?>"
        class="photo-wm aspect-[4/3] bg-ink-100 dark:bg-white/10 relative block overflow-hidden shrink-0 cursor-zoom-in"
@@ -180,8 +204,12 @@ $highlightIso = $highlightOn
        data-lightbox-gallery="<?= htmlspecialchars(json_encode(array_values($imageUrls ?: [$imageUrl]), JSON_UNESCAPED_SLASHES)) ?>"
        aria-label="<?= htmlspecialchars(t('product.zoom')) ?>">
         <img src="<?= htmlspecialchars($imageUrl) ?>" alt="" class="absolute inset-0 w-full h-full object-cover transition duration-300 group-hover:scale-105 pointer-events-none">
-        <?php if ($highlightOn): ?>
-            <span class="absolute bottom-2.5 right-2.5 z-[6]"><?php \App\Core\View::partial('partials/highlight-sticker'); ?></span>
+        <?php if ($promoMarks): ?>
+            <span class="absolute bottom-2.5 right-2.5 z-[6] flex flex-col items-end gap-1">
+                <?php if ($topFixedXlOn): ?><?php \App\Core\View::partial('partials/top-fixed-xl-sticker'); ?><?php endif; ?>
+                <?php if ($topFixedOn): ?><?php \App\Core\View::partial('partials/top-fixed-sticker'); ?><?php endif; ?>
+                <?php if ($highlightOn): ?><?php \App\Core\View::partial('partials/highlight-sticker'); ?><?php endif; ?>
+            </span>
         <?php endif; ?>
         <span class="absolute top-2.5 left-2.5 z-[6] text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg shadow-sm <?= $badge['class'] ?>">
             <?= htmlspecialchars($badge['text']) ?>
@@ -193,8 +221,12 @@ $highlightIso = $highlightOn
     <?php else: ?>
     <a href="<?= $showUrl ?>" class="aspect-[4/3] bg-gradient-to-br from-ink-100 via-brand-50 to-accent-50 dark:from-white/10 dark:via-brand-900/20 dark:to-transparent relative flex items-center justify-center overflow-hidden shrink-0">
         <span class="transition duration-300 group-hover:scale-110"><?= ProductHelper::icon($item['type'], 'w-14 h-14 text-brand-500/70') ?></span>
-        <?php if ($highlightOn): ?>
-            <span class="absolute bottom-2.5 right-2.5 z-[6]"><?php \App\Core\View::partial('partials/highlight-sticker'); ?></span>
+        <?php if ($promoMarks): ?>
+            <span class="absolute bottom-2.5 right-2.5 z-[6] flex flex-col items-end gap-1">
+                <?php if ($topFixedXlOn): ?><?php \App\Core\View::partial('partials/top-fixed-xl-sticker'); ?><?php endif; ?>
+                <?php if ($topFixedOn): ?><?php \App\Core\View::partial('partials/top-fixed-sticker'); ?><?php endif; ?>
+                <?php if ($highlightOn): ?><?php \App\Core\View::partial('partials/highlight-sticker'); ?><?php endif; ?>
+            </span>
         <?php endif; ?>
         <span class="absolute top-2.5 left-2.5 z-[6] text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg shadow-sm <?= $badge['class'] ?>">
             <?= htmlspecialchars($badge['text']) ?>
@@ -215,6 +247,16 @@ $highlightIso = $highlightOn
                 <?php \App\Core\View::partial('partials/lot-highlight', [
                     'product' => $item,
                     'ui' => (new \App\Services\Highlight\HighlightService())->cardState((int) Auth::id(), $item),
+                    'placement' => 'overlay',
+                ]); ?>
+                <?php \App\Core\View::partial('partials/lot-top-fixed', [
+                    'product' => $item,
+                    'ui' => (new \App\Services\TopFixed\TopFixedService())->cardState((int) Auth::id(), $item),
+                    'placement' => 'overlay',
+                ]); ?>
+                <?php \App\Core\View::partial('partials/lot-top-fixed-xl', [
+                    'product' => $item,
+                    'ui' => (new \App\Services\TopFixedXl\TopFixedXlService())->cardState((int) Auth::id(), $item),
                     'placement' => 'overlay',
                 ]); ?>
             <?php else: ?>

@@ -148,7 +148,42 @@ class Product extends Model
             $params[] = $category . ' / %';
         }
 
-        $sql .= ' ' . \App\Services\Boost\BoostPolicy::catalogOrderSql();
+        $pinCategory = \App\Services\TopFixed\TopFixedPolicy::ranksInCategory($category);
+        $pinReady = false;
+        $xlReady = false;
+        try {
+            (new \App\Models\TopFixedXlOrder());
+            $xlReady = true;
+        } catch (\Throwable) {
+            $xlReady = false;
+        }
+        if ($pinCategory) {
+            try {
+                (new \App\Models\TopFixedOrder());
+                $pinReady = true;
+            } catch (\Throwable) {
+                $pinReady = false;
+            }
+        }
+        if ($xlReady && $pinReady) {
+            $sql .= ' ' . \App\Services\TopFixedXl\TopFixedXlPolicy::categoryOrderSql();
+            $params[] = $category;
+            $params[] = \App\Services\TopFixedXl\TopFixedXlPolicy::filterLike((string) $category);
+            $params[] = $category;
+            $params[] = \App\Services\TopFixed\TopFixedPolicy::filterLike((string) $category);
+        } elseif ($xlReady && $pinCategory) {
+            $sql .= ' ' . \App\Services\TopFixedXl\TopFixedXlPolicy::scopedOrderSql();
+            $params[] = $category;
+            $params[] = \App\Services\TopFixedXl\TopFixedXlPolicy::filterLike((string) $category);
+        } elseif ($xlReady) {
+            $sql .= ' ' . \App\Services\TopFixedXl\TopFixedXlPolicy::homeOrderSql();
+        } elseif ($pinReady) {
+            $sql .= ' ' . \App\Services\TopFixed\TopFixedPolicy::catalogOrderSql();
+            $params[] = $category;
+            $params[] = \App\Services\TopFixed\TopFixedPolicy::filterLike((string) $category);
+        } else {
+            $sql .= ' ' . \App\Services\Boost\BoostPolicy::catalogOrderSql();
+        }
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll();
