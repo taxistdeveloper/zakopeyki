@@ -24,9 +24,12 @@ use App\Services\TopFixedXl\TopFixedXlService;
 use App\Services\Vip\VipPolicy;
 use App\Services\Vip\VipService;
 use App\Models\AdCampaign;
+use App\Models\MassPushCampaign;
 use App\Models\TargetPushCampaign;
 use App\Services\Ads\AdPolicy;
 use App\Services\Ads\AdService;
+use App\Services\MassPush\MassPushPolicy;
+use App\Services\MassPush\MassPushService;
 use App\Services\TargetPush\TargetPushPolicy;
 use App\Services\TargetPush\TargetPushService;
 use App\Services\FreedomPay\Client as FreedomPayClient;
@@ -113,6 +116,11 @@ class PaymentController extends Controller
 
         if (TargetPushPolicy::isPgOrderId($pgOrderId)) {
             $this->handleTargetPushFreedomPayResult($fp, $scriptName, $pgOrderId, $pgPaymentId, $pgAmount, $pgResult, $canReject);
+            return;
+        }
+
+        if (MassPushPolicy::isPgOrderId($pgOrderId)) {
+            $this->handleMassPushFreedomPayResult($fp, $scriptName, $pgOrderId, $pgPaymentId, $pgAmount, $pgResult, $canReject);
             return;
         }
 

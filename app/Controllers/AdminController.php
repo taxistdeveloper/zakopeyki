@@ -518,6 +518,57 @@ class AdminController extends Controller
         $this->redirect('/admin');
     }
 
+    private function requireMassPushAdmin(): void
+    {
+        Auth::requireLogin();
+        $role = (string) (Auth::user()['role'] ?? '');
+        if (!\App\Services\MassPush\MassPushPolicy::canToggle($role)) {
+            http_response_code(403);
+            echo 'Доступ запрещён';
+            exit;
+        }
+    }
+
+    public function massPush(): void
+    {
+        $this->requireMassPushAdmin();
+        $service = new \App\Services\MassPush\MassPushService();
+        $n = new Notification();
+        $this->view('admin/mass-push', [
+            'title' => t('admin.mass_push_queue'),
+            'currentNav' => 'admin',
+            'rows' => $service->adminList(),
+            'enabled' => $service->isEnabled(),
+            'notifications' => $n->forUser(Auth::id()),
+            'unread' => $n->unreadCount(Auth::id()),
+            'flash' => $_SESSION['flash'] ?? null,
+            'error' => $_SESSION['error'] ?? null,
+        ]);
+        unset($_SESSION['flash'], $_SESSION['error']);
+    }
+
+    public function moderateMassPush(string $id): void
+    {
+        $this->requireMassPushAdmin();
+        $approve = (string) ($_POST['decision'] ?? '') === 'approve';
+        $result = (new \App\Services\MassPush\MassPushService())->moderate((int) $id, $approve, (string) ($_POST['reason'] ?? ''));
+        $_SESSION[empty($result['ok']) ? 'error' : 'flash'] = empty($result['ok'])
+            ? t('admin.mass_push_moderate_failed')
+            : ($approve ? t('admin.mass_push_approved') : t('admin.mass_push_rejected'));
+        $this->redirect('/admin/mass-push');
+    }
+
+    public function toggleMassPush(): void
+    {
+        $this->requireMassPushAdmin();
+        $enabled = isset($_POST['enabled']) && (string) $_POST['enabled'] === '1';
+        $ok = (new \App\Services\MassPush\MassPushService())->setEnabled($enabled);
+        $_SESSION[$ok ? 'flash' : 'error'] = $ok
+            ? ($enabled ? t('admin.mass_push_enabled_flash') : t('admin.mass_push_disabled_flash'))
+            : t('admin.mass_push_toggle_failed');
+        $this->redirect('/admin');
+    }
+
     public function gigCategories(): void
     {
         Auth::requireAdmin();
