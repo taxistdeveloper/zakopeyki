@@ -99,6 +99,9 @@ $navIcon = static fn (string $name): string => IconHelper::svg($name, 'w-[18px] 
         <a href="<?= ProductHelper::url('/target-push') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('target_push', $nav) ?>">
             <?= $navIcon('message') ?> <span><?= htmlspecialchars(t('nav.target_push')) ?></span>
         </a>
+        <a href="<?= ProductHelper::url('/mass-push') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('mass_push', $nav) ?>">
+            <?= $navIcon('message') ?> <span><?= htmlspecialchars(t('nav.mass_push')) ?></span>
+        </a>
         <a href="<?= ProductHelper::url('/chat') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('chat', $nav) ?>">
             <span class="flex items-center gap-3 flex-1 min-w-0"><?= $navIcon('message') ?> <span><?= htmlspecialchars(t('nav.chat')) ?></span></span>
             <?php if ($chatUnreadBadge > 0): ?>

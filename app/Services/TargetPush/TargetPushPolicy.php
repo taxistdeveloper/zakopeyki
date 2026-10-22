@@ -68,6 +68,7 @@ final class TargetPushPolicy
         'ads_category_enabled',
         'ads_sidebar_enabled',
         'ads_exclusive_enabled',
+        'mass_push_enabled',
         'stub_mode',
     ];
 

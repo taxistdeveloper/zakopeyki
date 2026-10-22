@@ -224,6 +224,10 @@ class PaymentController extends Controller
             $this->redirectTargetPushReturn($pgOrderId);
             return;
         }
+        if ($pgOrderId !== '' && MassPushPolicy::isPgOrderId($pgOrderId)) {
+            $this->redirectMassPushReturn($pgOrderId);
+            return;
+        }
         if ($pgOrderId !== '' && DeliveryPayment::isDeliveryPgOrderId($pgOrderId)) {
             $payment = (new DeliveryPayment())->findByPgOrderId($pgOrderId);
             if ($payment && (int) ($payment['buyer_user_id'] ?? 0) === Auth::id()) {
@@ -294,6 +298,10 @@ class PaymentController extends Controller
             $this->redirectTargetPushReturn($pgOrderId);
             return;
         }
+        if ($pgOrderId !== '' && MassPushPolicy::isPgOrderId($pgOrderId)) {
+            $this->redirectMassPushReturn($pgOrderId);
+            return;
+        }
         if ($pgOrderId !== '' && DeliveryPayment::isDeliveryPgOrderId($pgOrderId)) {
             $payment = (new DeliveryPayment())->findByPgOrderId($pgOrderId);
             if ($payment) {
@@ -342,7 +350,7 @@ class PaymentController extends Controller
         $params = FreedomPayClient::requestParams();
         if (!empty($params['pg_order_id'])) {
             $pgOrderId = (string) $params['pg_order_id'];
-            if (DeliveryPayment::isDeliveryPgOrderId($pgOrderId) || BoostPolicy::isBoostPgOrderId($pgOrderId) || HighlightPolicy::isHighlightPgOrderId($pgOrderId) || TopFixedPolicy::isTopFixedPgOrderId($pgOrderId) || TopFixedXlPolicy::isTopFixedXlPgOrderId($pgOrderId) || VipPolicy::isVipPgOrderId($pgOrderId) || AdPolicy::isAdPgOrderId($pgOrderId) || TargetPushPolicy::isPgOrderId($pgOrderId)) {
+            if (DeliveryPayment::isDeliveryPgOrderId($pgOrderId) || BoostPolicy::isBoostPgOrderId($pgOrderId) || HighlightPolicy::isHighlightPgOrderId($pgOrderId) || TopFixedPolicy::isTopFixedPgOrderId($pgOrderId) || TopFixedXlPolicy::isTopFixedXlPgOrderId($pgOrderId) || VipPolicy::isVipPgOrderId($pgOrderId) || AdPolicy::isAdPgOrderId($pgOrderId) || TargetPushPolicy::isPgOrderId($pgOrderId) || MassPushPolicy::isPgOrderId($pgOrderId)) {
                 return 0;
             }
             $payment = (new Payment())->findByPgOrderId($pgOrderId);
@@ -681,6 +689,66 @@ class PaymentController extends Controller
             $this->xmlOut($fp->xmlResponse($scriptName, [
                 'pg_status' => 'ok',
                 'pg_description' => !empty($done['recorded']) ? 'Target Push paid' : 'Target Push recorded',
+            ]));
+            return;
+        }
+        if ($gateway === 'rejected' && $canReject) {
+            $this->xmlOut($fp->xmlResponse($scriptName, [
+                'pg_status' => 'rejected',
+                'pg_description' => (string) ($done['error'] ?? 'Cannot accept payment'),
+            ]));
+            return;
+        }
+        $this->xmlOut($fp->xmlResponse($scriptName, [
+            'pg_status' => 'error',
+            'pg_description' => (string) ($done['error'] ?? 'Processing error'),
+        ]));
+    }
+
+    private function redirectMassPushReturn(string $pgOrderId): void
+    {
+        $order = (new MassPushCampaign())->findByPgOrderId($pgOrderId);
+        if (!$order || (int) ($order['user_id'] ?? 0) !== (int) Auth::id()) {
+            $_SESSION['error'] = t('mass_push.err_not_found');
+            $this->redirect('/mass-push');
+            return;
+        }
+        $status = (string) ($order['status'] ?? '');
+        if ($status === MassPushPolicy::STATUS_PAID) {
+            $_SESSION['flash'] = t('mass_push.paid_waiting');
+        } elseif ($status === MassPushPolicy::STATUS_PENDING) {
+            $_SESSION['flash'] = t('mass_push.payment_pending');
+        } elseif (in_array($status, [MassPushPolicy::STATUS_SENDING, MassPushPolicy::STATUS_COMPLETED, MassPushPolicy::STATUS_PARTIAL], true)) {
+            $_SESSION['flash'] = t('mass_push.already_started');
+        } else {
+            $_SESSION['error'] = t('mass_push.payment_failed');
+        }
+        $this->redirect('/mass-push');
+    }
+
+    private function handleMassPushFreedomPayResult(
+        FreedomPayClient $fp,
+        string $scriptName,
+        string $pgOrderId,
+        string $pgPaymentId,
+        string $pgAmount,
+        int $pgResult,
+        bool $canReject
+    ): void {
+        $pgCurrency = (string) (FreedomPayClient::requestParams()['pg_currency'] ?? '');
+        $done = (new MassPushService())->handleGatewayResult(
+            $pgOrderId,
+            $pgPaymentId,
+            $pgAmount,
+            $pgResult,
+            $canReject,
+            $pgCurrency !== '' ? $pgCurrency : null
+        );
+        $gateway = (string) ($done['gateway'] ?? 'error');
+        if ($gateway === 'ok') {
+            $this->xmlOut($fp->xmlResponse($scriptName, [
+                'pg_status' => 'ok',
+                'pg_description' => !empty($done['recorded']) ? 'Mass Push paid' : 'Mass Push recorded',
             ]));
             return;
         }

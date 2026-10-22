@@ -19,6 +19,7 @@ $topFixedXlEnabled = !empty($topFixedXlEnabled);
 $vipEnabled = !empty($vipEnabled);
 $adsFlags = is_array($adsFlags ?? null) ? $adsFlags : [];
 $targetPushEnabled = !empty($targetPushEnabled);
+$massPushEnabled = !empty($massPushEnabled);
 ?>
 <section class="space-y-6 fade-up">
     <div>
@@ -433,6 +434,36 @@ $targetPushEnabled = !empty($targetPushEnabled);
                             : 'bg-emerald-600 hover:bg-emerald-700' ?>"
                         onclick="return confirm(<?= json_encode($targetPushEnabled ? t('admin.target_push_disable_confirm') : t('admin.target_push_enable_confirm')) ?>)">
                         <?= htmlspecialchars($targetPushEnabled ? t('admin.target_push_disable_action') : t('admin.target_push_enable_action')) ?>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="rounded-[22px] border shadow-soft overflow-hidden <?= $massPushEnabled
+        ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/40'
+        : 'bg-white/90 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/10' ?>">
+        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
+            <div class="min-w-0">
+                <p class="text-[10px] font-semibold uppercase tracking-[0.14em] <?= $massPushEnabled ? 'text-emerald-600' : 'text-gray-500' ?>">
+                    <?= htmlspecialchars(t('admin.mass_push_status')) ?>
+                </p>
+                <h3 class="font-display font-bold text-ink-900 dark:text-white mt-0.5">
+                    <?= htmlspecialchars($massPushEnabled ? t('admin.mass_push_on') : t('admin.mass_push_off')) ?>
+                </h3>
+                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.mass_push_hint')) ?></p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 shrink-0">
+                <a href="<?= ProductHelper::url('/admin/mass-push') ?>" class="h-10 px-4 rounded-xl text-xs font-bold border border-black/10 dark:border-white/15 inline-flex items-center"><?= htmlspecialchars(t('admin.mass_push_moderation')) ?></a>
+                <form method="post" action="<?= ProductHelper::url('/admin/mass-push') ?>">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="enabled" value="<?= $massPushEnabled ? '0' : '1' ?>">
+                    <button type="submit"
+                        class="h-10 px-4 rounded-xl text-xs font-bold text-white transition <?= $massPushEnabled
+                            ? 'bg-amber-600 hover:bg-amber-700'
+                            : 'bg-emerald-600 hover:bg-emerald-700' ?>"
+                        onclick="return confirm(<?= json_encode($massPushEnabled ? t('admin.mass_push_disable_confirm') : t('admin.mass_push_enable_confirm')) ?>)">
+                        <?= htmlspecialchars($massPushEnabled ? t('admin.mass_push_disable_action') : t('admin.mass_push_enable_action')) ?>
                     </button>
                 </form>
             </div>
