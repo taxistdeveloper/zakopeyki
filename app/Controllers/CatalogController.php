@@ -86,6 +86,15 @@ class CatalogController extends Controller
             $walletHeld = $wallet->heldBalance(Auth::id());
         }
 
+        $adPlacement = null;
+        if (is_string($categoryFilter) && $categoryFilter !== '') {
+            try {
+                $adPlacement = (new \App\Services\Ads\AdService())->categoryPlacement($categoryFilter);
+            } catch (\Throwable) {
+                $adPlacement = null;
+            }
+        }
+
         $this->view('catalog/index', [
             'title' => ProductHelper::label($type),
             'heading' => t($page['titleKey']),
@@ -106,6 +115,7 @@ class CatalogController extends Controller
             'walletHeld' => $walletHeld,
             'flash' => $_SESSION['flash'] ?? null,
             'error' => $_SESSION['error'] ?? null,
+            'adPlacement' => $adPlacement,
         ]);
         unset($_SESSION['flash'], $_SESSION['error']);
     }

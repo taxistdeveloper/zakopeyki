@@ -127,6 +127,9 @@ class AdminController extends Controller
             'topFixedEnabled' => $isAdmin && (new \App\Services\TopFixed\TopFixedService())->isEnabled(),
             'topFixedXlEnabled' => $isAdmin && (new \App\Services\TopFixedXl\TopFixedXlService())->isEnabled(),
             'vipEnabled' => $isAdmin && (new \App\Services\Vip\VipService())->isEnabled(),
+            'adsFlags' => $isAdmin ? (new \App\Services\Ads\AdService())->flags() : [],
+            'targetPushEnabled' => $isAdmin && (new \App\Services\TargetPush\TargetPushService())->isEnabled(),
+            'massPushEnabled' => $isAdmin && (new \App\Services\MassPush\MassPushService())->isEnabled(),
             'canProducts' => $canProducts,
             'canTickets' => $canTickets,
             'canAi' => $canAi,
@@ -393,6 +396,125 @@ class AdminController extends Controller
             return;
         }
         $_SESSION['flash'] = t('admin.vip_recovered', ['n' => (string) ($result['applied'] ?? 0)]);
+        $this->redirect('/admin');
+    }
+
+    private function requireAdsAdmin(): void
+    {
+        Auth::requireLogin();
+        $role = (string) (Auth::user()['role'] ?? '');
+        if (!\App\Services\Ads\AdPolicy::canToggle($role)) {
+            http_response_code(403);
+            echo 'Доступ запрещён';
+            exit;
+        }
+    }
+
+    public function ads(): void
+    {
+        $this->requireAdsAdmin();
+        $n = new Notification();
+        $this->view('admin/ads', [
+            'title' => t('admin.ads_queue'),
+            'currentNav' => 'admin',
+            'rows' => (new \App\Services\Ads\AdService())->pendingModeration(),
+            'notifications' => $n->forUser(Auth::id()),
+            'unread' => $n->unreadCount(Auth::id()),
+            'flash' => $_SESSION['flash'] ?? null,
+            'error' => $_SESSION['error'] ?? null,
+        ]);
+        unset($_SESSION['flash'], $_SESSION['error']);
+    }
+
+    public function moderateAd(string $id): void
+    {
+        $this->requireAdsAdmin();
+        $approve = (string) ($_POST['decision'] ?? '') === 'approve';
+        $result = (new \App\Services\Ads\AdService())->moderate((int) $id, $approve, (string) ($_POST['reason'] ?? ''));
+        $_SESSION[empty($result['ok']) ? 'error' : 'flash'] = empty($result['ok'])
+            ? t('admin.ads_moderate_failed')
+            : ($approve ? t('admin.ads_approved') : t('admin.ads_rejected'));
+        $this->redirect('/admin/ads');
+    }
+
+    public function toggleAd(string $format): void
+    {
+        $this->requireAdsAdmin();
+        if (!\App\Services\Ads\AdPolicy::isFormat($format)) {
+            http_response_code(404);
+            echo 'Не найдено';
+            exit;
+        }
+        $enabled = isset($_POST['enabled']) && (string) $_POST['enabled'] === '1';
+        $ok = (new \App\Services\Ads\AdService())->setEnabled($format, $enabled);
+        $name = t('ads.format_' . $format);
+        $_SESSION[$ok ? 'flash' : 'error'] = $ok
+            ? ($enabled ? t('admin.ads_enabled_flash', ['name' => $name]) : t('admin.ads_disabled_flash', ['name' => $name]))
+            : t('admin.ads_toggle_failed');
+        $this->redirect('/admin');
+    }
+
+    public function recoverAd(string $format): void
+    {
+        $this->requireAdsAdmin();
+        $result = (new \App\Services\Ads\AdService())->recoverUnapplied($format);
+        if (empty($result['ok'])) {
+            $_SESSION['error'] = t('admin.ads_recover_disabled');
+            $this->redirect('/admin');
+            return;
+        }
+        $_SESSION['flash'] = t('admin.ads_recovered', ['n' => (string) ($result['applied'] ?? 0)]);
+        $this->redirect('/admin');
+    }
+
+    private function requireTargetPushAdmin(): void
+    {
+        Auth::requireLogin();
+        $role = (string) (Auth::user()['role'] ?? '');
+        if (!\App\Services\TargetPush\TargetPushPolicy::canToggle($role)) {
+            http_response_code(403);
+            echo 'Доступ запрещён';
+            exit;
+        }
+    }
+
+    public function targetPush(): void
+    {
+        $this->requireTargetPushAdmin();
+        $service = new \App\Services\TargetPush\TargetPushService();
+        $n = new Notification();
+        $this->view('admin/target-push', [
+            'title' => t('admin.target_push_queue'),
+            'currentNav' => 'admin',
+            'rows' => $service->adminList(),
+            'enabled' => $service->isEnabled(),
+            'notifications' => $n->forUser(Auth::id()),
+            'unread' => $n->unreadCount(Auth::id()),
+            'flash' => $_SESSION['flash'] ?? null,
+            'error' => $_SESSION['error'] ?? null,
+        ]);
+        unset($_SESSION['flash'], $_SESSION['error']);
+    }
+
+    public function moderateTargetPush(string $id): void
+    {
+        $this->requireTargetPushAdmin();
+        $approve = (string) ($_POST['decision'] ?? '') === 'approve';
+        $result = (new \App\Services\TargetPush\TargetPushService())->moderate((int) $id, $approve, (string) ($_POST['reason'] ?? ''));
+        $_SESSION[empty($result['ok']) ? 'error' : 'flash'] = empty($result['ok'])
+            ? t('admin.target_push_moderate_failed')
+            : ($approve ? t('admin.target_push_approved') : t('admin.target_push_rejected'));
+        $this->redirect('/admin/target-push');
+    }
+
+    public function toggleTargetPush(): void
+    {
+        $this->requireTargetPushAdmin();
+        $enabled = isset($_POST['enabled']) && (string) $_POST['enabled'] === '1';
+        $ok = (new \App\Services\TargetPush\TargetPushService())->setEnabled($enabled);
+        $_SESSION[$ok ? 'flash' : 'error'] = $ok
+            ? ($enabled ? t('admin.target_push_enabled_flash') : t('admin.target_push_disabled_flash'))
+            : t('admin.target_push_toggle_failed');
         $this->redirect('/admin');
     }
 

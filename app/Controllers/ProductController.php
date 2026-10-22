@@ -65,6 +65,13 @@ class ProductController extends Controller
             );
         }
 
+        $sidebarAd = null;
+        try {
+            $sidebarAd = (new \App\Services\Ads\AdService())->sidebarCreative((string) ($product['category'] ?? ''));
+        } catch (\Throwable) {
+            $sidebarAd = null;
+        }
+
         $this->view('products/show', [
             'title' => $product['title'],
             'currentNav' => '',
@@ -78,6 +85,7 @@ class ProductController extends Controller
             'favoriteIds' => $favoriteIds,
             'search' => '',
             'digitalHasAccess' => $digitalHasAccess,
+            'sidebarAd' => $sidebarAd,
             'listingShipping' => $listingShipping,
         ]);
     }

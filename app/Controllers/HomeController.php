@@ -39,6 +39,13 @@ class HomeController extends Controller
         $flash = $_SESSION['flash'] ?? null;
         unset($_SESSION['flash']);
 
+        $heroAds = [];
+        try {
+            $heroAds = (new \App\Services\Ads\AdService())->heroSlides();
+        } catch (\Throwable) {
+            $heroAds = [];
+        }
+
         $this->view('home/index', [
             'title' => t('home.title'),
             'currentNav' => 'home',
@@ -51,6 +58,7 @@ class HomeController extends Controller
             'favoriteIds' => $favoriteIds,
             'flash' => $flash,
             'changelog' => ChangelogHelper::load(),
+            'heroAds' => $heroAds,
         ]);
     }
 

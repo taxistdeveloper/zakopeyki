@@ -23,6 +23,12 @@ use App\Services\TopFixedXl\TopFixedXlPolicy;
 use App\Services\TopFixedXl\TopFixedXlService;
 use App\Services\Vip\VipPolicy;
 use App\Services\Vip\VipService;
+use App\Models\AdCampaign;
+use App\Models\TargetPushCampaign;
+use App\Services\Ads\AdPolicy;
+use App\Services\Ads\AdService;
+use App\Services\TargetPush\TargetPushPolicy;
+use App\Services\TargetPush\TargetPushService;
 use App\Services\FreedomPay\Client as FreedomPayClient;
 
 class PaymentController extends Controller
@@ -97,6 +103,16 @@ class PaymentController extends Controller
 
         if (VipPolicy::isVipPgOrderId($pgOrderId)) {
             $this->handleVipFreedomPayResult($fp, $scriptName, $pgOrderId, $pgPaymentId, $pgAmount, $pgResult, $canReject);
+            return;
+        }
+
+        if (AdPolicy::isAdPgOrderId($pgOrderId)) {
+            $this->handleAdFreedomPayResult($fp, $scriptName, $pgOrderId, $pgPaymentId, $pgAmount, $pgResult, $canReject);
+            return;
+        }
+
+        if (TargetPushPolicy::isPgOrderId($pgOrderId)) {
+            $this->handleTargetPushFreedomPayResult($fp, $scriptName, $pgOrderId, $pgPaymentId, $pgAmount, $pgResult, $canReject);
             return;
         }
 
@@ -192,6 +208,14 @@ class PaymentController extends Controller
             $this->redirectVipReturn($pgOrderId);
             return;
         }
+        if ($pgOrderId !== '' && AdPolicy::isAdPgOrderId($pgOrderId)) {
+            $this->redirectAdReturn($pgOrderId);
+            return;
+        }
+        if ($pgOrderId !== '' && TargetPushPolicy::isPgOrderId($pgOrderId)) {
+            $this->redirectTargetPushReturn($pgOrderId);
+            return;
+        }
         if ($pgOrderId !== '' && DeliveryPayment::isDeliveryPgOrderId($pgOrderId)) {
             $payment = (new DeliveryPayment())->findByPgOrderId($pgOrderId);
             if ($payment && (int) ($payment['buyer_user_id'] ?? 0) === Auth::id()) {
@@ -254,6 +278,14 @@ class PaymentController extends Controller
             $this->redirectVipReturn($pgOrderId);
             return;
         }
+        if ($pgOrderId !== '' && AdPolicy::isAdPgOrderId($pgOrderId)) {
+            $this->redirectAdReturn($pgOrderId);
+            return;
+        }
+        if ($pgOrderId !== '' && TargetPushPolicy::isPgOrderId($pgOrderId)) {
+            $this->redirectTargetPushReturn($pgOrderId);
+            return;
+        }
         if ($pgOrderId !== '' && DeliveryPayment::isDeliveryPgOrderId($pgOrderId)) {
             $payment = (new DeliveryPayment())->findByPgOrderId($pgOrderId);
             if ($payment) {
@@ -302,7 +334,7 @@ class PaymentController extends Controller
         $params = FreedomPayClient::requestParams();
         if (!empty($params['pg_order_id'])) {
             $pgOrderId = (string) $params['pg_order_id'];
-            if (DeliveryPayment::isDeliveryPgOrderId($pgOrderId) || BoostPolicy::isBoostPgOrderId($pgOrderId) || HighlightPolicy::isHighlightPgOrderId($pgOrderId) || TopFixedPolicy::isTopFixedPgOrderId($pgOrderId) || TopFixedXlPolicy::isTopFixedXlPgOrderId($pgOrderId) || VipPolicy::isVipPgOrderId($pgOrderId)) {
+            if (DeliveryPayment::isDeliveryPgOrderId($pgOrderId) || BoostPolicy::isBoostPgOrderId($pgOrderId) || HighlightPolicy::isHighlightPgOrderId($pgOrderId) || TopFixedPolicy::isTopFixedPgOrderId($pgOrderId) || TopFixedXlPolicy::isTopFixedXlPgOrderId($pgOrderId) || VipPolicy::isVipPgOrderId($pgOrderId) || AdPolicy::isAdPgOrderId($pgOrderId) || TargetPushPolicy::isPgOrderId($pgOrderId)) {
                 return 0;
             }
             $payment = (new Payment())->findByPgOrderId($pgOrderId);
@@ -535,6 +567,126 @@ class PaymentController extends Controller
             $_SESSION['error'] = t('vip.payment_failed');
         }
         $this->redirect('/profile?tab=lots');
+    }
+
+    private function redirectAdReturn(string $pgOrderId): void
+    {
+        $order = (new AdCampaign())->findByPgOrderId($pgOrderId);
+        if (!$order || (int) ($order['user_id'] ?? 0) !== (int) Auth::id()) {
+            $_SESSION['error'] = t('ads.err_not_found');
+            $this->redirect('/ads');
+            return;
+        }
+        $status = (string) ($order['status'] ?? '');
+        if ($status === AdPolicy::STATUS_ACTIVE) {
+            $_SESSION['flash'] = t('ads.activated');
+        } elseif ($status === AdPolicy::STATUS_PAID) {
+            $_SESSION['flash'] = t('ads.paid_waiting');
+        } elseif ($status === AdPolicy::STATUS_PENDING) {
+            $_SESSION['flash'] = t('ads.payment_pending');
+        } else {
+            $_SESSION['error'] = t('ads.payment_failed');
+        }
+        $this->redirect('/ads');
+    }
+
+    private function handleAdFreedomPayResult(
+        FreedomPayClient $fp,
+        string $scriptName,
+        string $pgOrderId,
+        string $pgPaymentId,
+        string $pgAmount,
+        int $pgResult,
+        bool $canReject
+    ): void {
+        $pgCurrency = (string) (FreedomPayClient::requestParams()['pg_currency'] ?? '');
+        $done = (new AdService())->handleGatewayResult(
+            $pgOrderId,
+            $pgPaymentId,
+            $pgAmount,
+            $pgResult,
+            $canReject,
+            $pgCurrency !== '' ? $pgCurrency : null
+        );
+        $gateway = (string) ($done['gateway'] ?? 'error');
+        if ($gateway === 'ok') {
+            $this->xmlOut($fp->xmlResponse($scriptName, [
+                'pg_status' => 'ok',
+                'pg_description' => !empty($done['applied']) ? 'Ad activated' : 'Ad recorded',
+            ]));
+            return;
+        }
+        if ($gateway === 'rejected' && $canReject) {
+            $this->xmlOut($fp->xmlResponse($scriptName, [
+                'pg_status' => 'rejected',
+                'pg_description' => (string) ($done['error'] ?? 'Cannot accept payment'),
+            ]));
+            return;
+        }
+        $this->xmlOut($fp->xmlResponse($scriptName, [
+            'pg_status' => 'error',
+            'pg_description' => (string) ($done['error'] ?? 'Processing error'),
+        ]));
+    }
+
+    private function redirectTargetPushReturn(string $pgOrderId): void
+    {
+        $order = (new TargetPushCampaign())->findByPgOrderId($pgOrderId);
+        if (!$order || (int) ($order['user_id'] ?? 0) !== (int) Auth::id()) {
+            $_SESSION['error'] = t('target_push.err_not_found');
+            $this->redirect('/target-push');
+            return;
+        }
+        $status = (string) ($order['status'] ?? '');
+        if ($status === TargetPushPolicy::STATUS_PAID) {
+            $_SESSION['flash'] = t('target_push.paid_waiting');
+        } elseif ($status === TargetPushPolicy::STATUS_PENDING) {
+            $_SESSION['flash'] = t('target_push.payment_pending');
+        } elseif (in_array($status, [TargetPushPolicy::STATUS_SENDING, TargetPushPolicy::STATUS_COMPLETED, TargetPushPolicy::STATUS_PARTIAL], true)) {
+            $_SESSION['flash'] = t('target_push.already_started');
+        } else {
+            $_SESSION['error'] = t('target_push.payment_failed');
+        }
+        $this->redirect('/target-push');
+    }
+
+    private function handleTargetPushFreedomPayResult(
+        FreedomPayClient $fp,
+        string $scriptName,
+        string $pgOrderId,
+        string $pgPaymentId,
+        string $pgAmount,
+        int $pgResult,
+        bool $canReject
+    ): void {
+        $pgCurrency = (string) (FreedomPayClient::requestParams()['pg_currency'] ?? '');
+        $done = (new TargetPushService())->handleGatewayResult(
+            $pgOrderId,
+            $pgPaymentId,
+            $pgAmount,
+            $pgResult,
+            $canReject,
+            $pgCurrency !== '' ? $pgCurrency : null
+        );
+        $gateway = (string) ($done['gateway'] ?? 'error');
+        if ($gateway === 'ok') {
+            $this->xmlOut($fp->xmlResponse($scriptName, [
+                'pg_status' => 'ok',
+                'pg_description' => !empty($done['recorded']) ? 'Target Push paid' : 'Target Push recorded',
+            ]));
+            return;
+        }
+        if ($gateway === 'rejected' && $canReject) {
+            $this->xmlOut($fp->xmlResponse($scriptName, [
+                'pg_status' => 'rejected',
+                'pg_description' => (string) ($done['error'] ?? 'Cannot accept payment'),
+            ]));
+            return;
+        }
+        $this->xmlOut($fp->xmlResponse($scriptName, [
+            'pg_status' => 'error',
+            'pg_description' => (string) ($done['error'] ?? 'Processing error'),
+        ]));
     }
 
     private function handleVipFreedomPayResult(

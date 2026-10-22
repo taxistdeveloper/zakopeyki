@@ -169,6 +169,12 @@ $vipIso = $vipOn
         <span class="text-ink-700 dark:text-gray-300 font-medium truncate"><?= htmlspecialchars($item['title']) ?></span>
     </nav>
 
+    <?php if (!empty($sidebarAd)): ?>
+        <aside class="lg:float-right lg:w-[220px] lg:ml-5 lg:mb-4">
+            <?php View::partial('partials/ad-unit', ['ads' => [$sidebarAd], 'variant' => 'side']); ?>
+        </aside>
+    <?php endif; ?>
+
     <div class="space-y-3">
         <div class="relative rounded-2xl overflow-hidden bg-ink-100 dark:bg-white/10">
             <div id="product-gallery-stage"

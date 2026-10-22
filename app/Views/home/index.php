@@ -72,6 +72,10 @@ $changelog = $changelog ?? null;
         <?php endif; ?>
     </div>
 
+    <?php if (!empty($heroAds)): ?>
+        <?php View::partial('partials/ad-unit', ['ads' => $heroAds, 'variant' => 'hero']); ?>
+    <?php endif; ?>
+
     <style>
         .zk-cat {
             background: #fff;

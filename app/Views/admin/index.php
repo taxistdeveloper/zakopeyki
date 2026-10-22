@@ -16,6 +16,9 @@ $threeLiftsEnabled = !empty($threeLiftsEnabled);
 $highlightEnabled = !empty($highlightEnabled);
 $topFixedEnabled = !empty($topFixedEnabled);
 $topFixedXlEnabled = !empty($topFixedXlEnabled);
+$vipEnabled = !empty($vipEnabled);
+$adsFlags = is_array($adsFlags ?? null) ? $adsFlags : [];
+$targetPushEnabled = !empty($targetPushEnabled);
 ?>
 <section class="space-y-6 fade-up">
     <div>
@@ -355,6 +358,81 @@ $topFixedXlEnabled = !empty($topFixedXlEnabled);
                             : 'bg-emerald-600 hover:bg-emerald-700' ?>"
                         onclick="return confirm(<?= json_encode($vipEnabled ? t('admin.vip_disable_confirm') : t('admin.vip_enable_confirm')) ?>)">
                         <?= htmlspecialchars($vipEnabled ? t('admin.vip_disable_action') : t('admin.vip_enable_action')) ?>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <?php
+    $adSwitchOrder = ['hero', 'category', 'sidebar', 'exclusive'];
+    foreach ($adSwitchOrder as $adFormat):
+        $adOn = !empty($adsFlags[$adFormat]);
+        $adName = t('ads.format_' . $adFormat);
+    ?>
+    <div class="rounded-[22px] border shadow-soft overflow-hidden <?= $adOn
+        ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/40'
+        : 'bg-white/90 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/10' ?>">
+        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
+            <div class="min-w-0">
+                <p class="text-[10px] font-semibold uppercase tracking-[0.14em] <?= $adOn ? 'text-emerald-600' : 'text-gray-500' ?>">
+                    <?= htmlspecialchars(t('admin.ads_switch')) ?>
+                </p>
+                <h3 class="font-display font-bold text-ink-900 dark:text-white mt-0.5">
+                    <?= htmlspecialchars($adOn ? t('admin.ads_switch_on', ['name' => $adName]) : t('admin.ads_switch_off', ['name' => $adName])) ?>
+                </h3>
+                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.ads_switch_hint', ['rate' => t('ads.rate_' . $adFormat)])) ?></p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 shrink-0">
+                <a href="<?= ProductHelper::url('/admin/ads') ?>" class="h-10 px-4 rounded-xl text-xs font-bold border border-black/10 dark:border-white/15 inline-flex items-center"><?= htmlspecialchars(t('admin.ads_moderation')) ?></a>
+                <?php if ($adOn): ?>
+                    <form method="post" action="<?= ProductHelper::url('/admin/ads/' . $adFormat . '/recover') ?>">
+                        <?= csrf_field() ?>
+                        <button type="submit" class="h-10 px-4 rounded-xl text-xs font-bold border border-black/10 dark:border-white/15 text-ink-800 dark:text-gray-200">
+                            <?= htmlspecialchars(t('admin.ads_recover')) ?>
+                        </button>
+                    </form>
+                <?php endif; ?>
+                <form method="post" action="<?= ProductHelper::url('/admin/ads/' . $adFormat) ?>">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="enabled" value="<?= $adOn ? '0' : '1' ?>">
+                    <button type="submit"
+                        class="h-10 px-4 rounded-xl text-xs font-bold text-white transition <?= $adOn
+                            ? 'bg-amber-600 hover:bg-amber-700'
+                            : 'bg-emerald-600 hover:bg-emerald-700' ?>"
+                        onclick="return confirm(<?= json_encode($adOn ? t('admin.ads_disable_confirm', ['name' => $adName]) : t('admin.ads_enable_confirm', ['name' => $adName])) ?>)">
+                        <?= htmlspecialchars($adOn ? t('admin.ads_disable_action') : t('admin.ads_enable_action')) ?>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <?php endforeach; ?>
+
+    <div class="rounded-[22px] border shadow-soft overflow-hidden <?= $targetPushEnabled
+        ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/40'
+        : 'bg-white/90 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/10' ?>">
+        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
+            <div class="min-w-0">
+                <p class="text-[10px] font-semibold uppercase tracking-[0.14em] <?= $targetPushEnabled ? 'text-emerald-600' : 'text-gray-500' ?>">
+                    <?= htmlspecialchars(t('admin.target_push_status')) ?>
+                </p>
+                <h3 class="font-display font-bold text-ink-900 dark:text-white mt-0.5">
+                    <?= htmlspecialchars($targetPushEnabled ? t('admin.target_push_on') : t('admin.target_push_off')) ?>
+                </h3>
+                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.target_push_hint')) ?></p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 shrink-0">
+                <a href="<?= ProductHelper::url('/admin/target-push') ?>" class="h-10 px-4 rounded-xl text-xs font-bold border border-black/10 dark:border-white/15 inline-flex items-center"><?= htmlspecialchars(t('admin.target_push_moderation')) ?></a>
+                <form method="post" action="<?= ProductHelper::url('/admin/target-push') ?>">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="enabled" value="<?= $targetPushEnabled ? '0' : '1' ?>">
+                    <button type="submit"
+                        class="h-10 px-4 rounded-xl text-xs font-bold text-white transition <?= $targetPushEnabled
+                            ? 'bg-amber-600 hover:bg-amber-700'
+                            : 'bg-emerald-600 hover:bg-emerald-700' ?>"
+                        onclick="return confirm(<?= json_encode($targetPushEnabled ? t('admin.target_push_disable_confirm') : t('admin.target_push_enable_confirm')) ?>)">
+                        <?= htmlspecialchars($targetPushEnabled ? t('admin.target_push_disable_action') : t('admin.target_push_enable_action')) ?>
                     </button>
                 </form>
             </div>

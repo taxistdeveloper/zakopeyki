@@ -6,6 +6,7 @@ use App\Helpers\IconHelper;
 use App\Models\Wallet;
 
 $hasCategoryFilters = !empty($hasCategoryFilters);
+$adPlacement = $adPlacement ?? null;
 $categoryTree = $categoryTree ?? ProductHelper::PRODUCT_CATEGORY_TREE;
 $selectedParent = $selectedParent ?? '';
 $selectedChild = $selectedChild ?? '';
@@ -260,6 +261,12 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
             });
         })();
         </script>
+        <?php if (!empty($adPlacement['ads'])): ?>
+            <?php View::partial('partials/ad-unit', [
+                'ads' => $adPlacement['ads'],
+                'variant' => ($adPlacement['variant'] ?? '') === 'exclusive' ? 'exclusive' : 'banner',
+            ]); ?>
+        <?php endif; ?>
     <?php endif; ?>
 
     <?php if ($type === 'gig'): ?>
