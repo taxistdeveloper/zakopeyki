@@ -22,6 +22,7 @@ use App\Services\TopFixedXl\TopFixedXlService;
 use App\Services\Vip\VipService;
 use App\Services\BusinessPackageService;
 use App\Services\Listing\ListingShippingService;
+use App\Services\Listing\ServiceListingFeeService;
 use App\Services\MicroTaskService;
 use App\Services\PersonalLimitService;
 
@@ -124,6 +125,17 @@ class ProfileController extends Controller
         $accountLimit = $limitService->snapshot($profileUser ?: Auth::user());
         $pkgService = new BusinessPackageService();
         $businessSubscription = $pkgService->activeSubscription(Auth::id());
+        $packageMaxPhotos = $pkgService->maxPhotosForUser(Auth::id());
+        $businessSalesEnabled = $pkgService->isSalesEnabled();
+        $businessFeaturesEnabled = $pkgService->isFeaturesEnabled();
+        $businessAiAddonSalesFlags = $pkgService->aiAddonSalesFlags();
+        $businessAiAddonSalesEnabled = $pkgService->isAiAddonSalesEnabled();
+        $businessPayments = $businessSubscription
+            ? $pkgService->paymentHistory(Auth::id(), 5)
+            : [];
+        $businessAiQuotas = $businessSubscription
+            ? $pkgService->aiQuotaSnapshot(Auth::id())
+            : [];
 
         $listingPackagings = (new ListingShippingService())->packagings();
         $listingShipping = null;
@@ -192,15 +204,26 @@ class ProfileController extends Controller
             'referralUsers' => $referralUsers,
             'accountLimit' => $accountLimit,
             'businessSubscription' => $businessSubscription,
+            'businessPayments' => $businessPayments,
+            'businessSalesEnabled' => $businessSalesEnabled,
+            'businessFeaturesEnabled' => $businessFeaturesEnabled,
+            'businessAiAddonSalesEnabled' => $businessAiAddonSalesEnabled,
+            'businessAiAddonSalesFlags' => $businessAiAddonSalesFlags,
+            'businessAiQuotas' => $businessAiQuotas,
+            'packageMaxPhotos' => $packageMaxPhotos,
             'search' => '',
             'flash' => $_SESSION['flash'] ?? null,
             'error' => $_SESSION['error'] ?? null,
+            'errorCta' => $_SESSION['error_cta'] ?? null,
+            'walletBalance' => (new Wallet())->balance(Auth::id()),
+            'serviceListingFee' => ProductHelper::serviceListingFee(),
+            'serviceListingPublishEnabled' => (new ServiceListingFeeService())->isPublishEnabled(),
             'twoFactorSetup' => $twoFactorSetup,
             'recoveryCodes' => is_array($recoveryCodes) ? $recoveryCodes : null,
             'listingShipping' => $listingShipping,
             'listingPackagings' => $listingPackagings,
         ]);
-        unset($_SESSION['flash'], $_SESSION['error']);
+        unset($_SESSION['flash'], $_SESSION['error'], $_SESSION['error_cta']);
     }
 
     public function verifyListingForm(): void
@@ -506,18 +529,22 @@ class ProfileController extends Controller
             $exchangeFor = '';
         }
 
-        $serviceFee = 0;
         $pkgService = new BusinessPackageService();
-        if ($type === 'service' && !Auth::isStaff() && !$pkgService->freeServiceListing(Auth::id())) {
-            $serviceFee = ProductHelper::serviceListingFee();
-            $wallet = new Wallet();
-            if ($wallet->balance(Auth::id()) < $serviceFee) {
-                $_SESSION['error'] = t('flash.service_fee_need', [
-                    'amount' => Wallet::formatMoney($serviceFee),
-                ]);
-                $this->redirect('/profile?tab=lots&type=service');
-            }
+        $listingFeeSvc = new ServiceListingFeeService();
+        $publishGate = $listingFeeSvc->assertCanPublishNew($type);
+        if (!$publishGate['ok']) {
+            $_SESSION['error'] = $publishGate['error'] ?? t('flash.service_publish_disabled');
+            $this->redirect('/profile?tab=lots&type=service');
         }
+        $afford = $listingFeeSvc->assertAffordable(Auth::id(), $type, Auth::isStaff());
+        if (!$afford['ok']) {
+            $_SESSION['error'] = $afford['error'] ?? t('flash.service_fee_need', [
+                'amount' => Wallet::formatMoney($listingFeeSvc->feeForType($type)),
+            ]);
+            $_SESSION['error_cta'] = 'wallet';
+            $this->redirect('/profile?tab=lots&type=service');
+        }
+        $serviceFee = (int) ($afford['fee'] ?? 0);
 
         $maxPhotos = $pkgService->maxPhotosForUser(Auth::id());
         $resolved = $this->resolveProductImages(null, true, $maxPhotos);
@@ -599,16 +626,24 @@ class ProfileController extends Controller
         }
 
         if ($serviceFee > 0) {
-            $pay = (new Wallet())->chargeListingFee(Auth::id(), $serviceFee, (int) $productId);
+            $pay = $listingFeeSvc->chargeForPublishedProduct(
+                Auth::id(),
+                $type,
+                (int) $productId,
+                Auth::isStaff()
+            );
             if (!$pay['ok']) {
                 $products = new Product();
                 $products->deleteProductFiles($resolved['images'] ?? []);
                 $products->delete((int) $productId);
-                $_SESSION['error'] = $pay['error'] ?? t('flash.service_fee_need', [
-                    'amount' => Wallet::formatMoney($serviceFee),
-                ]);
+                $payErr = (string) ($pay['error'] ?? '');
+                $_SESSION['error'] = $payErr !== ''
+                    ? $payErr
+                    : t('flash.service_fee_failed');
+                $_SESSION['error_cta'] = 'wallet';
                 $this->redirect('/profile?tab=lots&type=service');
             }
+            $serviceFee = (int) ($pay['fee'] ?? $serviceFee);
         }
 
         ActivityLogger::info('product.create', 'Добавлено объявление «' . $title . '»', 'product', $productId, [

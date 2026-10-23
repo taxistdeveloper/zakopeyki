@@ -12,6 +12,9 @@ $hasNav = true;
 $recentErrors = (int) ($recentErrors ?? 0);
 $stubMode = !empty($stubMode);
 $boostEnabled = !empty($boostEnabled);
+$paidServicesAdminEnabled = !empty($paidServicesAdminEnabled);
+$financeJournalEnabled = !empty($financeJournalEnabled);
+$serviceListingPublishEnabled = !empty($serviceListingPublishEnabled);
 $threeLiftsEnabled = !empty($threeLiftsEnabled);
 $highlightEnabled = !empty($highlightEnabled);
 $topFixedEnabled = !empty($topFixedEnabled);
@@ -149,6 +152,105 @@ $massPushEnabled = !empty($massPushEnabled);
                     <?= htmlspecialchars($stubMode ? t('admin.site_open_action') : t('admin.site_close_action')) ?>
                 </button>
             </form>
+        </div>
+    </div>
+
+    <div class="rounded-[22px] border shadow-soft overflow-hidden <?= $paidServicesAdminEnabled
+        ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/40'
+        : 'bg-white/90 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/10' ?>">
+        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
+            <div class="min-w-0">
+                <p class="text-[10px] font-semibold uppercase tracking-[0.14em] <?= $paidServicesAdminEnabled ? 'text-emerald-600' : 'text-gray-500' ?>">
+                    <?= htmlspecialchars(t('admin.paid_services_module_status')) ?>
+                </p>
+                <h3 class="font-display font-bold text-ink-900 dark:text-white mt-0.5">
+                    <?= htmlspecialchars($paidServicesAdminEnabled ? t('admin.paid_services_module_on') : t('admin.paid_services_module_off')) ?>
+                </h3>
+                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.paid_services_module_hint')) ?></p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 shrink-0">
+                <?php if ($paidServicesAdminEnabled): ?>
+                    <a href="<?= ProductHelper::url('/admin/paid-services') ?>"
+                       class="h-10 px-4 rounded-xl text-xs font-bold border border-black/10 dark:border-white/15 inline-flex items-center text-ink-800 dark:text-gray-200">
+                        <?= htmlspecialchars(t('admin.paid_services_module_open')) ?>
+                    </a>
+                <?php endif; ?>
+                <form method="post" action="<?= ProductHelper::url('/admin/paid-services/module') ?>">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="enabled" value="<?= $paidServicesAdminEnabled ? '0' : '1' ?>">
+                    <button type="submit"
+                        class="h-10 px-4 rounded-xl text-xs font-bold text-white transition <?= $paidServicesAdminEnabled
+                            ? 'bg-amber-600 hover:bg-amber-700'
+                            : 'bg-emerald-600 hover:bg-emerald-700' ?>"
+                        onclick="return confirm(<?= json_encode($paidServicesAdminEnabled ? t('admin.paid_services_module_disable_confirm') : t('admin.paid_services_module_enable_confirm')) ?>)">
+                        <?= htmlspecialchars($paidServicesAdminEnabled ? t('admin.paid_services_module_disable_action') : t('admin.paid_services_module_enable_action')) ?>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="rounded-[22px] border shadow-soft overflow-hidden <?= $financeJournalEnabled
+        ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/40'
+        : 'bg-white/90 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/10' ?>">
+        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
+            <div class="min-w-0">
+                <p class="text-[10px] font-semibold uppercase tracking-[0.14em] <?= $financeJournalEnabled ? 'text-emerald-600' : 'text-gray-500' ?>">
+                    <?= htmlspecialchars(t('admin.finance_journal_module_status')) ?>
+                </p>
+                <h3 class="font-display font-bold text-ink-900 dark:text-white mt-0.5">
+                    <?= htmlspecialchars($financeJournalEnabled ? t('admin.finance_journal_module_on') : t('admin.finance_journal_module_off')) ?>
+                </h3>
+                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.finance_journal_module_hint')) ?></p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 shrink-0">
+                <?php if ($financeJournalEnabled): ?>
+                    <a href="<?= ProductHelper::url('/admin/finance-journal') ?>"
+                       class="h-10 px-4 rounded-xl text-xs font-bold border border-black/10 dark:border-white/15 inline-flex items-center text-ink-800 dark:text-gray-200">
+                        <?= htmlspecialchars(t('admin.finance_journal_module_open')) ?>
+                    </a>
+                <?php endif; ?>
+                <form method="post" action="<?= ProductHelper::url('/admin/finance-journal/module') ?>">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="enabled" value="<?= $financeJournalEnabled ? '0' : '1' ?>">
+                    <button type="submit"
+                        class="h-10 px-4 rounded-xl text-xs font-bold text-white transition <?= $financeJournalEnabled
+                            ? 'bg-amber-600 hover:bg-amber-700'
+                            : 'bg-emerald-600 hover:bg-emerald-700' ?>"
+                        onclick="return confirm(<?= json_encode($financeJournalEnabled ? t('admin.finance_journal_module_disable_confirm') : t('admin.finance_journal_module_enable_confirm')) ?>)">
+                        <?= htmlspecialchars($financeJournalEnabled ? t('admin.finance_journal_module_disable_action') : t('admin.finance_journal_module_enable_action')) ?>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="rounded-[22px] border shadow-soft overflow-hidden <?= $serviceListingPublishEnabled
+        ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/40'
+        : 'bg-white/90 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/10' ?>">
+        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
+            <div class="min-w-0">
+                <p class="text-[10px] font-semibold uppercase tracking-[0.14em] <?= $serviceListingPublishEnabled ? 'text-emerald-600' : 'text-gray-500' ?>">
+                    <?= htmlspecialchars(t('admin.service_listing_status')) ?>
+                </p>
+                <h3 class="font-display font-bold text-ink-900 dark:text-white mt-0.5">
+                    <?= htmlspecialchars($serviceListingPublishEnabled ? t('admin.service_listing_on') : t('admin.service_listing_off')) ?>
+                </h3>
+                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.service_listing_hint')) ?></p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 shrink-0">
+                <form method="post" action="<?= ProductHelper::url('/admin/service-listing-publish') ?>">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="enabled" value="<?= $serviceListingPublishEnabled ? '0' : '1' ?>">
+                    <button type="submit"
+                        class="h-10 px-4 rounded-xl text-xs font-bold text-white transition <?= $serviceListingPublishEnabled
+                            ? 'bg-amber-600 hover:bg-amber-700'
+                            : 'bg-emerald-600 hover:bg-emerald-700' ?>"
+                        onclick="return confirm(<?= json_encode($serviceListingPublishEnabled ? t('admin.service_listing_disable_confirm') : t('admin.service_listing_enable_confirm')) ?>)">
+                        <?= htmlspecialchars($serviceListingPublishEnabled ? t('admin.service_listing_disable_action') : t('admin.service_listing_enable_action')) ?>
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -547,6 +649,15 @@ $massPushEnabled = !empty($massPushEnabled);
                 <span class="text-xs font-bold text-red-600"><?= htmlspecialchars(t('admin.aml_open')) ?> →</span>
             </div>
         </a>
+        <?php if ($paidServicesAdminEnabled): ?>
+        <a href="<?= ProductHelper::url('/admin/paid-services') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 border-t border-brand-100 dark:border-brand-900/30 hover:bg-brand-50/40 dark:hover:bg-white/[0.03] transition">
+            <div class="min-w-0">
+                <h3 class="font-display font-bold text-brand-800 dark:text-brand-300"><?= htmlspecialchars(t('admin.paid_services')) ?></h3>
+                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.paid_services_hint_short')) ?></p>
+            </div>
+            <span class="text-xs font-bold text-brand-600"><?= htmlspecialchars(t('admin.aml_open')) ?> →</span>
+        </a>
+        <?php endif; ?>
         <a href="<?= ProductHelper::url('/admin/business') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 border-t border-brand-100 dark:border-brand-900/30 hover:bg-sky-50/40 dark:hover:bg-white/[0.03] transition">
             <div class="min-w-0">
                 <h3 class="font-display font-bold text-sky-800 dark:text-sky-300"><?= htmlspecialchars(t('admin.business')) ?></h3>
@@ -568,6 +679,15 @@ $massPushEnabled = !empty($massPushEnabled);
             </div>
             <span class="text-xs font-bold text-teal-600"><?= htmlspecialchars(t('admin.gig_categories_open')) ?> →</span>
         </a>
+        <?php if ($financeJournalEnabled): ?>
+        <a href="<?= ProductHelper::url('/admin/finance-journal') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 border-t border-brand-100 dark:border-brand-900/30 hover:bg-emerald-50/40 dark:hover:bg-white/[0.03] transition">
+            <div class="min-w-0">
+                <h3 class="font-display font-bold text-emerald-800 dark:text-emerald-300"><?= htmlspecialchars(t('admin.finance_journal')) ?></h3>
+                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.finance_journal_hint_short')) ?></p>
+            </div>
+            <span class="text-xs font-bold text-emerald-600"><?= htmlspecialchars(t('admin.aml_open')) ?> →</span>
+        </a>
+        <?php endif; ?>
         <a href="<?= ProductHelper::url('/admin/logs') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 border-t border-brand-100 dark:border-brand-900/30 hover:bg-red-50/40 dark:hover:bg-white/[0.03] transition">
             <div class="min-w-0">
                 <h3 class="font-display font-bold text-red-800 dark:text-red-300"><?= htmlspecialchars(t('admin.logs')) ?></h3>

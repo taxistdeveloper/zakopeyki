@@ -39,6 +39,12 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
 $kycStatus = \App\Services\AMLService::userListingStatus($user);
 $accountLimit = $accountLimit ?? [];
 $businessSubscription = $businessSubscription ?? null;
+$businessPayments = $businessPayments ?? [];
+$businessSalesEnabled = array_key_exists('businessSalesEnabled', get_defined_vars()) ? !empty($businessSalesEnabled) : true;
+$businessFeaturesEnabled = array_key_exists('businessFeaturesEnabled', get_defined_vars()) ? !empty($businessFeaturesEnabled) : true;
+$businessAiAddonSalesEnabled = !empty($businessAiAddonSalesEnabled);
+$businessAiQuotas = $businessAiQuotas ?? [];
+$packageMaxPhotos = max(3, (int) ($packageMaxPhotos ?? 3));
 $boostStates = $boostStates ?? [];
 $highlightStates = $highlightStates ?? [];
 $topFixedStates = $topFixedStates ?? [];
@@ -80,7 +86,15 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
         <div class="bg-emerald-50 text-emerald-800 border border-emerald-100 px-4 py-3 rounded-2xl text-sm font-semibold shadow-sm"><?= htmlspecialchars($flash) ?></div>
     <?php endif; ?>
     <?php if (!empty($error)): ?>
-        <div class="bg-red-50 text-red-600 border border-red-100 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars($error) ?></div>
+        <div class="bg-red-50 text-red-700 dark:text-red-200 border border-red-100 dark:border-red-900/40 px-4 py-3 rounded-2xl text-sm font-semibold space-y-2">
+            <p><?= htmlspecialchars($error) ?></p>
+            <?php if (($errorCta ?? null) === 'wallet'): ?>
+                <a href="<?= ProductHelper::url('/wallet') ?>"
+                   class="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300 underline underline-offset-2 hover:no-underline">
+                    <?= htmlspecialchars(t('profile.service_wallet_topup')) ?>
+                </a>
+            <?php endif; ?>
+        </div>
     <?php endif; ?>
 
     <div class="bg-white/90 dark:bg-white/[0.04] rounded-[28px] border border-black/[0.06] dark:border-white/10 overflow-hidden shadow-soft backdrop-blur">
@@ -285,8 +299,10 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                                 · <?= htmlspecialchars((string) $accountLimit['business_name']) ?>
                             <?php endif; ?>
                         </div>
-                        <?php if ($isBusinessAccount): ?>
-                            <p class="text-xs text-gray-500 mt-2"><?= htmlspecialchars(t('business.business_unlimited')) ?></p>
+                        <?php if ($isBusinessAccount && $businessSubscription): ?>
+                            <p class="text-xs text-gray-500 mt-2"><?= htmlspecialchars(t('business.business_package_active_hint')) ?></p>
+                        <?php elseif ($isBusinessAccount): ?>
+                            <p class="text-xs text-gray-500 mt-2"><?= htmlspecialchars(t('business.business_no_package_hint')) ?></p>
                         <?php endif; ?>
                     </div>
 
@@ -319,11 +335,55 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                     <?php endif; ?>
 
                     <?php if ($businessSubscription): ?>
-                        <div class="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 text-sm text-emerald-900">
-                            <?= htmlspecialchars(t('business.subscription_active', [
+                        <div class="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 text-sm text-emerald-900 space-y-2">
+                            <p class="font-semibold"><?= htmlspecialchars(t('business.subscription_active', [
                                 'name' => (string) ($businessSubscription['package_name'] ?? t('business.package_title')),
                                 'until' => date('d.m.Y', strtotime((string) $businessSubscription['ends_at'])),
-                            ])) ?>
+                            ])) ?></p>
+                            <p class="text-xs opacity-90">
+                                <?= htmlspecialchars(t('business.cabinet_starts')) ?>:
+                                <?= htmlspecialchars(date('d.m.Y', strtotime((string) ($businessSubscription['starts_at'] ?? '')))) ?>
+                                · <?= htmlspecialchars(t('business.cabinet_ends')) ?>:
+                                <?= htmlspecialchars(date('d.m.Y', strtotime((string) ($businessSubscription['ends_at'] ?? '')))) ?>
+                            </p>
+                            <?php if (!$businessFeaturesEnabled): ?>
+                                <p class="text-xs font-semibold text-amber-800"><?= htmlspecialchars(t('business.features_off_notice')) ?></p>
+                            <?php endif; ?>
+                            <?php if ($businessPayments): ?>
+                                <ul class="text-xs space-y-1 pt-1 border-t border-emerald-200/80">
+                                    <?php foreach ($businessPayments as $pay): ?>
+                                        <li><?= htmlspecialchars(\App\Models\Wallet::formatMoney((int) ($pay['amount_kzt'] ?? 0))) ?>
+                                            · <?= htmlspecialchars((string) ($pay['status'] ?? '')) ?>
+                                            · <?= htmlspecialchars((string) ($pay['created_at'] ?? '')) ?></li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            <?php endif; ?>
+                            <?php if ($businessAiQuotas): ?>
+                                <div class="pt-2 border-t border-emerald-200/80 space-y-1">
+                                    <p class="text-[10px] font-bold uppercase tracking-wider text-emerald-800/70"><?= htmlspecialchars(t('business.ai_quota_title')) ?></p>
+                                    <?php foreach ($businessAiQuotas as $q): ?>
+                                        <p class="text-xs">
+                                            <?= htmlspecialchars(t('business.' . (string) ($q['label_key'] ?? ''))) ?>:
+                                            <?= htmlspecialchars(t('business.ai_remaining_line', [
+                                                'n' => number_format((int) ($q['remaining'] ?? 0), 0, '', ' '),
+                                            ])) ?>
+                                            <?php if ((int) ($q['extra'] ?? 0) > 0): ?>
+                                                <span class="text-emerald-800/70">(<?= htmlspecialchars(t('business.ai_quota_extra')) ?>: <?= (int) $q['extra'] ?>)</span>
+                                            <?php endif; ?>
+                                        </p>
+                                    <?php endforeach; ?>
+                                    <?php if ($businessAiAddonSalesEnabled): ?>
+                                        <a href="<?= ProductHelper::url('/business/package#ai-addons') ?>" class="inline-block text-xs font-bold text-brand-600 hover:underline mt-1"><?= htmlspecialchars(t('business.ai_buy_more')) ?></a>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    <?php elseif ($isBusinessAccount): ?>
+                        <div class="rounded-2xl border border-black/[0.08] dark:border-white/10 p-4 text-sm text-gray-600">
+                            <?= htmlspecialchars(t('business.cabinet_empty')) ?>
+                            <?php if (!$businessSalesEnabled): ?>
+                                <p class="text-xs text-amber-800 font-semibold mt-2"><?= htmlspecialchars(t('business.sales_off_notice')) ?></p>
+                            <?php endif; ?>
                         </div>
                     <?php endif; ?>
 
@@ -334,7 +394,7 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                             </a>
                         <?php endif; ?>
                         <a href="<?= ProductHelper::url('/business/package') ?>" class="inline-flex justify-center items-center border border-black/10 dark:border-white/10 font-semibold text-sm px-5 py-3 rounded-2xl hover:border-brand-400">
-                            <?= htmlspecialchars(t('business.go_package')) ?>
+                            <?= htmlspecialchars($businessSubscription ? t('business.go_package_cabinet') : t('business.go_package')) ?>
                         </a>
                     </div>
                 </div>
@@ -1022,10 +1082,29 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                     <div id="lot-free-note" class="<?= ($editing['type'] ?? '') === 'free' ? '' : 'hidden' ?> text-xs font-semibold text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/20 border border-violet-100 dark:border-violet-800/40 rounded-xl px-3 py-2">
                         <?= htmlspecialchars(t('profile.free_price_note')) ?>
                     </div>
-                    <div id="lot-service-note" class="<?= $currentType === 'service' && !$editing ? '' : 'hidden' ?> text-xs font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/40 rounded-xl px-3 py-2">
-                        <?= htmlspecialchars(ProductHelper::isServiceListingFreePromo()
-                            ? t('profile.service_board_note_free')
-                            : t('profile.service_board_note', ['amount' => \App\Models\Wallet::formatMoney(ProductHelper::serviceListingFee())])) ?>
+                    <?php
+                    $serviceFeeAmount = \App\Models\Wallet::formatMoney((int) ($serviceListingFee ?? ProductHelper::serviceListingFee()));
+                    $walletBalanceAmount = \App\Models\Wallet::formatMoney((int) ($walletBalance ?? 0));
+                    $servicePublishOn = !isset($serviceListingPublishEnabled) || !empty($serviceListingPublishEnabled);
+                    ?>
+                    <div id="lot-service-disabled" class="<?= $currentType === 'service' && !$editing && !$servicePublishOn ? '' : 'hidden' ?> text-xs font-semibold text-amber-900 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/40 rounded-xl px-3 py-2.5">
+                        <?= htmlspecialchars(t('flash.service_publish_disabled')) ?>
+                    </div>
+                    <div id="lot-service-note" class="<?= $currentType === 'service' && !$editing && $servicePublishOn ? '' : 'hidden' ?> space-y-2 text-xs font-semibold text-emerald-900 dark:text-emerald-200 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/40 rounded-xl px-3 py-2.5">
+                        <div class="flex flex-wrap items-baseline justify-between gap-2">
+                            <span class="uppercase tracking-wider text-[10px] text-emerald-700/80 dark:text-emerald-300/80"><?= htmlspecialchars(t('profile.service_fee_label')) ?></span>
+                            <span class="font-display text-sm font-bold text-emerald-800 dark:text-emerald-100"><?= htmlspecialchars(t('profile.service_fee_per_listing', ['amount' => $serviceFeeAmount])) ?></span>
+                        </div>
+                        <p class="font-medium leading-snug"><?= htmlspecialchars(t('profile.service_board_note', ['amount' => $serviceFeeAmount])) ?></p>
+                        <p class="font-medium text-emerald-800/90 dark:text-emerald-200/90"><?= htmlspecialchars(t('profile.service_wallet_balance', ['amount' => $walletBalanceAmount])) ?></p>
+                        <?php if ((int) ($walletBalance ?? 0) < (int) ($serviceListingFee ?? ProductHelper::serviceListingFee())): ?>
+                            <a href="<?= ProductHelper::url('/wallet') ?>" class="inline-flex text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300 underline underline-offset-2 hover:no-underline">
+                                <?= htmlspecialchars(t('profile.service_wallet_topup')) ?>
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                    <div id="lot-service-edit-note" class="<?= $editing && ($editing['type'] ?? '') === 'service' ? '' : 'hidden' ?> text-xs font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50/80 dark:bg-emerald-900/15 border border-emerald-100 dark:border-emerald-800/40 rounded-xl px-3 py-2">
+                        <?= htmlspecialchars(t('profile.service_edit_note')) ?>
                     </div>
                     <div id="lot-gig-note" class="<?= $currentType === 'gig' && !$editing ? '' : 'hidden' ?> text-xs font-semibold text-teal-800 dark:text-teal-200 bg-teal-50 dark:bg-teal-900/20 border border-teal-100 dark:border-teal-800/40 rounded-xl px-3 py-2">
                         <?= htmlspecialchars(t('gigs.profile_note')) ?>
@@ -1163,6 +1242,9 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                         const exchangeInput = document.getElementById('lot-exchange-for');
                         const freeNote = document.getElementById('lot-free-note');
                         const serviceNote = document.getElementById('lot-service-note');
+                        const serviceDisabledNote = document.getElementById('lot-service-disabled');
+                        const serviceEditNote = document.getElementById('lot-service-edit-note');
+                        const servicePublishOn = <?= $servicePublishOn ? 'true' : 'false' ?>;
                         const gigNote = document.getElementById('lot-gig-note');
                         const gigEditNote = document.getElementById('lot-gig-edit-note');
                         const gigParent = document.getElementById('lot-gig-parent');
@@ -1187,10 +1269,11 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                         const isEditingGig = <?= $editingGig ? 'true' : 'false' ?>;
                         const gigEditPath = <?= js_encode($editGigCategoryPath ?? []) ?>;
                         const publishLabel = <?= json_encode(t('profile.publish')) ?>;
-                        const publishServiceLabel = <?= json_encode(ProductHelper::isServiceListingFreePromo()
-                            ? t('profile.publish_service_free')
-                            : t('profile.publish_service', ['amount' => \App\Models\Wallet::formatMoney(ProductHelper::serviceListingFee())])) ?>;
+                        const publishServiceLabel = <?= json_encode(t('profile.publish_service', [
+                            'amount' => \App\Models\Wallet::formatMoney((int) ($serviceListingFee ?? ProductHelper::serviceListingFee())),
+                        ])) ?>;
                         const publishGigLabel = <?= json_encode(t('gigs.create_btn')) ?>;
+                        const updateLabel = <?= json_encode(t('profile.update')) ?>;
                         const locationLabelDefault = <?= json_encode(t('profile.location')) ?>;
                         const locationLabelGig = <?= json_encode(t('gigs.field_address')) ?>;
                         const priceLabelGig = <?= json_encode(t('gigs.field_price')) ?>;
@@ -1481,7 +1564,17 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                                 if (!isExchange) exchangeInput.value = '';
                             }
                             if (freeNote) freeNote.classList.toggle('hidden', type !== 'free');
-                            if (serviceNote) serviceNote.classList.toggle('hidden', type !== 'service' || isEditingLot);
+                            if (serviceNote) serviceNote.classList.toggle('hidden', type !== 'service' || isEditingLot || !servicePublishOn);
+                            if (serviceDisabledNote) serviceDisabledNote.classList.toggle('hidden', type !== 'service' || isEditingLot || servicePublishOn);
+                            if (serviceEditNote) serviceEditNote.classList.toggle('hidden', !(isEditingLot && type === 'service'));
+                            if (submitBtn && !isEditingLot) {
+                                const blockService = type === 'service' && !servicePublishOn;
+                                if (blockService) {
+                                    submitBtn.disabled = true;
+                                } else if (!submitBtn.hasAttribute('data-aml-blocked')) {
+                                    submitBtn.disabled = false;
+                                }
+                            }
                             const isGig = type === 'gig';
                             if (gigNote) gigNote.classList.toggle('hidden', !isGig || isEditingLot);
                             if (gigEditNote) gigEditNote.classList.toggle('hidden', !isGig || !isEditingGig);
@@ -1512,10 +1605,18 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                             if (whatsappWrap) whatsappWrap.classList.toggle('hidden', isGig);
                             if (locationLabel) locationLabel.textContent = isGig ? locationLabelGig : locationLabelDefault;
                             if (locationInput) locationInput.required = isGig;
-                            if (submitBtn && !isEditingLot) {
-                                if (type === 'service') submitBtn.textContent = publishServiceLabel;
-                                else if (isGig) submitBtn.textContent = publishGigLabel;
-                                else submitBtn.textContent = publishLabel;
+                            if (submitBtn) {
+                                if (isEditingLot) {
+                                    submitBtn.textContent = updateLabel;
+                                } else if (type === 'service' && !servicePublishOn) {
+                                    submitBtn.textContent = <?= json_encode(t('flash.service_publish_disabled')) ?>;
+                                } else if (type === 'service') {
+                                    submitBtn.textContent = publishServiceLabel;
+                                } else if (isGig) {
+                                    submitBtn.textContent = publishGigLabel;
+                                } else {
+                                    submitBtn.textContent = publishLabel;
+                                }
                             }
                         }
 
@@ -1605,7 +1706,7 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                             <?= htmlspecialchars(t('profile.photos')) ?>
                             <span id="lot-photos-required" class="text-red-500 <?= $currentType === 'gig' ? 'hidden' : '' ?>">*</span>
                             <span id="lot-photos-optional" class="font-medium text-gray-400 normal-case <?= $currentType === 'gig' ? '' : 'hidden' ?>">· <?= htmlspecialchars(t('gigs.photos_optional')) ?></span>
-                            <span class="font-medium text-gray-400 normal-case">· до 3 шт.</span>
+                            <span class="font-medium text-gray-400 normal-case">· <?= htmlspecialchars(t('profile.photos_max', ['n' => (string) $packageMaxPhotos])) ?></span>
                         </label>
                         <p class="text-[11px] text-gray-400 mb-2">Кликните по фото, чтобы сделать его обложкой</p>
                         <?php
@@ -1633,8 +1734,25 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                         </div>
                     </div>
                     <div class="flex flex-col sm:flex-row gap-2">
-                        <button type="submit" id="lot-submit-btn" <?= $amlBlocked ? 'disabled' : '' ?> class="flex-1 bg-accent-500 hover:bg-accent-400 text-white font-display font-bold py-3.5 rounded-2xl text-xs uppercase tracking-wider transition shadow-soft disabled:opacity-50 disabled:cursor-not-allowed">
-                            <?= htmlspecialchars($editing ? t('profile.update') : ($currentType === 'gig' ? t('gigs.create_btn') : t('profile.publish'))) ?>
+                        <button type="submit" id="lot-submit-btn"
+                            <?= $amlBlocked ? 'disabled data-aml-blocked="1"' : '' ?>
+                            <?= (!$editing && $currentType === 'service' && empty($servicePublishOn) && !$amlBlocked) ? 'disabled' : '' ?>
+                            class="flex-1 bg-accent-500 hover:bg-accent-400 text-white font-display font-bold py-3.5 rounded-2xl text-xs uppercase tracking-wider transition shadow-soft disabled:opacity-50 disabled:cursor-not-allowed">
+                            <?php
+                            if ($editing) {
+                                echo htmlspecialchars(t('profile.update'));
+                            } elseif ($currentType === 'service' && empty($servicePublishOn)) {
+                                echo htmlspecialchars(t('flash.service_publish_disabled'));
+                            } elseif ($currentType === 'service') {
+                                echo htmlspecialchars(t('profile.publish_service', [
+                                    'amount' => \App\Models\Wallet::formatMoney((int) ($serviceListingFee ?? ProductHelper::serviceListingFee())),
+                                ]));
+                            } elseif ($currentType === 'gig') {
+                                echo htmlspecialchars(t('gigs.create_btn'));
+                            } else {
+                                echo htmlspecialchars(t('profile.publish'));
+                            }
+                            ?>
                         </button>
                         <?php if ($editing): ?>
                             <a href="<?= ProductHelper::url('/profile?tab=lots') ?>" class="sm:w-auto text-center px-5 py-3.5 rounded-2xl border border-black/[0.08] dark:border-white/10 text-xs font-bold uppercase tracking-wider hover:bg-white/60 dark:hover:bg-white/5 transition">
@@ -1687,13 +1805,13 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                     form.addEventListener('submit', function (e) {
                         const kind = input.getAttribute('data-kind') || 'iin';
                         const ok = kind === 'bin' ? (validIin(input.value) || validBin(input.value)) : validIin(input.value);
-                        if (ok) {
-                            if (err) err.classList.add('hidden');
+                        if (!ok) {
+                            e.preventDefault();
+                            if (err) err.classList.remove('hidden');
+                            input.focus();
                             return;
                         }
-                        e.preventDefault();
-                        if (err) err.classList.remove('hidden');
-                        input.focus();
+                        if (err) err.classList.add('hidden');
                     });
                 })();
                 </script>
@@ -1706,7 +1824,7 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                     const keepBox = document.getElementById('lot-keep-inputs');
                     const fileInput = document.getElementById('lot-images-input');
                     const addBtn = document.getElementById('lot-add-btn');
-                    const MAX = 3;
+                    const MAX = <?= (int) $packageMaxPhotos ?>;
                     let items = [];
 
                     try {
@@ -1822,6 +1940,31 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                     });
 
                     render();
+                })();
+                </script>
+                <script>
+                (function () {
+                    // После валидаций формы: защита от повторного клика (сервер — источник истины по списанию).
+                    const form = document.getElementById('lot-create-form');
+                    const submitBtn = document.getElementById('lot-submit-btn');
+                    const typeSelect = document.getElementById('lot-type');
+                    if (!form || !submitBtn) return;
+                    const busyLabel = <?= json_encode(t('profile.service_publishing')) ?>;
+                    const isEditingLot = <?= $editing ? 'true' : 'false' ?>;
+                    form.addEventListener('submit', function (e) {
+                        if (submitBtn.dataset.submitting === '1') {
+                            e.preventDefault();
+                            return;
+                        }
+                        if (e.defaultPrevented) {
+                            return;
+                        }
+                        submitBtn.dataset.submitting = '1';
+                        submitBtn.disabled = true;
+                        if (!isEditingLot && typeSelect && typeSelect.value === 'service') {
+                            submitBtn.textContent = busyLabel;
+                        }
+                    });
                 })();
                 </script>
 

@@ -137,24 +137,23 @@ class ProductHelper
 
     public const PRODUCT_TYPES_WITH_CATEGORY = ['used', 'new'];
 
-    /** Плата за публикацию объявления в разделе «Услуги» (KZT) после акционного периода. */
-    public const SERVICE_LISTING_FEE = 100;
+    /**
+     * Плата за публикацию объявления в разделе «Услуги» (KZT).
+     * VAS-16: без бесплатной квоты/промо. Канон — ServiceListingFeePolicy::FEE_KZT.
+     */
+    public const SERVICE_LISTING_FEE = \App\Services\Listing\ServiceListingFeePolicy::FEE_KZT;
 
-    /** Бесплатная публикация услуг включительно до этой даты (Asia/Almaty). */
-    public const SERVICE_LISTING_FREE_UNTIL = '2027-08-22';
-
+    /**
+     * Промо бесплатной публикации отключено (VAS-16). Метод сохранён для UI-вызовов.
+     */
     public static function isServiceListingFreePromo(): bool
     {
-        $tz = new \DateTimeZone('Asia/Almaty');
-        $until = new \DateTimeImmutable(self::SERVICE_LISTING_FREE_UNTIL . ' 23:59:59', $tz);
-        $now = new \DateTimeImmutable('now', $tz);
-
-        return $now <= $until;
+        return false;
     }
 
     public static function serviceListingFee(): int
     {
-        return self::isServiceListingFreePromo() ? 0 : self::SERVICE_LISTING_FEE;
+        return \App\Services\Listing\ServiceListingFeePolicy::FEE_KZT;
     }
 
     public static function label(string $type): string
@@ -471,7 +470,7 @@ class ProductHelper
         return true;
     }
 
-    /** Покупка напрямую у продавца (без эскроу) — для физических товаров и услуг. */
+    /** Покупка напрямую у продавца (без эскроу) — used/new/gig. type=service не поддерживается (расчёт вне платформы). */
     public static function supportsDirectBuy(array $item): bool
     {
         return in_array($item['type'] ?? '', ['used', 'new', 'gig'], true)

@@ -6,8 +6,11 @@ namespace App\Services\Listing;
 
 use App\Core\Database;
 use App\Models\Product;
+use App\Models\User;
 use App\Services\AI\Core\ActionConfirmationService;
 use App\Services\AI\Core\AiConfig;
+use App\Services\BusinessPackageService;
+use App\Services\PersonalLimitService;
 use App\Services\PriceRecommendationService;
 use PDO;
 
@@ -147,19 +150,62 @@ final class ListingDraftService
             return ['ok' => false, 'error' => 'Нельзя опубликовать: нет названия или описания.'];
         }
 
+        $user = (new User())->find($userId);
+        $limitCheck = (new PersonalLimitService())->assertCanPublish($user ?: ['id' => $userId]);
+        if (empty($limitCheck['ok'])) {
+            return ['ok' => false, 'error' => (string) ($limitCheck['error'] ?? 'Лимит публикации исчерпан.')];
+        }
+
+        $pkg = new BusinessPackageService();
+        $pkgCheck = $pkg->assertCanCreateListing($userId);
+        if (empty($pkgCheck['ok'])) {
+            return ['ok' => false, 'error' => (string) ($pkgCheck['error'] ?? 'Лимит каталога бизнес-пакета.')];
+        }
+
+        $type = (string) ($payload['type'] ?? 'used');
+        if (!in_array($type, ['used', 'new', 'free', 'exchange', 'service'], true)) {
+            $type = 'used';
+        }
+
+        $feeSvc = new ServiceListingFeeService();
+        $publishGate = $feeSvc->assertCanPublishNew($type);
+        if (empty($publishGate['ok'])) {
+            return ['ok' => false, 'error' => (string) ($publishGate['error'] ?? 'Публикация услуг временно недоступна.')];
+        }
+        $isStaff = $feeSvc->userIsStaff($userId);
+        $afford = $feeSvc->assertAffordable($userId, $type, $isStaff);
+        if (empty($afford['ok'])) {
+            return ['ok' => false, 'error' => (string) ($afford['error'] ?? 'Недостаточно средств для публикации услуги.')];
+        }
+
+        $price = in_array($type, ['free', 'exchange', 'service'], true)
+            ? 0
+            : (int) ($payload['price'] ?? 0);
+        $priceLabel = $type === 'service' ? t('price.negotiable') : ($payload['price_label'] ?? null);
+
         $productId = $this->products->create([
             'user_id' => $userId,
-            'type' => $payload['type'] ?? 'used',
+            'type' => $type,
             'category' => $payload['category'] ?? 'Разное',
             'title' => $payload['title'],
             'description' => $payload['description'],
-            'price' => (int) ($payload['price'] ?? 0),
+            'price' => $price,
+            'price_label' => $priceLabel,
             'location' => $payload['location'] ?? 'Караганда',
             'whatsapp' => $payload['whatsapp'] ?? null,
             'image' => $payload['image'] ?? null,
             'images' => $payload['images'] ?? [],
             'quantity' => 1,
         ]);
+
+        $charge = $feeSvc->chargeForPublishedProduct($userId, $type, $productId, $isStaff);
+        if (empty($charge['ok'])) {
+            $this->products->delete($productId);
+
+            return ['ok' => false, 'error' => (string) ($charge['error'] ?? 'Не удалось списать плату за публикацию.')];
+        }
+
+        $pkg->consumeListing($userId);
 
         $upd = $this->pdo->prepare(
             'UPDATE ai_listing_drafts SET status = \'published\', product_id = ?, updated_at = NOW() WHERE id = ?'

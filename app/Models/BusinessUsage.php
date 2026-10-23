@@ -58,6 +58,52 @@ class BusinessUsage extends Model
         return $this->get($userId, $metric, $periodKey);
     }
 
+    /**
+     * Атомарный резерв: used увеличивается только если used + by <= cap.
+     * Не допускает отрицательный «остаток» (used > cap) при гонках.
+     */
+    public function tryReserve(int $userId, string $metric, string $periodKey, int $cap, int $by = 1): bool
+    {
+        $by = max(1, $by);
+        if ($cap < $by) {
+            return false;
+        }
+
+        $ensure = $this->db->prepare(
+            'INSERT INTO business_usage (user_id, period_key, metric, used)
+             VALUES (?, ?, ?, 0)
+             ON DUPLICATE KEY UPDATE used = used'
+        );
+        $ensure->execute([$userId, $periodKey, $metric]);
+
+        $stmt = $this->db->prepare(
+            'UPDATE business_usage
+             SET used = used + ?
+             WHERE user_id = ? AND period_key = ? AND metric = ? AND used <= ?'
+        );
+        // used + by <= cap  ⇔  used <= cap - by
+        $stmt->execute([$by, $userId, $periodKey, $metric, $cap - $by]);
+
+        return $stmt->rowCount() === 1;
+    }
+
+    /**
+     * Освобождение ранее зарезервированной единицы (техошибка до commit).
+     * Не опускает used ниже 0.
+     */
+    public function releaseReserve(int $userId, string $metric, string $periodKey, int $by = 1): bool
+    {
+        $by = max(1, $by);
+        $stmt = $this->db->prepare(
+            'UPDATE business_usage
+             SET used = used - ?
+             WHERE user_id = ? AND period_key = ? AND metric = ? AND used >= ?'
+        );
+        $stmt->execute([$by, $userId, $periodKey, $metric, $by]);
+
+        return $stmt->rowCount() === 1;
+    }
+
     /** @return array<string, int> */
     public function forPeriod(int $userId, string $periodKey): array
     {

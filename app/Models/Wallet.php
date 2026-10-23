@@ -256,7 +256,10 @@ class Wallet extends Model
 
     /**
      * Списать плату за публикацию объявления.
-     * @return array{ok: bool, balance?: int, error?: string}
+     * При product_id: идемпотентно по meta listing:{id} (повторный вызов не списывает повторно).
+     * Параллельные запросы сериализуются через FOR UPDATE на кошельке.
+     *
+     * @return array{ok: bool, balance?: int, error?: string, idempotent?: bool}
      */
     public function chargeListingFee(int $userId, int $amount, ?int $productId = null): array
     {
@@ -264,17 +267,42 @@ class Wallet extends Model
             return ['ok' => true, 'balance' => $this->balance($userId)];
         }
 
+        $meta = $productId && $productId > 0
+            ? ('listing:' . $productId)
+            : 'listing';
+
         $ownTx = !$this->db->inTransaction();
         try {
             if ($ownTx) {
                 $this->db->beginTransaction();
             }
+
+            // Блокировка кошелька до проверки идемпотентности и списания
+            $this->lockWallet($userId);
+
+            if ($productId && $productId > 0) {
+                $existing = $this->db->prepare(
+                    'SELECT id FROM wallet_transactions
+                     WHERE user_id = ? AND type = ? AND meta = ?
+                     LIMIT 1'
+                );
+                $existing->execute([$userId, self::TYPE_LISTING_FEE, $meta]);
+                if ($existing->fetch()) {
+                    $balance = $this->balance($userId);
+                    if ($ownTx) {
+                        $this->db->commit();
+                    }
+
+                    return ['ok' => true, 'balance' => $balance, 'idempotent' => true];
+                }
+            }
+
             $newBalance = $this->applyDebit(
                 $userId,
                 $amount,
                 self::TYPE_LISTING_FEE,
                 null,
-                $productId ? ('listing:' . $productId) : 'listing'
+                $meta
             );
             if ($newBalance === null) {
                 if ($ownTx) {
@@ -285,7 +313,7 @@ class Wallet extends Model
             if ($ownTx) {
                 $this->db->commit();
             }
-            return ['ok' => true, 'balance' => $newBalance];
+            return ['ok' => true, 'balance' => $newBalance, 'idempotent' => false];
         } catch (\Throwable $e) {
             if ($ownTx && $this->db->inTransaction()) {
                 $this->db->rollBack();

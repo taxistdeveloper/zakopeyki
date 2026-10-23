@@ -36,6 +36,70 @@ $filters = [
         <div class="bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border border-red-100 dark:border-red-900/40 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
 
+    <?php
+    $businessSalesEnabled = !empty($businessSalesEnabled);
+    $businessFeaturesEnabled = !empty($businessFeaturesEnabled);
+    $businessAiAddonSalesFlags = is_array($businessAiAddonSalesFlags ?? null) ? $businessAiAddonSalesFlags : [];
+    $aiInfographicSalesOn = !empty($businessAiAddonSalesFlags[\App\Services\Business\BusinessPackagePolicy::SLUG_AI_INFOGRAPHIC_ADDON]);
+    $aiTryonSalesOn = !empty($businessAiAddonSalesFlags[\App\Services\Business\BusinessPackagePolicy::SLUG_AI_TRYON_ADDON]);
+    ?>
+    <div class="grid sm:grid-cols-2 lg:grid-cols-2 gap-3">
+        <div class="rounded-2xl border <?= $businessSalesEnabled ? 'border-emerald-200 bg-emerald-50/70' : 'border-amber-200 bg-amber-50/70' ?> p-4 space-y-2">
+            <p class="text-[10px] font-bold uppercase tracking-wider text-gray-500"><?= htmlspecialchars(t('admin.business_sales_label')) ?></p>
+            <p class="text-sm font-bold"><?= htmlspecialchars($businessSalesEnabled ? t('admin.business_sales_on') : t('admin.business_sales_off')) ?></p>
+            <p class="text-xs text-gray-600"><?= htmlspecialchars(t('admin.business_sales_hint')) ?></p>
+            <form method="post" action="<?= ProductHelper::url('/admin/business/package-sales') ?>">
+                <?= csrf_field() ?>
+                <input type="hidden" name="enabled" value="<?= $businessSalesEnabled ? '0' : '1' ?>">
+                <button type="submit" class="mt-1 h-10 px-4 rounded-xl text-xs font-bold text-white <?= $businessSalesEnabled ? 'bg-amber-600' : 'bg-emerald-600' ?>"
+                        onclick="return confirm(<?= json_encode($businessSalesEnabled ? t('admin.business_sales_disable_confirm') : t('admin.business_sales_enable_confirm')) ?>)">
+                    <?= htmlspecialchars($businessSalesEnabled ? t('admin.business_sales_disable') : t('admin.business_sales_enable')) ?>
+                </button>
+            </form>
+        </div>
+        <div class="rounded-2xl border <?= $businessFeaturesEnabled ? 'border-emerald-200 bg-emerald-50/70' : 'border-amber-200 bg-amber-50/70' ?> p-4 space-y-2">
+            <p class="text-[10px] font-bold uppercase tracking-wider text-gray-500"><?= htmlspecialchars(t('admin.business_features_label')) ?></p>
+            <p class="text-sm font-bold"><?= htmlspecialchars($businessFeaturesEnabled ? t('admin.business_features_on') : t('admin.business_features_off')) ?></p>
+            <p class="text-xs text-gray-600"><?= htmlspecialchars(t('admin.business_features_hint')) ?></p>
+            <form method="post" action="<?= ProductHelper::url('/admin/business/package-features') ?>">
+                <?= csrf_field() ?>
+                <input type="hidden" name="enabled" value="<?= $businessFeaturesEnabled ? '0' : '1' ?>">
+                <button type="submit" class="mt-1 h-10 px-4 rounded-xl text-xs font-bold text-white <?= $businessFeaturesEnabled ? 'bg-amber-600' : 'bg-emerald-600' ?>"
+                        onclick="return confirm(<?= json_encode($businessFeaturesEnabled ? t('admin.business_features_disable_confirm') : t('admin.business_features_enable_confirm')) ?>)">
+                    <?= htmlspecialchars($businessFeaturesEnabled ? t('admin.business_features_disable') : t('admin.business_features_enable')) ?>
+                </button>
+            </form>
+        </div>
+        <div class="rounded-2xl border <?= $aiInfographicSalesOn ? 'border-emerald-200 bg-emerald-50/70' : 'border-amber-200 bg-amber-50/70' ?> p-4 space-y-2">
+            <p class="text-[10px] font-bold uppercase tracking-wider text-gray-500"><?= htmlspecialchars(t('admin.business_ai_infographic_sales_label')) ?></p>
+            <p class="text-sm font-bold"><?= htmlspecialchars($aiInfographicSalesOn ? t('admin.business_ai_addon_sales_on') : t('admin.business_ai_addon_sales_off')) ?></p>
+            <p class="text-xs text-gray-600"><?= htmlspecialchars(t('admin.business_ai_infographic_sales_hint')) ?></p>
+            <form method="post" action="<?= ProductHelper::url('/admin/business/ai-addon-sales') ?>">
+                <?= csrf_field() ?>
+                <input type="hidden" name="package_slug" value="<?= htmlspecialchars(\App\Services\Business\BusinessPackagePolicy::SLUG_AI_INFOGRAPHIC_ADDON, ENT_QUOTES) ?>">
+                <input type="hidden" name="enabled" value="<?= $aiInfographicSalesOn ? '0' : '1' ?>">
+                <button type="submit" class="mt-1 h-10 px-4 rounded-xl text-xs font-bold text-white <?= $aiInfographicSalesOn ? 'bg-amber-600' : 'bg-emerald-600' ?>"
+                        onclick="return confirm(<?= json_encode($aiInfographicSalesOn ? t('admin.business_ai_infographic_sales_disable_confirm') : t('admin.business_ai_infographic_sales_enable_confirm')) ?>)">
+                    <?= htmlspecialchars($aiInfographicSalesOn ? t('admin.business_ai_addon_sales_disable') : t('admin.business_ai_addon_sales_enable')) ?>
+                </button>
+            </form>
+        </div>
+        <div class="rounded-2xl border <?= $aiTryonSalesOn ? 'border-emerald-200 bg-emerald-50/70' : 'border-amber-200 bg-amber-50/70' ?> p-4 space-y-2">
+            <p class="text-[10px] font-bold uppercase tracking-wider text-gray-500"><?= htmlspecialchars(t('admin.business_ai_tryon_sales_label')) ?></p>
+            <p class="text-sm font-bold"><?= htmlspecialchars($aiTryonSalesOn ? t('admin.business_ai_addon_sales_on') : t('admin.business_ai_addon_sales_off')) ?></p>
+            <p class="text-xs text-gray-600"><?= htmlspecialchars(t('admin.business_ai_tryon_sales_hint')) ?></p>
+            <form method="post" action="<?= ProductHelper::url('/admin/business/ai-addon-sales') ?>">
+                <?= csrf_field() ?>
+                <input type="hidden" name="package_slug" value="<?= htmlspecialchars(\App\Services\Business\BusinessPackagePolicy::SLUG_AI_TRYON_ADDON, ENT_QUOTES) ?>">
+                <input type="hidden" name="enabled" value="<?= $aiTryonSalesOn ? '0' : '1' ?>">
+                <button type="submit" class="mt-1 h-10 px-4 rounded-xl text-xs font-bold text-white <?= $aiTryonSalesOn ? 'bg-amber-600' : 'bg-emerald-600' ?>"
+                        onclick="return confirm(<?= json_encode($aiTryonSalesOn ? t('admin.business_ai_tryon_sales_disable_confirm') : t('admin.business_ai_tryon_sales_enable_confirm')) ?>)">
+                    <?= htmlspecialchars($aiTryonSalesOn ? t('admin.business_ai_addon_sales_disable') : t('admin.business_ai_addon_sales_enable')) ?>
+                </button>
+            </form>
+        </div>
+    </div>
+
     <div class="flex flex-wrap gap-2">
         <?php foreach ($filters as $key => $label): ?>
             <a href="<?= ProductHelper::url('/admin/business?status=' . urlencode($key)) ?>"

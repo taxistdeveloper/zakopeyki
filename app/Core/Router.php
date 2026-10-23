@@ -59,6 +59,17 @@ class Router
             '/webhooks/cloudflare/stream',
             '/webhooks/delivery/status',
         ];
-        return in_array($path, $exempt, true);
+        if (in_array($path, $exempt, true)) {
+            return true;
+        }
+        // Seller API: Bearer-аутентификация вместо session CSRF
+        if (str_starts_with($path, '/api/v1/business/')) {
+            $auth = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
+            if (is_string($auth) && preg_match('/Bearer\s+\S+/i', $auth)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

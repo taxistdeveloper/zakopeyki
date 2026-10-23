@@ -432,7 +432,7 @@ class Product extends Model
         );
 
         $type = $data['type'];
-        $price = in_array($type, ['free', 'exchange'], true)
+        $price = in_array($type, ['free', 'exchange', 'service'], true)
             ? 0
             : (int) preg_replace('/\D/', '', (string) ($data['price'] ?? 0));
         $isAuction = $type === 'auction';
@@ -443,6 +443,7 @@ class Product extends Model
         $priceLabel = match ($type) {
             'free' => $data['price_label'] ?? 'Бесплатно',
             'exchange' => $data['price_label'] ?? 'Обмен',
+            'service' => $data['price_label'] ?? null,
             default => null,
         };
 

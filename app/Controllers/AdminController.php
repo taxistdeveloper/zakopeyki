@@ -20,9 +20,14 @@ use App\Models\BusinessUpgradeRequest;
 use App\Models\MicroTask;
 use App\Models\User;
 use App\Services\AMLService;
+use App\Services\Business\BusinessPackagePolicy;
+use App\Services\BusinessPackageService;
 use App\Services\BusinessUpgradeService;
+use App\Services\Finance\FinanceJournalService;
+use App\Services\PaidServices\PaidServicesAdminService;
 use App\Services\PersonalLimitService;
 use App\Services\UnskilledTaskValidator;
+use App\Core\Csrf;
 use App\Services\AI\SelfLearningService;
 use App\Services\EscrowService;
 
@@ -122,6 +127,12 @@ class AdminController extends Controller
             'amlBlockedCount' => $amlBlockedCount,
             'stubMode' => $stubMode,
             'boostEnabled' => $isAdmin && (new \App\Services\Boost\BoostService())->isEnabled(),
+            'paidServicesAdminEnabled' => $isAdmin
+                && (new PaidServicesAdminService())->isModuleEnabled(),
+            'financeJournalEnabled' => $isAdmin
+                && (new FinanceJournalService())->isModuleEnabled(),
+            'serviceListingPublishEnabled' => $isAdmin
+                && (new \App\Services\Listing\ServiceListingFeeService())->isPublishEnabled(),
             'threeLiftsEnabled' => $isAdmin && (new \App\Services\ThreeLifts\ThreeLiftsService())->isEnabled(),
             'highlightEnabled' => $isAdmin && (new \App\Services\Highlight\HighlightService())->isEnabled(),
             'topFixedEnabled' => $isAdmin && (new \App\Services\TopFixed\TopFixedService())->isEnabled(),
@@ -198,6 +209,298 @@ class AdminController extends Controller
             ? ($enabled ? t('admin.boost_enabled_flash') : t('admin.boost_disabled_flash'))
             : t('admin.boost_toggle_failed');
         $this->redirect('/admin');
+    }
+
+    private function requireServiceListingAdmin(): void
+    {
+        Auth::requireLogin();
+        $role = (string) (Auth::user()['role'] ?? '');
+        if (!\App\Services\Listing\ServiceListingFeePolicy::canToggle($role)) {
+            http_response_code(403);
+            echo 'Доступ запрещён';
+            exit;
+        }
+    }
+
+    public function toggleServiceListingPublish(): void
+    {
+        $this->requireServiceListingAdmin();
+
+        $enabled = isset($_POST['enabled']) && (string) $_POST['enabled'] === '1';
+        $ok = (new \App\Services\Listing\ServiceListingFeeService())->setPublishEnabled($enabled);
+        $_SESSION[$ok ? 'flash' : 'error'] = $ok
+            ? ($enabled ? t('admin.service_listing_enabled_flash') : t('admin.service_listing_disabled_flash'))
+            : t('admin.service_listing_toggle_failed');
+        $this->redirect('/admin');
+    }
+
+    /**
+     * VAS-18: журнал заказов/платежей — HTML админки; JSON при Accept/format=json.
+     */
+    /**
+     * VAS-18: флаг модуля админ-журнала (не VAS-17 и не продажи VAS-01…16).
+     */
+    public function toggleFinanceJournalModule(): void
+    {
+        Auth::requireLogin();
+        $role = (string) (Auth::user()['role'] ?? '');
+        if (!\App\Services\Finance\FinanceJournalPolicy::canToggle($role)) {
+            http_response_code(403);
+            echo 'Доступ запрещён';
+            exit;
+        }
+
+        $enabled = isset($_POST['enabled']) && (string) $_POST['enabled'] === '1';
+        $result = (new FinanceJournalService())->setModuleEnabled($enabled);
+        $_SESSION[!empty($result['ok']) ? 'flash' : 'error'] = !empty($result['ok'])
+            ? ($enabled ? t('admin.finance_journal_module_enabled_flash') : t('admin.finance_journal_module_disabled_flash'))
+            : t('admin.finance_journal_module_toggle_failed');
+        $this->redirect('/admin');
+    }
+
+    public function financeJournalList(): void
+    {
+        Auth::requireLogin();
+        $wantsJson = str_contains((string) ($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json')
+            || (($_GET['format'] ?? '') === 'json');
+
+        if (!$wantsJson) {
+            Auth::requireAdmin();
+        }
+
+        $svc = new FinanceJournalService();
+        $result = $svc->list($_GET);
+        if (empty($result['ok'])) {
+            $code = (string) ($result['error_code'] ?? 'forbidden');
+            if ($wantsJson) {
+                $http = match ($code) {
+                    'forbidden', 'module_disabled' => 403,
+                    'query_failed' => 500,
+                    default => 400,
+                };
+                $this->json(['ok' => false, 'error_code' => $code], $http);
+            }
+            $_SESSION['error'] = match ($code) {
+                'forbidden' => t('admin.finance_journal_forbidden'),
+                'module_disabled' => t('admin.finance_journal_module_off_flash'),
+                'invalid_stream', 'invalid_date_range', 'invalid_query', 'invalid_filters',
+                'invalid_service', 'invalid_status', 'invalid_sort', 'invalid_confirmed',
+                'invalid_user', 'invalid_date_from', 'invalid_date_to' => t('admin.finance_journal_bad_filters'),
+                default => t('admin.finance_journal_error'),
+            };
+            if ($code === 'forbidden' || $code === 'module_disabled') {
+                $this->redirect('/admin');
+            }
+            $this->redirect('/admin/finance-journal');
+        }
+
+        if ($wantsJson) {
+            $this->json([
+                'ok' => true,
+                'items' => $result['items'] ?? [],
+                'page' => $result['page'] ?? 1,
+                'pages' => $result['pages'] ?? 1,
+                'total' => $result['total'] ?? 0,
+                'per_page' => $result['per_page'] ?? 40,
+                'filters' => $result['filters'] ?? [],
+                'read_only' => true,
+            ]);
+        }
+
+        $n = new Notification();
+        $this->view('admin/finance-journal', [
+            'title' => t('admin.finance_journal'),
+            'currentNav' => 'admin',
+            'items' => $result['items'] ?? [],
+            'page' => (int) ($result['page'] ?? 1),
+            'pages' => (int) ($result['pages'] ?? 1),
+            'total' => (int) ($result['total'] ?? 0),
+            'perPage' => (int) ($result['per_page'] ?? 40),
+            'filters' => is_array($result['filters'] ?? null) ? $result['filters'] : [],
+            'notifications' => $n->forUser(Auth::id()),
+            'unread' => $n->unreadCount(Auth::id()),
+            'flash' => $_SESSION['flash'] ?? null,
+            'error' => $_SESSION['error'] ?? null,
+        ]);
+        unset($_SESSION['flash'], $_SESSION['error']);
+    }
+
+    /**
+     * VAS-18: детали записи журнала — HTML / JSON.
+     */
+    public function financeJournalDetail(string $entryId): void
+    {
+        Auth::requireLogin();
+        $wantsJson = str_contains((string) ($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json')
+            || (($_GET['format'] ?? '') === 'json');
+
+        if (!$wantsJson) {
+            Auth::requireAdmin();
+        }
+
+        $svc = new FinanceJournalService();
+        $result = $svc->detail(rawurldecode($entryId));
+        if (empty($result['ok'])) {
+            $code = (string) ($result['error_code'] ?? 'forbidden');
+            if ($wantsJson) {
+                $http = match ($code) {
+                    'forbidden', 'module_disabled' => 403,
+                    'not_found' => 404,
+                    'query_failed' => 500,
+                    default => 400,
+                };
+                $this->json(['ok' => false, 'error_code' => $code], $http);
+            }
+            $_SESSION['error'] = match ($code) {
+                'forbidden' => t('admin.finance_journal_forbidden'),
+                'module_disabled' => t('admin.finance_journal_module_off_flash'),
+                'not_found' => t('admin.finance_journal_not_found'),
+                default => t('admin.finance_journal_error'),
+            };
+            $this->redirect(($code === 'forbidden' || $code === 'module_disabled') ? '/admin' : '/admin/finance-journal');
+        }
+
+        if ($wantsJson) {
+            $this->json([
+                'ok' => true,
+                'entry' => $result['entry'] ?? null,
+                'read_only' => true,
+            ]);
+        }
+
+        $n = new Notification();
+        $this->view('admin/finance-journal-show', [
+            'title' => t('admin.finance_journal_detail'),
+            'currentNav' => 'admin',
+            'entry' => $result['entry'] ?? [],
+            'notifications' => $n->forUser(Auth::id()),
+            'unread' => $n->unreadCount(Auth::id()),
+            'flash' => $_SESSION['flash'] ?? null,
+            'error' => $_SESSION['error'] ?? null,
+        ]);
+        unset($_SESSION['flash'], $_SESSION['error']);
+    }
+
+    /**
+     * VAS-17: флаг модуля админ-каталога (не флаги продаж отдельных услуг).
+     */
+    public function togglePaidServicesModule(): void
+    {
+        Auth::requireLogin();
+        $role = (string) (Auth::user()['role'] ?? '');
+        if (!\App\Services\PaidServices\PaidServicesAdminPolicy::canToggle($role)) {
+            http_response_code(403);
+            echo 'Доступ запрещён';
+            exit;
+        }
+
+        $enabled = isset($_POST['enabled']) && (string) $_POST['enabled'] === '1';
+        $result = (new PaidServicesAdminService())->setModuleEnabled($enabled);
+        $_SESSION[!empty($result['ok']) ? 'flash' : 'error'] = !empty($result['ok'])
+            ? ($enabled ? t('admin.paid_services_module_enabled_flash') : t('admin.paid_services_module_disabled_flash'))
+            : t('admin.paid_services_module_toggle_failed');
+        $this->redirect('/admin');
+    }
+
+    /**
+     * VAS-17: каталог платных услуг — HTML для админки; JSON при Accept/format=json.
+     */
+    public function paidServicesCatalog(): void
+    {
+        Auth::requireLogin();
+        $wantsJson = str_contains((string) ($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json')
+            || (($_GET['format'] ?? '') === 'json');
+
+        if (!$wantsJson) {
+            Auth::requireAdmin();
+        }
+
+        $svc = new PaidServicesAdminService();
+        $result = $svc->catalog();
+        if (empty($result['ok'])) {
+            $err = (string) ($result['error_code'] ?? 'forbidden');
+            if ($wantsJson) {
+                $this->json([
+                    'ok' => false,
+                    'error_code' => $err,
+                ], 403);
+            }
+            $_SESSION['error'] = $err === 'module_disabled'
+                ? t('admin.paid_services_module_off_flash')
+                : t('admin.paid_services_forbidden');
+            $this->redirect('/admin');
+        }
+
+        if ($wantsJson) {
+            $this->json([
+                'ok' => true,
+                'services' => $result['services'] ?? [],
+                'price_editable' => false,
+            ]);
+        }
+
+        $n = new Notification();
+        $this->view('admin/paid-services', [
+            'title' => t('admin.paid_services'),
+            'currentNav' => 'admin',
+            'services' => $result['services'] ?? [],
+            'priceEditable' => false,
+            'notifications' => $n->forUser(Auth::id()),
+            'unread' => $n->unreadCount(Auth::id()),
+            'flash' => $_SESSION['flash'] ?? null,
+            'error' => $_SESSION['error'] ?? null,
+        ]);
+        unset($_SESSION['flash'], $_SESSION['error']);
+    }
+
+    /**
+     * VAS-17: изменить доступность одной услуги. Цены через этот endpoint запрещены.
+     */
+    public function togglePaidServiceAvailability(string $code): void
+    {
+        Auth::requireLogin();
+        Csrf::enforce();
+
+        $input = array_merge($_POST, []);
+        $raw = file_get_contents('php://input');
+        if (is_string($raw) && $raw !== '') {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                $input = array_merge($input, $decoded);
+            }
+        }
+
+        $enabled = isset($input['enabled']) && (
+            $input['enabled'] === true
+            || $input['enabled'] === 1
+            || (string) $input['enabled'] === '1'
+        );
+
+        $svc = new PaidServicesAdminService();
+        $result = $svc->setAvailability($code, $enabled, $input);
+        if (empty($result['ok'])) {
+            $codeErr = (string) ($result['error_code'] ?? 'toggle_failed');
+            $http = match ($codeErr) {
+                'forbidden', 'module_disabled' => 403,
+                'not_found' => 404,
+                'price_edit_forbidden', 'not_toggleable', 'conflict' => 400,
+                default => 400,
+            };
+            $this->json([
+                'ok' => false,
+                'error_code' => $codeErr,
+                'code' => $result['code'] ?? $code,
+            ], $http);
+        }
+
+        $this->json([
+            'ok' => true,
+            'code' => $result['code'] ?? $code,
+            'enabled' => !empty($result['enabled']),
+            'before' => $result['before'] ?? null,
+            'after' => $result['after'] ?? null,
+            'unchanged' => !empty($result['unchanged']),
+        ]);
     }
 
     public function recoverBoost(): void
@@ -1672,12 +1975,16 @@ class AdminController extends Controller
         }
         $model = new BusinessUpgradeRequest();
         $n = new Notification();
+        $pkgSvc = new BusinessPackageService();
         $this->view('admin/business', [
             'title' => t('admin.business'),
             'currentNav' => 'admin',
             'requests' => $model->listByStatus($status),
             'pendingCount' => $model->countPending(),
             'filterStatus' => $status,
+            'businessSalesEnabled' => $pkgSvc->isSalesEnabled(),
+            'businessFeaturesEnabled' => $pkgSvc->isFeaturesEnabled(),
+            'businessAiAddonSalesFlags' => $pkgSvc->aiAddonSalesFlags(),
             'notifications' => $n->forUser(Auth::id()),
             'unread' => $n->unreadCount(Auth::id()),
             'flash' => $_SESSION['flash'] ?? null,
@@ -1729,6 +2036,49 @@ class AdminController extends Controller
         Auth::requireAdmin();
         $count = (new PersonalLimitService())->resetAllForNewYear();
         $_SESSION['flash'] = t('admin.business_limits_reset', ['count' => (string) $count]);
+        $this->redirect('/admin/business');
+    }
+
+    public function toggleBusinessPackageSales(): void
+    {
+        Auth::requireAdmin();
+        $enabled = isset($_POST['enabled']) && (string) $_POST['enabled'] === '1';
+        $ok = (new BusinessPackageService())->setSalesEnabled($enabled);
+        $_SESSION[$ok ? 'flash' : 'error'] = $ok
+            ? ($enabled ? t('admin.business_sales_enabled') : t('admin.business_sales_disabled'))
+            : t('admin.business_toggle_failed');
+        $this->redirect('/admin/business');
+    }
+
+    public function toggleBusinessPackageFeatures(): void
+    {
+        Auth::requireAdmin();
+        $enabled = isset($_POST['enabled']) && (string) $_POST['enabled'] === '1';
+        $ok = (new BusinessPackageService())->setFeaturesEnabled($enabled);
+        $_SESSION[$ok ? 'flash' : 'error'] = $ok
+            ? ($enabled ? t('admin.business_features_enabled') : t('admin.business_features_disabled'))
+            : t('admin.business_toggle_failed');
+        $this->redirect('/admin/business');
+    }
+
+    public function toggleBusinessAiAddonSales(): void
+    {
+        Auth::requireAdmin();
+        $enabled = isset($_POST['enabled']) && (string) $_POST['enabled'] === '1';
+        $slug = trim((string) ($_POST['package_slug'] ?? ''));
+        $svc = new BusinessPackageService();
+        if ($slug === '' || !BusinessPackagePolicy::isAiAddonSlug($slug)) {
+            $_SESSION['error'] = t('admin.business_toggle_failed');
+            $this->redirect('/admin/business');
+        }
+        $ok = $svc->setAiAddonSalesEnabledForSlug($slug, $enabled);
+        if ($ok) {
+            $_SESSION['flash'] = $enabled
+                ? t('admin.business_ai_addon_sales_enabled_one', ['slug' => $slug])
+                : t('admin.business_ai_addon_sales_disabled_one', ['slug' => $slug]);
+        } else {
+            $_SESSION['error'] = t('admin.business_toggle_failed');
+        }
         $this->redirect('/admin/business');
     }
 
