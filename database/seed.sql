@@ -1,8 +1,10 @@
 USE zakapeiku;
 
--- Полное демо-наполнение (аккаунты, товары, аукционы, сторис):
+-- Полное демо-наполнение (аккаунты, товары, аукционы, сторис + фото):
 --   php bin/seed_demo.php
 -- Пароль демо-аккаунтов: demo1234
+-- Фото для товаров из этого файла (без image):
+--   php bin/fix_seed_product_images.php
 
 -- DEMO ONLY. Change passwords before any production use.
 -- Default password for seeded users: password
@@ -10,6 +12,7 @@ INSERT INTO users (id, name, email, password, role, avatar, phone) VALUES
 (1, 'Радик', 'admin@zakopeyki.kz', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', 'R', '77000000000'),
 (2, 'Алина', 'user@zakopeyki.kz', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'user', 'A', '77001112233');
 
+-- Без колонки image — после импорта: php bin/fix_seed_product_images.php
 INSERT INTO products (user_id, type, category, title, description, price, exchange_for, price_label, current_bid, bid_step, location) VALUES
 (2, 'exchange', 'Электроника', 'Обменяю iPhone 13 на хороший ноутбук', 'Телефон в идеале, комплект полный. Ищу ноутбук для работы.', 0, 'хороший ноутбук для работы', 'Договорная', NULL, 1000, 'Караганда'),
 (2, 'exchange', 'Спорт', 'Обмен: Сноуборд Burton на горный велосипед', 'Состояние сноуборда идеальное, размер 156. Интересует велик с рамой M.', 0, 'горный велосипед, рама M', 'Договорная', NULL, 1000, 'Караганда, Юго-Восток'),
