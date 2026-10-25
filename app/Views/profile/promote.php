@@ -79,6 +79,19 @@ $from = Wallet::formatMoney(BoostPolicy::PRICE_KZT);
 [data-promote-page] #lot-promote-<?= (int) $productId ?> > *:last-child {
     margin-bottom: 0 !important;
 }
+/* Кнопка рядом с текстом, по вертикали по центру */
+[data-promote-page] #lot-promote-<?= (int) $productId ?> > [data-boost-card] > div,
+[data-promote-page] #lot-promote-<?= (int) $productId ?> > [data-highlight-card] > div,
+[data-promote-page] #lot-promote-<?= (int) $productId ?> > [data-top-fixed-card] > div,
+[data-promote-page] #lot-promote-<?= (int) $productId ?> > [data-top-fixed-xl-card] > div,
+[data-promote-page] #lot-promote-<?= (int) $productId ?> > [data-vip-card] > div {
+    align-items: center !important;
+}
+[data-promote-page] #lot-promote-<?= (int) $productId ?> form {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
 @media (prefers-reduced-motion: reduce) {
     [data-promote-page] .promote-hero,
     [data-promote-page] .promote-product,
