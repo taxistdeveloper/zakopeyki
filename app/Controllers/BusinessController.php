@@ -135,7 +135,7 @@ class BusinessController extends Controller
 
         $this->view('business/package', [
             'title' => t('business.package_title'),
-            'currentNav' => 'profile',
+            'currentNav' => 'business_package',
             'user' => $user ?: Auth::user(),
             'limit' => $limit,
             'packages' => $monthPlans,

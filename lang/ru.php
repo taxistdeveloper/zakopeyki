@@ -14,6 +14,7 @@ return [
         'courses' => 'Курсы',
         'digital' => 'Мой контент',
         'profile' => 'Личный кабинет',
+        'business_package' => 'Бизнес-пакет',
         'deals' => 'Мои заказы',
         'wallet' => 'Кошелёк',
         'ads' => 'Реклама',
