@@ -34,7 +34,7 @@ class VipController extends Controller
             $_SESSION['flash'] = !empty($result['active'])
                 ? t('vip.active', ['until' => $until, 'left' => $left])
                 : t('vip.expired');
-            $this->redirect('/profile?tab=lots');
+            $this->redirect('/profile/lots/' . (int) $id . '/promote');
         }
 
         $code = (string) ($result['error_code'] ?? 'generic');
@@ -53,7 +53,7 @@ class VipController extends Controller
         };
         $until = VipPolicy::formatUntil(isset($result['ends_at']) ? (string) $result['ends_at'] : null);
         $_SESSION['error'] = t($key, ['until' => $until]);
-        $this->redirect('/profile?tab=lots');
+        $this->redirect('/profile/lots/' . (int) $id . '/promote');
     }
 
     public function status(): void

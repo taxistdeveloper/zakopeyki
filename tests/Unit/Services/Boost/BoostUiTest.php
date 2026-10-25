@@ -241,6 +241,9 @@ final class BoostUiTest extends TestCase
         $this->assertStringContainsString('lot-promote-', $profile);
         $this->assertStringContainsString('partials/lot-promote-entry', $card);
         $this->assertStringNotContainsString('partials/lot-boost', $card);
+        $this->assertStringContainsString("get('/profile/lots/{id}/promote'", $routes);
+        $entry = (string) file_get_contents($root . '/app/Views/partials/lot-promote-entry.php');
+        $this->assertStringContainsString('/promote', $entry);
         $this->assertStringNotContainsString('.submit(', $partial);
         $this->assertStringNotContainsString('.submit(', (string) $boostJs);
         $this->assertStringContainsString("get('/profile/lots/boost-status'", $routes);

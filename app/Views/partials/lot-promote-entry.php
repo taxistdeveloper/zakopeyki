@@ -8,7 +8,7 @@ if ($productId <= 0) {
     return;
 }
 
-$href = ProductHelper::url('/profile?tab=lots&promote=' . $productId . '#lot-promote-' . $productId);
+$href = ProductHelper::url('/profile/lots/' . $productId . '/promote');
 $label = t('profile.promote_overlay');
 $desc = t('profile.promote_entry_aria');
 $btn = 'w-8 h-8 rounded-xl bg-white/90 dark:bg-ink-900/80 border border-black/[0.06] dark:border-white/10 shadow-sm flex items-center justify-center transition hover:scale-105 text-orange-500 hover:text-orange-600';

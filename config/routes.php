@@ -24,6 +24,7 @@ use App\Controllers\SupportController;
 use App\Controllers\UserController;
 use App\Controllers\WalletController;
 use App\Controllers\BoostController;
+use App\Controllers\PromoteController;
 use App\Controllers\HighlightController;
 use App\Controllers\TopFixedController;
 use App\Controllers\TopFixedXlController;
@@ -183,6 +184,7 @@ $router->post('/profile/verify-listing', [ProfileController::class, 'verifyListi
 $router->post('/profile/listing-rules', [ProfileController::class, 'acceptListingRules']);
 $router->post('/profile/store', [ProfileController::class, 'store']);
 $router->post('/profile/author/enable', [ProfileController::class, 'enableCourseAuthor']);
+$router->get('/profile/lots/{id}/promote', [PromoteController::class, 'show']);
 $router->get('/profile/lots/boost-status', [BoostController::class, 'status']);
 $router->post('/profile/lots/{id}/boost', [BoostController::class, 'purchase']);
 $router->get('/profile/lots/highlight-status', [HighlightController::class, 'status']);

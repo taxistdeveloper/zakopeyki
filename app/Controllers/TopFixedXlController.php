@@ -34,7 +34,7 @@ class TopFixedXlController extends Controller
             $_SESSION['flash'] = !empty($result['active'])
                 ? t('top_fixed_xl.active', ['until' => $until, 'category' => $category])
                 : t('top_fixed_xl.expired');
-            $this->redirect('/profile?tab=lots');
+            $this->redirect('/profile/lots/' . (int) $id . '/promote');
         }
 
         $code = (string) ($result['error_code'] ?? 'generic');
@@ -53,7 +53,7 @@ class TopFixedXlController extends Controller
         };
         $until = TopFixedXlPolicy::formatUntil(isset($result['ends_at']) ? (string) $result['ends_at'] : null);
         $_SESSION['error'] = t($key, ['until' => $until]);
-        $this->redirect('/profile?tab=lots');
+        $this->redirect('/profile/lots/' . (int) $id . '/promote');
     }
 
     public function status(): void

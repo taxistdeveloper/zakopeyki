@@ -32,7 +32,7 @@ class HighlightController extends Controller
             $_SESSION['flash'] = !empty($result['active'])
                 ? t('highlight.active', ['until' => $until])
                 : t('highlight.expired');
-            $this->redirect('/profile?tab=lots');
+            $this->redirect('/profile/lots/' . (int) $id . '/promote');
         }
 
         $code = (string) ($result['error_code'] ?? 'generic');
@@ -51,7 +51,7 @@ class HighlightController extends Controller
         };
         $until = HighlightPolicy::formatUntil(isset($result['ends_at']) ? (string) $result['ends_at'] : null);
         $_SESSION['error'] = t($key, ['until' => $until]);
-        $this->redirect('/profile?tab=lots');
+        $this->redirect('/profile/lots/' . (int) $id . '/promote');
     }
 
     public function status(): void

@@ -27,7 +27,7 @@ class BoostController extends Controller
 
         if (!empty($result['already_applied'])) {
             $_SESSION['flash'] = t('boost.applied');
-            $this->redirect('/profile?tab=lots');
+            $this->redirect('/profile/lots/' . (int) $id . '/promote');
         }
 
         $code = (string) ($result['error_code'] ?? 'generic');
@@ -44,7 +44,7 @@ class BoostController extends Controller
             default => 'boost.err_generic',
         };
         $_SESSION['error'] = t($key);
-        $this->redirect('/profile?tab=lots');
+        $this->redirect('/profile/lots/' . (int) $id . '/promote');
     }
 
     public function status(): void

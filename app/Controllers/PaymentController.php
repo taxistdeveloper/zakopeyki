@@ -608,6 +608,14 @@ class PaymentController extends Controller
         ]));
     }
 
+    private function redirectPromoteAfter(int $productId): void
+    {
+        if ($productId > 0) {
+            $this->redirect('/profile/lots/' . $productId . '/promote');
+        }
+        $this->redirect('/profile?tab=lots');
+    }
+
     private function redirectBoostReturn(string $pgOrderId): void
     {
         $order = (new BoostOrder())->findByPgOrderId($pgOrderId);
@@ -627,7 +635,7 @@ class PaymentController extends Controller
         } else {
             $_SESSION['error'] = t('boost.payment_failed');
         }
-        $this->redirect('/profile?tab=lots');
+        $this->redirectPromoteAfter((int) ($order['product_id'] ?? 0));
     }
 
     private function redirectHighlightReturn(string $pgOrderId): void
@@ -656,7 +664,7 @@ class PaymentController extends Controller
         } else {
             $_SESSION['error'] = t('highlight.payment_failed');
         }
-        $this->redirect('/profile?tab=lots');
+        $this->redirectPromoteAfter((int) ($order['product_id'] ?? 0));
     }
 
     private function redirectTopFixedXlReturn(string $pgOrderId): void
@@ -686,7 +694,7 @@ class PaymentController extends Controller
         } else {
             $_SESSION['error'] = t('top_fixed_xl.payment_failed');
         }
-        $this->redirect('/profile?tab=lots');
+        $this->redirectPromoteAfter((int) ($order['product_id'] ?? 0));
     }
 
     private function redirectVipReturn(string $pgOrderId): void
@@ -716,7 +724,7 @@ class PaymentController extends Controller
         } else {
             $_SESSION['error'] = t('vip.payment_failed');
         }
-        $this->redirect('/profile?tab=lots');
+        $this->redirectPromoteAfter((int) ($order['product_id'] ?? 0));
     }
 
     private function redirectAdReturn(string $pgOrderId): void
@@ -1006,7 +1014,7 @@ class PaymentController extends Controller
         } else {
             $_SESSION['error'] = t('top_fixed.payment_failed');
         }
-        $this->redirect('/profile?tab=lots');
+        $this->redirectPromoteAfter((int) ($order['product_id'] ?? 0));
     }
 
     private function handleTopFixedFreedomPayResult(
