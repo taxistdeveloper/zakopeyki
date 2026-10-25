@@ -1,6 +1,6 @@
 <?php
 /**
- * Создаёт/обновляет демо-сторис с фото.
+ * Создаёт/обновляет демо-сторис с фото (все 9 аккаунтов, ~24 сторис).
  * Картинки: public/uploads/stories/demo_story_*.png
  * (если нет — копирует из public/uploads/products/demo_*.png)
  *
@@ -24,26 +24,19 @@ if (!is_dir($storiesDir)) {
 }
 
 $loginToId = [];
-$st = $pdo->query(
-    "SELECT id, login FROM users WHERE login LIKE 'demo_%'"
-);
+$st = $pdo->query("SELECT id, login FROM users WHERE login LIKE 'demo_%'");
 foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $u) {
     $key = preg_replace('/^demo_/', '', (string) $u['login']);
     $loginToId[$key] = (int) $u['id'];
 }
-
 if ($loginToId === []) {
-    // fallback по email
-    $st = $pdo->query(
-        "SELECT id, email FROM users WHERE email LIKE 'demo.%@zakopeyki.kz'"
-    );
+    $st = $pdo->query("SELECT id, email FROM users WHERE email LIKE 'demo.%@zakopeyki.kz'");
     foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $u) {
         if (preg_match('/^demo\.([a-z]+)@/i', (string) $u['email'], $m)) {
             $loginToId[$m[1]] = (int) $u['id'];
         }
     }
 }
-
 if ($loginToId === []) {
     fwrite(STDERR, "Demo users not found. Run: php bin/seed_demo.php\n");
     exit(1);
@@ -54,29 +47,46 @@ $packs = [
         ['🔥 Сегодня −15% на наушники Sony', '#ef4444', '🔥', 'sony-wh-1000xm5'],
         ['Новый iPhone 15 уже в TechMarket', '#2563eb', '📱', 'iphone-15-128'],
         ['PS5 Slim — самовывоз сегодня', '#7c3aed', '🎮', 'ps5-slim'],
+        ['MacBook Air M2 со скидкой', '#0f172a', '💻', 'macbook-air-m2'],
     ],
     'fashion' => [
         ['Летняя капсула Style Qazaq', '#db2777', '👗', 'plate-summer'],
         ['Кроссовки Nike Dunk — последние размеры', '#111827', '👟', 'nike-dunk'],
         ['Кожаная сумка — новинка недели', '#be185d', '👜', 'bag-leather'],
+        ['Мужское пальто — примерка в шоуруме', '#9f1239', '🧥', 'man-coat'],
     ],
     'seller' => [
         ['Отдам велик Trek — торг уместен', '#f59e0b', '🚲', 'trek-marlin'],
         ['Гитара Yamaha в идеале', '#7c3aed', '🎸', 'yamaha-f310'],
+        ['iPhone 13 б/у — полный комплект', '#ea580c', '📱', 'iphone-13-used'],
     ],
     'master' => [
         ['Чиню ПК и ноутбуки на выезд', '#059669', '🛠️', 'pc-repair'],
         ['Химчистка диванов на дому', '#0d9488', '✨', 'sofa-clean'],
+        ['Сантехник сегодня до 20:00', '#047857', '🔧', 'plumber'],
     ],
     'neighbor' => [
         ['Книги даром — забирайте сегодня', '#0ea5e9', '📚', 'free-books'],
         ['Угловой диван б/у — самовывоз', '#ea580c', '🛋️', 'sofa-corner'],
+        ['Стул офисный даром', '#0284c7', '🪑', 'free-chair'],
     ],
     'teacher' => [
         ['Новый поток Excel стартует в понедельник', '#8b5cf6', '🎓', 'excel-course'],
+        ['SMM с нуля — набор открыт', '#7c3aed', '📣', 'smm-course'],
+        ['Английский для работы — живой эфир', '#6d28d9', '🗣️', 'english-course'],
     ],
     'buyer' => [
         ['Ищу хороший ноутбук в обмен на iPad', '#6366f1', '🔄', 'ipad-exchange'],
+        ['Продаю Canon 2000D', '#4f46e5', '📷', 'canon-2000d'],
+    ],
+    'bidder' => [
+        ['Аукцион часов — ставки открыты', '#dc2626', '⌚', 'watch-lot'],
+        ['Самокат Pro2 на торги', '#b91c1c', '🛴', 'scooter-pro2'],
+        ['Меняю PS4 на ноут', '#991b1b', '🎮', 'ps-exchange'],
+    ],
+    'helper' => [
+        ['Нужен курьер на сегодня', '#0f766e', '🚚', 'gig-courier'],
+        ['Помощь с разгрузкой фургона', '#115e59', '📦', 'gig-unload'],
     ],
 ];
 
@@ -124,34 +134,6 @@ foreach ($packs as $owner => $list) {
     }
 }
 
-// Подтянуть фото у любых сторис без image
-$orphan = $pdo->query(
-    "SELECT id, caption, image FROM stories
-     WHERE image IS NULL OR image = '' OR expires_at > NOW()
-     ORDER BY id"
-)->fetchAll(PDO::FETCH_ASSOC);
-
-$fixOrphan = $pdo->prepare('UPDATE stories SET image = ? WHERE id = ? AND (image IS NULL OR image = \'\')');
-foreach ($orphan as $row) {
-    if (!empty($row['image'])) {
-        $path = $storiesDir . '/' . basename((string) $row['image']);
-        if (is_file($path) && filesize($path) > 10_000) {
-            continue;
-        }
-    }
-    if (!empty($row['image'])) {
-        continue; // есть имя файла — не трогаем чужие сторис
-    }
-    // пустой image: поставить нейтральное демо-фото
-    $fallback = ensureStoryImage($storiesDir, $productsDir, 'iphone-15-128')
-        ?? ensureStoryImage($storiesDir, $productsDir, 'sony-wh-1000xm5');
-    if ($fallback) {
-        $fixOrphan->execute([$fallback, (int) $row['id']]);
-        echo "FIX orphan #" . $row['id'] . " -> $fallback\n";
-        $done++;
-    }
-}
-
 echo "Done: $done story action(s).\n";
 
 function ensureStoryImage(string $storiesDir, string $productsDir, string $slug): ?string
@@ -168,7 +150,6 @@ function ensureStoryImage(string $storiesDir, string $productsDir, string $slug)
         if (@copy($src, $dest)) {
             return $file;
         }
-        // если copy не вышел — можно ссылаться на product path? Story helper expects uploads/stories/
         return null;
     }
 

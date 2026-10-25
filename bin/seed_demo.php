@@ -289,35 +289,52 @@ final class DemoSeeder
     private function seedStories(): void
     {
         echo "Stories...\n";
-        // 14 демо-сторис: по кольцу у разных аккаунтов, срок 24ч обновляется при повторном запуске
+        // 24 демо-сторис у всех 9 аккаунтов (кольцо без дыр), срок 24ч
         $packs = [
             'shop' => [
                 ['🔥 Сегодня −15% на наушники Sony', '#ef4444', '🔥', 'sony-wh-1000xm5'],
                 ['Новый iPhone 15 уже в TechMarket', '#2563eb', '📱', 'iphone-15-128'],
                 ['PS5 Slim — самовывоз сегодня', '#7c3aed', '🎮', 'ps5-slim'],
+                ['MacBook Air M2 со скидкой', '#0f172a', '💻', 'macbook-air-m2'],
             ],
             'fashion' => [
                 ['Летняя капсула Style Qazaq', '#db2777', '👗', 'plate-summer'],
                 ['Кроссовки Nike Dunk — последние размеры', '#111827', '👟', 'nike-dunk'],
                 ['Кожаная сумка — новинка недели', '#be185d', '👜', 'bag-leather'],
+                ['Мужское пальто — примерка в шоуруме', '#9f1239', '🧥', 'man-coat'],
             ],
             'seller' => [
                 ['Отдам велик Trek — торг уместен', '#f59e0b', '🚲', 'trek-marlin'],
                 ['Гитара Yamaha в идеале', '#7c3aed', '🎸', 'yamaha-f310'],
+                ['iPhone 13 б/у — полный комплект', '#ea580c', '📱', 'iphone-13-used'],
             ],
             'master' => [
                 ['Чиню ПК и ноутбуки на выезд', '#059669', '🛠️', 'pc-repair'],
                 ['Химчистка диванов на дому', '#0d9488', '✨', 'sofa-clean'],
+                ['Сантехник сегодня до 20:00', '#047857', '🔧', 'plumber'],
             ],
             'neighbor' => [
                 ['Книги даром — забирайте сегодня', '#0ea5e9', '📚', 'free-books'],
                 ['Угловой диван б/у — самовывоз', '#ea580c', '🛋️', 'sofa-corner'],
+                ['Стул офисный даром', '#0284c7', '🪑', 'free-chair'],
             ],
             'teacher' => [
                 ['Новый поток Excel стартует в понедельник', '#8b5cf6', '🎓', 'excel-course'],
+                ['SMM с нуля — набор открыт', '#7c3aed', '📣', 'smm-course'],
+                ['Английский для работы — живой эфир', '#6d28d9', '🗣️', 'english-course'],
             ],
             'buyer' => [
                 ['Ищу хороший ноутбук в обмен на iPad', '#6366f1', '🔄', 'ipad-exchange'],
+                ['Продаю Canon 2000D', '#4f46e5', '📷', 'canon-2000d'],
+            ],
+            'bidder' => [
+                ['Аукцион часов — ставки открыты', '#dc2626', '⌚', 'watch-lot'],
+                ['Самокат Pro2 на торги', '#b91c1c', '🛴', 'scooter-pro2'],
+                ['Меняю PS4 на ноут', '#991b1b', '🎮', 'ps-exchange'],
+            ],
+            'helper' => [
+                ['Нужен курьер на сегодня', '#0f766e', '🚚', 'gig-courier'],
+                ['Помощь с разгрузкой фургона', '#115e59', '📦', 'gig-unload'],
             ],
         ];
 
@@ -426,6 +443,75 @@ final class DemoSeeder
                 ],
                 'viewers' => 19,
             ],
+            [
+                'owner' => 'shop', 'slug' => 'live-macbook', 'emoji' => '💻', 'color' => '#1d4ed8',
+                'title' => 'MacBook и iPad — ответы в эфире',
+                'product' => 'macbook-air-m2',
+                'likes' => 47,
+                'comments' => [
+                    ['buyer', 'Айгерим', 'M2 256 хватает для учёбы?', 0],
+                    ['shop', 'Алихан', 'Да, для Office и Zoom отлично.', 1],
+                    ['bidder', 'Тимур', 'Рассрочка есть?', 0],
+                ],
+                'viewers' => 12,
+            ],
+            [
+                'owner' => 'fashion', 'slug' => 'live-bags', 'emoji' => '👜', 'color' => '#be185d',
+                'title' => 'Сумки и пальто: живая примерка',
+                'product' => 'bag-leather',
+                'likes' => 38,
+                'comments' => [
+                    ['teacher', 'Асель', 'Цвет ближе к коричневому?', 0],
+                    ['fashion', 'Камила', 'Тёмно-карамельный, вживую теплее.', 1],
+                ],
+                'viewers' => 9,
+            ],
+            [
+                'owner' => 'neighbor', 'slug' => 'live-free', 'emoji' => '🎁', 'color' => '#0284c7',
+                'title' => 'Даром: книги и мебель у подъезда',
+                'product' => 'free-books',
+                'likes' => 22,
+                'comments' => [
+                    ['helper', 'Мадина', 'Книги ещё есть?', 0],
+                    ['neighbor', 'Нурлан', 'Да, до 18:00 у 3 подъезда.', 1],
+                ],
+                'viewers' => 7,
+            ],
+            [
+                'owner' => 'bidder', 'slug' => 'live-auction', 'emoji' => '⚡', 'color' => '#b91c1c',
+                'title' => 'Аукцион: часы и самокат',
+                'product' => 'watch-lot',
+                'likes' => 71,
+                'comments' => [
+                    ['seller', 'Данияр', 'Шаг какой?', 0],
+                    ['bidder', 'Тимур', '1 000 ₸, антиснайп 30 сек.', 1],
+                    ['buyer', 'Айгерим', 'Самокат тоже сегодня?', 0],
+                ],
+                'viewers' => 16,
+            ],
+            [
+                'owner' => 'buyer', 'slug' => 'live-camera', 'emoji' => '📷', 'color' => '#4f46e5',
+                'title' => 'Canon 2000D + обмен iPad',
+                'product' => 'canon-2000d',
+                'likes' => 33,
+                'comments' => [
+                    ['shop', 'Алихан', 'Объектив китовый?', 0],
+                    ['buyer', 'Айгерим', 'Да, 18–55 в комплекте.', 1],
+                ],
+                'viewers' => 8,
+            ],
+            [
+                'owner' => 'helper', 'slug' => 'live-gigs', 'emoji' => '🤝', 'color' => '#0f766e',
+                'title' => 'Биржа: курьер и разгрузка сейчас',
+                'product' => '',
+                'likes' => 18,
+                'comments' => [
+                    ['master', 'Ерлан', 'Разгрузка ещё актуальна?', 0],
+                    ['helper', 'Мадина', 'Да, фургон через час.', 1],
+                    ['neighbor', 'Нурлан', 'Курьер — куда ехать?', 0],
+                ],
+                'viewers' => 5,
+            ],
         ];
 
         foreach ($rows as $row) {
@@ -439,7 +525,8 @@ final class DemoSeeder
             $find->execute([$uid, $row['title']]);
             $id = (int) $find->fetchColumn();
             $cover = $this->streamCover($row['slug'], $row['title'], $row['emoji'], $row['color']);
-            $productId = $this->productIdBySlugOwner($row['product'], $uid);
+            $productSlug = trim((string) ($row['product'] ?? ''));
+            $productId = $productSlug !== '' ? $this->productIdBySlugOwner($productSlug, $uid) : 0;
             $setup = json_encode(['demo' => true, 'featured_product_id' => $productId ?: null], JSON_UNESCAPED_UNICODE);
 
             if ($id > 0) {
@@ -894,6 +981,30 @@ final class DemoSeeder
         $file = 'demo_stream_' . preg_replace('/[^a-z0-9_-]+/i', '-', $slug) . '.png';
         $path = dirname(__DIR__) . '/public/uploads/streams/' . $file;
         $this->writeDemoPhoto($path, $slug, 720, 1280, $title, $emoji, $color);
+
+        // Если Unsplash недоступен — копируем фото товара
+        if (!is_file($path) || filesize($path) < 40_000) {
+            $fromProduct = [
+                'live-techmarket' => 'iphone-15-128',
+                'live-styleqazaq' => 'nike-dunk',
+                'live-bike' => 'trek-marlin',
+                'live-repair' => 'pc-repair',
+                'live-excel' => 'excel-course',
+                'live-macbook' => 'macbook-air-m2',
+                'live-bags' => 'bag-leather',
+                'live-free' => 'free-books',
+                'live-auction' => 'watch-lot',
+                'live-camera' => 'canon-2000d',
+                'live-gigs' => 'gig-unload',
+            ][$slug] ?? null;
+            if ($fromProduct) {
+                $src = dirname(__DIR__) . '/public/uploads/products/demo_' . $fromProduct . '.png';
+                if (is_file($src) && filesize($src) > 10_000) {
+                    @copy($src, $path);
+                }
+            }
+        }
+
         return $file;
     }
 
@@ -991,6 +1102,12 @@ final class DemoSeeder
             'live-bike' => 'photo-1532298229144-0ec0c57515c7',
             'live-repair' => 'photo-1518770660439-4636190af475',
             'live-excel' => 'photo-1551288049-bebda4e38f71',
+            'live-macbook' => 'photo-1517336714731-489689fd1ca8',
+            'live-bags' => 'photo-1584917865442-de89df76afd3',
+            'live-free' => 'photo-1512820790803-83ca734da794',
+            'live-auction' => 'photo-1523275335684-37898b6baf30',
+            'live-camera' => 'photo-1516035069371-29a1b244cc32',
+            'live-gigs' => 'photo-1600880292203-757bb62b4baf',
             'demo_buyer' => 'photo-1494790108377-be9c29b29330',
             'demo_seller' => 'photo-1507003211169-0a1dd7228f2d',
             'demo_shop' => 'photo-1500648767791-00dcc994a43e',
