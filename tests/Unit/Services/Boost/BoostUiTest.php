@@ -229,13 +229,18 @@ final class BoostUiTest extends TestCase
 
     public function testProfileEntryAndOtherPromotionsStaySeparate(): void
     {
-        $profile = (string) file_get_contents(dirname(__DIR__, 4) . '/app/Views/profile/index.php');
-        $partial = (string) file_get_contents(dirname(__DIR__, 4) . '/app/Views/partials/lot-boost.php');
-        $routes = (string) file_get_contents(dirname(__DIR__, 4) . '/config/routes.php');
-        $package = (string) file_get_contents(dirname(__DIR__, 4) . '/app/Views/business/package.php');
+        $root = dirname(__DIR__, 4);
+        $profile = (string) file_get_contents($root . '/app/Views/profile/index.php');
+        $card = (string) file_get_contents($root . '/app/Views/partials/product-card.php');
+        $partial = (string) file_get_contents($root . '/app/Views/partials/lot-boost.php');
+        $routes = (string) file_get_contents($root . '/config/routes.php');
+        $package = (string) file_get_contents($root . '/app/Views/business/package.php');
         $boostJs = strstr($profile, 'function profileBoostSubmit');
         $this->assertNotFalse($boostJs);
         $this->assertStringContainsString("partials/lot-boost", $profile);
+        $this->assertStringContainsString('lot-promote-', $profile);
+        $this->assertStringContainsString('partials/lot-promote-entry', $card);
+        $this->assertStringNotContainsString('partials/lot-boost', $card);
         $this->assertStringNotContainsString('.submit(', $partial);
         $this->assertStringNotContainsString('.submit(', (string) $boostJs);
         $this->assertStringContainsString("get('/profile/lots/boost-status'", $routes);

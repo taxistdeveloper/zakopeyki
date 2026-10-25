@@ -159,7 +159,8 @@ final class TopFixedUiTest extends TestCase
         $admin = (string) file_get_contents($root . '/app/Views/admin/index.php');
         $this->assertStringContainsString('top-fixed-card', $card);
         $this->assertStringContainsString('partials/top-fixed-sticker', $card);
-        $this->assertStringContainsString('partials/lot-top-fixed', $card);
+        $this->assertStringContainsString('partials/lot-promote-entry', $card);
+        $this->assertStringNotContainsString('partials/lot-top-fixed', $card);
         $this->assertStringContainsString('top-fixed-card', $show);
         $this->assertStringContainsString('partials/top-fixed-sticker', $show);
         $this->assertStringContainsString('partials/lot-top-fixed', $profile);

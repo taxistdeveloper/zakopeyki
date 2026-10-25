@@ -2122,11 +2122,33 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                                         </form>
                                     </div>
                                 </div>
-                                <?php \App\Core\View::partial('partials/lot-boost', ['product' => $p, 'ui' => $boostUi]); ?>
-                                <?php \App\Core\View::partial('partials/lot-highlight', ['product' => $p, 'ui' => $highlightUi]); ?>
-                                <?php \App\Core\View::partial('partials/lot-top-fixed', ['product' => $p, 'ui' => $topFixedUi]); ?>
-                                <?php \App\Core\View::partial('partials/lot-top-fixed-xl', ['product' => $p, 'ui' => $topFixedXlUi]); ?>
-                                <?php \App\Core\View::partial('partials/lot-vip', ['product' => $p, 'ui' => $vipUi]); ?>
+                                <?php
+                                $lotPromoteVisible =
+                                    (string) ($boostUi['code'] ?? 'hidden') !== 'hidden'
+                                    || (string) ($highlightUi['code'] ?? 'hidden') !== 'hidden'
+                                    || (string) ($topFixedUi['code'] ?? 'hidden') !== 'hidden'
+                                    || (string) ($topFixedXlUi['code'] ?? 'hidden') !== 'hidden'
+                                    || (string) ($vipUi['code'] ?? 'hidden') !== 'hidden';
+                                ?>
+                                <?php if ($lotPromoteVisible): ?>
+                                <div id="lot-promote-<?= (int) $p['id'] ?>"
+                                     class="w-full basis-full mt-1"
+                                     data-lot-promote="<?= (int) $p['id'] ?>">
+                                    <div class="border-t border-black/[0.06] dark:border-white/10 pt-2.5 mb-0.5">
+                                        <div class="text-[11px] font-bold text-ink-900 dark:text-white">
+                                            <?= htmlspecialchars(t('profile.promote_title')) ?>
+                                        </div>
+                                        <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">
+                                            <?= htmlspecialchars(t('profile.promote_hint')) ?>
+                                        </p>
+                                    </div>
+                                    <?php \App\Core\View::partial('partials/lot-boost', ['product' => $p, 'ui' => $boostUi]); ?>
+                                    <?php \App\Core\View::partial('partials/lot-highlight', ['product' => $p, 'ui' => $highlightUi]); ?>
+                                    <?php \App\Core\View::partial('partials/lot-top-fixed', ['product' => $p, 'ui' => $topFixedUi]); ?>
+                                    <?php \App\Core\View::partial('partials/lot-top-fixed-xl', ['product' => $p, 'ui' => $topFixedXlUi]); ?>
+                                    <?php \App\Core\View::partial('partials/lot-vip', ['product' => $p, 'ui' => $vipUi]); ?>
+                                </div>
+                                <?php endif; ?>
                             </div>
                         <?php endforeach; ?>
                     </div>
@@ -2135,6 +2157,17 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                 function profileLotsScroller() {
                     return document.querySelector('#main-container main');
                 }
+                (function focusLotPromote() {
+                    var params = new URLSearchParams(window.location.search);
+                    var promoteId = params.get('promote');
+                    if (!promoteId) return;
+                    var target = document.getElementById('lot-promote-' + promoteId);
+                    if (!target) return;
+                    target.classList.add('ring-2', 'ring-brand-400/50', 'rounded-xl', 'px-2', 'pb-1');
+                    requestAnimationFrame(function () {
+                        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    });
+                })();
                 function profileKeepLotsScroll(msg) {
                     if (!confirm(msg)) return false;
                     var scroller = profileLotsScroller();

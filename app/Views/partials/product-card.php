@@ -250,30 +250,8 @@ $promoMarks = $highlightOn || $topFixedOn || $topFixedXlOn || $vipOn;
     <div class="absolute top-2.5 right-2.5 z-20 flex flex-col items-end gap-1.5">
         <div class="flex items-center gap-1.5">
             <?php if ($isOwn): ?>
-                <?php \App\Core\View::partial('partials/lot-boost', [
+                <?php \App\Core\View::partial('partials/lot-promote-entry', [
                     'product' => $item,
-                    'ui' => (new \App\Services\Boost\BoostService())->cardState((int) Auth::id(), $item),
-                    'placement' => 'overlay',
-                ]); ?>
-                <?php \App\Core\View::partial('partials/lot-highlight', [
-                    'product' => $item,
-                    'ui' => (new \App\Services\Highlight\HighlightService())->cardState((int) Auth::id(), $item),
-                    'placement' => 'overlay',
-                ]); ?>
-                <?php \App\Core\View::partial('partials/lot-top-fixed', [
-                    'product' => $item,
-                    'ui' => (new \App\Services\TopFixed\TopFixedService())->cardState((int) Auth::id(), $item),
-                    'placement' => 'overlay',
-                ]); ?>
-                <?php \App\Core\View::partial('partials/lot-top-fixed-xl', [
-                    'product' => $item,
-                    'ui' => (new \App\Services\TopFixedXl\TopFixedXlService())->cardState((int) Auth::id(), $item),
-                    'placement' => 'overlay',
-                ]); ?>
-                <?php \App\Core\View::partial('partials/lot-vip', [
-                    'product' => $item,
-                    'ui' => (new \App\Services\Vip\VipService())->cardState((int) Auth::id(), $item),
-                    'placement' => 'overlay',
                 ]); ?>
             <?php else: ?>
             <button type="button"

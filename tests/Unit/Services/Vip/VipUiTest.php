@@ -115,7 +115,8 @@ final class VipUiTest extends TestCase
         $admin = (string) file_get_contents($root . '/app/Views/admin/index.php');
         $js = (string) file_get_contents($root . '/public/assets/js/app.js');
         $this->assertStringContainsString('partials/vip-sticker', $card);
-        $this->assertStringContainsString('partials/lot-vip', $card);
+        $this->assertStringContainsString('partials/lot-promote-entry', $card);
+        $this->assertStringNotContainsString('partials/lot-vip', $card);
         $this->assertStringContainsString('data-vip-until', $show);
         $this->assertStringContainsString('partials/lot-vip', $profile);
         $this->assertStringContainsString('vip-status', $profile);

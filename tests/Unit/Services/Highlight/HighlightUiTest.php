@@ -138,7 +138,8 @@ final class HighlightUiTest extends TestCase
         $routes = (string) file_get_contents($root . '/config/routes.php');
         $this->assertStringContainsString('highlight-card', $card);
         $this->assertStringContainsString('partials/highlight-sticker', $card);
-        $this->assertStringContainsString('partials/lot-highlight', $card);
+        $this->assertStringContainsString('partials/lot-promote-entry', $card);
+        $this->assertStringNotContainsString('partials/lot-highlight', $card);
         $this->assertStringContainsString('highlight-card', $show);
         $this->assertStringContainsString('partials/highlight-sticker', $show);
         $this->assertStringContainsString('partials/lot-highlight', $profile);
