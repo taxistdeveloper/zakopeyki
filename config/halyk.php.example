@@ -1,0 +1,18 @@
+<?php
+
+/**
+ * Halyk ePay — пример конфига.
+ *
+ * Сейчас в проекте используется имитация (allow_simulated_payments = true):
+ * реальный API банка не вызывается, оплата идёт через /payments/halyk/sim/{token}.
+ *
+ * Когда будет боевой ePay — заполните ключи и отключите allow_simulated_payments.
+ */
+return [
+    'merchant_id' => getenv('HALYK_MERCHANT_ID') ?: '',
+    'secret_key' => getenv('HALYK_SECRET_KEY') ?: '',
+    'api_url' => getenv('HALYK_API_URL') ?: 'https://epay.homebank.kz',
+    'result_url' => getenv('HALYK_RESULT_URL') ?: 'https://zakopeyki.kz/payments/halyk/result',
+    'success_url' => getenv('HALYK_SUCCESS_URL') ?: 'https://zakopeyki.kz/payments/halyk/success',
+    'failure_url' => getenv('HALYK_FAILURE_URL') ?: 'https://zakopeyki.kz/payments/halyk/failure',
+];

@@ -33,12 +33,146 @@ use App\Services\MassPush\MassPushService;
 use App\Services\TargetPush\TargetPushPolicy;
 use App\Services\TargetPush\TargetPushService;
 use App\Services\FreedomPay\Client as FreedomPayClient;
+use App\Services\HalykEpay\SimStore;
+use App\Services\Payment\LocalCheckout;
 
 class PaymentController extends Controller
 {
     /**
+     * Имитация Halyk ePay: страница оплаты (локальная разработка).
+     */
+    public function halykSimShow(string $token): void
+    {
+        Auth::requireLogin();
+        if (!LocalCheckout::allowed()) {
+            $_SESSION['error'] = t('wallet.payments_disabled');
+            $this->redirect('/orders');
+            return;
+        }
+        $intent = SimStore::get($token);
+        if (!$intent) {
+            $_SESSION['error'] = t('halyk_sim.expired');
+            $this->redirect('/orders');
+            return;
+        }
+        $this->view('payments/halyk-sim', [
+            'token' => $token,
+            'orderId' => (string) ($intent['order_id'] ?? ''),
+            'amount' => (int) ($intent['amount'] ?? 0),
+            'description' => (string) ($intent['description'] ?? ''),
+        ], '');
+    }
+
+    /**
+     * Имитация Halyk ePay: успех / отказ.
+     */
+    public function halykSimDecide(string $token): void
+    {
+        Auth::requireLogin();
+        if (!LocalCheckout::allowed()) {
+            $_SESSION['error'] = t('wallet.payments_disabled');
+            $this->redirect('/orders');
+            return;
+        }
+        $intent = SimStore::get($token);
+        if (!$intent) {
+            $_SESSION['error'] = t('halyk_sim.expired');
+            $this->redirect('/orders');
+            return;
+        }
+
+        $pgOrderId = (string) ($intent['order_id'] ?? '');
+        $pgPaymentId = (string) ($intent['payment_id'] ?? ('halyk-sim-' . $token));
+        $pgAmount = (string) ((int) ($intent['amount'] ?? 0));
+        $pgResult = (int) ($_POST['result'] ?? 0) === 1 ? 1 : 0;
+        SimStore::forget($token);
+
+        $this->applySimulatedGatewayResult($pgOrderId, $pgPaymentId, $pgAmount, $pgResult);
+
+        $q = http_build_query([
+            'pg_order_id' => $pgOrderId,
+            'pg_payment_id' => $pgPaymentId,
+        ]);
+        if ($pgResult === 1) {
+            $this->redirect('/payments/halyk/success?' . $q);
+            return;
+        }
+        $this->redirect('/payments/halyk/failure?' . $q);
+    }
+
+    public function halykSuccess(): void
+    {
+        $this->freedomPaySuccess();
+    }
+
+    public function halykFailure(): void
+    {
+        $this->freedomPayFailure();
+    }
+
+    /**
+     * Применить результат имитации к заказу (тот же путь, что callback эквайера).
+     */
+    private function applySimulatedGatewayResult(
+        string $pgOrderId,
+        string $pgPaymentId,
+        string $pgAmount,
+        int $pgResult
+    ): void {
+        $canReject = true;
+        if (DeliveryPayment::isDeliveryPgOrderId($pgOrderId)) {
+            $payments = new DeliveryPayment();
+            if ($pgResult === 1) {
+                $payments->completeFromGateway($pgOrderId, $pgPaymentId, $pgAmount, 'KZT', sha1($pgPaymentId));
+            } else {
+                $payments->failFromGateway($pgOrderId, $pgPaymentId);
+            }
+            return;
+        }
+        if (BoostPolicy::isBoostPgOrderId($pgOrderId)) {
+            (new BoostService())->handleGatewayResult($pgOrderId, $pgPaymentId, $pgAmount, $pgResult, $canReject, 'KZT');
+            return;
+        }
+        if (HighlightPolicy::isHighlightPgOrderId($pgOrderId)) {
+            (new HighlightService())->handleGatewayResult($pgOrderId, $pgPaymentId, $pgAmount, $pgResult, $canReject, 'KZT');
+            return;
+        }
+        if (TopFixedXlPolicy::isTopFixedXlPgOrderId($pgOrderId)) {
+            (new TopFixedXlService())->handleGatewayResult($pgOrderId, $pgPaymentId, $pgAmount, $pgResult, $canReject, 'KZT');
+            return;
+        }
+        if (TopFixedPolicy::isTopFixedPgOrderId($pgOrderId)) {
+            (new TopFixedService())->handleGatewayResult($pgOrderId, $pgPaymentId, $pgAmount, $pgResult, $canReject, 'KZT');
+            return;
+        }
+        if (VipPolicy::isVipPgOrderId($pgOrderId)) {
+            (new VipService())->handleGatewayResult($pgOrderId, $pgPaymentId, $pgAmount, $pgResult, $canReject, 'KZT');
+            return;
+        }
+        if (AdPolicy::isAdPgOrderId($pgOrderId)) {
+            (new AdService())->handleGatewayResult($pgOrderId, $pgPaymentId, $pgAmount, $pgResult, $canReject, 'KZT');
+            return;
+        }
+        if (TargetPushPolicy::isPgOrderId($pgOrderId)) {
+            (new TargetPushService())->handleGatewayResult($pgOrderId, $pgPaymentId, $pgAmount, $pgResult, $canReject, 'KZT');
+            return;
+        }
+        if (MassPushPolicy::isPgOrderId($pgOrderId)) {
+            (new MassPushService())->handleGatewayResult($pgOrderId, $pgPaymentId, $pgAmount, $pgResult, $canReject, 'KZT');
+            return;
+        }
+
+        $payments = new Payment();
+        if ($pgResult === 1) {
+            $payments->completeFromGateway($pgOrderId, $pgPaymentId, $pgAmount);
+        } else {
+            $payments->failFromGateway($pgOrderId, $pgPaymentId);
+        }
+    }
+
+    /**
      * FreedomPay result_url — публичный, без auth/CSRF.
-     * Ответ всегда XML.
+     * Ответ всегда XML. (legacy; основной путь — Halyk ePay)
      */
     public function freedomPayResult(): void
     {

@@ -317,7 +317,7 @@ class Order extends Model
 
     /**
      * Оплата → деньги на эскроу (заморозка), товар reserved/sold.
-     * Карта через FreedomPay: awaiting_payment + redirect_url.
+     * Карта через Halyk ePay (имитация): awaiting_payment + redirect_url.
      * @param array<string, mixed>|null $buyerDeliverySnapshot Point B snapshot (CDEK checkout)
      * @return array{ok: bool, order_id?: int, redirect_url?: string, error?: string}
      */
@@ -366,21 +366,21 @@ class Order extends Model
             $delivery = 'digital';
         }
 
-        $fp = new \App\Services\FreedomPay\Client();
-        $useFreedomPay = $method === 'card' && $fp->isConfigured();
+        $halyk = new \App\Services\HalykEpay\Client();
+        $useHalyk = $method === 'card' && $halyk->isConfigured();
         $allowSimulated = (bool) ($GLOBALS['appConfig']['allow_simulated_payments'] ?? false);
 
-        if ($method !== 'wallet' && !$useFreedomPay && !$allowSimulated) {
+        if ($method !== 'wallet' && !$useHalyk && !$allowSimulated) {
             return ['ok' => false, 'error' => t('wallet.payments_disabled')];
         }
 
-        if ($useFreedomPay) {
-            return $this->createFreedomPayEscrow(
+        if ($useHalyk) {
+            return $this->createHalykEscrow(
                 $product,
                 $buyerId,
                 $amount,
                 $delivery,
-                $fp,
+                $halyk,
                 $dealMode,
                 $arbitrationFee,
                 $chargeTotal,
@@ -485,19 +485,19 @@ class Order extends Model
     }
 
     /**
-     * Hosted Checkout: резерв товара → init_payment → редирект на FreedomPay.
-     * Эскроу фиксируется в Payment::completeFromGateway по result_url.
+     * Hosted Checkout: резерв товара → init_payment → редирект на Halyk ePay (имитация).
+     * Эскроу фиксируется в Payment::completeFromGateway после решения на sim-странице.
      *
      * @param array<string, mixed> $product
      * @param array<string, mixed>|null $buyerDeliverySnapshot
      * @return array{ok: bool, order_id?: int, redirect_url?: string, error?: string}
      */
-    private function createFreedomPayEscrow(
+    private function createHalykEscrow(
         array $product,
         int $buyerId,
         int $amount,
         string $delivery,
-        \App\Services\FreedomPay\Client $fp,
+        \App\Services\HalykEpay\Client $halyk,
         string $dealMode = 'escrow',
         int $arbitrationFee = 0,
         int $chargeTotal = 0,
@@ -514,7 +514,7 @@ class Order extends Model
         $paymentModel = new Payment();
         $pgOrderId = 'zk-' . $buyerId . '-' . bin2hex(random_bytes(6));
 
-        $init = $fp->initPayment([
+        $init = $halyk->initPayment([
             'order_id' => $pgOrderId,
             'amount' => $chargeTotal,
             'description' => mb_substr((string) ($product['title'] ?? ('Product #' . $productId)), 0, 200),
@@ -666,21 +666,21 @@ class Order extends Model
             ? $deliveryMethod
             : 'kazpost';
 
-        $fp = new \App\Services\FreedomPay\Client();
-        $useFreedomPay = $method === 'card' && $fp->isConfigured();
+        $halyk = new \App\Services\HalykEpay\Client();
+        $useHalyk = $method === 'card' && $halyk->isConfigured();
         $allowSimulated = (bool) ($GLOBALS['appConfig']['allow_simulated_payments'] ?? false);
 
-        if ($method !== 'wallet' && !$useFreedomPay && !$allowSimulated) {
+        if ($method !== 'wallet' && !$useHalyk && !$allowSimulated) {
             return ['ok' => false, 'error' => t('wallet.payments_disabled')];
         }
 
-        if ($useFreedomPay) {
-            return $this->createFreedomPayEscrowCart(
+        if ($useHalyk) {
+            return $this->createHalykEscrowCart(
                 $validated,
                 $buyerId,
                 $total,
                 $delivery,
-                $fp,
+                $halyk,
                 $arbitrationFeeTotal,
                 $chargeTotal,
                 $buyerDeliverySnapshot
@@ -795,12 +795,12 @@ class Order extends Model
      * @param array<string, mixed>|null $buyerDeliverySnapshot
      * @return array{ok: bool, order_id?: int, order_ids?: list<int>, redirect_url?: string, error?: string}
      */
-    private function createFreedomPayEscrowCart(
+    private function createHalykEscrowCart(
         array $products,
         int $buyerId,
         int $total,
         string $delivery,
-        \App\Services\FreedomPay\Client $fp,
+        \App\Services\HalykEpay\Client $halyk,
         int $arbitrationFeeTotal = 0,
         int $chargeTotal = 0,
         ?array $buyerDeliverySnapshot = null
@@ -818,7 +818,7 @@ class Order extends Model
         );
         $description = mb_substr(implode(', ', $titles), 0, 200);
 
-        $init = $fp->initPayment([
+        $init = $halyk->initPayment([
             'order_id' => $pgOrderId,
             'amount' => $chargeTotal,
             'description' => $description,

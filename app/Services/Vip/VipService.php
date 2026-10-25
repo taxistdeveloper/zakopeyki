@@ -13,7 +13,7 @@ use App\Models\Setting;
 use App\Models\TopFixedOrder;
 use App\Models\VipLift;
 use App\Models\VipOrder;
-use App\Services\Payment\FreedomPayGateway;
+use App\Services\Payment\HalykEpayGateway;
 use App\Services\Payment\PaymentGatewayInterface;
 use App\Services\TopFixed\TopFixedPolicy;
 use PDO;
@@ -54,7 +54,7 @@ final class VipService
         $this->highlights = $highlights ?? new HighlightOrder();
         $this->products = $products ?? new Product();
         $this->settings = $settings ?? new Setting();
-        $this->gateway = $gateway ?? new FreedomPayGateway();
+        $this->gateway = $gateway ?? new HalykEpayGateway();
         $this->db = Database::connect();
     }
 

@@ -3,7 +3,7 @@
 namespace App\Services\Payment;
 
 /**
- * Абстракция эквайера: CDEK delivery payment не зависит от concrete FreedomPay.
+ * Абстракция эквайера: CDEK delivery payment не зависит от конкретного банка.
  */
 interface PaymentGatewayInterface
 {

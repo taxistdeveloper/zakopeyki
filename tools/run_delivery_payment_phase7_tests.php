@@ -13,6 +13,7 @@ use App\Models\DeliveryPayment;
 use App\Services\Delivery\DeliveryPaymentService;
 use App\Services\Delivery\ShippingQuoteGuard;
 use App\Services\Payment\FreedomPayGateway;
+use App\Services\Payment\HalykEpayGateway;
 use App\Services\Payment\PaymentGatewayInterface;
 
 $failed = 0;
@@ -182,7 +183,11 @@ assert_true(
 );
 
 // Gateway abstraction exists
-assert_true(interface_exists(PaymentGatewayInterface::class) && class_exists(FreedomPayGateway::class), 'Payment gateway abstraction present');
+assert_true(
+    interface_exists(PaymentGatewayInterface::class)
+    && (class_exists(HalykEpayGateway::class) || class_exists(FreedomPayGateway::class)),
+    'Payment gateway abstraction present'
+);
 
 // createLogisticsOrder requires canCreateCdekOrder
 $dsSrc = (string) file_get_contents(dirname(__DIR__) . '/app/Services/Delivery/DeliveryService.php');

@@ -2,7 +2,7 @@
 use App\Helpers\ProductHelper;
 use App\Models\Wallet;
 use App\Services\EscrowService;
-use App\Services\FreedomPay\Client as FreedomPayClient;
+use App\Services\HalykEpay\Client as HalykClient;
 
 $items = $items ?? (isset($item) ? [$item] : []);
 $total = (int) ($total ?? 0);
@@ -33,9 +33,9 @@ foreach ($items as $row) {
 $walletBalance = (int) ($walletBalance ?? 0);
 $need = $payTotal;
 $canWallet = $walletBalance >= $need;
-$fpConfigured = (new FreedomPayClient())->isConfigured();
-$simPayments = (bool) ($GLOBALS['appConfig']['allow_simulated_payments'] ?? false) && !$fpConfigured;
-$canCard = $fpConfigured || $simPayments;
+$halykConfigured = (new HalykClient())->isConfigured();
+$simPayments = (bool) ($GLOBALS['appConfig']['allow_simulated_payments'] ?? false) && !$halykConfigured;
+$canCard = $halykConfigured || $simPayments;
 ?>
 <section class="max-w-lg mx-auto space-y-5 fade-up pb-8">
     <div>
@@ -277,7 +277,7 @@ $canCard = $fpConfigured || $simPayments;
             <div class="space-y-2">
                 <h3 class="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400"><?= htmlspecialchars(t('checkout.method')) ?></h3>
                 <label class="flex items-center gap-3 p-3.5 rounded-2xl border border-black/[0.08] dark:border-white/10 cursor-pointer has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50/50 dark:has-[:checked]:bg-brand-500/10 transition <?= !$canWallet ? 'opacity-60' : '' ?>">
-                    <input type="radio" name="payment_method" value="wallet" <?= $canWallet && !$fpConfigured ? 'checked' : ($canWallet ? '' : 'disabled') ?> class="accent-brand-600">
+                    <input type="radio" name="payment_method" value="wallet" <?= $canWallet && !$halykConfigured ? 'checked' : ($canWallet ? '' : 'disabled') ?> class="accent-brand-600">
                     <span class="text-sm font-semibold text-ink-800 dark:text-gray-200 flex-1">
                         <?= htmlspecialchars(t('checkout.method_wallet')) ?>
                         <?php if (!$canWallet): ?>
@@ -285,18 +285,18 @@ $canCard = $fpConfigured || $simPayments;
                         <?php endif; ?>
                     </span>
                 </label>
-                <?php if ($fpConfigured): ?>
+                <?php if ($halykConfigured): ?>
                 <label class="flex items-center gap-3 p-3.5 rounded-2xl border border-black/[0.08] dark:border-white/10 cursor-pointer has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50/50 dark:has-[:checked]:bg-brand-500/10 transition">
-                    <input type="radio" name="payment_method" value="card" <?= !$canWallet || $fpConfigured ? 'checked' : '' ?> class="accent-brand-600">
+                    <input type="radio" name="payment_method" value="card" <?= !$canWallet || $halykConfigured ? 'checked' : '' ?> class="accent-brand-600">
                     <span class="text-sm font-semibold text-ink-800 dark:text-gray-200">
-                        <?= htmlspecialchars(t('checkout.method_freedompay')) ?>
-                        <span class="block text-[11px] font-medium text-gray-400 mt-0.5"><?= htmlspecialchars(t('checkout.method_freedompay_hint')) ?></span>
+                        <?= htmlspecialchars(t('checkout.method_halyk')) ?>
+                        <span class="block text-[11px] font-medium text-gray-400 mt-0.5"><?= htmlspecialchars(t('checkout.method_halyk_hint')) ?></span>
                     </span>
                 </label>
                 <?php elseif ($simPayments): ?>
                 <label class="flex items-center gap-3 p-3.5 rounded-2xl border border-black/[0.08] dark:border-white/10 cursor-pointer has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50/50 dark:has-[:checked]:bg-brand-500/10 transition">
                     <input type="radio" name="payment_method" value="card" <?= !$canWallet ? 'checked' : '' ?> class="accent-brand-600">
-                    <span class="text-sm font-semibold text-ink-800 dark:text-gray-200"><?= htmlspecialchars(t('checkout.method_card')) ?></span>
+                    <span class="text-sm font-semibold text-ink-800 dark:text-gray-200"><?= htmlspecialchars(t('checkout.method_halyk')) ?></span>
                 </label>
                 <label class="flex items-center gap-3 p-3.5 rounded-2xl border border-black/[0.08] dark:border-white/10 cursor-pointer has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50/50 dark:has-[:checked]:bg-brand-500/10 transition">
                     <input type="radio" name="payment_method" value="kaspi" class="accent-brand-600">

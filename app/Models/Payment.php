@@ -218,14 +218,14 @@ class Payment extends Model
                         $sellerId,
                         (int) $item['amount'],
                         (int) $item['order_id'],
-                        'freedompay'
+                        'halyk_epay'
                     );
                 } else {
                     $pay = $wallet->payExternalToEscrow(
                         (int) $locked['buyer_id'],
                         (int) $item['amount'],
                         (int) $item['order_id'],
-                        'freedompay'
+                        'halyk_epay'
                     );
                 }
                 if (!$pay['ok']) {

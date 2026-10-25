@@ -6,7 +6,7 @@ namespace App\Services\Payment;
 
 /**
  * Локальная оплата без эквайера. Включается только флагом allow_simulated_payments
- * и только пока FreedomPay не настроен. В проде флаг должен быть false.
+ * и только пока Halyk ePay (имитация) не активна как gateway. В проде флаг должен быть false.
  */
 final class LocalCheckout
 {

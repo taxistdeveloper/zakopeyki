@@ -10,7 +10,7 @@ use App\Helpers\ActivityLogger;
 use App\Models\HighlightOrder;
 use App\Models\Product;
 use App\Models\Setting;
-use App\Services\Payment\FreedomPayGateway;
+use App\Services\Payment\HalykEpayGateway;
 use App\Services\Payment\LocalCheckout;
 use App\Services\Payment\PaymentGatewayInterface;
 use PDO;
@@ -43,7 +43,7 @@ final class HighlightService
         $this->orders = $orders ?? new HighlightOrder();
         $this->products = $products ?? new Product();
         $this->settings = $settings ?? new Setting();
-        $this->gateway = $gateway ?? new FreedomPayGateway();
+        $this->gateway = $gateway ?? new HalykEpayGateway();
         $this->db = Database::connect();
     }
 

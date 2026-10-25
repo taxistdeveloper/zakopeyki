@@ -10,7 +10,7 @@ use App\Helpers\ActivityLogger;
 use App\Models\Product;
 use App\Models\Setting;
 use App\Models\TopFixedOrder;
-use App\Services\Payment\FreedomPayGateway;
+use App\Services\Payment\HalykEpayGateway;
 use App\Services\Payment\PaymentGatewayInterface;
 use PDO;
 use PDOException;
@@ -41,7 +41,7 @@ final class TopFixedService
         $this->orders = $orders ?? new TopFixedOrder();
         $this->products = $products ?? new Product();
         $this->settings = $settings ?? new Setting();
-        $this->gateway = $gateway ?? new FreedomPayGateway();
+        $this->gateway = $gateway ?? new HalykEpayGateway();
         $this->db = Database::connect();
     }
 

@@ -1,7 +1,8 @@
 <?php
 
 /**
- * FreedomPay (Hosted Checkout) — скопируйте в config/freedompay.php и заполните ключи.
+ * @deprecated Основной эквайер — Halyk ePay (см. config/halyk.php.example и allow_simulated_payments).
+ * FreedomPay (Hosted Checkout) — legacy. Не используйте для новых интеграций.
  *
  * Ключи: ЛК FreedomPay → Разработчикам (merchant_id + секретный ключ).
  * Можно задать через env: FREEDOMPAY_MERCHANT_ID, FREEDOMPAY_SECRET_KEY.

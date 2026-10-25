@@ -10,7 +10,7 @@ use App\Helpers\ActivityLogger;
 use App\Models\BoostOrder;
 use App\Models\Product;
 use App\Models\Setting;
-use App\Services\Payment\FreedomPayGateway;
+use App\Services\Payment\HalykEpayGateway;
 use App\Services\Payment\LocalCheckout;
 use App\Services\Payment\PaymentGatewayInterface;
 use PDO;
@@ -18,8 +18,8 @@ use PDOException;
 use Throwable;
 
 /**
- * Заказ Boost, подтверждение оплаты FreedomPay и одно применение sort_at.
- * Без настроенного FreedomPay услугу подтверждает только локальный флаг allow_simulated_payments.
+ * Заказ Boost, подтверждение оплаты Halyk ePay и одно применение sort_at.
+ * Без Halyk (имитация / шлюз) услугу подтверждает только локальный флаг allow_simulated_payments.
  */
 final class BoostService
 {
@@ -38,7 +38,7 @@ final class BoostService
         $this->orders = $orders ?? new BoostOrder();
         $this->products = $products ?? new Product();
         $this->settings = $settings ?? new Setting();
-        $this->gateway = $gateway ?? new FreedomPayGateway();
+        $this->gateway = $gateway ?? new HalykEpayGateway();
         $this->db = Database::connect();
     }
 

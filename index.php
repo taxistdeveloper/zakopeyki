@@ -77,6 +77,8 @@ if (!empty($appConfig['stub_mode']) && !\App\Core\Auth::hasSiteAccess(true)) {
         '/offer',
         '/privacy',
         '/data-policy',
+        '/payments/halyk/success',
+        '/payments/halyk/failure',
         '/payments/freedompay/result',
         '/payments/freedompay/success',
         '/payments/freedompay/failure',

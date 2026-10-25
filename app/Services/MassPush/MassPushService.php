@@ -11,7 +11,7 @@ use App\Helpers\ProductHelper;
 use App\Models\MassPushCampaign;
 use App\Models\Notification;
 use App\Models\Setting;
-use App\Services\Payment\FreedomPayGateway;
+use App\Services\Payment\HalykEpayGateway;
 use App\Services\Payment\PaymentGatewayInterface;
 use PDO;
 use PDOException;
@@ -37,7 +37,7 @@ final class MassPushService
     ) {
         $this->campaigns = $campaigns ?? new MassPushCampaign();
         $this->settings = $settings ?? new Setting();
-        $this->gateway = $gateway ?? new FreedomPayGateway();
+        $this->gateway = $gateway ?? new HalykEpayGateway();
         $this->db = Database::connect();
     }
 

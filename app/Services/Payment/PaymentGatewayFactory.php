@@ -9,10 +9,18 @@ final class PaymentGatewayFactory
 {
     public static function forDelivery(?string $code = null): PaymentGatewayInterface
     {
-        $code = strtolower(trim((string) ($code ?? ($GLOBALS['appConfig']['delivery_payment_gateway'] ?? 'freedompay'))));
+        $code = strtolower(trim((string) ($code ?? ($GLOBALS['appConfig']['delivery_payment_gateway'] ?? 'halyk_epay'))));
         return match ($code) {
-            'freedompay', 'fp', '' => new FreedomPayGateway(),
-            default => new FreedomPayGateway(), // неизвестный код → дефолт; GAP: другие эквайеры
+            'halyk', 'halyk_epay', 'epay', '' => new HalykEpayGateway(),
+            'freedompay', 'fp' => new FreedomPayGateway(),
+            default => new HalykEpayGateway(),
         };
+    }
+
+    public static function default(): PaymentGatewayInterface
+    {
+        $code = strtolower(trim((string) ($GLOBALS['appConfig']['payment_gateway'] ?? 'halyk_epay')));
+
+        return self::forDelivery($code);
     }
 }

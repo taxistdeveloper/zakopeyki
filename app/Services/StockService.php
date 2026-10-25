@@ -141,7 +141,7 @@ class StockService
     }
 
     /**
-     * После успешной оплаты FreedomPay: unique-лоты reserved → sold.
+     * После успешной оплаты (Halyk ePay): unique-лоты reserved → sold.
      *
      * @param array<string, mixed>|null $product
      */

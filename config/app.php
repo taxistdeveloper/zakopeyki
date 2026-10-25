@@ -8,9 +8,12 @@ return [
     'timezone' => 'Asia/Almaty',
     // В проде: false. На локали можно true для подробных ошибок БД.
     'debug' => false,
-    // Симуляция карты/Kaspi. В проде обязательно false — иначе любой юзер «печатает» деньги.
+    // Симуляция Halyk ePay / карта / Kaspi. В проде обязательно false — иначе любой юзер «печатает» деньги.
     // Для локальной разработки можно true.
     'allow_simulated_payments' => true,
+    // Эквайер по умолчанию: имитация Halyk ePay (не FreedomPay).
+    'payment_gateway' => 'halyk_epay',
+    'delivery_payment_gateway' => 'halyk_epay',
     'locale' => 'ru',
     'locales' => ['ru', 'kk'],
     // Заглушка «скоро открытие»: полный сайт только для админа.

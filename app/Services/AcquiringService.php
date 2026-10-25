@@ -19,11 +19,11 @@ class AcquiringService
     public function __construct(PDO $pdo, string $apiKey = '', string $merchantId = '')
     {
         $this->pdo = $pdo;
-        $fp = is_file(dirname(__DIR__, 2) . '/config/freedompay.php')
-            ? (require dirname(__DIR__, 2) . '/config/freedompay.php')
+        $halyk = is_file(dirname(__DIR__, 2) . '/config/halyk.php')
+            ? (require dirname(__DIR__, 2) . '/config/halyk.php')
             : [];
-        $this->apiKey = $apiKey !== '' ? $apiKey : (string) ($fp['secret_key'] ?? '');
-        $this->merchantId = $merchantId !== '' ? $merchantId : (string) ($fp['merchant_id'] ?? '');
+        $this->apiKey = $apiKey !== '' ? $apiKey : (string) ($halyk['secret_key'] ?? '');
+        $this->merchantId = $merchantId !== '' ? $merchantId : (string) ($halyk['merchant_id'] ?? '');
     }
 
     public function holdCustomerFunds(int $taskId, float $amount): string
