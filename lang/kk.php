@@ -1348,6 +1348,7 @@ return [
         'promote_services_title' => 'Қосымша қызметтер',
         'promote_services_hint' => 'Boost, бөлу, бекіту, VIP және басқа жылжыту опциялары.',
         'promote_pay_note' => 'Halyk ePay арқылы төлем. Карта платформаға берілмейді.',
+        'promote_opening_epay' => 'Halyk ePay төлемін ашып жатырмыз…',
         'promote_back' => 'Менің лоттарыма',
         'promote_forbidden' => 'Бұл хабарландыруды жылжыту қолжетімсіз.',
         'tabs_prev' => 'Алдыңғы бөлімдер',

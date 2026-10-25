@@ -530,23 +530,8 @@ final class HighlightService
         }
 
         if ($status === HighlightPolicy::STATUS_PENDING) {
-            if (!empty($order['redirect_url'])) {
-                return [
-                    'ok' => true,
-                    'reused' => true,
-                    'order_id' => $orderId,
-                    'redirect_url' => (string) $order['redirect_url'],
-                    'amount' => HighlightPolicy::PRICE_KZT,
-                    'status' => $status,
-                ];
-            }
-
-            return [
-                'ok' => false,
-                'error_code' => 'payment_pending',
-                'order_id' => $orderId,
-                'status' => $status,
-            ];
+            // Всегда новый OAuth/intent Halyk — старый redirect_url быстро протухает.
+            return $this->initGateway($order);
         }
 
         if ($status === HighlightPolicy::STATUS_PAID || $status === HighlightPolicy::STATUS_APPLY_FAILED) {

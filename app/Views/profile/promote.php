@@ -6,8 +6,17 @@ $productId = (int) ($product['id'] ?? 0);
 $thumb = ProductHelper::imageUrl($product);
 $backUrl = ProductHelper::url('/profile?tab=lots');
 $showUrl = ProductHelper::url('/product/' . $productId);
+
+$continueUi = null;
+foreach ([$boostUi ?? null, $highlightUi ?? null, $topFixedUi ?? null, $topFixedXlUi ?? null, $vipUi ?? null] as $uiRow) {
+    if (is_array($uiRow) && !empty($uiRow['continue_payment'])) {
+        $continueUi = $uiRow;
+        break;
+    }
+}
+$autoContinue = $continueUi !== null && empty($flash) && empty($error);
 ?>
-<section class="max-w-lg mx-auto space-y-5 fade-up pb-8" data-promote-page="<?= $productId ?>">
+<section class="max-w-lg mx-auto space-y-5 fade-up pb-8" data-promote-page="<?= $productId ?>" <?= $autoContinue ? 'data-promote-auto-pay="1"' : '' ?>>
     <div>
         <a href="<?= htmlspecialchars($backUrl) ?>" class="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-brand-600 transition mb-3">
             ← <?= htmlspecialchars(t('profile.promote_back')) ?>
@@ -22,6 +31,12 @@ $showUrl = ProductHelper::url('/product/' . $productId);
     <?php endif; ?>
     <?php if (!empty($error)): ?>
         <div class="bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border border-red-100 dark:border-red-900/40 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars((string) $error) ?></div>
+    <?php endif; ?>
+
+    <?php if ($autoContinue): ?>
+        <div class="bg-brand-50/80 dark:bg-brand-950/30 border border-brand-200/60 dark:border-brand-800/40 rounded-2xl px-4 py-3 text-sm text-brand-800 dark:text-brand-200 font-semibold" id="promote-auto-hint">
+            <?= htmlspecialchars(t('profile.promote_opening_epay')) ?>
+        </div>
     <?php endif; ?>
 
     <div class="bg-white/90 dark:bg-white/[0.04] rounded-[24px] border border-black/[0.06] dark:border-white/10 p-4 sm:p-5 shadow-soft">
@@ -71,69 +86,48 @@ $showUrl = ProductHelper::url('/product/' . $productId);
 </section>
 
 <script>
-function profileBoostSubmit(form, msg) {
-    if (!form || form.getAttribute('data-boost-locked') === '1') return false;
-    if (!confirm(msg)) return false;
-    form.setAttribute('data-boost-locked', '1');
+function promoteLockAndSubmit(form, lockAttr, waitAttr) {
+    if (!form || form.getAttribute(lockAttr) === '1') return false;
+    form.setAttribute(lockAttr, '1');
     var btn = form.querySelector('button[type="submit"]');
     if (btn) {
         btn.disabled = true;
         btn.setAttribute('aria-busy', 'true');
-        var wait = form.getAttribute('data-boost-wait');
+        var wait = form.getAttribute(waitAttr);
         if (wait) btn.textContent = wait;
     }
     return true;
 }
-function profileHighlightSubmit(form, msg) {
-    if (!form || form.getAttribute('data-highlight-locked') === '1') return false;
-    if (!confirm(msg)) return false;
-    form.setAttribute('data-highlight-locked', '1');
-    var btn = form.querySelector('button[type="submit"]');
-    if (btn) {
-        btn.disabled = true;
-        btn.setAttribute('aria-busy', 'true');
-        var wait = form.getAttribute('data-highlight-wait');
-        if (wait) btn.textContent = wait;
-    }
-    return true;
+function profileBoostSubmit(form) {
+    return promoteLockAndSubmit(form, 'data-boost-locked', 'data-boost-wait');
 }
-function profileTopFixedSubmit(form, msg) {
-    if (!form || form.getAttribute('data-top-fixed-locked') === '1') return false;
-    if (!confirm(msg)) return false;
-    form.setAttribute('data-top-fixed-locked', '1');
-    var btn = form.querySelector('button[type="submit"]');
-    if (btn) {
-        btn.disabled = true;
-        btn.setAttribute('aria-busy', 'true');
-        var wait = form.getAttribute('data-top-fixed-wait');
-        if (wait) btn.textContent = wait;
-    }
-    return true;
+function profileHighlightSubmit(form) {
+    return promoteLockAndSubmit(form, 'data-highlight-locked', 'data-highlight-wait');
 }
-function profileTopFixedXlSubmit(form, msg) {
-    if (!form || form.getAttribute('data-top-fixed-xl-locked') === '1') return false;
-    if (!confirm(msg)) return false;
-    form.setAttribute('data-top-fixed-xl-locked', '1');
-    var btn = form.querySelector('button[type="submit"]');
-    if (btn) {
-        btn.disabled = true;
-        btn.setAttribute('aria-busy', 'true');
-        var wait = form.getAttribute('data-top-fixed-xl-wait');
-        if (wait) btn.textContent = wait;
-    }
-    return true;
+function profileTopFixedSubmit(form) {
+    return promoteLockAndSubmit(form, 'data-top-fixed-locked', 'data-top-fixed-wait');
 }
-function profileVipSubmit(form, msg) {
-    if (!form || form.getAttribute('data-vip-locked') === '1') return false;
-    if (!confirm(msg)) return false;
-    form.setAttribute('data-vip-locked', '1');
-    var btn = form.querySelector('button[type="submit"]');
-    if (btn) {
-        btn.disabled = true;
-        btn.setAttribute('aria-busy', 'true');
-        var wait = form.getAttribute('data-vip-wait');
-        if (wait) btn.textContent = wait;
-    }
-    return true;
+function profileTopFixedXlSubmit(form) {
+    return promoteLockAndSubmit(form, 'data-top-fixed-xl-locked', 'data-top-fixed-xl-wait');
 }
+function profileVipSubmit(form) {
+    return promoteLockAndSubmit(form, 'data-vip-locked', 'data-vip-wait');
+}
+
+(function autoOpenEpay() {
+    var page = document.querySelector('[data-promote-auto-pay="1"]');
+    if (!page) return;
+    // Первая незавершённая оплата → сразу Halyk ePay
+    var form = page.querySelector(
+        '[data-boost-card] form, [data-highlight-card] form, [data-top-fixed-card] form, [data-top-fixed-xl-card] form, [data-vip-card] form, form[action*="/boost"], form[action*="/highlight"], form[action*="/top-fixed"], form[action*="/vip"]'
+    );
+    if (!form) return;
+    setTimeout(function () {
+        if (typeof form.requestSubmit === 'function') {
+            form.requestSubmit();
+        } else {
+            form.submit();
+        }
+    }, 80);
+})();
 </script>

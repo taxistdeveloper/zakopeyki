@@ -1348,6 +1348,7 @@ return [
         'promote_services_title' => 'Дополнительные услуги',
         'promote_services_hint' => 'Boost, выделение, закрепление, VIP и другие опции продвижения.',
         'promote_pay_note' => 'Оплата через Halyk ePay. Карта не передаётся площадке.',
+        'promote_opening_epay' => 'Открываем оплату Halyk ePay…',
         'promote_back' => 'К моим лотам',
         'promote_forbidden' => 'Это объявление недоступно для продвижения.',
         'tabs_prev' => 'Предыдущие разделы',

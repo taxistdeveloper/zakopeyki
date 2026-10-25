@@ -544,23 +544,8 @@ final class TopFixedService
         }
 
         if ($status === TopFixedPolicy::STATUS_PENDING) {
-            if (!empty($order['redirect_url'])) {
-                return [
-                    'ok' => true,
-                    'reused' => true,
-                    'order_id' => $orderId,
-                    'redirect_url' => (string) $order['redirect_url'],
-                    'amount' => TopFixedPolicy::PRICE_KZT,
-                    'status' => $status,
-                ];
-            }
-
-            return [
-                'ok' => false,
-                'error_code' => 'payment_pending',
-                'order_id' => $orderId,
-                'status' => $status,
-            ];
+            // Всегда новый OAuth/intent Halyk — старый redirect_url быстро протухает.
+            return $this->initGateway($order);
         }
 
         if ($status === TopFixedPolicy::STATUS_PAID || $status === TopFixedPolicy::STATUS_APPLY_FAILED) {
