@@ -474,12 +474,12 @@ class ProfileController extends Controller
     {
         Auth::requireLogin();
 
-        $type = $_POST['type'] ?? 'used';
+        $type = $_POST['type'] ?? 'new';
         if ($type === 'course') {
             $this->redirect('/profile?tab=lots');
         }
         if (!isset(ProductHelper::marketplaceTypes()[$type])) {
-            $type = 'used';
+            $type = 'new';
         }
 
         $lotsFailUrl = '/profile?tab=lots';

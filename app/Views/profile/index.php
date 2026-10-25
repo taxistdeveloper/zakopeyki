@@ -929,7 +929,7 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                     $currentType = $editing['type'] ?? '';
                     if ($currentType === '' || $currentType === 'course' || !isset($types[$currentType])) {
                         $pref = $prefLotType ?? '';
-                        $currentType = isset($types[$pref]) ? $pref : 'used';
+                        $currentType = isset($types[$pref]) ? $pref : 'new';
                     }
                     [$currentParent, $currentChild] = ProductHelper::parseCategory($editing['category'] ?? null);
                     $showCategory = in_array($currentType, $productTypesWithCategory, true);
