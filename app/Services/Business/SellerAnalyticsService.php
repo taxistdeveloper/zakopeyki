@@ -67,13 +67,19 @@ final class SellerAnalyticsService
             $recentViews = 0;
         }
 
-        $sales = $this->db->prepare(
-            "SELECT COUNT(*) FROM orders
-             WHERE seller_id = ? AND status IN ('completed', 'confirmed')
-               AND updated_at >= ?"
-        );
-        $sales->execute([$userId, $since]);
-        $salesCount = (int) $sales->fetchColumn();
+        $salesCount = 0;
+        try {
+            // orders не имеет updated_at — дата сделки: confirmed_at / released_at / created_at
+            $sales = $this->db->prepare(
+                "SELECT COUNT(*) FROM orders
+                 WHERE seller_id = ? AND status IN ('completed', 'confirmed')
+                   AND COALESCE(confirmed_at, released_at, created_at) >= ?"
+            );
+            $sales->execute([$userId, $since]);
+            $salesCount = (int) $sales->fetchColumn();
+        } catch (\Throwable) {
+            $salesCount = 0;
+        }
 
         $favorites = 0;
         try {
