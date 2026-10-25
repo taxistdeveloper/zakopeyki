@@ -74,6 +74,20 @@ final class AdUiTest extends TestCase
         $this->assertStringNotContainsString('name="format"', $html);
     }
 
+    public function testSidebarNavHidesPaidServicesWhenDisabled(): void
+    {
+        $src = (string) file_get_contents(dirname(__DIR__, 4) . '/app/Views/partials/sidebar.php');
+        $this->assertStringContainsString('sidebarAdsOn', $src);
+        $this->assertStringContainsString('AdService())->flags()', $src);
+        $this->assertStringContainsString('sidebarTargetPushOn', $src);
+        $this->assertStringContainsString('TargetPushService())->isEnabled()', $src);
+        $this->assertStringContainsString('sidebarMassPushOn', $src);
+        $this->assertStringContainsString('MassPushService())->isEnabled()', $src);
+        $this->assertStringContainsString('if ($sidebarAdsOn)', $src);
+        $this->assertStringContainsString('if ($sidebarTargetPushOn)', $src);
+        $this->assertStringContainsString('if ($sidebarMassPushOn)', $src);
+    }
+
     /**
      * @param array<string, bool> $flags
      * @param list<array<string, mixed>> $campaigns

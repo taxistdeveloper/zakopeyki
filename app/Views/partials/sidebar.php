@@ -86,6 +86,24 @@ $navIcon = static fn (string $name): string => IconHelper::svg($name, 'w-[18px] 
             } catch (\Throwable $e) {
                 $chatUnreadBadge = 0;
             }
+            $sidebarAdsOn = false;
+            $sidebarTargetPushOn = false;
+            $sidebarMassPushOn = false;
+            try {
+                $sidebarAdsOn = in_array(true, (new \App\Services\Ads\AdService())->flags(), true);
+            } catch (\Throwable $e) {
+                $sidebarAdsOn = false;
+            }
+            try {
+                $sidebarTargetPushOn = (new \App\Services\TargetPush\TargetPushService())->isEnabled();
+            } catch (\Throwable $e) {
+                $sidebarTargetPushOn = false;
+            }
+            try {
+                $sidebarMassPushOn = (new \App\Services\MassPush\MassPushService())->isEnabled();
+            } catch (\Throwable $e) {
+                $sidebarMassPushOn = false;
+            }
         ?>
         <a href="<?= ProductHelper::url('/orders') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('orders', $nav) ?>">
             <?= $navIcon('bag') ?> <span><?= htmlspecialchars(t('nav.deals')) ?></span>
@@ -93,15 +111,21 @@ $navIcon = static fn (string $name): string => IconHelper::svg($name, 'w-[18px] 
         <a href="<?= ProductHelper::url('/wallet') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('wallet', $nav) ?>">
             <?= $navIcon('wallet') ?> <span><?= htmlspecialchars(t('nav.wallet')) ?></span>
         </a>
+        <?php if ($sidebarAdsOn): ?>
         <a href="<?= ProductHelper::url('/ads') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('ads', $nav) ?>">
             <?= $navIcon('wallet') ?> <span><?= htmlspecialchars(t('nav.ads')) ?></span>
         </a>
+        <?php endif; ?>
+        <?php if ($sidebarTargetPushOn): ?>
         <a href="<?= ProductHelper::url('/target-push') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('target_push', $nav) ?>">
             <?= $navIcon('message') ?> <span><?= htmlspecialchars(t('nav.target_push')) ?></span>
         </a>
+        <?php endif; ?>
+        <?php if ($sidebarMassPushOn): ?>
         <a href="<?= ProductHelper::url('/mass-push') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('mass_push', $nav) ?>">
             <?= $navIcon('message') ?> <span><?= htmlspecialchars(t('nav.mass_push')) ?></span>
         </a>
+        <?php endif; ?>
         <a href="<?= ProductHelper::url('/chat') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('chat', $nav) ?>">
             <span class="flex items-center gap-3 flex-1 min-w-0"><?= $navIcon('message') ?> <span><?= htmlspecialchars(t('nav.chat')) ?></span></span>
             <?php if ($chatUnreadBadge > 0): ?>
