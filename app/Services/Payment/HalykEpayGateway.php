@@ -7,7 +7,8 @@ namespace App\Services\Payment;
 use App\Services\HalykEpay\Client as HalykClient;
 
 /**
- * Адаптер Halyk ePay (имитация) к PaymentGatewayInterface.
+ * Адаптер Halyk ePay (OAuth + payform) к PaymentGatewayInterface.
+ * @see https://epayment.kz/docs/platezhnaya-stranica
  */
 final class HalykEpayGateway implements PaymentGatewayInterface
 {
@@ -54,9 +55,18 @@ final class HalykEpayGateway implements PaymentGatewayInterface
 
     public function verifyCallback(string $scriptName, array $params): bool
     {
-        unset($scriptName, $params);
+        unset($scriptName);
+        $invoiceId = (string) ($params['invoiceId'] ?? $params['invoiceID'] ?? '');
+        $secret = (string) ($params['secret_hash'] ?? '');
+        if ($invoiceId === '' || $secret === '') {
+            return false;
+        }
+        $intent = \App\Services\HalykEpay\IntentStore::getByInvoice($invoiceId);
+        if (!$intent) {
+            return false;
+        }
 
-        return LocalCheckout::allowed();
+        return hash_equals((string) ($intent['secret_hash'] ?? ''), $secret);
     }
 
     public function client(): HalykClient

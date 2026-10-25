@@ -68,7 +68,7 @@ $router->post('/checkout/cart/pay', [CheckoutController::class, 'cartPay']);
 $router->get('/checkout/{id}', [CheckoutController::class, 'show']);
 $router->post('/checkout/{id}/pay', [CheckoutController::class, 'pay']);
 $router->get('/payments/halyk/sim/{token}', [PaymentController::class, 'halykSimShow']);
-$router->post('/payments/halyk/sim/{token}/decide', [PaymentController::class, 'halykSimDecide']);
+$router->post('/payments/halyk/postlink', [PaymentController::class, 'halykPostLink']);
 $router->get('/payments/halyk/success', [PaymentController::class, 'halykSuccess']);
 $router->get('/payments/halyk/failure', [PaymentController::class, 'halykFailure']);
 $router->post('/payments/freedompay/result', [PaymentController::class, 'freedomPayResult']);

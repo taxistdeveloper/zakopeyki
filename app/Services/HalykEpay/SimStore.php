@@ -5,28 +5,19 @@ declare(strict_types=1);
 namespace App\Services\HalykEpay;
 
 /**
- * Сессионное хранилище интентов имитации Halyk ePay (только локальная разработка).
+ * Сессионное хранилище интентов Halyk ePay + индекс invoiceId → token.
  */
 final class SimStore
 {
     private const KEY = 'halyk_epay_sim_intents';
+    private const INDEX = 'halyk_epay_invoice_index';
 
     /**
-     * @param array{
-     *   order_id: string,
-     *   amount: int,
-     *   description: string,
-     *   currency?: string,
-     *   param1?: string,
-     *   success_url?: string,
-     *   failure_url?: string
-     * } $intent
+     * @param array<string, mixed> $intent
      */
     public static function put(string $token, array $intent): void
     {
-        if (session_status() !== PHP_SESSION_ACTIVE) {
-            session_start();
-        }
+        self::boot();
         $all = $_SESSION[self::KEY] ?? [];
         if (!is_array($all)) {
             $all = [];
@@ -41,9 +32,7 @@ final class SimStore
      */
     public static function get(string $token): ?array
     {
-        if (session_status() !== PHP_SESSION_ACTIVE) {
-            session_start();
-        }
+        self::boot();
         $all = $_SESSION[self::KEY] ?? [];
         if (!is_array($all) || !isset($all[$token]) || !is_array($all[$token])) {
             return null;
@@ -51,8 +40,7 @@ final class SimStore
         $intent = $all[$token];
         $created = (int) ($intent['created_at'] ?? 0);
         if ($created > 0 && (time() - $created) > 3600) {
-            unset($all[$token]);
-            $_SESSION[self::KEY] = $all;
+            self::forget($token);
 
             return null;
         }
@@ -62,14 +50,52 @@ final class SimStore
 
     public static function forget(string $token): void
     {
-        if (session_status() !== PHP_SESSION_ACTIVE) {
-            session_start();
-        }
+        self::boot();
         $all = $_SESSION[self::KEY] ?? [];
         if (!is_array($all)) {
             return;
         }
+        $invoice = (string) (($all[$token]['invoice_id'] ?? '') ?: '');
         unset($all[$token]);
         $_SESSION[self::KEY] = $all;
+        if ($invoice !== '') {
+            $idx = $_SESSION[self::INDEX] ?? [];
+            if (is_array($idx)) {
+                unset($idx[$invoice]);
+                $_SESSION[self::INDEX] = $idx;
+            }
+        }
+    }
+
+    public static function indexInvoice(string $invoiceId, string $token): void
+    {
+        self::boot();
+        $idx = $_SESSION[self::INDEX] ?? [];
+        if (!is_array($idx)) {
+            $idx = [];
+        }
+        $idx[$invoiceId] = $token;
+        $_SESSION[self::INDEX] = $idx;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public static function getByInvoice(string $invoiceId): ?array
+    {
+        self::boot();
+        $idx = $_SESSION[self::INDEX] ?? [];
+        if (!is_array($idx) || empty($idx[$invoiceId])) {
+            return null;
+        }
+
+        return self::get((string) $idx[$invoiceId]);
+    }
+
+    private static function boot(): void
+    {
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            session_start();
+        }
     }
 }

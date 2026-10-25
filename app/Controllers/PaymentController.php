@@ -33,23 +33,28 @@ use App\Services\MassPush\MassPushService;
 use App\Services\TargetPush\TargetPushPolicy;
 use App\Services\TargetPush\TargetPushService;
 use App\Services\FreedomPay\Client as FreedomPayClient;
+use App\Services\HalykEpay\Client as HalykClient;
+use App\Services\HalykEpay\IntentStore;
 use App\Services\HalykEpay\SimStore;
 use App\Services\Payment\LocalCheckout;
 
 class PaymentController extends Controller
 {
     /**
-     * Имитация Halyk ePay: страница оплаты (локальная разработка).
+     * Halyk ePay: страница запуска официальной формы (halyk.pay).
+     * @see https://epayment.kz/docs/platezhnaya-stranica
+     * @see https://epayment.kz/docs/cardverificationpaymentForm
      */
     public function halykSimShow(string $token): void
     {
         Auth::requireLogin();
-        if (!LocalCheckout::allowed()) {
+        $client = new HalykClient();
+        if (!$client->isConfigured()) {
             $_SESSION['error'] = t('wallet.payments_disabled');
             $this->redirect('/orders');
             return;
         }
-        $intent = SimStore::get($token);
+        $intent = IntentStore::get($token) ?? SimStore::get($token);
         if (!$intent) {
             $_SESSION['error'] = t('halyk_sim.expired');
             $this->redirect('/orders');
@@ -58,55 +63,111 @@ class PaymentController extends Controller
         $this->view('payments/halyk-sim', [
             'token' => $token,
             'orderId' => (string) ($intent['order_id'] ?? ''),
-            'amount' => (int) ($intent['amount'] ?? 0),
+            'amount' => (float) ($intent['amount'] ?? 0),
             'description' => (string) ($intent['description'] ?? ''),
+            'payObject' => $client->buildPayObject($intent),
+            'jsUrl' => $client->jsUrl(),
         ], '');
     }
 
     /**
-     * Имитация Halyk ePay: успех / отказ.
+     * postLink от ePay (без CSRF / без логина).
      */
-    public function halykSimDecide(string $token): void
+    public function halykPostLink(): void
     {
-        Auth::requireLogin();
-        if (!LocalCheckout::allowed()) {
-            $_SESSION['error'] = t('wallet.payments_disabled');
-            $this->redirect('/orders');
-            return;
-        }
-        $intent = SimStore::get($token);
-        if (!$intent) {
-            $_SESSION['error'] = t('halyk_sim.expired');
-            $this->redirect('/orders');
-            return;
+        $raw = file_get_contents('php://input') ?: '';
+        $params = $_POST;
+        if ($params === [] && $raw !== '') {
+            $json = json_decode($raw, true);
+            if (is_array($json)) {
+                $params = $json;
+            } else {
+                parse_str($raw, $parsed);
+                if (is_array($parsed)) {
+                    $params = $parsed;
+                }
+            }
         }
 
+        $invoiceId = (string) ($params['invoiceId'] ?? $params['invoiceID'] ?? '');
+        $code = strtolower((string) ($params['code'] ?? ''));
+        $reasonCode = (int) ($params['reasonCode'] ?? -1);
+        $amount = (string) ($params['amount'] ?? '0');
+        $paymentId = (string) ($params['id'] ?? $params['reference'] ?? '');
+        $secretHash = (string) ($params['secret_hash'] ?? '');
+
+        $intent = $invoiceId !== '' ? IntentStore::getByInvoice($invoiceId) : null;
         $pgOrderId = (string) ($intent['order_id'] ?? '');
-        $pgPaymentId = (string) ($intent['payment_id'] ?? ('halyk-sim-' . $token));
-        $pgAmount = (string) ((int) ($intent['amount'] ?? 0));
-        $pgResult = (int) ($_POST['result'] ?? 0) === 1 ? 1 : 0;
-        SimStore::forget($token);
-
-        $this->applySimulatedGatewayResult($pgOrderId, $pgPaymentId, $pgAmount, $pgResult);
-
-        $q = http_build_query([
-            'pg_order_id' => $pgOrderId,
-            'pg_payment_id' => $pgPaymentId,
-        ]);
-        if ($pgResult === 1) {
-            $this->redirect('/payments/halyk/success?' . $q);
-            return;
+        if ($pgOrderId === '') {
+            $pgOrderId = (string) ($params['pg_order_id'] ?? '');
         }
-        $this->redirect('/payments/halyk/failure?' . $q);
+        if ($paymentId === '' && is_array($intent)) {
+            $paymentId = (string) ($intent['payment_id'] ?? '');
+        }
+
+        $ok = ($code === 'ok' || $reasonCode === 0);
+        if ($ok && is_array($intent) && $secretHash !== '' && $secretHash !== (string) ($intent['secret_hash'] ?? '')) {
+            // Несовпадение secret_hash — не подтверждаем оплату
+            $ok = false;
+            ActivityLogger::warning('payment.halyk.postlink', 'secret_hash mismatch', 'payment', null, [
+                'invoice_id' => $invoiceId,
+            ]);
+        }
+
+        if ($pgOrderId !== '') {
+            $this->applySimulatedGatewayResult(
+                $pgOrderId,
+                $paymentId !== '' ? $paymentId : ('halyk-' . $invoiceId),
+                $amount !== '' ? $amount : (string) ((int) ($intent['amount'] ?? 0)),
+                $ok ? 1 : 0
+            );
+            if (is_array($intent) && !empty($intent['token'])) {
+                IntentStore::forget((string) $intent['token']);
+            }
+        }
+
+        ActivityLogger::info('payment.halyk.postlink', $ok ? 'Halyk payment OK' : 'Halyk payment fail', 'payment', null, [
+            'invoice_id' => $invoiceId,
+            'pg_order_id' => $pgOrderId,
+            'code' => $code,
+            'reason_code' => $reasonCode,
+        ]);
+
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['ok' => true]);
+        exit;
     }
 
     public function halykSuccess(): void
     {
+        // Если postLink ещё не дошёл — подстрахуем по query
+        $params = array_merge($_GET, $_POST);
+        $invoiceId = (string) ($params['invoiceId'] ?? $params['invoiceID'] ?? '');
+        $pgOrderId = (string) ($params['pg_order_id'] ?? '');
+        $intent = $invoiceId !== '' ? IntentStore::getByInvoice($invoiceId) : null;
+        if ($pgOrderId === '' && is_array($intent)) {
+            $pgOrderId = (string) ($intent['order_id'] ?? '');
+        }
+        if ($pgOrderId !== '' && empty($params['pg_order_id'])) {
+            $_GET['pg_order_id'] = $pgOrderId;
+            $_GET['pg_payment_id'] = (string) ($params['pg_payment_id'] ?? ($intent['payment_id'] ?? ''));
+        }
         $this->freedomPaySuccess();
     }
 
     public function halykFailure(): void
     {
+        $params = array_merge($_GET, $_POST);
+        $invoiceId = (string) ($params['invoiceId'] ?? $params['invoiceID'] ?? '');
+        $pgOrderId = (string) ($params['pg_order_id'] ?? '');
+        $intent = $invoiceId !== '' ? IntentStore::getByInvoice($invoiceId) : null;
+        if ($pgOrderId === '' && is_array($intent)) {
+            $pgOrderId = (string) ($intent['order_id'] ?? '');
+        }
+        if ($pgOrderId !== '' && empty($params['pg_order_id'])) {
+            $_GET['pg_order_id'] = $pgOrderId;
+            $_GET['pg_payment_id'] = (string) ($params['pg_payment_id'] ?? ($intent['payment_id'] ?? ''));
+        }
         $this->freedomPayFailure();
     }
 
