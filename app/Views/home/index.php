@@ -127,46 +127,61 @@ $changelog = $changelog ?? null;
         <?php endforeach; ?>
     </div>
 
-    <div class="space-y-3">
+    <div class="space-y-3" data-stream-slider>
         <div class="flex items-end justify-between gap-3 flex-wrap">
             <div>
                 <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-red-500 mb-1">Live</p>
                 <h2 class="font-display text-lg sm:text-xl font-bold tracking-tight text-ink-900 dark:text-white"><?= htmlspecialchars(t('home.streams')) ?></h2>
                 <p class="text-[11px] text-gray-400 mt-0.5"><?= htmlspecialchars(t('home.streams_hint')) ?></p>
             </div>
-            <?php if (Auth::check()): ?>
-                <button type="button" onclick="startLiveStream()" class="text-[10px] sm:text-xs font-display font-bold uppercase tracking-wider bg-red-500 text-white px-4 py-2.5 rounded-2xl hover:bg-red-600 transition shadow-soft"><?= htmlspecialchars(t('home.start_stream')) ?></button>
-            <?php else: ?>
-                <a href="<?= ProductHelper::url('/login') ?>" class="text-[11px] font-semibold text-brand-600 hover:underline"><?= htmlspecialchars(t('home.login_to_stream')) ?></a>
-            <?php endif; ?>
+            <div class="flex items-center gap-2">
+                <?php if (count($streams) > 1): ?>
+                    <div class="hidden sm:flex gap-1.5">
+                        <button type="button" data-stream-prev class="h-9 w-9 rounded-full border border-black/10 dark:border-white/15 bg-white/80 dark:bg-white/[0.06] text-sm text-ink-800 dark:text-gray-200 hover:border-red-400/50 hover:text-red-500 transition disabled:opacity-35" aria-label="<?= htmlspecialchars(t('ads.prev')) ?>">‹</button>
+                        <button type="button" data-stream-next class="h-9 w-9 rounded-full border border-black/10 dark:border-white/15 bg-white/80 dark:bg-white/[0.06] text-sm text-ink-800 dark:text-gray-200 hover:border-red-400/50 hover:text-red-500 transition disabled:opacity-35" aria-label="<?= htmlspecialchars(t('ads.next')) ?>">›</button>
+                    </div>
+                <?php endif; ?>
+                <?php if (Auth::check()): ?>
+                    <button type="button" onclick="startLiveStream()" class="text-[10px] sm:text-xs font-display font-bold uppercase tracking-wider bg-red-500 text-white px-4 py-2.5 rounded-2xl hover:bg-red-600 transition shadow-soft"><?= htmlspecialchars(t('home.start_stream')) ?></button>
+                <?php else: ?>
+                    <a href="<?= ProductHelper::url('/login') ?>" class="text-[11px] font-semibold text-brand-600 hover:underline"><?= htmlspecialchars(t('home.login_to_stream')) ?></a>
+                <?php endif; ?>
+            </div>
         </div>
 
-        <div class="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
-            <?php if (empty($streams)): ?>
-                <div class="w-full rounded-2xl border border-dashed border-black/10 dark:border-white/15 bg-white/40 dark:bg-white/[0.03] px-5 py-10 text-center text-xs text-gray-400">
-                    <?= htmlspecialchars(t('home.no_streams')) ?>
-                </div>
-            <?php else: ?>
-                <?php foreach ($streams as $si => $st): ?>
-                    <button type="button" onclick="openStreamViewer(<?= (int) $si ?>)"
-                        class="flex-shrink-0 w-[132px] sm:w-[150px] aspect-[9/16] rounded-[22px] overflow-hidden relative ring-2 ring-red-500/50 bg-black text-left group shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition duration-300">
-                        <div class="absolute inset-0 bg-gradient-to-br from-red-600 via-orange-600 to-ink-900"></div>
-                        <?php if (!empty($st['cover'])): ?>
-                            <img src="<?= htmlspecialchars(ProductHelper::url('public/uploads/streams/' . basename((string) $st['cover']))) ?>" alt="" class="absolute inset-0 w-full h-full object-cover z-[4]">
-                        <?php else: ?>
-                        <div class="absolute inset-0 flex items-center justify-center z-[5]">
-                            <span class="text-4xl font-display font-bold text-white/90 drop-shadow"><?= htmlspecialchars(($st['author_avatar'] ?: mb_substr($st['author_name'] ?? 'L', 0, 1))) ?></span>
-                        </div>
-                        <?php endif; ?>
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-black/30 z-10"></div>
-                        <span class="absolute top-2.5 left-2.5 text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md text-white z-20 bg-red-500 animate-pulse">● Live</span>
-                        <div class="absolute bottom-2.5 left-2.5 right-2.5 text-white z-20">
-                            <h4 class="text-[11px] font-semibold line-clamp-2 leading-tight"><?= htmlspecialchars($st['title']) ?></h4>
-                            <p class="text-[9px] text-white/70 truncate mt-0.5"><?= htmlspecialchars($st['author_name'] ?? '') ?></p>
-                        </div>
-                    </button>
-                <?php endforeach; ?>
+        <div class="relative">
+            <?php if (count($streams) > 1): ?>
+                <button type="button" data-stream-prev class="sm:hidden absolute left-0 top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-full border border-white/25 bg-black/45 text-white text-sm backdrop-blur-sm" aria-label="<?= htmlspecialchars(t('ads.prev')) ?>">‹</button>
+                <button type="button" data-stream-next class="sm:hidden absolute right-0 top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-full border border-white/25 bg-black/45 text-white text-sm backdrop-blur-sm" aria-label="<?= htmlspecialchars(t('ads.next')) ?>">›</button>
             <?php endif; ?>
+            <div data-stream-track class="flex gap-3 overflow-x-auto pb-1 scrollbar-hide scroll-smooth snap-x snap-mandatory touch-pan-x">
+                <?php if (empty($streams)): ?>
+                    <div class="w-full rounded-2xl border border-dashed border-black/10 dark:border-white/15 bg-white/40 dark:bg-white/[0.03] px-5 py-10 text-center text-xs text-gray-400">
+                        <?= htmlspecialchars(t('home.no_streams')) ?>
+                    </div>
+                <?php else: ?>
+                    <?php foreach ($streams as $si => $st): ?>
+                        <button type="button" onclick="openStreamViewer(<?= (int) $si ?>)"
+                            data-stream-slide
+                            class="flex-shrink-0 snap-start w-[132px] sm:w-[150px] aspect-[9/16] rounded-[22px] overflow-hidden relative ring-2 ring-red-500/50 bg-black text-left group shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition duration-300">
+                            <div class="absolute inset-0 bg-gradient-to-br from-red-600 via-orange-600 to-ink-900"></div>
+                            <?php if (!empty($st['cover'])): ?>
+                                <img src="<?= htmlspecialchars(ProductHelper::url('public/uploads/streams/' . basename((string) $st['cover']))) ?>" alt="" class="absolute inset-0 w-full h-full object-cover z-[4]">
+                            <?php else: ?>
+                            <div class="absolute inset-0 flex items-center justify-center z-[5]">
+                                <span class="text-4xl font-display font-bold text-white/90 drop-shadow"><?= htmlspecialchars(($st['author_avatar'] ?: mb_substr($st['author_name'] ?? 'L', 0, 1))) ?></span>
+                            </div>
+                            <?php endif; ?>
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-black/30 z-10"></div>
+                            <span class="absolute top-2.5 left-2.5 text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md text-white z-20 bg-red-500 animate-pulse">● Live</span>
+                            <div class="absolute bottom-2.5 left-2.5 right-2.5 text-white z-20">
+                                <h4 class="text-[11px] font-semibold line-clamp-2 leading-tight"><?= htmlspecialchars($st['title']) ?></h4>
+                                <p class="text-[9px] text-white/70 truncate mt-0.5"><?= htmlspecialchars($st['author_name'] ?? '') ?></p>
+                            </div>
+                        </button>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
 
@@ -575,6 +590,55 @@ window.__whatsNew = <?= js_encode($changelog) ?>;
         document.addEventListener('DOMContentLoaded', tryOpen);
     } else {
         setTimeout(tryOpen, 50);
+    }
+})();
+
+(function bindStreamSlider() {
+    function init(root) {
+        var track = root.querySelector('[data-stream-track]');
+        if (!track) return;
+        var slides = track.querySelectorAll('[data-stream-slide]');
+        if (slides.length < 2) return;
+        var prevBtns = root.querySelectorAll('[data-stream-prev]');
+        var nextBtns = root.querySelectorAll('[data-stream-next]');
+
+        function step() {
+            var first = slides[0];
+            if (!first) return 160;
+            var style = window.getComputedStyle(track);
+            var gap = parseFloat(style.columnGap || style.gap) || 12;
+            return first.getBoundingClientRect().width + gap;
+        }
+        function atStart() { return track.scrollLeft <= 4; }
+        function atEnd() {
+            return track.scrollLeft + track.clientWidth >= track.scrollWidth - 4;
+        }
+        function sync() {
+            var start = atStart();
+            var end = atEnd();
+            prevBtns.forEach(function (btn) { btn.disabled = start; });
+            nextBtns.forEach(function (btn) { btn.disabled = end; });
+        }
+        function go(dir) {
+            track.scrollBy({ left: dir * step(), behavior: 'smooth' });
+        }
+        prevBtns.forEach(function (btn) {
+            btn.addEventListener('click', function () { go(-1); });
+        });
+        nextBtns.forEach(function (btn) {
+            btn.addEventListener('click', function () { go(1); });
+        });
+        track.addEventListener('scroll', sync, { passive: true });
+        window.addEventListener('resize', sync);
+        sync();
+    }
+    function boot() {
+        document.querySelectorAll('[data-stream-slider]').forEach(init);
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', boot);
+    } else {
+        boot();
     }
 })();
 </script>
