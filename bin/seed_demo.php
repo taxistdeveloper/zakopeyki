@@ -3,10 +3,11 @@
 declare(strict_types=1);
 
 /**
- * Демо-наполнение площадки: аккаунты, товары, аукционы, сторис, биржа, отзывы.
- * Идемпотентно — повторный запуск не плодит дубли, обновляет сторис и сроки лотов.
+ * Демо-наполнение площадки: товары, аукционы, услуги, бартер, даром,
+ * сторис, стримы, биржа, курсы, отзывы.
+ * Идемпотентно — повторный запуск не плодит дубли, обновляет сторис/стримы/сроки лотов.
  *
- *   /Applications/MAMP/bin/php/php8.4.17/bin/php bin/seed_demo.php
+ *   php bin/seed_demo.php
  *
  * Пароль всех демо-аккаунтов: demo1234
  */
@@ -662,8 +663,9 @@ final class DemoSeeder
             if ($type === 'auction') {
                 $this->refreshAuctionWindow($existingId, $item);
             }
+            // Всегда обновляем фото демо-лотов (файл мог пропасть / быть placeholder)
             $this->db->prepare(
-                'UPDATE products SET image = COALESCE(image, ?), images = COALESCE(images, ?), view_count = GREATEST(view_count, ?) WHERE id = ?'
+                'UPDATE products SET image = ?, images = ?, view_count = GREATEST(view_count, ?) WHERE id = ?'
             )->execute([$image, json_encode([$image]), (int) ($item['views'] ?? 40), $existingId]);
             return $existingId;
         }
@@ -830,13 +832,21 @@ final class DemoSeeder
         $stories = (int) $this->db->query("SELECT COUNT(*) FROM stories WHERE user_id IN ({$in}) AND expires_at > NOW()")->fetchColumn();
         $gigs = (int) $this->db->query("SELECT COUNT(*) FROM micro_tasks WHERE customer_id IN ({$in}) AND status = 'open'")->fetchColumn();
 
+        $byType = $this->db->query(
+            "SELECT type, COUNT(*) AS c FROM products WHERE user_id IN ({$in}) AND status = 'active' GROUP BY type ORDER BY type"
+        )->fetchAll(PDO::FETCH_KEY_PAIR);
+        $streams = (int) $this->db->query("SELECT COUNT(*) FROM streams WHERE user_id IN ({$in}) AND is_live = 1")->fetchColumn();
+
         echo "\nГотово. Демо-контент:\n";
         echo "  аккаунтов: " . count($this->ids) . "\n";
-        echo "  товаров: {$products}\n";
-        echo "  аукционов: {$auctions}\n";
+        echo "  товаров всего: {$products}\n";
+        foreach (['new' => 'новые', 'used' => 'б/у', 'auction' => 'аукционы', 'service' => 'услуги', 'exchange' => 'бартер', 'free' => 'даром', 'course' => 'курсы'] as $type => $label) {
+            $n = (int) ($byType[$type] ?? 0);
+            echo "    · {$label}: {$n}\n";
+        }
+        echo "  активных аукционов: {$auctions}\n";
         echo "  сторис: {$stories}\n";
-        $streams = (int) $this->db->query("SELECT COUNT(*) FROM streams WHERE user_id IN ({$in}) AND is_live = 1")->fetchColumn();
-        echo "  стримов: {$streams}\n";
+        echo "  стримов live: {$streams}\n";
         echo "  поручений биржи: {$gigs}\n";
         echo "\nВход (пароль у всех: " . self::PASSWORD . "):\n";
         foreach ($this->userCatalog() as $row) {
