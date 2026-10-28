@@ -520,6 +520,12 @@ class ProfileController extends Controller
             $this->redirect($lotsFailUrl);
         }
 
+        $characteristics = ProductHelper::normalizeCharacteristics($_POST['characteristics'] ?? '');
+        if ($characteristics === null) {
+            $_SESSION['error'] = t('profile.characteristics_invalid');
+            $this->redirect($lotsFailUrl);
+        }
+
         $exchangeFor = trim($_POST['exchange_for'] ?? '');
         if ($type === 'exchange' && $exchangeFor === '') {
             $_SESSION['error'] = t('flash.exchange_for_required');
@@ -606,6 +612,7 @@ class ProfileController extends Controller
             'category' => $category,
             'title' => $title,
             'description' => $description,
+            'characteristics' => $characteristics,
             'price' => $price,
             'exchange_for' => $exchangeFor !== '' ? mb_substr($exchangeFor, 0, 255) : null,
             'price_label' => $priceLabel,
@@ -804,6 +811,12 @@ class ProfileController extends Controller
             $this->redirect($editUrl);
         }
 
+        $characteristics = ProductHelper::normalizeCharacteristics($_POST['characteristics'] ?? '');
+        if ($characteristics === null) {
+            $_SESSION['error'] = t('profile.characteristics_invalid');
+            $this->redirect($editUrl);
+        }
+
         $exchangeFor = trim($_POST['exchange_for'] ?? '');
         if ($type === 'exchange' && $exchangeFor === '') {
             $_SESSION['error'] = t('flash.exchange_for_required');
@@ -872,6 +885,7 @@ class ProfileController extends Controller
             'category' => $category,
             'title' => $title,
             'description' => $description,
+            'characteristics' => $characteristics,
             'price' => $price,
             'exchange_for' => $exchangeFor !== '' ? mb_substr($exchangeFor, 0, 255) : null,
             'price_label' => $priceLabel,

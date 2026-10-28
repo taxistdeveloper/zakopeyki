@@ -75,6 +75,9 @@ if (!empty($item['seller_created_at'])) {
 }
 
 $chars = [];
+foreach (ProductHelper::parseCharacteristics($item['characteristics'] ?? null) as $characteristic) {
+    $chars[] = $characteristic;
+}
 $chars[] = [t('product.condition'), ProductHelper::label($type)];
 if ($showProductCategory && $catParent) {
     $chars[] = [t('product.category'), ProductHelper::categoryLabel($catParent)];
@@ -629,7 +632,7 @@ $vipIso = $vipOn
     <?php endif; ?>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div class="rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white dark:bg-white/[0.04] p-4 sm:p-5">
+        <div class="order-2 rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white dark:bg-white/[0.04] p-4 sm:p-5">
             <h2 class="font-display text-[15px] font-bold text-ink-900 dark:text-white mb-3"><?= htmlspecialchars(t('product.chars')) ?></h2>
             <dl class="space-y-2 text-[13px]">
                 <?php foreach ($charsVisible as [$label, $value]): ?>
@@ -654,7 +657,7 @@ $vipIso = $vipOn
             <?php endif; ?>
         </div>
 
-        <div class="rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white dark:bg-white/[0.04] p-4 sm:p-5">
+        <div class="order-1 rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white dark:bg-white/[0.04] p-4 sm:p-5">
             <h2 class="font-display text-[15px] font-bold text-ink-900 dark:text-white mb-3"><?= htmlspecialchars(t('product.description')) ?></h2>
             <?php if ($description !== ''): ?>
                 <p id="pdp-desc" class="text-[13px] text-ink-700 dark:text-gray-300 leading-relaxed whitespace-pre-line<?= $descLong ? ' line-clamp-5' : '' ?>"><?= htmlspecialchars($item['description']) ?></p>
@@ -668,7 +671,7 @@ $vipIso = $vipOn
             <?php endif; ?>
         </div>
 
-        <div class="rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white dark:bg-white/[0.04] p-4 sm:p-5">
+        <div class="order-3 rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white dark:bg-white/[0.04] p-4 sm:p-5">
             <h2 class="font-display text-[15px] font-bold text-ink-900 dark:text-white mb-3"><?= htmlspecialchars(t('product.delivery')) ?></h2>
             <div class="space-y-3 text-[13px]">
                 <?php if (!empty($listingShipping)): ?>

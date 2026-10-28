@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS products (
     category VARCHAR(100) NOT NULL DEFAULT 'Разное',
     title VARCHAR(255) NOT NULL,
     description TEXT NOT NULL,
+    characteristics TEXT DEFAULT NULL,
     price INT UNSIGNED NOT NULL DEFAULT 0,
     exchange_for VARCHAR(255) DEFAULT NULL,
     price_label VARCHAR(100) DEFAULT NULL,

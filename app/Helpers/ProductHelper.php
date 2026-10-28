@@ -6,6 +6,41 @@ use App\Core\Lang;
 
 class ProductHelper
 {
+    /** @return list<array{0: string, 1: string}> */
+    public static function parseCharacteristics(?string $text): array
+    {
+        $rows = [];
+        foreach (preg_split('/\R/u', (string) $text) ?: [] as $line) {
+            $line = trim($line);
+            if ($line === '' || !str_contains($line, ':')) {
+                continue;
+            }
+            [$name, $value] = array_map('trim', explode(':', $line, 2));
+            if ($name !== '' && $value !== '') {
+                $rows[] = [$name, $value];
+            }
+        }
+        return $rows;
+    }
+
+    public static function normalizeCharacteristics(?string $text): ?string
+    {
+        $lines = array_values(array_filter(array_map('trim', preg_split('/\R/u', (string) $text) ?: []), static fn ($line) => $line !== ''));
+        if (count($lines) > 12) {
+            return null;
+        }
+        $rows = self::parseCharacteristics(implode("\n", $lines));
+        if (count($rows) !== count($lines)) {
+            return null;
+        }
+        foreach ($rows as [$name, $value]) {
+            if (preg_match_all('/./us', $name) > 60 || preg_match_all('/./us', $value) > 200) {
+                return null;
+            }
+        }
+        return implode("\n", array_map(static fn ($row) => $row[0] . ': ' . $row[1], $rows));
+    }
+
     public const TYPES = [
         'new' => 'Новый товар',
         'used' => 'Товар Б/У',

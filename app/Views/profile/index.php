@@ -1015,7 +1015,7 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                     </div>
                     <div id="lot-title-wrap" class="<?= $currentType === 'gig' ? 'hidden' : '' ?>">
                         <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.title_field')) ?></label>
-                        <input type="text" name="title" id="lot-title" <?= $currentType === 'gig' ? '' : 'required' ?> class="<?= $input ?>" value="<?= htmlspecialchars($editing['title'] ?? '') ?>">
+                        <input type="text" name="title" id="lot-title" <?= $currentType === 'gig' ? '' : 'required' ?> class="<?= $input ?>" value="<?= htmlspecialchars($editing['title'] ?? '') ?>" placeholder="<?= htmlspecialchars(t('profile.title_example')) ?>">
                     </div>
                     <div id="lot-gig-category-wrap" class="<?= $currentType === 'gig' ? '' : 'hidden' ?>">
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1057,8 +1057,87 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                     </div>
                     <div id="lot-desc-wrap">
                         <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.description')) ?></label>
-                        <textarea name="description" rows="2" required class="ui-input w-full p-3 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm"><?= htmlspecialchars($editing['description'] ?? '') ?></textarea>
+                        <textarea name="description" rows="2" required class="ui-input w-full p-3 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm" placeholder="<?= htmlspecialchars($currentType === 'gig' ? '' : t('profile.description_example')) ?>"><?= htmlspecialchars($editing['description'] ?? '') ?></textarea>
                     </div>
+                    <div id="lot-characteristics-wrap" class="<?= $currentType === 'gig' ? 'hidden' : '' ?>">
+                        <?php
+                        $characteristicOptions = [
+                            t('profile.characteristic_brand'), t('profile.characteristic_model'),
+                            t('profile.characteristic_memory'), t('profile.characteristic_color'),
+                            t('profile.characteristic_size'), t('profile.characteristic_material'),
+                            t('profile.characteristic_condition'), t('profile.characteristic_warranty'),
+                            t('profile.characteristic_country'),
+                        ];
+                        $existingCharacteristics = ProductHelper::parseCharacteristics($editing['characteristics'] ?? null);
+                        ?>
+                        <label class="block text-xs font-bold mb-2"><?= htmlspecialchars(t('profile.characteristics')) ?></label>
+                        <input type="hidden" id="lot-characteristics" name="characteristics" value="<?= htmlspecialchars($editing['characteristics'] ?? '') ?>">
+                        <div id="lot-characteristics-rows" class="space-y-2"></div>
+                        <button type="button" id="lot-characteristics-add" class="mt-2 text-sm font-semibold text-accent-600 hover:underline"><?= htmlspecialchars(t('profile.characteristics_add')) ?></button>
+                        <p class="text-[11px] text-gray-400 mt-1"><?= htmlspecialchars(t('profile.characteristics_hint')) ?></p>
+                        <template id="lot-characteristics-template">
+                            <div class="flex flex-col sm:flex-row gap-2" data-characteristic-row>
+                                <select aria-label="<?= htmlspecialchars(t('profile.characteristics_name')) ?>" class="ui-input w-full sm:w-44 p-2.5 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-ink-800 text-sm" data-characteristic-select>
+                                    <option value=""><?= htmlspecialchars(t('profile.characteristics_name')) ?></option>
+                                    <?php foreach ($characteristicOptions as $option): ?>
+                                        <option value="<?= htmlspecialchars($option) ?>"><?= htmlspecialchars($option) ?></option>
+                                    <?php endforeach; ?>
+                                    <option value="__custom__"><?= htmlspecialchars(t('profile.characteristics_other')) ?></option>
+                                </select>
+                                <input type="text" maxlength="60" pattern="[^:]*" disabled aria-label="<?= htmlspecialchars(t('profile.characteristics_name')) ?>" class="ui-input hidden w-full sm:w-44 p-2.5 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm" data-characteristic-custom placeholder="<?= htmlspecialchars(t('profile.characteristics_name')) ?>">
+                                <input type="text" maxlength="200" aria-label="<?= htmlspecialchars(t('profile.characteristics_value')) ?>" class="ui-input flex-1 p-2.5 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm" data-characteristic-value placeholder="<?= htmlspecialchars(t('profile.characteristics_value')) ?>">
+                                <button type="button" class="px-3 py-2 rounded-xl border border-black/[0.1] dark:border-white/10 text-sm text-gray-500 hover:text-red-600" data-characteristic-remove aria-label="<?= htmlspecialchars(t('profile.characteristics_remove')) ?>">&times;</button>
+                            </div>
+                        </template>
+                    </div>
+                    <script>
+                    (() => {
+                        const rows = document.getElementById('lot-characteristics-rows');
+                        const template = document.getElementById('lot-characteristics-template');
+                        const hidden = document.getElementById('lot-characteristics');
+                        const add = document.getElementById('lot-characteristics-add');
+                        const initial = <?= js_encode($existingCharacteristics) ?>;
+                        if (!rows || !template || !hidden || !add) return;
+                        function sync() {
+                            hidden.value = [...rows.querySelectorAll('[data-characteristic-row]')].map(row => {
+                                const select = row.querySelector('[data-characteristic-select]');
+                                const name = select.value === '__custom__' ? row.querySelector('[data-characteristic-custom]').value.trim() : select.value;
+                                const value = row.querySelector('[data-characteristic-value]').value.trim();
+                                return name || value ? name + ': ' + value : '';
+                            }).filter(Boolean).join('\n');
+                            add.disabled = rows.children.length >= 12;
+                            add.classList.toggle('opacity-50', add.disabled);
+                        }
+                        function appendRow(name = '', value = '') {
+                            if (rows.children.length >= 12) return;
+                            const row = template.content.firstElementChild.cloneNode(true);
+                            const select = row.querySelector('[data-characteristic-select]');
+                            const custom = row.querySelector('[data-characteristic-custom]');
+                            const valueInput = row.querySelector('[data-characteristic-value]');
+                            if (name) {
+                                const known = [...select.options].some(option => option.value === name);
+                                select.value = known ? name : '__custom__';
+                                if (!known) custom.value = name;
+                            }
+                            valueInput.value = value;
+                            const toggleCustom = () => {
+                                custom.classList.toggle('hidden', select.value !== '__custom__');
+                                custom.disabled = select.value !== '__custom__';
+                                sync();
+                            };
+                            select.addEventListener('change', toggleCustom);
+                            custom.addEventListener('input', sync);
+                            valueInput.addEventListener('input', sync);
+                            row.querySelector('[data-characteristic-remove]').addEventListener('click', () => { row.remove(); sync(); });
+                            rows.appendChild(row);
+                            toggleCustom();
+                        }
+                        initial.forEach(([name, value]) => appendRow(name, value));
+                        if (!initial.length) appendRow();
+                        add.addEventListener('click', () => appendRow());
+                        document.getElementById('lot-create-form')?.addEventListener('submit', sync, true);
+                    })();
+                    </script>
                     <?php if (!$editing && empty($skipAml)): ?>
                     <div id="lot-iin-wrap">
                         <label class="block text-xs font-bold mb-1"><?= htmlspecialchars($isBizLot ? t('profile.bin') : t('profile.iin')) ?> <span class="text-red-500">*</span></label>
@@ -1597,6 +1676,7 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                             if (gigSub && typeof gigSub.refreshLotUI === 'function') gigSub.refreshLotUI();
                             if (gigLeaf && typeof gigLeaf.refreshLotUI === 'function') gigLeaf.refreshLotUI();
                             if (titleWrap) titleWrap.classList.toggle('hidden', isGig);
+                            document.getElementById('lot-characteristics-wrap')?.classList.toggle('hidden', isGig);
                             if (titleInput) titleInput.required = !isGig;
                             if (photosSection) photosSection.classList.remove('hidden');
                             const photosReq = document.getElementById('lot-photos-required');

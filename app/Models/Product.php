@@ -66,6 +66,7 @@ class Product extends Model
             );
 
             $this->ensureColumn('quantity', 'ALTER TABLE products ADD COLUMN quantity INT UNSIGNED NOT NULL DEFAULT 1 AFTER price');
+            $this->ensureColumn('characteristics', 'ALTER TABLE products ADD COLUMN characteristics TEXT DEFAULT NULL AFTER description');
 
             $statusCol = $this->db->query("SHOW COLUMNS FROM products LIKE 'status'")->fetch();
             $type = strtolower((string) ($statusCol['Type'] ?? ''));
@@ -424,11 +425,11 @@ class Product extends Model
     {
         $stmt = $this->db->prepare(
             'INSERT INTO products (
-                user_id, type, category, title, description, price, quantity, exchange_for, price_label,
+                user_id, type, category, title, description, characteristics, price, quantity, exchange_for, price_label,
                 current_bid, bid_step, auction_kind, auction_reserve, auction_buy_now, auction_min_price, auction_step_interval,
                 auction_start_at, auction_end_at, anti_snipe_seconds, auto_extend_seconds,
                 inactivity_timeout_seconds, location, whatsapp, image, images, status
-             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
 
         $type = $data['type'];
@@ -468,6 +469,7 @@ class Product extends Model
             $data['category'] ?? 'Разное',
             $data['title'],
             $data['description'],
+            $data['characteristics'] ?? null,
             $price,
             $quantity,
             $exchangeFor,
@@ -497,7 +499,7 @@ class Product extends Model
     public function updateProduct(int $id, array $data): bool
     {
         $stmt = $this->db->prepare(
-            'UPDATE products SET type=?, category=?, title=?, description=?, price=?, quantity=?, exchange_for=?, price_label=?,
+            'UPDATE products SET type=?, category=?, title=?, description=?, characteristics=?, price=?, quantity=?, exchange_for=?, price_label=?,
              bid_step=?, auction_kind=?, auction_reserve=?, auction_buy_now=?, auction_min_price=?, auction_step_interval=?,
              auction_end_at=?, anti_snipe_seconds=?, auto_extend_seconds=?, inactivity_timeout_seconds=?,
              location=?, whatsapp=?, image=?, images=?, status=? WHERE id=?'
@@ -538,6 +540,7 @@ class Product extends Model
             $data['category'] ?? 'Разное',
             $data['title'],
             $data['description'],
+            $data['characteristics'] ?? null,
             $price,
             $quantity,
             $exchangeFor,
