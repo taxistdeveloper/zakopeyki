@@ -38,6 +38,25 @@ unset($_SESSION['listing_shipping_errors']);
         </div>
     <?php endif; ?>
 
+    <section class="space-y-3 text-xs leading-relaxed text-gray-700 dark:text-gray-300" aria-labelledby="lot-shipping-info-title">
+        <h3 id="lot-shipping-info-title" class="font-display text-sm font-bold text-ink-900 dark:text-white"><?= htmlspecialchars(t('listing_shipping.info_title')) ?></h3>
+        <p><?= htmlspecialchars(t('listing_shipping.info_intro')) ?></p>
+        <p class="font-semibold text-amber-800 dark:text-amber-300"><?= htmlspecialchars(t('listing_shipping.info_warning')) ?></p>
+        <details class="rounded-xl border border-black/[0.08] dark:border-white/10 p-3">
+            <summary class="cursor-pointer font-bold text-ink-900 dark:text-white"><?= htmlspecialchars(t('listing_shipping.prohibited_title')) ?></summary>
+            <div class="space-y-3 pt-3">
+                <p><?= htmlspecialchars(t('listing_shipping.prohibited_intro')) ?></p>
+                <p><?= htmlspecialchars(t('listing_shipping.prohibited_categories')) ?></p>
+                <ul class="list-disc space-y-1 pl-5">
+                    <?php for ($i = 1; $i <= 17; $i++): ?>
+                        <li><?= htmlspecialchars(t('listing_shipping.prohibited_' . $i)) ?></li>
+                    <?php endfor; ?>
+                </ul>
+                <p class="font-semibold"><?= htmlspecialchars(t('listing_shipping.prohibited_disclaimer')) ?></p>
+            </div>
+        </details>
+    </section>
+
     <div class="rounded-xl bg-blue-50/80 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-800/40 px-3 py-2 text-xs text-blue-900 dark:text-blue-200">
         <?= htmlspecialchars(t('listing_shipping.no_quote_at_publish')) ?>
     </div>
