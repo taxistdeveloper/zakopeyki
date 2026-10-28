@@ -674,7 +674,7 @@ class PaymentController extends Controller
         if ($productId > 0) {
             $this->redirect('/profile/lots/' . $productId . '/promote');
         }
-        $this->redirect('/profile?tab=lots');
+        $this->redirect('/profile?tab=my-listings');
     }
 
     private function redirectBoostReturn(string $pgOrderId): void
@@ -682,7 +682,7 @@ class PaymentController extends Controller
         $order = (new BoostOrder())->findByPgOrderId($pgOrderId);
         if (!$order || (int) ($order['user_id'] ?? 0) !== (int) Auth::id()) {
             $_SESSION['error'] = t('boost.err_not_found');
-            $this->redirect('/profile?tab=lots');
+            $this->redirect('/profile?tab=my-listings');
             return;
         }
 
@@ -704,7 +704,7 @@ class PaymentController extends Controller
         $order = (new HighlightOrder())->findByPgOrderId($pgOrderId);
         if (!$order || (int) ($order['user_id'] ?? 0) !== (int) Auth::id()) {
             $_SESSION['error'] = t('highlight.err_not_found');
-            $this->redirect('/profile?tab=lots');
+            $this->redirect('/profile?tab=my-listings');
             return;
         }
 
@@ -733,7 +733,7 @@ class PaymentController extends Controller
         $order = (new TopFixedXlOrder())->findByPgOrderId($pgOrderId);
         if (!$order || (int) ($order['user_id'] ?? 0) !== (int) Auth::id()) {
             $_SESSION['error'] = t('top_fixed_xl.err_not_found');
-            $this->redirect('/profile?tab=lots');
+            $this->redirect('/profile?tab=my-listings');
             return;
         }
 
@@ -763,7 +763,7 @@ class PaymentController extends Controller
         $order = (new VipOrder())->findByPgOrderId($pgOrderId);
         if (!$order || (int) ($order['user_id'] ?? 0) !== (int) Auth::id()) {
             $_SESSION['error'] = t('vip.err_not_found');
-            $this->redirect('/profile?tab=lots');
+            $this->redirect('/profile?tab=my-listings');
             return;
         }
 
@@ -1053,7 +1053,7 @@ class PaymentController extends Controller
         $order = (new TopFixedOrder())->findByPgOrderId($pgOrderId);
         if (!$order || (int) ($order['user_id'] ?? 0) !== (int) Auth::id()) {
             $_SESSION['error'] = t('top_fixed.err_not_found');
-            $this->redirect('/profile?tab=lots');
+            $this->redirect('/profile?tab=my-listings');
             return;
         }
 

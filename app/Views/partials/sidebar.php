@@ -111,6 +111,9 @@ $navIcon = static fn (string $name): string => IconHelper::svg($name, 'w-[18px] 
         <a href="<?= ProductHelper::url('/orders') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('orders', $nav) ?>">
             <?= $navIcon('bag') ?> <span><?= htmlspecialchars(t('nav.deals')) ?></span>
         </a>
+        <a href="<?= ProductHelper::url('/profile?tab=my-listings') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('my_listings', $nav) ?>">
+            <?= $navIcon('package') ?> <span><?= htmlspecialchars(t('nav.my_listings')) ?></span>
+        </a>
         <a href="<?= ProductHelper::url('/wallet') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('wallet', $nav) ?>">
             <?= $navIcon('wallet') ?> <span><?= htmlspecialchars(t('nav.wallet')) ?></span>
         </a>

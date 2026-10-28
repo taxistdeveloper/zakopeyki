@@ -46,7 +46,7 @@ class ProfileController extends Controller
         if ($tab === 'author') {
             $this->redirect('/profile?tab=lots');
         }
-        $allowed = ['personal', 'photo', 'bio', 'reviews', 'notifications', 'password', 'lots', 'favorites', 'subscriptions', 'referral', 'business'];
+        $allowed = ['personal', 'photo', 'bio', 'reviews', 'notifications', 'password', 'lots', 'my-listings', 'favorites', 'subscriptions', 'referral', 'business'];
         if (!in_array($tab, $allowed, true)) {
             $tab = 'personal';
         }
@@ -144,25 +144,25 @@ class ProfileController extends Controller
         }
 
         $products = (new Product())->byUser(Auth::id());
-        $boostStates = $tab === 'lots'
+        $boostStates = $tab === 'my-listings'
             ? (new BoostService())->statesForProducts((int) Auth::id(), $products)
             : [];
-        $highlightStates = $tab === 'lots'
+        $highlightStates = $tab === 'my-listings'
             ? (new HighlightService())->statesForProducts((int) Auth::id(), $products)
             : [];
-        $topFixedStates = $tab === 'lots'
+        $topFixedStates = $tab === 'my-listings'
             ? (new TopFixedService())->statesForProducts((int) Auth::id(), $products)
             : [];
-        $topFixedXlStates = $tab === 'lots'
+        $topFixedXlStates = $tab === 'my-listings'
             ? (new TopFixedXlService())->statesForProducts((int) Auth::id(), $products)
             : [];
-        $vipStates = $tab === 'lots'
+        $vipStates = $tab === 'my-listings'
             ? (new VipService())->statesForProducts((int) Auth::id(), $products)
             : [];
 
         $this->view('profile/index', [
             'title' => t('profile.title'),
-            'currentNav' => 'profile',
+            'currentNav' => $tab === 'my-listings' ? 'my_listings' : 'profile',
             'tab' => $tab,
             'user' => $profileUser,
             'products' => $products,
@@ -180,7 +180,7 @@ class ProfileController extends Controller
             'editingGig' => $editingGig,
             'editGigCategoryId' => $editGigCategoryId,
             'editGigCategoryPath' => $editGigCategoryPath,
-            'microTasks' => ($tab === 'lots' && Auth::canAccessGigs()) ? array_values(array_filter(
+            'microTasks' => ($tab === 'my-listings' && Auth::canAccessGigs()) ? array_values(array_filter(
                 $microSvc->listForUser(Auth::id()),
                 static fn (array $row): bool => (int) $row['customer_id'] === (int) Auth::id()
             )) : [],
@@ -671,7 +671,7 @@ class ProfileController extends Controller
                 'amount' => \App\Models\Bonus::format((int) $bonusResult['amount']),
             ]);
         }
-        $this->redirect('/profile?tab=lots');
+        $this->redirect('/profile?tab=my-listings');
     }
 
     private function storeGig(string $description): void
@@ -896,7 +896,7 @@ class ProfileController extends Controller
         ]);
 
         $_SESSION['flash'] = t('flash.lot_updated');
-        $this->redirect('/profile?tab=lots');
+        $this->redirect('/profile?tab=my-listings');
     }
 
     public function deleteLot(string $id): void
@@ -919,7 +919,7 @@ class ProfileController extends Controller
             (int) $id
         );
         $_SESSION['flash'] = t('flash.lot_deleted');
-        $this->redirect('/profile?tab=lots#profile-published-lots');
+        $this->redirect('/profile?tab=my-listings#profile-published-lots');
     }
 
     public function enableCourseAuthor(): void

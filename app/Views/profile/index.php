@@ -33,6 +33,7 @@ $tabs = [
     'subscriptions' => ['label' => t('profile.tab_subscriptions'), 'icon' => 'users'],
     'referral' => ['label' => t('profile.tab_referral'), 'icon' => 'gift'],
     'lots' => ['label' => t('profile.tab_lots'), 'icon' => 'package'],
+    'my-listings' => ['label' => t('profile.tab_my_listings'), 'icon' => 'file'],
 ];
 
 $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm';
@@ -1968,6 +1969,7 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                 })();
                 </script>
 
+            <?php elseif ($tab === 'my-listings'): ?>
                 <?php $microTasks = $microTasks ?? []; ?>
                 <?php if (!empty($microTasks)): ?>
                     <h3 class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3"><?= htmlspecialchars(t('gigs.my_gigs')) ?> (<?= count($microTasks) ?>)</h3>
@@ -2006,7 +2008,7 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                 <?php
                 $lotProducts = $products ?? [];
                 ?>
-                <h3 id="profile-published-lots" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Опубликованные (<?= count($lotProducts) ?>)</h3>
+                <h3 id="profile-published-lots" class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3"><?= htmlspecialchars(t('profile.published')) ?> (<?= count($lotProducts) ?>)</h3>
                 <?php if (empty($lotProducts)): ?>
                     <p class="text-sm text-gray-400"><?= htmlspecialchars(t('profile.no_lots')) ?></p>
                 <?php else: ?>
@@ -2131,22 +2133,30 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                                     || (string) ($vipUi['code'] ?? 'hidden') !== 'hidden';
                                 ?>
                                 <?php if ($lotPromoteVisible): ?>
-                                <div id="lot-promote-<?= (int) $p['id'] ?>"
-                                     class="w-full basis-full mt-1"
-                                     data-lot-promote="<?= (int) $p['id'] ?>">
-                                    <div class="border-t border-black/[0.06] dark:border-white/10 pt-2.5 mb-0.5">
-                                        <div class="text-[11px] font-bold text-ink-900 dark:text-white">
-                                            <?= htmlspecialchars(t('profile.promote_title')) ?>
+                                <div class="w-full basis-full mt-1">
+                                    <button type="button" data-lot-promote-trigger="<?= (int) $p['id'] ?>" aria-haspopup="dialog" aria-controls="lot-promote-modal-<?= (int) $p['id'] ?>" class="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-orange-700 dark:text-orange-300 border border-orange-300/80 dark:border-orange-500/40 hover:bg-orange-50 dark:hover:bg-orange-500/10 transition">
+                                        <?= htmlspecialchars(t('profile.promote_title')) ?>
+                                    </button>
+                                </div>
+                                <div id="lot-promote-modal-<?= (int) $p['id'] ?>" data-lot-promote-modal="<?= (int) $p['id'] ?>" class="fixed inset-0 z-[90] hidden items-center justify-center p-3 sm:p-6" aria-hidden="true">
+                                    <button type="button" data-lot-promote-close class="absolute inset-0 w-full h-full bg-ink-950/70 backdrop-blur-sm cursor-default" aria-label="<?= htmlspecialchars(t('profile.promote_close')) ?>"></button>
+                                    <div role="dialog" aria-modal="true" aria-labelledby="lot-promote-title-<?= (int) $p['id'] ?>" class="relative w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden rounded-[24px] bg-white dark:bg-ink-900 border border-black/[0.08] dark:border-white/10 shadow-lift">
+                                        <div class="flex items-start justify-between gap-3 px-5 py-4 border-b border-black/[0.06] dark:border-white/10">
+                                            <div class="min-w-0">
+                                                <h2 id="lot-promote-title-<?= (int) $p['id'] ?>" class="font-display text-lg font-bold text-ink-900 dark:text-white"><?= htmlspecialchars(t('profile.promote_title')) ?></h2>
+                                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate"><?= htmlspecialchars($p['title']) ?></p>
+                                            </div>
+                                            <button type="button" data-lot-promote-close class="w-9 h-9 shrink-0 rounded-xl text-gray-500 hover:bg-black/5 dark:hover:bg-white/10 text-xl leading-none" aria-label="<?= htmlspecialchars(t('profile.promote_close')) ?>">&times;</button>
                                         </div>
-                                        <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">
-                                            <?= htmlspecialchars(t('profile.promote_hint')) ?>
-                                        </p>
+                                        <div id="lot-promote-<?= (int) $p['id'] ?>" data-lot-promote="<?= (int) $p['id'] ?>" class="overflow-y-auto px-5 py-4">
+                                            <p class="text-xs text-gray-500 dark:text-gray-400 mb-3"><?= htmlspecialchars(t('profile.promote_hint')) ?></p>
+                                            <?php \App\Core\View::partial('partials/lot-boost', ['product' => $p, 'ui' => $boostUi]); ?>
+                                            <?php \App\Core\View::partial('partials/lot-highlight', ['product' => $p, 'ui' => $highlightUi]); ?>
+                                            <?php \App\Core\View::partial('partials/lot-top-fixed', ['product' => $p, 'ui' => $topFixedUi]); ?>
+                                            <?php \App\Core\View::partial('partials/lot-top-fixed-xl', ['product' => $p, 'ui' => $topFixedXlUi]); ?>
+                                            <?php \App\Core\View::partial('partials/lot-vip', ['product' => $p, 'ui' => $vipUi]); ?>
+                                        </div>
                                     </div>
-                                    <?php \App\Core\View::partial('partials/lot-boost', ['product' => $p, 'ui' => $boostUi]); ?>
-                                    <?php \App\Core\View::partial('partials/lot-highlight', ['product' => $p, 'ui' => $highlightUi]); ?>
-                                    <?php \App\Core\View::partial('partials/lot-top-fixed', ['product' => $p, 'ui' => $topFixedUi]); ?>
-                                    <?php \App\Core\View::partial('partials/lot-top-fixed-xl', ['product' => $p, 'ui' => $topFixedXlUi]); ?>
-                                    <?php \App\Core\View::partial('partials/lot-vip', ['product' => $p, 'ui' => $vipUi]); ?>
                                 </div>
                                 <?php endif; ?>
                             </div>
@@ -2157,16 +2167,72 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                 function profileLotsScroller() {
                     return document.querySelector('#main-container main');
                 }
-                (function focusLotPromote() {
-                    var params = new URLSearchParams(window.location.search);
-                    var promoteId = params.get('promote');
-                    if (!promoteId) return;
-                    var target = document.getElementById('lot-promote-' + promoteId);
-                    if (!target) return;
-                    target.classList.add('ring-2', 'ring-brand-400/50', 'rounded-xl', 'px-2', 'pb-1');
-                    requestAnimationFrame(function () {
-                        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                (function setupLotPromoteModals() {
+                    var activeModal = null;
+                    var returnFocus = null;
+                    var previousOverflow = '';
+
+                    document.querySelectorAll('[data-lot-promote-modal]').forEach(function (modal) {
+                        document.body.appendChild(modal);
                     });
+
+                    function closeModal() {
+                        if (!activeModal) return;
+                        activeModal.classList.add('hidden');
+                        activeModal.classList.remove('flex');
+                        activeModal.setAttribute('aria-hidden', 'true');
+                        document.body.style.overflow = previousOverflow;
+                        activeModal = null;
+                        if (returnFocus) returnFocus.focus();
+                    }
+
+                    function openModal(id, trigger) {
+                        var modal = document.getElementById('lot-promote-modal-' + id);
+                        if (!modal) return;
+                        if (activeModal) closeModal();
+                        previousOverflow = document.body.style.overflow;
+                        returnFocus = trigger || document.querySelector('[data-lot-promote-trigger="' + id + '"]');
+                        activeModal = modal;
+                        modal.classList.remove('hidden');
+                        modal.classList.add('flex');
+                        modal.setAttribute('aria-hidden', 'false');
+                        document.body.style.overflow = 'hidden';
+                        var closeButton = modal.querySelector('[role="dialog"] [data-lot-promote-close]');
+                        if (closeButton) closeButton.focus();
+                    }
+
+                    document.querySelectorAll('[data-lot-promote-trigger]').forEach(function (trigger) {
+                        trigger.addEventListener('click', function () {
+                            openModal(trigger.getAttribute('data-lot-promote-trigger'), trigger);
+                        });
+                    });
+                    document.querySelectorAll('[data-lot-promote-modal] [data-lot-promote-close]').forEach(function (button) {
+                        button.addEventListener('click', closeModal);
+                    });
+                    document.addEventListener('keydown', function (event) {
+                        if (!activeModal) return;
+                        if (event.key === 'Escape') {
+                            event.preventDefault();
+                            closeModal();
+                        } else if (event.key === 'Tab') {
+                            var focusable = Array.from(activeModal.querySelectorAll('[role="dialog"] button:not([disabled]), [role="dialog"] a[href], [role="dialog"] input:not([disabled]), [role="dialog"] select:not([disabled])')).filter(function (node) {
+                                return node.getClientRects().length > 0;
+                            });
+                            if (!focusable.length) return;
+                            var first = focusable[0];
+                            var last = focusable[focusable.length - 1];
+                            if (event.shiftKey && document.activeElement === first) {
+                                event.preventDefault();
+                                last.focus();
+                            } else if (!event.shiftKey && document.activeElement === last) {
+                                event.preventDefault();
+                                first.focus();
+                            }
+                        }
+                    });
+
+                    var promoteId = new URLSearchParams(window.location.search).get('promote');
+                    if (promoteId && /^\d+$/.test(promoteId)) openModal(promoteId);
                 })();
                 function profileKeepLotsScroll(msg) {
                     if (!confirm(msg)) return false;

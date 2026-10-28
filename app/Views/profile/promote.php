@@ -10,7 +10,7 @@ use App\Services\Vip\VipPolicy;
 $product = $product ?? [];
 $productId = (int) ($product['id'] ?? 0);
 $thumb = ProductHelper::imageUrl($product);
-$backUrl = ProductHelper::url('/profile?tab=lots');
+$backUrl = ProductHelper::url('/profile?tab=my-listings');
 $showUrl = ProductHelper::url('/product/' . $productId);
 $title = (string) ($product['title'] ?? '');
 $priceLabel = ProductHelper::formatPrice($product);

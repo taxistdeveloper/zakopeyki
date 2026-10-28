@@ -25,7 +25,7 @@ class PromoteController extends Controller
 
         if (!$product || (int) ($product['user_id'] ?? 0) !== $userId) {
             $_SESSION['error'] = t('profile.promote_forbidden');
-            $this->redirect('/profile?tab=lots');
+            $this->redirect('/profile?tab=my-listings');
             return;
         }
 
