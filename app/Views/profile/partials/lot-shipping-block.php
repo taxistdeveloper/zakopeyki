@@ -21,11 +21,15 @@ $defaultAddressLine = implode(', ', array_filter([
 $shippingErrors = $_SESSION['listing_shipping_errors'] ?? null;
 unset($_SESSION['listing_shipping_errors']);
 ?>
-<div id="lot-shipping-wrap" class="hidden space-y-4 rounded-2xl border border-black/[0.08] dark:border-white/10 bg-white/80 dark:bg-white/[0.03] p-5">
-    <div>
-        <h3 class="font-display font-bold text-ink-900 dark:text-white"><?= htmlspecialchars(t('listing_shipping.title')) ?></h3>
-        <p class="text-xs text-gray-500 mt-1"><?= htmlspecialchars(t('listing_shipping.subtitle')) ?></p>
-    </div>
+<details id="lot-shipping-wrap" class="hidden rounded-2xl border border-black/[0.08] dark:border-white/10 bg-white/80 dark:bg-white/[0.03] p-5" <?= is_array($shippingErrors) && !empty($shippingErrors['missing_fields']) ? 'open' : '' ?>>
+    <summary class="flex items-center justify-between gap-3 cursor-pointer" style="list-style: none">
+        <span>
+            <span class="block font-display font-bold text-ink-900 dark:text-white"><?= htmlspecialchars(t('listing_shipping.title')) ?></span>
+            <span class="block text-xs text-gray-500 mt-1"><?= htmlspecialchars(t('listing_shipping.subtitle')) ?></span>
+        </span>
+        <svg class="w-5 h-5 shrink-0 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+    </summary>
+    <div class="space-y-4 pt-4">
 
     <?php if (is_array($shippingErrors) && !empty($shippingErrors['missing_fields'])): ?>
         <div class="rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/50 px-3 py-2 text-xs text-red-800 dark:text-red-200">
@@ -181,7 +185,12 @@ unset($_SESSION['listing_shipping_errors']);
             <?php endforeach; ?>
         </select>
     </div>
-</div>
+    </div>
+</details>
+<style>
+    #lot-shipping-wrap > summary::-webkit-details-marker { display: none; }
+    #lot-shipping-wrap[open] > summary svg { transform: rotate(180deg); }
+</style>
 <script>
 (function () {
     const wrap = document.getElementById('lot-shipping-wrap');
