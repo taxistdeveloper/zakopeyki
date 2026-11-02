@@ -1265,6 +1265,8 @@ return [
         'login_title' => 'Вход',
         'login_heading' => 'Вход в аккаунт',
         'password' => 'Пароль',
+        'remember' => 'Сохранить пароль',
+        'remember_hint' => 'Оставаться в аккаунте 30 дней',
         'login_btn' => 'Войти',
         'no_account' => 'Нет аккаунта?',
         'register_link' => 'Регистрация',

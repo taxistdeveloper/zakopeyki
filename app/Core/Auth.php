@@ -12,6 +12,8 @@ class Auth
         'disputes',
     ];
 
+    private const REMEMBER_TTL = 60 * 60 * 24 * 30; // 30 дней
+
     public static function start(): void
     {
         if (session_status() !== PHP_SESSION_NONE) {
@@ -31,13 +33,37 @@ class Auth
         ]);
 
         session_start();
+
+        if (!empty($_SESSION['remember_me'])) {
+            self::refreshSessionCookie(self::REMEMBER_TTL);
+        }
     }
 
-    public static function login(array $user): void
+    public static function login(array $user, bool $remember = false): void
     {
         self::start();
         session_regenerate_id(true);
         self::setUser($user);
+        $_SESSION['remember_me'] = $remember;
+        if ($remember) {
+            self::refreshSessionCookie(self::REMEMBER_TTL);
+        }
+    }
+
+    private static function refreshSessionCookie(int $lifetime): void
+    {
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            return;
+        }
+        $params = session_get_cookie_params();
+        setcookie(session_name(), session_id(), [
+            'expires' => time() + $lifetime,
+            'path' => $params['path'] ?: '/',
+            'domain' => $params['domain'] ?? '',
+            'secure' => (bool) $params['secure'],
+            'httponly' => (bool) $params['httponly'],
+            'samesite' => $params['samesite'] ?? 'Lax',
+        ]);
     }
 
     /** Обновить данные в сессии без ротации session id (например после правки профиля). */

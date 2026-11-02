@@ -1265,6 +1265,8 @@ return [
         'login_title' => 'Кіру',
         'login_heading' => 'Аккаунтқа кіру',
         'password' => 'Құпиясөз',
+        'remember' => 'Құпиясөзді сақтау',
+        'remember_hint' => 'Аккаунтта 30 күн қалу',
         'login_btn' => 'Кіру',
         'no_account' => 'Аккаунт жоқ па?',
         'register_link' => 'Тіркелу',

@@ -38,7 +38,7 @@ use App\Helpers\ProductHelper;
             <?= csrf_field() ?>
             <div>
                 <label class="block text-[13px] font-semibold mb-1.5">Email</label>
-                <input type="email" name="email" value="<?= htmlspecialchars($email ?? '') ?>" required class="w-full h-11 px-4 rounded-xl border border-black/10 bg-white text-sm focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20">
+                <input type="email" name="email" value="<?= htmlspecialchars($email ?? '') ?>" required autocomplete="username" class="w-full h-11 px-4 rounded-xl border border-black/10 bg-white text-sm focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20">
             </div>
             <div>
                 <div class="flex items-center justify-between mb-1.5 gap-3">
@@ -46,10 +46,25 @@ use App\Helpers\ProductHelper;
                     <a href="<?= ProductHelper::url('/forgot-password') ?>" class="text-[12px] font-semibold text-brand-600 hover:text-brand-500 shrink-0"><?= htmlspecialchars(t('auth.forgot_link')) ?></a>
                 </div>
                 <div class="relative">
-                    <input type="password" name="password" id="login-password" required class="w-full h-11 px-4 pr-11 rounded-xl border border-black/10 bg-white text-sm focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20">
+                    <input type="password" name="password" id="login-password" required autocomplete="current-password" class="w-full h-11 px-4 pr-11 rounded-xl border border-black/10 bg-white text-sm focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20">
                     <button type="button" onclick="togglePass('login-password')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-ink-800" aria-label="Toggle password"><?= IconHelper::svg('eye', 'w-4 h-4') ?></button>
                 </div>
             </div>
+            <label id="remember-row" class="group flex items-center gap-3 cursor-pointer select-none rounded-2xl border border-black/10 bg-gray-50/70 hover:bg-brand-500/[0.06] hover:border-brand-500/25 px-3.5 py-3 transition has-[:checked]:bg-brand-500/[0.08] has-[:checked]:border-brand-500/30">
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white border border-black/8 text-gray-400 group-hover:text-brand-600 group-has-[:checked]:bg-brand-500 group-has-[:checked]:border-brand-500 group-has-[:checked]:text-white transition">
+                    <?= IconHelper::svg('lock', 'w-4 h-4') ?>
+                </span>
+                <span class="min-w-0 flex-1">
+                    <span class="block text-[13px] font-semibold text-ink-900 leading-tight"><?= htmlspecialchars(t('auth.remember')) ?></span>
+                    <span class="block text-[11px] text-gray-400 mt-0.5 leading-snug"><?= htmlspecialchars(t('auth.remember_hint')) ?></span>
+                </span>
+                <span class="relative shrink-0">
+                    <input type="checkbox" name="remember" id="remember" value="1" <?= !empty($remember) ? 'checked' : '' ?>
+                           class="peer sr-only">
+                    <span class="block h-6 w-11 rounded-full bg-black/10 peer-checked:bg-brand-500 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-500/30 transition"></span>
+                    <span class="pointer-events-none absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm peer-checked:translate-x-5 transition"></span>
+                </span>
+            </label>
             <button class="w-full bg-ink-900 hover:bg-black text-white font-display font-bold py-3.5 rounded-2xl text-xs uppercase tracking-wider transition"><?= htmlspecialchars(t('auth.login_btn')) ?></button>
         </form>
         <script>

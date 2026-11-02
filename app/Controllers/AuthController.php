@@ -39,6 +39,7 @@ class AuthController extends Controller
     {
         $email = trim($_POST['email'] ?? '');
         $password = $_POST['password'] ?? '';
+        $remember = !empty($_POST['remember']);
         $user = (new User())->findByEmail($email);
 
         if (!$user || empty($user['password']) || !password_verify($password, $user['password'])) {
@@ -49,16 +50,17 @@ class AuthController extends Controller
                 'title' => t('auth.login_title'),
                 'error' => t('auth.bad_credentials'),
                 'email' => $email,
+                'remember' => $remember,
             ], 'layouts/auth');
             return;
         }
 
         if ((new User())->hasTwoFactor($user)) {
-            $this->beginTwoFactorChallenge((int) $user['id']);
+            $this->beginTwoFactorChallenge((int) $user['id'], $remember);
             $this->redirect('/login/2fa');
         }
 
-        Auth::login($user);
+        Auth::login($user, $remember);
         ActivityLogger::info('auth.login', 'Вход в аккаунт', 'user', (int) $user['id']);
         $this->redirect('/');
     }
@@ -112,8 +114,9 @@ class AuthController extends Controller
             return;
         }
 
+        $remember = !empty(($_SESSION['pending_2fa'] ?? [])['remember']);
         $this->clearTwoFactorChallenge();
-        Auth::login($user);
+        Auth::login($user, $remember);
         ActivityLogger::info('auth.login', 'Вход после 2FA', 'user', (int) $user['id']);
         $this->redirect('/');
     }
@@ -497,11 +500,12 @@ class AuthController extends Controller
         $this->redirect('/login');
     }
 
-    private function beginTwoFactorChallenge(int $userId): void
+    private function beginTwoFactorChallenge(int $userId, bool $remember = false): void
     {
         $_SESSION['pending_2fa'] = [
             'user_id' => $userId,
             'expires' => time() + self::PENDING_2FA_TTL,
+            'remember' => $remember,
         ];
     }
 
