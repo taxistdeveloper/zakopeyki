@@ -5103,10 +5103,412 @@ function toggleAiAssistant(force) {
         }, 40);
     } else {
         stopAiPolling();
+        stopAiVoice();
     }
 }
 
 window.toggleAiAssistant = toggleAiAssistant;
+
+
+/* ===== AI Voice / Speech-to-Text (STT) Controller ===== */
+let aiVoiceState = 'idle'; // idle | recording | processing | error
+let aiSpeechRecognition = null;
+let aiMediaRecorder = null;
+let aiMediaStream = null;
+let aiAudioChunks = [];
+let aiVoiceTimeout = null;
+
+function getSpeechLang() {
+    const l = window.__lang || 'ru';
+    if (l === 'kk') return 'kk-KZ';
+    if (l === 'en') return 'en-US';
+    return 'ru-RU';
+}
+
+function updateAiVoiceStatus(state, message) {
+    aiVoiceState = state;
+    const bar = document.getElementById('ai-voice-status');
+    const dot = document.getElementById('ai-voice-indicator-dot');
+    const textEl = document.getElementById('ai-voice-status-text');
+    const micBtn = document.getElementById('ai-chat-mic-btn');
+
+    if (!bar) return;
+
+    if (state === 'idle') {
+        bar.classList.add('hidden');
+        if (micBtn) {
+            micBtn.classList.remove('text-red-500', 'bg-red-50', 'dark:bg-red-950/30', 'animate-pulse', 'text-amber-500');
+            micBtn.classList.add('text-ink-700', 'dark:text-gray-300');
+        }
+        return;
+    }
+
+    bar.classList.remove('hidden');
+
+    if (state === 'recording') {
+        if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0';
+        if (textEl) textEl.textContent = message || tJs('ai.mic_listening', 'Слушаю… говорите');
+        if (micBtn) {
+            micBtn.classList.add('text-red-500', 'bg-red-50', 'dark:bg-red-950/30', 'animate-pulse');
+            micBtn.classList.remove('text-ink-700', 'dark:text-gray-300', 'text-amber-500');
+        }
+    } else if (state === 'processing') {
+        if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shrink-0';
+        if (textEl) textEl.textContent = message || tJs('ai.mic_processing', 'Распознавание речи…');
+        if (micBtn) {
+            micBtn.classList.remove('text-red-500', 'animate-pulse');
+            micBtn.classList.add('text-amber-500');
+        }
+    } else if (state === 'error') {
+        if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-red-600 shrink-0';
+        if (textEl) textEl.textContent = message || tJs('ai.mic_error', 'Не удалось распознать речь.');
+        if (micBtn) {
+            micBtn.classList.remove('text-red-500', 'animate-pulse', 'text-amber-500');
+        }
+        setTimeout(function () {
+            if (aiVoiceState === 'error') {
+                updateAiVoiceStatus('idle');
+            }
+        }, 5000);
+    }
+}
+
+function stopAiVoice(silent) {
+    if (aiVoiceTimeout) {
+        clearTimeout(aiVoiceTimeout);
+        aiVoiceTimeout = null;
+    }
+    if (aiSpeechRecognition) {
+        try {
+            aiSpeechRecognition.onresult = null;
+            aiSpeechRecognition.onerror = null;
+            aiSpeechRecognition.onend = null;
+            aiSpeechRecognition.stop();
+        } catch (e) { /* ignore */ }
+        aiSpeechRecognition = null;
+    }
+    if (aiMediaRecorder && aiMediaRecorder.state !== 'inactive') {
+        try {
+            aiMediaRecorder.stop();
+        } catch (e) { /* ignore */ }
+        aiMediaRecorder = null;
+    }
+    if (aiMediaStream) {
+        try {
+            aiMediaStream.getTracks().forEach(function (t) { t.stop(); });
+        } catch (e) { /* ignore */ }
+        aiMediaStream = null;
+    }
+    aiAudioChunks = [];
+    if (!silent) {
+        updateAiVoiceStatus('idle');
+    }
+}
+
+function startAiVoice() {
+    if (aiVoiceState === 'recording' || aiVoiceState === 'processing') {
+        if (aiSpeechRecognition) {
+            updateAiVoiceStatus('processing');
+            try { aiSpeechRecognition.stop(); } catch (e) { stopAiVoice(); }
+            return;
+        }
+        if (aiMediaRecorder && aiMediaRecorder.state === 'recording') {
+            updateAiVoiceStatus('processing');
+            try { aiMediaRecorder.stop(); } catch (e) { stopAiVoice(); }
+            return;
+        }
+        stopAiVoice();
+        return;
+    }
+
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const canRecord = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+
+    // Серверный STT (whisper.cpp): запись идёт на наш сервер, а не в облако браузера
+    if (window.__aiSttProvider === 'server_stt' && canRecord) {
+        startMediaRecorder();
+    } else if (SpeechRec) {
+        startWebSpeech(SpeechRec);
+    } else if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        startMediaRecorder();
+    } else {
+        updateAiVoiceStatus('error', tJs('ai.mic_unsupported', 'Голосовой ввод не поддерживается вашим браузером.'));
+    }
+}
+
+function startWebSpeech(SpeechRec) {
+    stopAiVoice(true);
+    updateAiVoiceStatus('recording', tJs('ai.mic_listening', 'Слушаю… говорите'));
+
+    let recognition = null;
+    try {
+        recognition = new SpeechRec();
+    } catch (e) {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            startMediaRecorder();
+            return;
+        }
+        updateAiVoiceStatus('error', tJs('ai.mic_error', 'Не удалось запустить микрофон.'));
+        return;
+    }
+
+    aiSpeechRecognition = recognition;
+    recognition.lang = getSpeechLang();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+
+    let finalTranscript = '';
+    const inputEl = document.getElementById('ai-chat-input');
+
+    aiVoiceTimeout = setTimeout(function () {
+        if (aiVoiceState === 'recording') {
+            try { recognition.stop(); } catch (e) { stopAiVoice(); }
+        }
+    }, 45000);
+
+    recognition.onresult = function (event) {
+        let interim = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+            const res = event.results[i];
+            if (res.isFinal) {
+                finalTranscript += res[0].transcript;
+            } else {
+                interim += res[0].transcript;
+            }
+        }
+        const currentText = (finalTranscript || interim).trim();
+        if (inputEl && currentText) {
+            inputEl.value = currentText;
+        }
+    };
+
+    recognition.onerror = function (event) {
+        clearTimeout(aiVoiceTimeout);
+        stopAiVoice(true);
+        let msg = tJs('ai.mic_error', 'Не удалось распознать речь.');
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+            msg = tJs('ai.mic_denied', 'Доступ к микрофону запрещён в настройках браузера.');
+        } else if (event.error === 'no-speech') {
+            msg = tJs('ai.mic_error', 'Речь не обнаружена. Попробуйте ещё раз.');
+        } else if (event.error === 'audio-capture') {
+            msg = tJs('ai.mic_not_found', 'Микрофон не обнаружен.');
+        }
+        updateAiVoiceStatus('error', msg);
+    };
+
+    recognition.onend = function () {
+        clearTimeout(aiVoiceTimeout);
+        aiSpeechRecognition = null;
+        const text = (finalTranscript || (inputEl?.value || '')).trim();
+        if (text) {
+            handleVoiceRecognized(text, 'web_speech');
+        } else {
+            updateAiVoiceStatus('idle');
+        }
+    };
+
+    try {
+        recognition.start();
+    } catch (e) {
+        stopAiVoice(true);
+        updateAiVoiceStatus('error', tJs('ai.mic_error', 'Не удалось запустить микрофон.'));
+    }
+}
+
+function startMediaRecorder() {
+    stopAiVoice(true);
+    updateAiVoiceStatus('recording', tJs('ai.mic_listening', 'Слушаю… говорите'));
+
+    if (!window.MediaRecorder) {
+        updateAiVoiceStatus('error', tJs('ai.mic_unsupported', 'Голосовой ввод не поддерживается вашим браузером.'));
+        return;
+    }
+
+    navigator.mediaDevices.getUserMedia({
+        audio: {
+            channelCount: 1,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+        }
+    })
+        .then(function (stream) {
+            aiMediaStream = stream;
+            aiAudioChunks = [];
+
+            let mimeType = 'audio/webm;codecs=opus';
+            if (typeof MediaRecorder.isTypeSupported === 'function') {
+                if (!MediaRecorder.isTypeSupported(mimeType)) {
+                    mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
+                        : (MediaRecorder.isTypeSupported('audio/ogg') ? 'audio/ogg' : '');
+                }
+            } else {
+                mimeType = '';
+            }
+
+            const options = mimeType ? { mimeType: mimeType } : {};
+            const recorder = new MediaRecorder(stream, options);
+            aiMediaRecorder = recorder;
+
+            recorder.ondataavailable = function (e) {
+                if (e.data && e.data.size > 0) {
+                    aiAudioChunks.push(e.data);
+                }
+            };
+
+            recorder.onstop = function () {
+                aiMediaStream?.getTracks().forEach(function (t) { t.stop(); });
+                aiMediaStream = null;
+                const blob = new Blob(aiAudioChunks, { type: mimeType || 'audio/webm' });
+                aiAudioChunks = [];
+                if (blob.size < 200) {
+                    updateAiVoiceStatus('error', tJs('ai.mic_too_short', 'Слишком короткая запись.'));
+                    return;
+                }
+                updateAiVoiceStatus('processing', tJs('ai.mic_processing', 'Распознавание речи…'));
+                // Сервер (whisper.cpp) читает WAV нативно: перекодируем в браузере, без ffmpeg на сервере
+                aiBlobToWav16k(blob)
+                    .then(function (wav) { uploadVoiceAudio(wav, 'recording.wav'); })
+                    .catch(function () { uploadVoiceAudio(blob, 'recording.webm'); });
+            };
+
+            recorder.start(250);
+
+            aiVoiceTimeout = setTimeout(function () {
+                if (aiMediaRecorder && aiMediaRecorder.state === 'recording') {
+                    aiMediaRecorder.stop();
+                }
+            }, 45000);
+        })
+        .catch(function (err) {
+            stopAiVoice(true);
+            let msg = tJs('ai.mic_error', 'Не удалось получить доступ к микрофону.');
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                msg = tJs('ai.mic_denied', 'Доступ к микрофону запрещён в настройках браузера.');
+            } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                msg = tJs('ai.mic_not_found', 'Микрофон не обнаружен.');
+            }
+            updateAiVoiceStatus('error', msg);
+        });
+}
+
+/**
+ * Перекодирование записи MediaRecorder (webm/opus, ogg, mp4/aac) в WAV PCM16 16 кГц моно.
+ * Декодирует сам браузер (decodeAudioData), ресемплинг и сведение в моно — OfflineAudioContext.
+ * Данные живут только в памяти; AudioContext закрывается сразу после декодирования.
+ */
+function aiBlobToWav16k(blob) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    if (!AC || !OAC || typeof blob.arrayBuffer !== 'function') {
+        return Promise.reject(new Error('audio_context_unsupported'));
+    }
+    const targetRate = 16000;
+
+    return blob.arrayBuffer()
+        .then(function (buf) {
+            const ctx = new AC();
+            return new Promise(function (resolve, reject) {
+                ctx.decodeAudioData(buf, resolve, reject);
+            }).then(function (decoded) {
+                try { ctx.close(); } catch (e) { /* ignore */ }
+                return decoded;
+            }, function (err) {
+                try { ctx.close(); } catch (e) { /* ignore */ }
+                throw err;
+            });
+        })
+        .then(function (decoded) {
+            const length = Math.max(1, Math.ceil(decoded.duration * targetRate));
+            const offline = new OAC(1, length, targetRate);
+            const src = offline.createBufferSource();
+            src.buffer = decoded;
+            src.connect(offline.destination);
+            src.start(0);
+            return offline.startRendering();
+        })
+        .then(function (rendered) {
+            return aiEncodeWavPcm16(rendered.getChannelData(0), targetRate);
+        });
+}
+
+function aiEncodeWavPcm16(samples, sampleRate) {
+    const dataSize = samples.length * 2;
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+    const writeStr = function (offset, str) {
+        for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+    };
+    writeStr(0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    writeStr(8, 'WAVE');
+    writeStr(12, 'fmt ');
+    view.setUint32(16, 16, true);          // размер fmt-чанка
+    view.setUint16(20, 1, true);           // PCM
+    view.setUint16(22, 1, true);           // моно
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true); // byte rate
+    view.setUint16(32, 2, true);           // block align
+    view.setUint16(34, 16, true);          // бит на сэмпл
+    writeStr(36, 'data');
+    view.setUint32(40, dataSize, true);
+    let offset = 44;
+    for (let i = 0; i < samples.length; i++, offset += 2) {
+        const s = Math.max(-1, Math.min(1, samples[i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    }
+    return new Blob([buffer], { type: 'audio/wav' });
+}
+
+function uploadVoiceAudio(blob, filename) {
+    updateAiVoiceStatus('processing', tJs('ai.mic_processing', 'Распознавание речи…'));
+
+    const fd = new FormData();
+    fd.append('audio', blob, filename || 'recording.webm');
+    if (aiGuestToken) fd.append('guest_token', aiGuestToken);
+    if (window.__lang) fd.append('language', window.__lang);
+    if (typeof window.__aiPageContext === 'object' && window.__aiPageContext) {
+        fd.append('context', JSON.stringify(window.__aiPageContext));
+    }
+
+    const headers = {
+        'X-Requested-With': 'XMLHttpRequest'
+    };
+    if (window.__csrfToken) {
+        headers['X-CSRF-TOKEN'] = window.__csrfToken;
+    }
+
+    fetch(window.__aiVoiceUrl || '/ai/voice', {
+        method: 'POST',
+        headers: headers,
+        credentials: 'same-origin',
+        body: fd
+    })
+    .then(function (r) { return r.json().catch(function () { return null; }); })
+    .then(function (data) {
+        updateAiVoiceStatus('idle');
+        if (!data || !data.ok) {
+            appendAiBot((data && (data.reply || data.error)) || tJs('ai.mic_error', 'Не удалось распознать речь.'), [], [], null, []);
+            return;
+        }
+        applyAiResponse(data);
+    })
+    .catch(function () {
+        updateAiVoiceStatus('error', tJs('ai.error_network', 'Сеть недоступна.'));
+    });
+}
+
+function handleVoiceRecognized(text, provider) {
+    updateAiVoiceStatus('idle');
+    const inputEl = document.getElementById('ai-chat-input');
+    if (inputEl) {
+        inputEl.value = text;
+    }
+    // Автоматическая отправка запроса в существующий ZAK-чат
+    sendAiMessage(text);
+}
+
 
 function initAiAssistant() {
     if (aiAssistantReady) return;
@@ -5115,11 +5517,25 @@ function initAiAssistant() {
     const form = document.getElementById('ai-chat-form');
     form?.addEventListener('submit', function (e) {
         e.preventDefault();
+        stopAiVoice();
         const input = document.getElementById('ai-chat-input');
         const text = (input?.value || '').trim();
         if (!text) return;
         if (input) input.value = '';
         sendAiMessage(text);
+    });
+
+    const micBtn = document.getElementById('ai-chat-mic-btn');
+    micBtn?.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        startAiVoice();
+    });
+
+    document.getElementById('ai-voice-cancel-btn')?.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        stopAiVoice();
     });
 
     const imgInput = document.getElementById('ai-chat-image');

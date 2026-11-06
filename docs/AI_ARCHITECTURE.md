@@ -23,6 +23,11 @@ USER → AiAssistantController → ProcessAiMessageJob → AIOrchestrator
 | `GetDeliveryStatusTool` | DeliveryOrder + ownership |
 | `OllamaProvider` | LLMProviderInterface |
 | `PromptInjectionGuard` | Фильтр недоверенного ввода |
+| `SpeechToTextInterface` | STT контракт распознавания речи |
+| `ClientTranscriptSttProvider` | Web Speech API нормализатор (ru, kk, en) |
+| `ServerAudioSttProvider` | Серверный STT по реальному аудио на whisper.cpp (локально, без внешних сервисов): WAV → whisper-cli + Silero VAD, явный язык ru/kk/en, тайм-аут, лимит параллельных процессов, confidence = средняя вероятность токенов |
+| `AudioValidator` | Валидация magic bytes, форматов, размера и длительности аудио |
+| `SttResult` | Единый нормализованный DTO результатов STT |
 
 ## Source of truth
 

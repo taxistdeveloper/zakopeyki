@@ -163,6 +163,7 @@ class AiAssistantController extends Controller
 
             $fresh = $support->getConversationById($conversationId);
 
+
             $this->json([
                 'ok' => true,
                 'reply' => (string) ($result['response'] ?? ''),
@@ -408,6 +409,7 @@ class AiAssistantController extends Controller
                 usleep(12000);
             }
 
+
             $this->sseEvent('done', [
                 'ok' => true,
                 'reply' => $reply,
@@ -447,39 +449,147 @@ class AiAssistantController extends Controller
     }
 
     /**
-     * Голосовой ввод: клиент шлёт transcript (Web Speech API).
-     * Обрабатывается тем же pipeline, что и текст.
+     * Голосовой ввод / распознавание речи (STT):
+     * Принимает либо аудиофайл (multipart $_FILES['audio']), либо transcript с Web Speech API.
+     * Поддерживает режимы:
+     * - action='transcribe' / transcribe_only=true: только нормализация и транскрибация речи.
+     * - по умолчанию: транскрибация + передача в существующий AIOrchestrator с сохранением контекста.
      */
     public function voice(): void
     {
+        $cfg = $this->aiConfig();
+        $voiceCfg = (array) ($cfg['voice'] ?? []);
+
+        // 1. Проверка feature flags
+        $voiceEnabled = (bool) ($voiceCfg['voice_input_enabled'] ?? true);
+        $sttEnabled = (bool) ($voiceCfg['stt_enabled'] ?? true);
+
+        if (!$voiceEnabled || !$sttEnabled) {
+            $this->json([
+                'ok' => false,
+                'error' => 'voice_disabled',
+                'reply' => 'Голосовой ввод временно отключён на платформе.',
+            ], 403);
+            return;
+        }
+
+        // 2. Сбор входных данных (JSON или multipart/POST)
         $raw = file_get_contents('php://input');
         $json = is_string($raw) && $raw !== '' ? json_decode($raw, true) : null;
         if (!is_array($json)) {
             $json = $_POST;
         }
 
-        $transcript = trim((string) ($json['transcript'] ?? $json['message'] ?? ''));
-        if ($transcript === '') {
-            $this->json(['ok' => false, 'reply' => 'Не удалось распознать речь. Повторите или введите текст.'], 422);
+        $userId = Auth::check() ? Auth::id() : null;
+        $guestToken = isset($json['guest_token']) ? trim((string) $json['guest_token']) : null;
+        if ($guestToken === '') {
+            $guestToken = null;
         }
 
-        // Переиспользуем chat(): подменяем php://input через POST-совместимый путь
-        $_POST['message'] = $transcript;
-        if (isset($json['guest_token'])) {
-            $_POST['guest_token'] = $json['guest_token'];
+        // 3. Rate limiting
+        if (!$this->enforceRateLimit($userId, $guestToken)) {
+            return;
         }
-        // chat() читает php://input первым — передаём через временный поток невозможно,
-        // поэтому вызываем внутреннюю логику через повторный decode: проще проксировать.
-        $payload = json_encode([
-            'message' => $transcript,
-            'guest_token' => $json['guest_token'] ?? null,
+
+        $requestId = 'stt_' . bin2hex(random_bytes(6));
+        $transcribeOnly = !empty($json['transcribe_only']) || (($json['action'] ?? '') === 'transcribe');
+        $languageHint = isset($json['language']) ? trim((string) $json['language']) : null;
+
+        /** @var \App\Services\AI\DTO\SttResult|null $sttResult */
+        $sttResult = null;
+
+        // 4. Обработка загруженного аудиофайла (MediaRecorder fallback)
+        if (!empty($_FILES['audio']) && is_uploaded_file((string) ($_FILES['audio']['tmp_name'] ?? ''))) {
+            $tmpFile = (string) $_FILES['audio']['tmp_name'];
+            $clientMime = (string) ($_FILES['audio']['type'] ?? null);
+
+            try {
+                $serverProvider = \App\Services\AI\Support\SttFactory::createForAudioFile();
+                $sttResult = $serverProvider->transcribe($tmpFile, $clientMime, [
+                    'request_id' => $requestId,
+                    'language_hint' => $languageHint,
+                ]);
+            } finally {
+                // Гарантия немедленного освобождения и удаления аудиофайла с диска (Data Retention = 0)
+                if (is_file($tmpFile)) {
+                    @unlink($tmpFile);
+                }
+            }
+        } elseif (!empty($json['audio_base64'])) {
+            // Обработка base64 аудио
+            $serverProvider = \App\Services\AI\Support\SttFactory::createForAudioFile();
+            $sttResult = $serverProvider->transcribe((string) $json['audio_base64'], null, [
+                'request_id' => $requestId,
+                'language_hint' => $languageHint,
+            ]);
+        } else {
+            // Обработка клиентского транскрипта (Web Speech API)
+            $transcript = trim((string) ($json['transcript'] ?? $json['message'] ?? ''));
+            $confidence = isset($json['confidence']) && is_numeric($json['confidence']) ? (float) $json['confidence'] : null;
+            $durationMs = isset($json['duration_ms']) && is_numeric($json['duration_ms']) ? (int) $json['duration_ms'] : 0;
+
+            $clientProvider = new \App\Services\AI\Providers\ClientTranscriptSttProvider();
+            $sttResult = $clientProvider->transcribe($transcript, null, [
+                'request_id' => $requestId,
+                'language_hint' => $languageHint,
+                'confidence' => $confidence,
+                'duration_ms' => $durationMs,
+            ]);
+        }
+
+        // 5. Обработка ошибок распознавания
+        if (!$sttResult->ok) {
+            $status = 422;
+            // Коды ошибок провайдеры кладут в warnings (error — человекочитаемый текст)
+            if (array_intersect(
+                ['server_stt_not_configured', 'provider_unavailable', 'provider_offline', 'stt_busy', 'stt_timeout'],
+                $sttResult->warnings
+            ) !== []) {
+                $status = 503;
+            } elseif (in_array('exceeded_size', $sttResult->warnings, true) || in_array('unsupported_format', $sttResult->warnings, true)) {
+                $status = 400;
+            }
+
+            $this->json([
+                'ok' => false,
+                'error' => $sttResult->error,
+                'reply' => $sttResult->error,
+                'warnings' => $sttResult->warnings,
+                'request_id' => $sttResult->requestId,
+                'provider' => $sttResult->provider,
+                'stt' => $sttResult->toArray(),
+            ], $status);
+            return;
+        }
+
+        // 6. Режим Transcribe Only (вставка текста в инпут для проверки/редактирования)
+        if ($transcribeOnly) {
+            $this->json([
+                'ok' => true,
+                'recognized_text' => $sttResult->recognizedText,
+                'text' => $sttResult->recognizedText,
+                'language' => $sttResult->language,
+                'confidence' => $sttResult->confidence,
+                'provider' => $sttResult->provider,
+                'duration_ms' => $sttResult->durationMs,
+                'request_id' => $sttResult->requestId,
+                'warnings' => $sttResult->warnings,
+                'stt' => $sttResult->toArray(),
+            ]);
+            return;
+        }
+
+        // 7. Режим Transcribe & Send to Chat: немедленная передача в AIOrchestrator
+        $payload = [
+            'message' => $sttResult->recognizedText,
+            'guest_token' => $guestToken,
             'context' => $json['context'] ?? [],
-            'language' => $json['language'] ?? null,
+            'language' => $sttResult->language ?? $languageHint,
             'from_voice' => true,
-        ], JSON_UNESCAPED_UNICODE);
+            'stt_result' => $sttResult->toArray(),
+        ];
 
-        // Прямой вызов: эмулируем body
-        $this->chatWithPayload(is_array(json_decode((string) $payload, true)) ? json_decode((string) $payload, true) : []);
+        $this->chatWithPayload($payload);
     }
 
     public function confirmAction(): void
@@ -693,10 +803,11 @@ class AiAssistantController extends Controller
                 'ai_message_id' => $result['ai_message_id'] ?? null,
                 'intent' => $result['intent'] ?? null,
                 'from_voice' => true,
+                'stt' => $json['stt_result'] ?? null,
                 'tts' => (new \App\Services\AI\Providers\BrowserTtsProvider())->synthesize(
                     (string) ($result['response'] ?? ''),
                     (string) ($result['language'] ?? 'ru')
-                ),
+                )->toArray(),
                 'guest_token' => $guestToken,
                 'request_id' => $requestId,
                 'pending' => false,
@@ -756,7 +867,6 @@ class AiAssistantController extends Controller
 
     private function aiConfig(): array
     {
-        $path = dirname(__DIR__, 2) . '/config/ai.php';
-        return is_file($path) ? require $path : ['enabled' => true, 'process_mode' => 'sync'];
+        return \App\Services\AI\Core\AiConfig::all();
     }
 }
