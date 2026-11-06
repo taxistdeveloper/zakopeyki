@@ -2629,6 +2629,7 @@ function url(string $path = ''): string
         window.__aiImageUrl = <?= js_encode(url('/ai/image')) ?>;
         window.__aiConfirmUrl = <?= js_encode(url('/ai/action/confirm')) ?>;
         window.__aiVoiceUrl = <?= js_encode(url('/ai/voice')) ?>;
+        window.__aiTtsUrl = <?= js_encode(url('/ai/tts')) ?>;
         window.__aiSttProvider = <?= js_encode((string) (\App\Services\AI\Core\AiConfig::get('voice.stt_provider', 'web_speech'))) ?>;
         window.__aiAvatarUrl = <?= js_encode(url('public/assets/img/zak-avatar.png')) ?>;
         window.__aiAvatarUrl2x = <?= js_encode(url('public/assets/img/zak-avatar@2x.png')) ?>;
@@ -2652,7 +2653,8 @@ function url(string $path = ''): string
             'ai.clear', 'ai.clear_confirm', 'ai.suggest_docs', 'ai.docs_intro', 'ai.docs_empty', 'ai.docs_open',
             'ai.mic_btn', 'ai.mic_listening', 'ai.mic_processing', 'ai.mic_denied', 'ai.mic_not_found',
             'ai.mic_busy', 'ai.mic_error', 'ai.mic_unsupported', 'ai.mic_cancel', 'ai.mic_retry',
-            'ai.mic_too_short', 'ai.mic_timeout',
+            'ai.mic_too_short', 'ai.mic_timeout', 'ai.mic_chat_busy',
+            'ai.tts_play', 'ai.tts_stop', 'ai.tts_pause', 'ai.tts_resume', 'ai.tts_unsupported', 'ai.tts_error',
             'js.now',
             'js.live_host', 'js.login_to_stream', 'js.stream_fail', 'js.stream_desc',
             'js.you', 'js.stream_error', 'js.live_connecting', 'js.live_waiting',

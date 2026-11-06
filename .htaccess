@@ -12,6 +12,13 @@ DirectoryIndex index.php
     RewriteRule ^database(/|$) - [F]
     RewriteRule ^lang(/|$) - [F]
     RewriteRule ^storage(/|$) - [F]
+    # Служебные каталоги: CLI-скрипты, тесты, кроны, отчёты QA и внутренняя документация
+    RewriteRule ^tools(/|$) - [F]
+    RewriteRule ^tests(/|$) - [F]
+    RewriteRule ^scripts(/|$) - [F]
+    RewriteRule ^qa(/|$) - [F]
+    RewriteRule ^docs(/|$) - [F]
+    RewriteRule ^qa\.zip$ - [F]
 
     RewriteRule ^\.env$ - [F]
     RewriteRule ^composer\.json$ - [F]

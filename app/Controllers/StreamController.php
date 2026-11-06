@@ -265,6 +265,7 @@ class StreamController extends Controller
                 $giveaway = [
                     'title' => mb_substr($gTitle, 0, 120),
                     'goal' => max(50, min(5000, (int) ($setup['giveaway']['goal'] ?? 500))),
+                    'participants_count' => $model->countGiveawayParticipants($streamId),
                 ];
             }
         }
@@ -324,8 +325,52 @@ class StreamController extends Controller
         if ($streamId <= 0 || !$model->isLiveActive($streamId)) {
             $this->json(['ok' => false], 422);
         }
+
+        // Rate limit: максимум 30 лайков в минуту на сессию/IP (QA-0006)
+        $clientKey = Auth::check() ? 'u_' . Auth::id() : 'ip_' . md5((string) ($_SERVER['REMOTE_ADDR'] ?? 'anon'));
+        $sessionKey = 'stream_like_rate_' . $clientKey;
+        $now = time();
+        $window = $_SESSION[$sessionKey] ?? ['count' => 0, 'start' => $now];
+        if (!is_array($window) || ($now - (int) ($window['start'] ?? 0)) >= 60) {
+            $window = ['count' => 1, 'start' => $now];
+        } else {
+            $window['count'] = (int) ($window['count'] ?? 0) + 1;
+            if ($window['count'] > 30) {
+                $this->json(['ok' => false, 'error' => 'Rate limit exceeded: max 30 likes/min'], 429);
+            }
+        }
+        $_SESSION[$sessionKey] = $window;
+
         $likes = $model->addLike($streamId);
         $this->json(['ok' => true, 'likes' => $likes]);
+    }
+
+    public function joinGiveaway(): void
+    {
+        if (!Auth::check()) {
+            $this->json(['ok' => false, 'message' => 'unauthorized'], 401);
+        }
+        $streamId = (int) ($_POST['stream_id'] ?? 0);
+        if ($streamId <= 0) {
+            $this->json(['ok' => false, 'message' => 'invalid_stream'], 422);
+        }
+        $model = new Stream();
+        $res = $model->joinGiveaway($streamId, (int) Auth::id());
+        $this->json($res, $res['ok'] ? 200 : 422);
+    }
+
+    public function drawGiveaway(): void
+    {
+        if (!Auth::check()) {
+            $this->json(['ok' => false, 'message' => 'unauthorized'], 401);
+        }
+        $streamId = (int) ($_POST['stream_id'] ?? 0);
+        if ($streamId <= 0) {
+            $this->json(['ok' => false, 'message' => 'invalid_stream'], 422);
+        }
+        $model = new Stream();
+        $res = $model->drawGiveawayWinner($streamId, (int) Auth::id());
+        $this->json($res, $res['ok'] ? 200 : 422);
     }
 
     public function comments(): void

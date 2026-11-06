@@ -202,6 +202,16 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
     let confirmResolver = null;
     let toastTimer = null;
 
+    function csrfToken() {
+        return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || window.__csrfToken || '';
+    }
+    function apiHeaders() {
+        const h = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+        const tok = csrfToken();
+        if (tok) h['X-CSRF-TOKEN'] = tok;
+        return h;
+    }
+
     function money(n) {
         return new Intl.NumberFormat('ru-RU').format(Math.round(Number(n) || 0)) + ' ₸';
     }
@@ -395,7 +405,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                 btn.addEventListener('click', async function () {
                     const res = await fetch(api + '/offers/' + btn.dataset.selectOffer + '/select', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        headers: apiHeaders(),
                         body: '{}'
                     });
                     const json = await res.json();
@@ -410,7 +420,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                     if (!ok) return;
                     const res = await fetch(api + '/' + btn.dataset.cancelTask + '/cancel', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        headers: apiHeaders(),
                         body: '{}'
                     });
                     const json = await res.json();
@@ -425,7 +435,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
                     if (!ok) return;
                     const res = await fetch(api + '/' + btn.dataset.deleteTask + '/delete', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        headers: apiHeaders(),
                         body: '{}'
                     });
                     const json = await res.json();
@@ -607,7 +617,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
         try {
             const res = await fetch(api + '/' + selected.id + '/offer', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                headers: apiHeaders(),
                 body: JSON.stringify({
                     offer_type: bargain,
                     custom_price: bargain === 'custom' ? parseFloat(customInput.value) : null
@@ -639,7 +649,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
         try {
             const res = await fetch(api + '/' + pinTaskId + '/complete', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                headers: apiHeaders(),
                 body: JSON.stringify({ pin: pin })
             });
             const json = await res.json();
@@ -692,7 +702,7 @@ $input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:
         try {
             const res = await fetch(api + '/' + reviewTaskId + '/review', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                headers: apiHeaders(),
                 body: JSON.stringify({
                     rating: reviewRating,
                     body: document.getElementById('gigs-review-body').value

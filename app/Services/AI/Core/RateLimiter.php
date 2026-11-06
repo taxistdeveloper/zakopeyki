@@ -86,6 +86,12 @@ final class RateLimiter
         }
 
         try {
+            $dbCfg = dirname(__DIR__, 4) . '/config/database.php';
+            if (is_file($dbCfg)) {
+                $c = require $dbCfg;
+                $dsn = sprintf('mysql:host=%s;port=%s;dbname=%s;charset=%s', $c['host'], $c['port'], $c['dbname'], $c['charset']);
+                $test = new \PDO($dsn, $c['username'], $c['password'], [\PDO::ATTR_TIMEOUT => 1]);
+            }
             return $this->hitMysql($bucket, $windowSeconds, $limit);
         } catch (\Throwable $e) {
             return $this->hitFile($bucket, $windowSeconds, $limit);

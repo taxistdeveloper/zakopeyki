@@ -80,6 +80,17 @@ class Stream extends Model
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
         );
 
+        $this->db->exec(
+            "CREATE TABLE IF NOT EXISTS stream_giveaway_participants (
+                id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                stream_id INT UNSIGNED NOT NULL,
+                user_id INT UNSIGNED NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY uq_stream_user (stream_id, user_id),
+                INDEX idx_stream_part (stream_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+        );
+
         foreach ([
             'featured_product_id' => 'INT UNSIGNED NULL AFTER last_heartbeat',
             'likes_count' => 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER featured_product_id',
@@ -398,6 +409,70 @@ class Stream extends Model
         $this->clearSignals($streamId);
         $this->db->prepare('DELETE FROM stream_comments WHERE stream_id = ?')->execute([$streamId]);
         $this->db->prepare('DELETE FROM stream_viewers WHERE stream_id = ?')->execute([$streamId]);
+        $this->db->prepare('DELETE FROM stream_giveaway_participants WHERE stream_id = ?')->execute([$streamId]);
+    }
+
+    public function joinGiveaway(int $streamId, int $userId): array
+    {
+        if ($streamId <= 0 || $userId <= 0) {
+            return ['ok' => false, 'message' => 'invalid_params'];
+        }
+        if (!$this->isLiveActive($streamId)) {
+            return ['ok' => false, 'message' => 'stream_not_active'];
+        }
+
+        try {
+            $stmt = $this->db->prepare(
+                'INSERT IGNORE INTO stream_giveaway_participants (stream_id, user_id, created_at)
+                 VALUES (?, ?, NOW())'
+            );
+            $stmt->execute([$streamId, $userId]);
+        } catch (\Throwable) {
+            // ignore duplicate or query error
+        }
+
+        $count = $this->countGiveawayParticipants($streamId);
+        return ['ok' => true, 'participants_count' => $count];
+    }
+
+    public function countGiveawayParticipants(int $streamId): int
+    {
+        $stmt = $this->db->prepare('SELECT COUNT(*) FROM stream_giveaway_participants WHERE stream_id = ?');
+        $stmt->execute([$streamId]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    public function drawGiveawayWinner(int $streamId, int $hostUserId): array
+    {
+        if (!$this->isLiveOwned($streamId, $hostUserId)) {
+            return ['ok' => false, 'message' => 'forbidden'];
+        }
+
+        $stmt = $this->db->prepare(
+            'SELECT p.user_id, u.name, u.avatar
+             FROM stream_giveaway_participants p
+             JOIN users u ON u.id = p.user_id
+             WHERE p.stream_id = ?
+             ORDER BY RAND()
+             LIMIT 1'
+        );
+        $stmt->execute([$streamId]);
+        $winner = $stmt->fetch();
+        if (!$winner) {
+            return ['ok' => false, 'message' => 'no_participants'];
+        }
+
+        $winnerName = (string) ($winner['name'] ?? 'Участник');
+        $this->addComment($streamId, null, 'Zakopeyki Live', '🎉 Победитель розыгрыша: ' . $winnerName . '!', true);
+
+        return [
+            'ok' => true,
+            'winner' => [
+                'user_id' => (int) $winner['user_id'],
+                'name' => $winnerName,
+                'avatar' => $winner['avatar'] ?? null,
+            ],
+        ];
     }
 
     public function findLive(int $streamId): ?array

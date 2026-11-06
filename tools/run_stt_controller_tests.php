@@ -145,6 +145,31 @@ assert_c($controller->lastJson['error'] === 'voice_disabled', "Error code is voi
 // Restore config
 $prop->setValue(null, null);
 
+// 6. Повторная отправка одного аудиофрагмента (client_request_id)
+$reqId = 'v_test_' . bin2hex(random_bytes(8));
+$_POST = [
+    'transcript' => 'Покажи объявления',
+    'transcribe_only' => true,
+    'guest_token' => 'gt_test_dedupe',
+    'client_request_id' => $reqId,
+];
+$controller->voice();
+assert_c($controller->lastStatus === 200, "First request with client_request_id is processed");
+$controller->voice();
+assert_c($controller->lastStatus === 409 && ($controller->lastJson['error'] ?? '') === 'duplicate_request', "Same client_request_id again → 409 duplicate_request");
+
+$_POST['guest_token'] = 'gt_test_dedupe_other';
+$controller->voice();
+assert_c($controller->lastStatus === 200, "Same id from a different owner is not blocked (keys are per owner)");
+
+$_POST['client_request_id'] = '../../etc/passwd';
+$controller->voice();
+assert_c($controller->lastStatus === 400 && ($controller->lastJson['error'] ?? '') === 'invalid_request_id', "Malformed client_request_id → 400");
+
+unset($_POST['client_request_id']);
+$controller->voice();
+assert_c($controller->lastStatus === 200, "Requests without client_request_id still work (backward compatible)");
+
 echo "\n====================================================\n";
 echo "SUMMARY: Passed: {$passed}, Failed: {$failed}\n";
 echo "====================================================\n";

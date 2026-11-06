@@ -1,6 +1,6 @@
 -- Zakopeyki MySQL schema
-CREATE DATABASE IF NOT EXISTS zakapeiku CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE zakapeiku;
+CREATE DATABASE IF NOT EXISTS zakopeyki CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE zakopeyki;
 
 CREATE TABLE IF NOT EXISTS users (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -152,7 +152,7 @@ CREATE TABLE IF NOT EXISTS orders (
     refunded_at DATETIME DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     paid_at TIMESTAMP NULL DEFAULT NULL,
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT,
     FOREIGN KEY (buyer_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (seller_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_buyer (buyer_id),
@@ -250,3 +250,43 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     INDEX idx_sender (sender_id),
     INDEX idx_unread (conversation_id, is_read, sender_id)
 ) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS stream_signals (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    stream_id INT UNSIGNED NOT NULL,
+    peer_id VARCHAR(64) NOT NULL,
+    direction ENUM('to_host','to_viewer') NOT NULL,
+    type VARCHAR(16) NOT NULL,
+    payload MEDIUMTEXT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_host_poll (stream_id, direction, id),
+    INDEX idx_viewer_poll (stream_id, peer_id, direction, id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS stream_comments (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    stream_id INT UNSIGNED NOT NULL,
+    user_id INT UNSIGNED NULL,
+    user_name VARCHAR(100) NOT NULL,
+    body VARCHAR(280) NOT NULL,
+    is_host TINYINT(1) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_stream_comments (stream_id, id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS stream_viewers (
+    stream_id INT UNSIGNED NOT NULL,
+    viewer_key VARCHAR(64) NOT NULL,
+    last_seen DATETIME NOT NULL,
+    PRIMARY KEY (stream_id, viewer_key),
+    INDEX idx_viewer_seen (stream_id, last_seen)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS stream_giveaway_participants (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    stream_id INT UNSIGNED NOT NULL,
+    user_id INT UNSIGNED NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_stream_user (stream_id, user_id),
+    INDEX idx_stream_part (stream_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

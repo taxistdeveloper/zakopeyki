@@ -235,6 +235,18 @@ class Order extends Model
         return (int) $stmt->fetchColumn();
     }
 
+    public function hasActiveOrdersForProduct(int $productId): bool
+    {
+        $this->ensureTable();
+        $stmt = $this->db->prepare(
+            "SELECT COUNT(*) FROM orders 
+             WHERE product_id = ? 
+             AND status NOT IN ('completed', 'cancelled', 'refunded')"
+        );
+        $stmt->execute([$productId]);
+        return ((int) $stmt->fetchColumn()) > 0;
+    }
+
     /** @return list<array> */
     public function findByStatus(string $status): array
     {

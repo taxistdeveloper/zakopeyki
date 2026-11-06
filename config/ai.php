@@ -89,6 +89,27 @@ return [
         'allowed_formats' => ['webm', 'ogg', 'wav', 'mp4', 'm4a'],
     ],
 
+    /** Настройки озвучивания ответов и Text-to-Speech (TTS) */
+    'tts' => [
+        'enabled' => $envBool('AI_TTS_ENABLED', true),
+        'provider' => getenv('AI_TTS_PROVIDER') ?: 'browser', // browser | edge_neural | mock
+        'max_text_chars' => 1500,
+        'default_language' => 'ru',
+        /*
+         * Белый список голосов edge_neural (проверены реальным синтезом 2026-11-06).
+         * kk-KZ-DariyaNeural не существует (edge-tts: NoAudioReceived) — не использовать.
+         */
+        'voices' => [
+            'ru' => ['ru-RU-DmitryNeural', 'ru-RU-SvetlanaNeural'],
+            'kk' => ['kk-KZ-AigulNeural', 'kk-KZ-DauletNeural'],
+            'en' => ['en-US-JennyNeural', 'en-US-GuyNeural'],
+        ],
+        /** Закрытый аудиокеш (storage/cache/tts): срок хранения файла и срок жизни ссылки. */
+        'cache_ttl_seconds' => max(60, (int) (getenv('AI_TTS_CACHE_TTL') ?: 86400)),
+        'url_ttl_seconds' => max(30, (int) (getenv('AI_TTS_URL_TTL') ?: 1800)),
+        'edge_timeout_seconds' => 20,
+    ],
+
     'rate_limit' => [
         'per_minute' => 20,
         'per_hour' => 200,

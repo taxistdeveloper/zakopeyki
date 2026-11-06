@@ -14,11 +14,25 @@ use App\Services\StockService;
  */
 class EscrowService
 {
-    /** Дней на проверку товара после доставки */
-    public const INSPECT_DAYS = 3;
+    /** Дней на проверку товара после доставки (обратная совместимость) */
+    public const INSPECT_DAYS = 1;
+
+    /** Часов на проверку товара после доставки (24 часа) */
+    public const INSPECT_HOURS = 24;
 
     /** Арбитражный сбор площадки при безопасной сделке (эскроу), % */
     public const ARBITRATION_FEE_PERCENT = 3;
+
+    /** Комиссия платформы с продавца при успешной сделке, % */
+    public const SELLER_COMMISSION_PERCENT = 10;
+
+    public static function sellerCommission(int $productAmount): int
+    {
+        if ($productAmount <= 0) {
+            return 0;
+        }
+        return (int) round($productAmount * self::SELLER_COMMISSION_PERCENT / 100);
+    }
 
     public static function arbitrationFee(int $productAmount): int
     {
@@ -146,7 +160,7 @@ class EscrowService
         }
 
         $deliveredAt = date('Y-m-d H:i:s');
-        $inspectUntil = date('Y-m-d H:i:s', strtotime('+' . self::INSPECT_DAYS . ' days'));
+        $inspectUntil = date('Y-m-d H:i:s', time() + self::INSPECT_HOURS * 3600);
 
         $this->orders->updateFields($orderId, [
             'status' => 'delivered',
@@ -458,6 +472,8 @@ class EscrowService
             $amountToBuyer = $total;
         }
         $amountToSeller = $total - $amountToBuyer;
+        $sellerCommission = $amountToSeller > 0 ? self::sellerCommission($amountToSeller) : 0;
+        $payoutToSeller = $amountToSeller - $sellerCommission;
         $refundTotal = $amountToBuyer === $total ? $amountToBuyer + $arbitrationFee : $amountToBuyer;
 
         $finalStatus = (string) ($options['status'] ?? '');
@@ -506,7 +522,10 @@ class EscrowService
                 $wallet->refundFromEscrow($buyerId, $refundTotal, $orderId);
             }
             if ($amountToSeller > 0) {
-                $wallet->releaseFromEscrow($sellerId, $amountToSeller, $orderId);
+                $wallet->releaseFromEscrow($sellerId, $payoutToSeller, $orderId);
+                if ($sellerCommission > 0) {
+                    $wallet->collectSellerCommission($sellerCommission, $orderId);
+                }
                 if ($arbitrationFee > 0) {
                     $wallet->collectEscrowCommission($arbitrationFee, $orderId);
                 }
@@ -535,8 +554,8 @@ class EscrowService
             }
 
             $msg = $auto
-                ? t('escrow.notify_auto_released', ['id' => $orderId, 'amount' => number_format($amountToSeller, 0, '', ' ')])
-                : t('escrow.notify_released', ['id' => $orderId, 'amount' => number_format($amountToSeller, 0, '', ' ')]);
+                ? t('escrow.notify_auto_released', ['id' => $orderId, 'amount' => number_format($payoutToSeller, 0, '', ' ')])
+                : t('escrow.notify_released', ['id' => $orderId, 'amount' => number_format($payoutToSeller, 0, '', ' ')]);
             (new Notification())->createFor($sellerId, $msg);
             (new Notification())->createFor(
                 $sellerId,

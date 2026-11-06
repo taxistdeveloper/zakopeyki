@@ -223,6 +223,23 @@ class PaymentController extends Controller
             return;
         }
 
+        if (str_starts_with($pgOrderId, 'WALLET-')) {
+            if ($pgResult === 1) {
+                $parts = explode('-', $pgOrderId);
+                $userId = isset($parts[1]) ? (int) $parts[1] : 0;
+                $intAmount = (int) round((float) $pgAmount);
+                if ($userId > 0 && $intAmount > 0) {
+                    (new \App\Models\Wallet())->deposit($userId, $intAmount, 'halyk', 'gateway:' . $pgPaymentId);
+                    ActivityLogger::info('wallet.deposit.gateway', 'Пополнение через шлюз на ' . \App\Models\Wallet::formatMoney($intAmount), 'wallet', $userId, [
+                        'amount' => $intAmount,
+                        'pg_order_id' => $pgOrderId,
+                        'payment_id' => $pgPaymentId,
+                    ]);
+                }
+            }
+            return;
+        }
+
         $payments = new Payment();
         if ($pgResult === 1) {
             $payments->completeFromGateway($pgOrderId, $pgPaymentId, $pgAmount);

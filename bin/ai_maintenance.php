@@ -52,6 +52,11 @@ $deletedJobs = $pdo->exec(
 );
 echo '[' . date('Y-m-d H:i:s') . "] Deleted stale queue jobs: {$deletedJobs}\n";
 
+// Закрытый аудиокеш TTS: удаление файлов старше tts.cache_ttl_seconds
+$ttsCacheTtl = AiConfig::get('tts.cache_ttl_seconds');
+$purgedTts = (new \App\Services\AI\Support\TtsAudioCache(null, null, $ttsCacheTtl !== null ? (int) $ttsCacheTtl : null))->purgeExpired();
+echo '[' . date('Y-m-d H:i:s') . "] Purged expired TTS audio files: {$purgedTts}\n";
+
 $learnDays = (int) AiConfig::get('retention.learning_events_days', 365);
 $deletedLearn = $pdo->exec(
     "DELETE FROM ai_learning_events

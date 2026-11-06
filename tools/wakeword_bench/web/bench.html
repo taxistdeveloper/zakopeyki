@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Wake word bench (isolated)</title>
+<script src="node_modules/onnxruntime-web/dist/ort.wasm.min.js"></script>
+<script src="node_modules/vosk-browser/dist/vosk.js"></script>
+<script src="bench.js"></script>
+</head>
+<body>
+<h1>Изолированный стенд Wake Word (не часть сайта)</h1>
+<p>Результаты: <code>window.__bench</code>. Запуск: <code>runVosk('ru')</code>, <code>runOww('ru')</code>.</p>
+<pre id="log"></pre>
+</body>
+</html>

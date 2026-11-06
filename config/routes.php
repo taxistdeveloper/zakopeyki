@@ -161,6 +161,8 @@ $router->get('/ai/chat/messages', [AiAssistantController::class, 'messages']);
 $router->post('/ai/chat/clear', [AiAssistantController::class, 'clear']);
 $router->post('/ai/chat/feedback', [AiAssistantController::class, 'feedback']);
 $router->post('/ai/voice', [AiAssistantController::class, 'voice']);
+$router->post('/ai/tts', [AiAssistantController::class, 'tts']);
+$router->get('/ai/tts/audio/{token}', [AiAssistantController::class, 'ttsAudio']);
 $router->post('/ai/image', [AiAssistantController::class, 'image']);
 $router->post('/ai/action/confirm', [AiAssistantController::class, 'confirmAction']);
 
@@ -278,6 +280,8 @@ $router->get('/streams/live/shop', [StreamController::class, 'shop']);
 $router->get('/streams/live/comments', [StreamController::class, 'comments']);
 $router->post('/streams/live/comment', [StreamController::class, 'comment']);
 $router->post('/streams/live/like', [StreamController::class, 'like']);
+$router->post('/streams/live/giveaway/join', [StreamController::class, 'joinGiveaway']);
+$router->post('/streams/live/giveaway/draw', [StreamController::class, 'drawGiveaway']);
 $router->post('/streams/live/feature', [StreamController::class, 'featureProduct']);
 $router->post('/streams/{id}/delete', [StreamController::class, 'delete']);
 

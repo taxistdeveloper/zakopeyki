@@ -38,10 +38,6 @@ class WalletController extends Controller
     public function deposit(): void
     {
         Auth::requireLogin();
-        if (!($GLOBALS['appConfig']['allow_simulated_payments'] ?? false)) {
-            $_SESSION['error'] = t('wallet.payments_disabled');
-            $this->redirect('/wallet');
-        }
 
         $amount = (int) preg_replace('/\D/', '', (string) ($_POST['amount'] ?? '0'));
         $source = (string) ($_POST['source'] ?? 'card');
@@ -49,22 +45,54 @@ class WalletController extends Controller
             $source = 'card';
         }
 
-        $result = (new Wallet())->deposit(Auth::id(), $amount, $source);
-
-        if ($result['ok']) {
-            ActivityLogger::info('wallet.deposit', 'Пополнение на ' . Wallet::formatMoney($amount), 'wallet', Auth::id(), [
-                'amount' => $amount,
-                'source' => $source,
-            ]);
-            $_SESSION['flash'] = t('wallet.deposit_ok', [
-                'amount' => Wallet::formatMoney($amount),
-            ]);
-        } else {
-            ActivityLogger::warning('wallet.deposit', $result['error'] ?? 'Ошибка пополнения', 'wallet', Auth::id(), [
-                'amount' => $amount,
-            ]);
-            $_SESSION['error'] = $result['error'] ?? t('wallet.op_failed');
+        if ($amount < 100) {
+            $_SESSION['error'] = t('wallet.min_deposit');
+            $this->redirect('/wallet');
+            return;
         }
+
+        // Если разрешена симуляция — быстрое зачисление (локальная среда)
+        if (!empty($GLOBALS['appConfig']['allow_simulated_payments'])) {
+            $result = (new Wallet())->deposit(Auth::id(), $amount, $source);
+
+            if ($result['ok']) {
+                ActivityLogger::info('wallet.deposit', 'Пополнение на ' . Wallet::formatMoney($amount), 'wallet', Auth::id(), [
+                    'amount' => $amount,
+                    'source' => $source,
+                ]);
+                $_SESSION['flash'] = t('wallet.deposit_ok', [
+                    'amount' => Wallet::formatMoney($amount),
+                ]);
+            } else {
+                ActivityLogger::warning('wallet.deposit', $result['error'] ?? 'Ошибка пополнения', 'wallet', Auth::id(), [
+                    'amount' => $amount,
+                ]);
+                $_SESSION['error'] = $result['error'] ?? t('wallet.op_failed');
+            }
+            $this->redirect('/wallet');
+            return;
+        }
+
+        // Боевой режим: инициация платежа через Halyk ePay (QA-0004)
+        $client = new \App\Services\HalykEpay\Client();
+        if ($client->isConfigured()) {
+            $user = Auth::user();
+            $pgOrderId = 'WALLET-' . Auth::id() . '-' . time() . '-' . bin2hex(random_bytes(3));
+            $intent = $client->createPaymentIntent([
+                'order_id' => $pgOrderId,
+                'amount' => $amount,
+                'description' => 'Пополнение баланса кошелька Zakopeyki.kz',
+                'user_id' => (string) Auth::id(),
+                'user_email' => (string) ($user['email'] ?? ''),
+                'user_phone' => (string) ($user['phone'] ?? ''),
+            ]);
+            if (!empty($intent['ok']) && !empty($intent['redirect_url'])) {
+                header('Location: ' . $intent['redirect_url']);
+                exit;
+            }
+        }
+
+        $_SESSION['error'] = t('wallet.payments_disabled');
         $this->redirect('/wallet');
     }
 

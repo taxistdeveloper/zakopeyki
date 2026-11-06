@@ -63,6 +63,11 @@ class Router
         if (in_array($path, $exempt, true)) {
             return true;
         }
+        // API endpoints: micro-tasks and business (bearer or session auth handled in controller)
+        if (str_starts_with($path, '/api/v1/micro-tasks/')) {
+            return true;
+        }
+
         // Seller API: Bearer-аутентификация вместо session CSRF
         if (str_starts_with($path, '/api/v1/business/')) {
             $auth = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';

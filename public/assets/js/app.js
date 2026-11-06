@@ -3527,8 +3527,12 @@ function updateLiveGiveawayProgress(likes, giveaway) {
     if (bar) bar.style.width = Math.round((n / goal) * 100) + '%';
     if (prog) prog.textContent = String(n);
     if (goalEl) goalEl.textContent = String(goal);
-    if (count && !liveShopGiveJoined) {
-        liveShopGiveCount = Math.max(liveShopGiveCount || 0, Math.floor(n / 2));
+    if (count) {
+        if (giveaway && typeof giveaway.participants_count === 'number') {
+            liveShopGiveCount = giveaway.participants_count;
+        } else if (!liveShopGiveJoined) {
+            liveShopGiveCount = Math.max(liveShopGiveCount || 0, Math.floor(n / 2));
+        }
         count.textContent = String(liveShopGiveCount);
     }
 }
@@ -3537,6 +3541,25 @@ function joinLiveGiveaway() {
     if (!window.__currentUserId) {
         alert(window.__i18n?.['live.login_to_comment'] || 'Войдите');
         return;
+    }
+    if (liveShopStreamId) {
+        const fd = new FormData();
+        fd.append('stream_id', String(liveShopStreamId));
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || window.__csrfToken || '';
+        if (csrf) fd.append('_csrf', csrf);
+        fetch((window.__appUrl || '') + '/streams/live/giveaway/join', {
+            method: 'POST',
+            body: fd
+        }).then(function (r) { return r.json(); }).then(function (data) {
+            if (data && data.ok) {
+                liveShopGiveJoined = true;
+                if (typeof data.participants_count === 'number') {
+                    liveShopGiveCount = data.participants_count;
+                    const count = document.getElementById('live-shop-give-count');
+                    if (count) count.textContent = String(liveShopGiveCount);
+                }
+            }
+        }).catch(function () {});
     }
     if (!liveShopGiveJoined) {
         liveShopGiveJoined = true;
@@ -5104,11 +5127,11 @@ function toggleAiAssistant(force) {
     } else {
         stopAiPolling();
         stopAiVoice();
+        stopAiTts();
     }
 }
 
 window.toggleAiAssistant = toggleAiAssistant;
-
 
 /* ===== AI Voice / Speech-to-Text (STT) Controller ===== */
 let aiVoiceState = 'idle'; // idle | recording | processing | error
@@ -5126,6 +5149,9 @@ function getSpeechLang() {
 }
 
 function updateAiVoiceStatus(state, message) {
+    if (state === 'processing' && aiVoiceState !== 'processing') {
+        aiVoiceProcessingSince = Date.now();
+    }
     aiVoiceState = state;
     const bar = document.getElementById('ai-voice-status');
     const dot = document.getElementById('ai-voice-indicator-dot');
@@ -5173,40 +5199,95 @@ function updateAiVoiceStatus(state, message) {
     }
 }
 
-function stopAiVoice(silent) {
-    if (aiVoiceTimeout) {
-        clearTimeout(aiVoiceTimeout);
-        aiVoiceTimeout = null;
+/*
+ * Жизненный цикл голосового ввода и защита от гонок:
+ * - aiVoiceGeneration (generation_id) увеличивается при каждом новом захвате и при отмене.
+ *   Любой асинхронный колбэк (getUserMedia, onstop, конвертация WAV, ответ сервера,
+ *   onresult/onend Web Speech) сверяет своё поколение с текущим и молча завершается, если устарел.
+ * - Запрос STT отменяется через AbortController; у каждого запроса свой client_request_id,
+ *   один ответ применяется к чату не более одного раза.
+ * - Распознанный текст передаётся в обычный диалог Zak (sendAiMessage), как и для Web Speech.
+ */
+let aiVoiceGeneration = 0;
+let aiVoiceUploadAbort = null;
+const aiVoiceHandledRequests = new Set();
+const AI_VOICE_UPLOAD_TIMEOUT_MS = 45000;
+/** Клик по микрофону в первые N мс распознавания считается случайным двойным кликом и игнорируется. */
+const AI_VOICE_RESTART_GUARD_MS = 700;
+let aiVoiceProcessingSince = 0;
+
+function aiVoiceIsCurrent(gen) {
+    return gen === aiVoiceGeneration;
+}
+
+function aiVoiceNewRequestId() {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+        return 'v_' + window.crypto.randomUUID().replace(/-/g, '');
     }
-    if (aiSpeechRecognition) {
-        try {
-            aiSpeechRecognition.onresult = null;
-            aiSpeechRecognition.onerror = null;
-            aiSpeechRecognition.onend = null;
-            aiSpeechRecognition.stop();
-        } catch (e) { /* ignore */ }
-        aiSpeechRecognition = null;
-    }
-    if (aiMediaRecorder && aiMediaRecorder.state !== 'inactive') {
-        try {
-            aiMediaRecorder.stop();
-        } catch (e) { /* ignore */ }
-        aiMediaRecorder = null;
-    }
+    const bytes = new Uint8Array(16);
+    (window.crypto || window.msCrypto).getRandomValues(bytes);
+    return 'v_' + Array.prototype.map.call(bytes, function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+}
+
+function aiVoiceReleaseStream() {
     if (aiMediaStream) {
         try {
             aiMediaStream.getTracks().forEach(function (t) { t.stop(); });
         } catch (e) { /* ignore */ }
         aiMediaStream = null;
     }
+}
+
+/**
+ * Полная отмена текущего голосового ввода: запись, распознавание и запрос к серверу.
+ * Ответы и события отменённого поколения больше не изменят интерфейс.
+ */
+function stopAiVoice(silent) {
+    aiVoiceGeneration++;
+    if (aiVoiceTimeout) {
+        clearTimeout(aiVoiceTimeout);
+        aiVoiceTimeout = null;
+    }
+    if (aiVoiceUploadAbort) {
+        try { aiVoiceUploadAbort.abort(); } catch (e) { /* ignore */ }
+        aiVoiceUploadAbort = null;
+    }
+    if (aiSpeechRecognition) {
+        try {
+            aiSpeechRecognition.onresult = null;
+            aiSpeechRecognition.onerror = null;
+            aiSpeechRecognition.onend = null;
+            aiSpeechRecognition.abort();
+        } catch (e) { /* ignore */ }
+        aiSpeechRecognition = null;
+    }
+    if (aiMediaRecorder) {
+        try {
+            aiMediaRecorder.ondataavailable = null;
+            aiMediaRecorder.onstop = null;
+            if (aiMediaRecorder.state !== 'inactive') {
+                aiMediaRecorder.stop();
+            }
+        } catch (e) { /* ignore */ }
+        aiMediaRecorder = null;
+    }
+    aiVoiceReleaseStream();
     aiAudioChunks = [];
     if (!silent) {
         updateAiVoiceStatus('idle');
     }
 }
 
+/**
+ * Кнопка микрофона:
+ * - во время записи — завершить запись и отправить её на распознавание;
+ * - в остальных состояниях — начать новую запись; если идёт распознавание, предыдущий
+ *   запрос отменяется (кроме кликов в первые AI_VOICE_RESTART_GUARD_MS — это двойной клик).
+ */
 function startAiVoice() {
-    if (aiVoiceState === 'recording' || aiVoiceState === 'processing') {
+    stopAiTts();
+
+    if (aiVoiceState === 'recording') {
         if (aiSpeechRecognition) {
             updateAiVoiceStatus('processing');
             try { aiSpeechRecognition.stop(); } catch (e) { stopAiVoice(); }
@@ -5217,7 +5298,10 @@ function startAiVoice() {
             try { aiMediaRecorder.stop(); } catch (e) { stopAiVoice(); }
             return;
         }
-        stopAiVoice();
+    }
+
+    // Двойной клик «стоп» не должен уничтожать только что записанную фразу
+    if (aiVoiceState === 'processing' && Date.now() - aiVoiceProcessingSince < AI_VOICE_RESTART_GUARD_MS) {
         return;
     }
 
@@ -5229,22 +5313,24 @@ function startAiVoice() {
         startMediaRecorder();
     } else if (SpeechRec) {
         startWebSpeech(SpeechRec);
-    } else if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    } else if (canRecord) {
         startMediaRecorder();
     } else {
+        stopAiVoice(true);
         updateAiVoiceStatus('error', tJs('ai.mic_unsupported', 'Голосовой ввод не поддерживается вашим браузером.'));
     }
 }
 
 function startWebSpeech(SpeechRec) {
     stopAiVoice(true);
+    const gen = aiVoiceGeneration;
     updateAiVoiceStatus('recording', tJs('ai.mic_listening', 'Слушаю… говорите'));
 
     let recognition = null;
     try {
         recognition = new SpeechRec();
     } catch (e) {
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder) {
             startMediaRecorder();
             return;
         }
@@ -5262,12 +5348,13 @@ function startWebSpeech(SpeechRec) {
     const inputEl = document.getElementById('ai-chat-input');
 
     aiVoiceTimeout = setTimeout(function () {
-        if (aiVoiceState === 'recording') {
+        if (aiVoiceIsCurrent(gen) && aiVoiceState === 'recording') {
             try { recognition.stop(); } catch (e) { stopAiVoice(); }
         }
     }, 45000);
 
     recognition.onresult = function (event) {
+        if (!aiVoiceIsCurrent(gen)) return;
         let interim = '';
         for (let i = event.resultIndex; i < event.results.length; ++i) {
             const res = event.results[i];
@@ -5284,7 +5371,7 @@ function startWebSpeech(SpeechRec) {
     };
 
     recognition.onerror = function (event) {
-        clearTimeout(aiVoiceTimeout);
+        if (!aiVoiceIsCurrent(gen)) return;
         stopAiVoice(true);
         let msg = tJs('ai.mic_error', 'Не удалось распознать речь.');
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
@@ -5298,11 +5385,13 @@ function startWebSpeech(SpeechRec) {
     };
 
     recognition.onend = function () {
+        if (!aiVoiceIsCurrent(gen)) return;
         clearTimeout(aiVoiceTimeout);
+        aiVoiceTimeout = null;
         aiSpeechRecognition = null;
         const text = (finalTranscript || (inputEl?.value || '')).trim();
         if (text) {
-            handleVoiceRecognized(text, 'web_speech');
+            handleVoiceRecognized(text, 'web_speech', gen);
         } else {
             updateAiVoiceStatus('idle');
         }
@@ -5318,12 +5407,14 @@ function startWebSpeech(SpeechRec) {
 
 function startMediaRecorder() {
     stopAiVoice(true);
-    updateAiVoiceStatus('recording', tJs('ai.mic_listening', 'Слушаю… говорите'));
+    const gen = aiVoiceGeneration;
 
     if (!window.MediaRecorder) {
         updateAiVoiceStatus('error', tJs('ai.mic_unsupported', 'Голосовой ввод не поддерживается вашим браузером.'));
         return;
     }
+
+    updateAiVoiceStatus('recording', tJs('ai.mic_listening', 'Слушаю… говорите'));
 
     navigator.mediaDevices.getUserMedia({
         audio: {
@@ -5334,14 +5425,21 @@ function startMediaRecorder() {
         }
     })
         .then(function (stream) {
+            // Пользователь отменил запись, пока браузер спрашивал разрешение
+            if (!aiVoiceIsCurrent(gen)) {
+                stream.getTracks().forEach(function (t) { t.stop(); });
+                return;
+            }
             aiMediaStream = stream;
-            aiAudioChunks = [];
+            const chunks = [];
+            aiAudioChunks = chunks;
 
             let mimeType = 'audio/webm;codecs=opus';
             if (typeof MediaRecorder.isTypeSupported === 'function') {
                 if (!MediaRecorder.isTypeSupported(mimeType)) {
                     mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
-                        : (MediaRecorder.isTypeSupported('audio/ogg') ? 'audio/ogg' : '');
+                        : (MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4'
+                            : (MediaRecorder.isTypeSupported('audio/ogg') ? 'audio/ogg' : ''));
                 }
             } else {
                 mimeType = '';
@@ -5350,17 +5448,25 @@ function startMediaRecorder() {
             const options = mimeType ? { mimeType: mimeType } : {};
             const recorder = new MediaRecorder(stream, options);
             aiMediaRecorder = recorder;
+            let submitted = false;
 
             recorder.ondataavailable = function (e) {
                 if (e.data && e.data.size > 0) {
-                    aiAudioChunks.push(e.data);
+                    chunks.push(e.data);
                 }
             };
 
             recorder.onstop = function () {
-                aiMediaStream?.getTracks().forEach(function (t) { t.stop(); });
-                aiMediaStream = null;
-                const blob = new Blob(aiAudioChunks, { type: mimeType || 'audio/webm' });
+                if (!aiVoiceIsCurrent(gen) || submitted) return;
+                submitted = true;
+                if (aiVoiceTimeout) {
+                    clearTimeout(aiVoiceTimeout);
+                    aiVoiceTimeout = null;
+                }
+                aiVoiceReleaseStream();
+                aiMediaRecorder = null;
+                const blob = new Blob(chunks, { type: recorder.mimeType || mimeType || 'audio/webm' });
+                chunks.length = 0;
                 aiAudioChunks = [];
                 if (blob.size < 200) {
                     updateAiVoiceStatus('error', tJs('ai.mic_too_short', 'Слишком короткая запись.'));
@@ -5369,25 +5475,29 @@ function startMediaRecorder() {
                 updateAiVoiceStatus('processing', tJs('ai.mic_processing', 'Распознавание речи…'));
                 // Сервер (whisper.cpp) читает WAV нативно: перекодируем в браузере, без ffmpeg на сервере
                 aiBlobToWav16k(blob)
-                    .then(function (wav) { uploadVoiceAudio(wav, 'recording.wav'); })
-                    .catch(function () { uploadVoiceAudio(blob, 'recording.webm'); });
+                    .then(function (wav) { uploadVoiceAudio(wav, 'recording.wav', gen); })
+                    .catch(function () { uploadVoiceAudio(blob, 'recording.webm', gen); });
             };
 
             recorder.start(250);
 
             aiVoiceTimeout = setTimeout(function () {
-                if (aiMediaRecorder && aiMediaRecorder.state === 'recording') {
-                    aiMediaRecorder.stop();
+                if (aiVoiceIsCurrent(gen) && recorder.state === 'recording') {
+                    updateAiVoiceStatus('processing');
+                    recorder.stop();
                 }
             }, 45000);
         })
         .catch(function (err) {
+            if (!aiVoiceIsCurrent(gen)) return;
             stopAiVoice(true);
             let msg = tJs('ai.mic_error', 'Не удалось получить доступ к микрофону.');
-            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+            if (err && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError' || err.name === 'SecurityError')) {
                 msg = tJs('ai.mic_denied', 'Доступ к микрофону запрещён в настройках браузера.');
-            } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+            } else if (err && (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError' || err.name === 'OverconstrainedError')) {
                 msg = tJs('ai.mic_not_found', 'Микрофон не обнаружен.');
+            } else if (err && (err.name === 'NotReadableError' || err.name === 'TrackStartError')) {
+                msg = tJs('ai.mic_busy', 'Микрофон занят другим приложением.');
             }
             updateAiVoiceStatus('error', msg);
         });
@@ -5461,16 +5571,29 @@ function aiEncodeWavPcm16(samples, sampleRate) {
     return new Blob([buffer], { type: 'audio/wav' });
 }
 
-function uploadVoiceAudio(blob, filename) {
+/**
+ * Отправка записи на серверный STT (только распознавание, transcribe_only=1).
+ * Результат применяется, только если поколение gen всё ещё актуально.
+ */
+function uploadVoiceAudio(blob, filename, gen) {
+    if (!aiVoiceIsCurrent(gen)) return;
     updateAiVoiceStatus('processing', tJs('ai.mic_processing', 'Распознавание речи…'));
+
+    const requestId = aiVoiceNewRequestId();
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    aiVoiceUploadAbort = controller;
+    let timedOut = false;
+    const timer = setTimeout(function () {
+        timedOut = true;
+        if (controller) controller.abort();
+    }, AI_VOICE_UPLOAD_TIMEOUT_MS);
 
     const fd = new FormData();
     fd.append('audio', blob, filename || 'recording.webm');
+    fd.append('transcribe_only', '1');
+    fd.append('client_request_id', requestId);
     if (aiGuestToken) fd.append('guest_token', aiGuestToken);
     if (window.__lang) fd.append('language', window.__lang);
-    if (typeof window.__aiPageContext === 'object' && window.__aiPageContext) {
-        fd.append('context', JSON.stringify(window.__aiPageContext));
-    }
 
     const headers = {
         'X-Requested-With': 'XMLHttpRequest'
@@ -5483,36 +5606,426 @@ function uploadVoiceAudio(blob, filename) {
         method: 'POST',
         headers: headers,
         credentials: 'same-origin',
-        body: fd
+        body: fd,
+        signal: controller ? controller.signal : undefined
     })
-    .then(function (r) { return r.json().catch(function () { return null; }); })
-    .then(function (data) {
-        updateAiVoiceStatus('idle');
-        if (!data || !data.ok) {
-            appendAiBot((data && (data.reply || data.error)) || tJs('ai.mic_error', 'Не удалось распознать речь.'), [], [], null, []);
+    .then(function (r) {
+        return r.json().catch(function () { return null; }).then(function (data) {
+            return { status: r.status, data: data };
+        });
+    })
+    .then(function (res) {
+        // Устаревший ответ (была отмена или новая запись) — интерфейс не трогаем
+        if (!aiVoiceIsCurrent(gen)) return;
+        // Один и тот же ответ применяется не более одного раза
+        if (aiVoiceHandledRequests.has(requestId)) return;
+        aiVoiceHandledRequests.add(requestId);
+
+        const data = res.data;
+        const text = data && data.ok ? String(data.text || data.recognized_text || '').trim() : '';
+        if (text) {
+            handleVoiceRecognized(text, (data && data.provider) || 'server_stt', gen);
             return;
         }
-        applyAiResponse(data);
+        const msg = (data && (data.reply || data.error)) || tJs('ai.mic_error', 'Не удалось распознать речь.');
+        updateAiVoiceStatus('error', msg);
     })
     .catch(function () {
-        updateAiVoiceStatus('error', tJs('ai.error_network', 'Сеть недоступна.'));
+        if (!aiVoiceIsCurrent(gen)) return;
+        updateAiVoiceStatus('error', timedOut
+            ? tJs('ai.mic_timeout', 'Время ожидания ответа истекло.')
+            : tJs('ai.error_network', 'Сеть недоступна.'));
+    })
+    .finally(function () {
+        clearTimeout(timer);
+        if (aiVoiceUploadAbort === controller) {
+            aiVoiceUploadAbort = null;
+        }
     });
 }
 
-function handleVoiceRecognized(text, provider) {
-    updateAiVoiceStatus('idle');
+/**
+ * Распознанный текст уходит в тот же диалог Zak, что и текстовый ввод
+ * (контекст, NLU, RAG, инструменты, подтверждения — без отдельной голосовой логики).
+ */
+function handleVoiceRecognized(text, provider, gen) {
+    if (gen !== undefined && !aiVoiceIsCurrent(gen)) return;
     const inputEl = document.getElementById('ai-chat-input');
     if (inputEl) {
         inputEl.value = text;
     }
-    // Автоматическая отправка запроса в существующий ZAK-чат
+    if (aiChatBusy) {
+        // Zak ещё отвечает на предыдущее сообщение: текст не теряем, оставляем в поле ввода
+        updateAiVoiceStatus('error', tJs('ai.mic_chat_busy', 'Zak ещё отвечает — текст оставлен в поле ввода.'));
+        return;
+    }
+    updateAiVoiceStatus('idle');
     sendAiMessage(text);
+    if (inputEl && inputEl.value === text) {
+        inputEl.value = '';
+    }
 }
 
+/* ===== AI Text-to-Speech (TTS) Controller ===== */
+let aiActiveTtsUtterance = null;
+let aiActiveTtsBtn = null;
+let aiActiveTtsAudio = null;
+let aiSpeechVoicesCache = [];
+
+function getAiSpeechVoices() {
+    if (!window.speechSynthesis) return [];
+    if (aiSpeechVoicesCache && aiSpeechVoicesCache.length > 0) {
+        return aiSpeechVoicesCache;
+    }
+    try {
+        aiSpeechVoicesCache = window.speechSynthesis.getVoices() || [];
+    } catch (e) {
+        aiSpeechVoicesCache = [];
+    }
+    return aiSpeechVoicesCache;
+}
+
+if (typeof window !== 'undefined' && window.speechSynthesis) {
+    getAiSpeechVoices();
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = function () {
+            try {
+                aiSpeechVoicesCache = window.speechSynthesis.getVoices() || [];
+            } catch (e) { /* ignore */ }
+        };
+    }
+}
+
+function aiTtsPlayIcon() {
+    return '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>';
+}
+
+function aiTtsStopIcon() {
+    return '<svg class="w-3.5 h-3.5 text-accent-500 animate-pulse" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
+}
+
+function stopAiTts() {
+    if (aiActiveTtsAudio) {
+        try {
+            aiActiveTtsAudio.pause();
+            aiActiveTtsAudio.currentTime = 0;
+        } catch (e) { /* ignore */ }
+        aiActiveTtsAudio = null;
+    }
+
+    if (window.speechSynthesis) {
+        try {
+            window.speechSynthesis.cancel();
+        } catch (e) { /* ignore */ }
+    }
+    if (aiActiveTtsBtn) {
+        aiActiveTtsBtn.innerHTML = aiTtsPlayIcon();
+        aiActiveTtsBtn.setAttribute('aria-label', tJs('ai.tts_play', 'Озвучить ответ'));
+        aiActiveTtsBtn.classList.remove('text-accent-500');
+        aiActiveTtsBtn = null;
+    }
+    aiActiveTtsUtterance = null;
+}
+
+function selectBestVoice(voices, lang) {
+    if (!voices || !voices.length) {
+        voices = getAiSpeechVoices();
+    }
+    if (!voices || !voices.length) return null;
+
+    const target = (lang || window.__lang || 'ru').toLowerCase();
+
+    function scoreVoice(v) {
+        if (!v || !v.lang) return -2000;
+        const name = (v.name || '').toLowerCase();
+        const vLang = (v.lang || '').toLowerCase().replace(/_/g, '-');
+
+        let isMatch = false;
+        if (target === 'kk') {
+            isMatch = vLang.startsWith('kk') || name.includes('kazakh') || name.includes('қазақ');
+        } else if (target === 'en') {
+            isMatch = vLang.startsWith('en');
+        } else {
+            isMatch = vLang.startsWith('ru') || name.includes('russian') || name.includes('рус');
+        }
+
+        if (!isMatch) return -2000;
+
+        let score = 100;
+
+        // 1. Приоритет нейронных и живых дикторов (Natural, Neural, Enhanced, Siri, Premium)
+        if (name.includes('natural') || name.includes('neural')) score += 800;
+        if (name.includes('siri')) score += 700;
+        if (name.includes('enhanced') || name.includes('premium')) score += 600;
+        if (name.includes('online') && !name.includes('google')) score += 500;
+
+        // 2. Живые русскоязычные дикторы на Mac, Windows, iOS:
+        if (name.includes('milena') || name.includes('милена')) score += 750;
+        if (name.includes('yuri') || name.includes('юрий')) score += 750;
+        if (name.includes('katya') || name.includes('катя')) score += 500;
+        if (name.includes('dmitry') || name.includes('дмитрий')) score += 500;
+        if (name.includes('svetlana') || name.includes('светлана')) score += 500;
+        if (name.includes('tatyana') || name.includes('татьяна')) score += 400;
+
+        // Казахские живые дикторы:
+        if (name.includes('dariya') || name.includes('дария')) score += 800;
+        if (name.includes('madi') || name.includes('мәди')) score += 800;
+
+        // Английские естественные голоса:
+        if (name.includes('jenny') || name.includes('guy') || name.includes('aria')) score += 600;
+
+        // 3. ПОЛНАЯ БЛОКИРОВКА РОБОТА GOOGLE:
+        // "Google русский" звучит как механический робот переводчика - дисквалифицируем
+        if (name.includes('google')) score -= 1500;
+
+        // 4. ШТРАФ старым механическим роботам (Compact, Aleksandr, Pavel, eSpeak)
+        if (name.includes('compact')) score -= 400;
+        if (name.includes('espeak')) score -= 1000;
+        if (name.includes('aleksandr') && !name.includes('enhanced')) score -= 500;
+        if (name.includes('pavel') && !name.includes('natural')) score -= 500;
+        if (name.includes('desktop')) score -= 300;
+
+        return score;
+    }
+
+    let bestVoice = null;
+    let maxScore = -1999;
+
+    for (let i = 0; i < voices.length; i++) {
+        const v = voices[i];
+        const s = scoreVoice(v);
+        if (s > maxScore) {
+            maxScore = s;
+            bestVoice = v;
+        }
+    }
+
+    if (bestVoice && maxScore > 0) {
+        return bestVoice;
+    }
+
+    // Fallback если специфический качественный голос не найден
+    if (target === 'kk') {
+        const kkVoice = voices.find(function (v) {
+            return (v.lang && v.lang.toLowerCase().startsWith('kk')) || (v.name && v.name.toLowerCase().includes('kazakh'));
+        });
+        if (kkVoice) return kkVoice;
+    }
+
+    const ruVoice = voices.find(function (v) { return v.lang && v.lang.toLowerCase().startsWith('ru'); });
+    if (ruVoice) return ruVoice;
+
+    return voices.find(function (v) { return v.default; }) || voices[0] || null;
+}
+
+function cleanMarkdownForSpeech(md) {
+    if (!md) return '';
+    let t = String(md);
+    // Удаление HTML
+    t = t.replace(/<[^>]+>/g, '');
+    // Удаление эмодзи, чтобы движок не читал "смайлик с улыбкой"
+    t = t.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2300}-\u{23FF}]/gu, '');
+    // Удаление блоков кода и технического синтаксиса
+    t = t.replace(/```[\s\S]*?```/g, '');
+    t = t.replace(/`([^`]+)`/g, '$1');
+    t = t.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+    t = t.replace(/https?:\/\/[^\s]+/g, '');
+    t = t.replace(/^#{1,6}\s*(.+)$/gm, '$1.');
+    t = t.replace(/(\*\*|__)(.*?)\1/g, '$2');
+    t = t.replace(/(\*|_)(.*?)\1/g, '$2');
+    t = t.replace(/~~(.*?)~~/g, '$1');
+    t = t.replace(/^\s*[\*\-•]\s+/gm, '');
+    t = t.replace(/\|/g, ' ');
+
+    // Естественные речевые замены
+    t = t.replace(/\bZAK\b|\bZak\b/g, 'Зак');
+    t = t.replace(/(?<!\w)№\s*(\d+)/g, 'номер $1');
+    t = t.replace(/(\d+)\s*000\s*(?:₸|KZT|тенге)/gi, '$1 тысяч тенге');
+    t = t.replace(/(\d+)\s*(?:₸|KZT|тг\.?)/gi, '$1 тенге');
+    t = t.replace(/(\d+)\s*руб\.?/gi, '$1 рублей');
+    t = t.replace(/(\d+)\s*шт\.?/gi, '$1 штук');
+    t = t.replace(/\s+/g, ' ').trim();
+    return t;
+}
+
+/**
+ * Воспроизведение серверного аудио. Ссылка /ai/tts/audio/{token} ограничена по времени и
+ * привязана к сессии: если она истекла или недоступна, вызывается onFail (браузерный синтез).
+ */
+function playAiTtsAudio(btn, src, onFail) {
+    let failed = false;
+    const fail = function () {
+        if (failed) return;
+        failed = true;
+        stopAiTts();
+        if (typeof onFail === 'function') onFail();
+    };
+    try {
+        const audio = new Audio(src);
+        aiActiveTtsAudio = audio;
+        aiActiveTtsBtn = btn;
+        btn.innerHTML = aiTtsStopIcon();
+        btn.setAttribute('aria-label', tJs('ai.tts_stop', 'Остановить воспроизведение'));
+        btn.classList.add('text-accent-500');
+
+        audio.onended = function () { stopAiTts(); };
+        audio.onerror = function () { if (aiActiveTtsAudio === audio) fail(); };
+        audio.play().catch(function (err) {
+            // NotAllowedError (автовоспроизведение запрещено) — не повод переходить на другой движок
+            if (err && err.name === 'NotAllowedError') { stopAiTts(); return; }
+            if (aiActiveTtsAudio === audio) fail();
+        });
+    } catch (e) {
+        fail();
+    }
+}
+
+function playAiTtsBrowser(btn, textToSpeak, utteranceLang, ttsData) {
+    if (!window.speechSynthesis) {
+        alert(tJs('ai.tts_unsupported', 'Синтез речи не поддерживается браузером.'));
+        stopAiTts();
+        return;
+    }
+
+    const bcp47 = utteranceLang === 'kk' ? 'kk-KZ' : (utteranceLang === 'en' ? 'en-US' : 'ru-RU');
+    const voices = getAiSpeechVoices();
+    const voice = selectBestVoice(voices, utteranceLang);
+
+    const rawParts = textToSpeak.match(/[^.!?]+[.!?]+|\S+/g) || [textToSpeak];
+    const sentences = rawParts.map(function (s) { return s.trim(); }).filter(Boolean);
+    if (!sentences.length) {
+        stopAiTts();
+        return;
+    }
+
+    aiActiveTtsBtn = btn;
+    btn.innerHTML = aiTtsStopIcon();
+    btn.setAttribute('aria-label', tJs('ai.tts_stop', 'Остановить воспроизведение'));
+    btn.classList.add('text-accent-500');
+
+    sentences.forEach(function (sentence, index) {
+        const utt = new SpeechSynthesisUtterance(sentence);
+        utt.lang = bcp47;
+        utt.rate = 0.97;
+        utt.pitch = 1.0;
+
+        if (voice) {
+            utt.voice = voice;
+        }
+
+        if (index === sentences.length - 1) {
+            utt.onend = function () {
+                if (aiActiveTtsBtn === btn) {
+                    stopAiTts();
+                }
+            };
+        }
+
+        utt.onerror = function (e) {
+            if (e && e.error !== 'interrupted' && e.error !== 'canceled') {
+                if (aiActiveTtsBtn === btn) {
+                    stopAiTts();
+                }
+            }
+        };
+
+        if (index === 0) {
+            aiActiveTtsUtterance = utt;
+        }
+
+        try {
+            window.speechSynthesis.speak(utt);
+        } catch (e) {
+            stopAiTts();
+        }
+    });
+}
+
+function toggleAiMessageTts(btn, rawText, lang, ttsData) {
+    // Если этот же баттон уже воспроизводится -> останавливаем
+    if (aiActiveTtsBtn === btn) {
+        stopAiTts();
+        return;
+    }
+
+    // Остановка любого предыдущего воспроизведения
+    stopAiTts();
+
+    // 1. Если бэкенд уже вернул готовый аудиопоток (URL или base64) -> сразу играем живой голос
+    const textToSpeak = (ttsData && ttsData.clean_text) ? ttsData.clean_text : cleanMarkdownForSpeech(rawText);
+    const utteranceLang = (ttsData && ttsData.language) ? ttsData.language : (lang || window.__lang || 'ru');
+    const fallbackToBrowser = function () {
+        // Ссылка устарела/недоступна: забываем её, следующий клик запросит новую
+        if (ttsData) { ttsData.audio_url = null; ttsData.audio_base64 = null; }
+        if (textToSpeak) playAiTtsBrowser(btn, textToSpeak, utteranceLang, ttsData);
+    };
+
+    if (ttsData && (ttsData.audio_url || ttsData.audio_base64)) {
+        const src = ttsData.audio_url || ('data:' + (ttsData.mime || 'audio/mpeg') + ';base64,' + ttsData.audio_base64);
+        playAiTtsAudio(btn, src, fallbackToBrowser);
+        return;
+    }
+
+    if (!textToSpeak) return;
+
+    // 2. Показываем визуальную индикацию загрузки живого студийного голоса
+    btn.innerHTML = '<span class="inline-block w-3.5 h-3.5 border-2 border-accent-500 border-t-transparent rounded-full animate-spin"></span>';
+    btn.setAttribute('aria-label', tJs('ai.tts_loading', 'Синтез голоса…'));
+
+    // 3. Запрашиваем живое студийное аудио у сервера (Edge Neural)
+    fetch(window.__aiTtsUrl || '/ai/tts', {
+        method: 'POST',
+        headers: aiCsrfHeaders(),
+        credentials: 'same-origin',
+        body: JSON.stringify({
+            text: textToSpeak,
+            language: utteranceLang,
+            guest_token: aiGuestToken
+        })
+    })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            const resTts = (data && data.tts) ? data.tts : data;
+            if (resTts && (resTts.audio_url || resTts.audio_base64)) {
+                if (ttsData) {
+                    ttsData.audio_url = resTts.audio_url;
+                    ttsData.audio_base64 = resTts.audio_base64;
+                }
+                const src = resTts.audio_url || ('data:' + (resTts.mime || 'audio/mpeg') + ';base64,' + resTts.audio_base64);
+                playAiTtsAudio(btn, src, fallbackToBrowser);
+            } else {
+                playAiTtsBrowser(btn, textToSpeak, utteranceLang, resTts || ttsData);
+            }
+        })
+        .catch(function () {
+            playAiTtsBrowser(btn, textToSpeak, utteranceLang, ttsData);
+        });
+}
+
+function renderAiTtsButton(text, language, ttsData) {
+    if (!text || !window.speechSynthesis) return null;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ai-msg-tts-btn inline-flex items-center justify-center w-7 h-7 rounded-lg hover:bg-ink-900/5 dark:hover:bg-white/10 text-ink-700 dark:text-gray-300 cursor-pointer transition';
+    btn.setAttribute('aria-label', tJs('ai.tts_play', 'Озвучить ответ'));
+    btn.title = tJs('ai.tts_play', 'Озвучить ответ');
+    btn.innerHTML = aiTtsPlayIcon();
+
+    btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleAiMessageTts(btn, text, language, ttsData);
+    });
+    return btn;
+}
 
 function initAiAssistant() {
     if (aiAssistantReady) return;
     aiAssistantReady = true;
+
+    window.addEventListener('beforeunload', stopAiTts);
+    // Уход со страницы / закрытие вкладки: освободить микрофон и отменить запрос STT
+    window.addEventListener('pagehide', function () { stopAiVoice(true); });
 
     const form = document.getElementById('ai-chat-form');
     form?.addEventListener('submit', function (e) {
@@ -5600,6 +6113,7 @@ function showAiWelcome() {
 }
 
 function clearAiChat() {
+    stopAiTts();
     if (aiChatBusy) return;
     const ok = window.confirm(
         tJs('ai.clear_confirm', 'Очистить переписку с ZAK и начать заново?')
@@ -5634,6 +6148,7 @@ function sendAiSuggestion(message) {
 }
 
 function sendAiMessage(text) {
+    stopAiTts();
     if (aiChatBusy || !text) return;
     aiChatBusy = true;
 
@@ -5716,7 +6231,9 @@ function applyAiResponse(data) {
         data.products || [],
         data.suggestions || [],
         data.ai_message_id || null,
-        data.actions || []
+        data.actions || [],
+        data.documents || [],
+        data.tts || null
     );
 
 }
@@ -5950,7 +6467,7 @@ function removeAiTyping(id) {
     document.getElementById(id)?.remove();
 }
 
-function appendAiBot(text, products, suggestions, msgId, actions, documents) {
+function appendAiBot(text, products, suggestions, msgId, actions, documents, ttsData) {
     const box = aiMessagesEl();
     if (!box) return;
 
@@ -6077,27 +6594,45 @@ function appendAiBot(text, products, suggestions, msgId, actions, documents) {
         bubble.appendChild(actRow);
     }
 
-    if (msgId) {
-        const csat = document.createElement('div');
-        csat.className = 'flex items-center gap-2 pt-1 border-t border-ink-900/5 dark:border-white/5 text-[11px] text-ink-700/60 dark:text-gray-400';
-        const label = document.createElement('span');
-        label.textContent = tJs('ai.csat_ask', 'Полезен ответ?');
-        const up = document.createElement('button');
-        up.type = 'button';
-        up.className = 'inline-flex items-center justify-center w-7 h-7 rounded-lg hover:bg-ink-900/5 dark:hover:bg-white/10 text-ink-700 dark:text-gray-300 cursor-pointer transition';
-        up.setAttribute('aria-label', tJs('ai.csat_yes', 'Да'));
-        up.innerHTML = window.__aiIconThumbsUp || '';
-        up.addEventListener('click', function () { sendAiFeedback(msgId, 5, csat); });
-        const down = document.createElement('button');
-        down.type = 'button';
-        down.className = 'inline-flex items-center justify-center w-7 h-7 rounded-lg hover:bg-ink-900/5 dark:hover:bg-white/10 text-ink-700 dark:text-gray-300 cursor-pointer transition';
-        down.setAttribute('aria-label', tJs('ai.csat_no', 'Нет'));
-        down.innerHTML = window.__aiIconThumbsDown || '';
-        down.addEventListener('click', function () { sendAiFeedback(msgId, 1, csat); });
-        csat.appendChild(label);
-        csat.appendChild(up);
-        csat.appendChild(down);
-        bubble.appendChild(csat);
+    const canTts = Boolean(text && window.speechSynthesis);
+    if (msgId || canTts) {
+        const footer = document.createElement('div');
+        footer.className = 'flex items-center justify-between gap-2 pt-1 border-t border-ink-900/5 dark:border-white/5 text-[11px] text-ink-700/60 dark:text-gray-400';
+
+        const leftBox = document.createElement('div');
+        leftBox.className = 'flex items-center gap-1.5';
+        if (msgId) {
+            const csat = document.createElement('div');
+            csat.className = 'flex items-center gap-1.5';
+            const label = document.createElement('span');
+            label.textContent = tJs('ai.csat_ask', 'Полезен ответ?');
+            const up = document.createElement('button');
+            up.type = 'button';
+            up.className = 'inline-flex items-center justify-center w-7 h-7 rounded-lg hover:bg-ink-900/5 dark:hover:bg-white/10 text-ink-700 dark:text-gray-300 cursor-pointer transition';
+            up.setAttribute('aria-label', tJs('ai.csat_yes', 'Да'));
+            up.innerHTML = window.__aiIconThumbsUp || '';
+            up.addEventListener('click', function () { sendAiFeedback(msgId, 5, csat); });
+            const down = document.createElement('button');
+            down.type = 'button';
+            down.className = 'inline-flex items-center justify-center w-7 h-7 rounded-lg hover:bg-ink-900/5 dark:hover:bg-white/10 text-ink-700 dark:text-gray-300 cursor-pointer transition';
+            down.setAttribute('aria-label', tJs('ai.csat_no', 'Нет'));
+            down.innerHTML = window.__aiIconThumbsDown || '';
+            down.addEventListener('click', function () { sendAiFeedback(msgId, 1, csat); });
+            csat.appendChild(label);
+            csat.appendChild(up);
+            csat.appendChild(down);
+            leftBox.appendChild(csat);
+        }
+        footer.appendChild(leftBox);
+
+        if (canTts) {
+            const ttsLang = (ttsData && ttsData.language) || window.__lang || 'ru';
+            const ttsBtn = renderAiTtsButton(text, ttsLang, ttsData);
+            if (ttsBtn) {
+                footer.appendChild(ttsBtn);
+            }
+        }
+        bubble.appendChild(footer);
     }
 
     wrap.appendChild(bubble);

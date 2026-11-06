@@ -163,6 +163,15 @@ class AiAssistantController extends Controller
 
             $fresh = $support->getConversationById($conversationId);
 
+            $ttsPayload = null;
+            if (!empty($cfg['tts']['enabled'])) {
+                try {
+                    $ttsPayload = \App\Services\AI\Support\TtsFactory::create()->synthesize(
+                        (string) ($result['response'] ?? ''),
+                        (string) ($result['language'] ?? 'ru')
+                    )->toArray();
+                } catch (\Throwable $e) { /* non-blocking */ }
+            }
 
             $this->json([
                 'ok' => true,
@@ -183,6 +192,7 @@ class AiAssistantController extends Controller
                 'guest_token' => $guestToken,
                 'request_id' => $requestId,
                 'language' => $result['language'] ?? null,
+                'tts' => $ttsPayload,
             ]);
         } catch (\Throwable $e) {
             // Фолбэк на каталог-помощник без LLM
@@ -409,6 +419,15 @@ class AiAssistantController extends Controller
                 usleep(12000);
             }
 
+            $ttsPayload = null;
+            if (!empty($cfg['tts']['enabled'])) {
+                try {
+                    $ttsPayload = \App\Services\AI\Support\TtsFactory::create()->synthesize(
+                        $reply,
+                        (string) ($result['language'] ?? 'ru')
+                    )->toArray();
+                } catch (\Throwable $e) { /* non-blocking */ }
+            }
 
             $this->sseEvent('done', [
                 'ok' => true,
@@ -423,6 +442,7 @@ class AiAssistantController extends Controller
                 'intent' => $result['intent'] ?? null,
                 'guest_token' => $guestToken,
                 'request_id' => $requestId,
+                'tts' => $ttsPayload,
             ]);
         } catch (\Throwable $e) {
             $this->sseEvent('error', ['message' => 'Сейчас не удалось обработать запрос.']);
@@ -491,8 +511,30 @@ class AiAssistantController extends Controller
             return;
         }
 
+        // 3a. Защита от повторной отправки одного и того же аудиофрагмента (client_request_id).
+        // Ключ привязан к владельцу (пользователь / гость / сессия), чтобы id разных клиентов не пересекались.
+        $clientRequestId = isset($json['client_request_id']) ? (string) $json['client_request_id'] : '';
+        if ($clientRequestId !== '') {
+            if (!preg_match('/^[A-Za-z0-9_-]{8,80}$/', $clientRequestId)) {
+                $this->json(['ok' => false, 'error' => 'invalid_request_id', 'reply' => 'Некорректный идентификатор запроса.'], 400);
+                return;
+            }
+            $owner = $userId !== null ? 'u' . $userId : ($guestToken !== null ? 'g' . $guestToken : 's' . session_id());
+            $dedupeKey = 'voice_req:' . hash('sha256', $owner . '|' . $clientRequestId);
+            $dedupe = new \App\Services\AI\Support\AiCache();
+            if ($dedupe->get($dedupeKey) !== null) {
+                $this->json([
+                    'ok' => false,
+                    'error' => 'duplicate_request',
+                    'reply' => 'Этот голосовой запрос уже обработан.',
+                ], 409);
+                return;
+            }
+            $dedupe->set($dedupeKey, 1, 600);
+        }
+
         $requestId = 'stt_' . bin2hex(random_bytes(6));
-        $transcribeOnly = !empty($json['transcribe_only']) || (($json['action'] ?? '') === 'transcribe');
+        $transcribeOnly =!empty($json['transcribe_only']) || (($json['action'] ?? '') === 'transcribe');
         $languageHint = isset($json['language']) ? trim((string) $json['language']) : null;
 
         /** @var \App\Services\AI\DTO\SttResult|null $sttResult */
@@ -590,6 +632,161 @@ class AiAssistantController extends Controller
         ];
 
         $this->chatWithPayload($payload);
+    }
+
+    /**
+     * Озвучивание ответа Zak (Text-to-Speech, TTS):
+     * Принимает текст или message_id, нормализует разметку и готовит речевой DTO TtsResult.
+     */
+    public function tts(): void
+    {
+        $cfg = $this->aiConfig();
+        $ttsCfg = (array) ($cfg['tts'] ?? []);
+
+        // 1. Проверка feature flag
+        if (empty($ttsCfg['enabled'])) {
+            $this->json([
+                'ok' => false,
+                'error' => 'tts_disabled',
+                'reply' => 'Синтез речи (TTS) временно отключён на платформе.',
+            ], 403);
+            return;
+        }
+
+        // 2. Входные данные
+        $raw = file_get_contents('php://input');
+        $json = is_string($raw) && $raw !== '' ? json_decode($raw, true) : null;
+        if (!is_array($json)) {
+            $json = $_POST;
+        }
+
+        $userId = Auth::check() ? Auth::id() : null;
+        $guestToken = isset($json['guest_token']) ? trim((string) $json['guest_token']) : null;
+        if ($guestToken === '') {
+            $guestToken = null;
+        }
+
+        // 3. Rate limiting
+        if (!$this->enforceRateLimit($userId, $guestToken)) {
+            return;
+        }
+
+        $text = trim((string) ($json['text'] ?? $json['message'] ?? ''));
+        $language = trim((string) ($json['language'] ?? 'ru'));
+        $voice = isset($json['voice']) ? trim((string) $json['voice']) : null;
+        $requestId = 'tts_' . bin2hex(random_bytes(6));
+
+        if ($text === '') {
+            $this->json([
+                'ok' => false,
+                'error' => 'empty_text',
+                'reply' => 'Текст для озвучивания отсутствует.',
+            ], 422);
+            return;
+        }
+
+        $tts = \App\Services\AI\Support\TtsFactory::create();
+        $result = $tts->synthesize($text, $language, [
+            'request_id' => $requestId,
+            'voice' => $voice,
+        ]);
+
+        if (!$result->ok) {
+            $this->json($result->toArray(), 422);
+            return;
+        }
+
+        $resArr = $result->toArray();
+        $this->json(array_merge($resArr, [
+            'ok' => true,
+            'tts' => $resArr,
+        ]));
+    }
+
+    /**
+     * Выдача синтезированного аудио из закрытого кеша по подписанному токену.
+     * Токен привязан к пользователю/сессии и ограничен по времени; на любую ошибку — 404
+     * без уточнения причины (не раскрываем существование файла и внутренние пути).
+     */
+    public function ttsAudio(string $token): void
+    {
+        $cfg = $this->aiConfig();
+        $ttsCfg = (array) ($cfg['tts'] ?? []);
+        $owner = \App\Services\AI\Support\TtsAudioCache::currentOwner();
+        $path = null;
+        if (!empty($ttsCfg['enabled']) && strlen($token) <= 200) {
+            $cache = new \App\Services\AI\Support\TtsAudioCache(
+                null,
+                null,
+                isset($ttsCfg['cache_ttl_seconds']) ? (int) $ttsCfg['cache_ttl_seconds'] : null,
+                isset($ttsCfg['url_ttl_seconds']) ? (int) $ttsCfg['url_ttl_seconds'] : null
+            );
+            $path = $cache->resolveToken($token, $owner);
+        }
+
+        // Сессия больше не нужна: освобождаем блокировку, чтобы стриминг не тормозил другие запросы
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+
+        if ($path === null || !is_file($path)) {
+            http_response_code(404);
+            header('Content-Type: text/plain; charset=UTF-8');
+            header('Cache-Control: no-store');
+            echo 'Not found';
+            return;
+        }
+
+        $size = (int) filesize($path);
+        $start = 0;
+        $end = $size - 1;
+        $status = 200;
+
+        // Поддержка Range (Safari и мобильные браузеры запрашивают аудио частями)
+        $range = (string) ($_SERVER['HTTP_RANGE'] ?? '');
+        if ($range !== '' && preg_match('/^bytes=(\d*)-(\d*)$/', $range, $m)) {
+            if ($m[1] === '' && $m[2] !== '') {
+                $start = max(0, $size - (int) $m[2]);
+            } else {
+                $start = (int) $m[1];
+                if ($m[2] !== '') {
+                    $end = min($end, (int) $m[2]);
+                }
+            }
+            if ($start > $end || $start >= $size) {
+                http_response_code(416);
+                header('Content-Range: bytes */' . $size);
+                return;
+            }
+            $status = 206;
+        }
+
+        http_response_code($status);
+        header('Content-Type: audio/mpeg');
+        header('Accept-Ranges: bytes');
+        header('Cache-Control: private, max-age=300');
+        header('X-Content-Type-Options: nosniff');
+        header('Content-Disposition: inline; filename="zak.mp3"');
+        if ($status === 206) {
+            header('Content-Range: bytes ' . $start . '-' . $end . '/' . $size);
+        }
+        header('Content-Length: ' . ($end - $start + 1));
+
+        $fh = fopen($path, 'rb');
+        if ($fh === false) {
+            return;
+        }
+        fseek($fh, $start);
+        $left = $end - $start + 1;
+        while ($left > 0 && !feof($fh)) {
+            $chunk = fread($fh, (int) min(65536, $left));
+            if ($chunk === false) {
+                break;
+            }
+            echo $chunk;
+            $left -= strlen($chunk);
+        }
+        fclose($fh);
     }
 
     public function confirmAction(): void
@@ -804,7 +1001,7 @@ class AiAssistantController extends Controller
                 'intent' => $result['intent'] ?? null,
                 'from_voice' => true,
                 'stt' => $json['stt_result'] ?? null,
-                'tts' => (new \App\Services\AI\Providers\BrowserTtsProvider())->synthesize(
+                'tts' => \App\Services\AI\Support\TtsFactory::create()->synthesize(
                     (string) ($result['response'] ?? ''),
                     (string) ($result['language'] ?? 'ru')
                 )->toArray(),
@@ -865,7 +1062,7 @@ class AiAssistantController extends Controller
         return false;
     }
 
-    private function aiConfig(): array
+    protected function aiConfig(): array
     {
         return \App\Services\AI\Core\AiConfig::all();
     }

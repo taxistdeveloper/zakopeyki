@@ -138,7 +138,7 @@ class DigitalAccessService
         if (($order['status'] ?? '') !== 'escrowed') {
             return;
         }
-        $inspect = date('Y-m-d H:i:s', time() + (\App\Services\EscrowService::INSPECT_DAYS * 86400));
+        $inspect = date('Y-m-d H:i:s', time() + (\App\Services\EscrowService::INSPECT_HOURS * 3600));
         (new Order())->updateFields($orderId, [
             'delivery_method' => 'digital',
             'status' => 'delivered',

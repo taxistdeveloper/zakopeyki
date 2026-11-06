@@ -28,6 +28,14 @@ USER → AiAssistantController → ProcessAiMessageJob → AIOrchestrator
 | `ServerAudioSttProvider` | Серверный STT по реальному аудио на whisper.cpp (локально, без внешних сервисов): WAV → whisper-cli + Silero VAD, явный язык ru/kk/en, тайм-аут, лимит параллельных процессов, confidence = средняя вероятность токенов |
 | `AudioValidator` | Валидация magic bytes, форматов, размера и длительности аудио |
 | `SttResult` | Единый нормализованный DTO результатов STT |
+| `TextToSpeechInterface` | TTS контракт синтеза речи |
+| `BrowserTtsProvider` | Web Speech Synthesis адаптер (серверная нормализация текста + клиентское воспроизведение) |
+| `MockTtsProvider` | Mock/offline провайдер для тестирования и симуляции синтеза |
+| `SpeechTextNormalizer` | Очистка Markdown/HTML, транскрипция валют (₸, KZT, тенге), чисел, пунктуации с сохранением казахских фонем |
+| `TtsResult` | Единый нормализованный DTO результатов TTS |
+| `TtsFactory` | Фабрика провайдеров синтеза речи по конфигурации (`ai.tts`) |
+| `EdgeTtsProvider` | Серверный синтез через edge-tts (неофициальный endpoint Microsoft Edge — коммерческие условия не подтверждены, по умолчанию выключен), белый список голосов, честный fallback на браузер |
+| `TtsAudioCache` | Закрытый аудиокеш TTS: HMAC-ключи, подписанные ссылки с привязкой к владельцу и сроком, TTL, flock + атомарная запись |
 
 ## Source of truth
 

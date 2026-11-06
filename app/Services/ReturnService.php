@@ -199,7 +199,7 @@ class ReturnService
             $fields['delivered_at'] = date('Y-m-d H:i:s');
             $fields['inspect_until'] = date(
                 'Y-m-d H:i:s',
-                strtotime('+' . EscrowService::INSPECT_DAYS . ' days')
+                time() + EscrowService::INSPECT_HOURS * 3600
             );
         }
         $this->orders->updateFields($orderId, $fields);

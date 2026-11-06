@@ -10,6 +10,7 @@ use App\Helpers\Totp;
 use App\Models\Favorite;
 use App\Models\Follow;
 use App\Models\Notification;
+use App\Models\Order;
 use App\Models\Product;
 use App\Models\Review;
 use App\Models\User;
@@ -922,6 +923,20 @@ class ProfileController extends Controller
         if (!$product || (int) $product['user_id'] !== Auth::id()) {
             $_SESSION['error'] = t('flash.lot_not_found');
             $this->redirect('/profile?tab=lots');
+        }
+
+        if ((new Order())->hasActiveOrdersForProduct((int) $id)) {
+            $_SESSION['error'] = 'Невозможно удалить товар с активным заказом';
+            $this->redirect('/profile?tab=my-listings#profile-published-lots');
+            return;
+        }
+
+        if (($product['type'] ?? '') === 'auction' && ($product['status'] ?? '') === 'active') {
+            if ($products->countBids((int) $id) > 0) {
+                $_SESSION['error'] = 'Невозможно удалить аукцион с действующими ставками.';
+                $this->redirect('/profile?tab=my-listings#profile-published-lots');
+                return;
+            }
         }
 
         $products->deleteProductFiles(ProductHelper::decodeImages($product));

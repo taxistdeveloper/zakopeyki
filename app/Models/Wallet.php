@@ -254,6 +254,15 @@ class Wallet extends Model
         $this->applyCredit(0, $amount, self::TYPE_PLATFORM_COMMISSION, $orderId, 'escrow');
     }
 
+    /** Зафиксировать комиссию площадки с продавца (10%). */
+    public function collectSellerCommission(int $amount, int $orderId): void
+    {
+        if ($amount <= 0) {
+            return;
+        }
+        $this->applyCredit(0, $amount, self::TYPE_PLATFORM_COMMISSION, $orderId, 'seller_commission');
+    }
+
     /**
      * Списать плату за публикацию объявления.
      * При product_id: идемпотентно по meta listing:{id} (повторный вызов не списывает повторно).
