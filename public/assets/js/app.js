@@ -5794,10 +5794,10 @@ function aiAutoSpeakLastReply() {
     btn.click();
 }
 
-/* ----- Пробуждение голосом: «Привет, Зак» → «Да, слушаю вас» → запись команды -----
+/* ----- Пробуждение голосом: «Эй, Зак» → «Да, слушаю вас» → запись команды -----
  * Фоновое распознавание — Web Speech API браузера (в Chrome звук обрабатывают серверы Google),
  * поэтому режим включается только явно кнопкой в шапке чата и работает, пока вкладка видима. */
-const AI_WAKE_RE = /(?:^|[\s,.!?])(?:привет|приветик|здравствуй|эй|хей|сәлем|салем|hey|hi|hello)[\s,.!?-]+(?:зак|зака|заки|заку|заг|зэк|зек|зах|жак|zak|zack|zach|zac)(?=$|[\s,.!?])/i;
+const AI_WAKE_RE = /(?:^|[\s,.!?])(?:(?:эй|эи|ей|хей|әй|hey)[\s,.!?-]+(?:зак|зака|заки|заку|заг|зэк|зек|зах|жак|zak|zack|zach|zac)|эйзак|эйзек|айзак|айзек|хейзак|heyzak)(?=$|[\s,.!?])/i;
 let aiWakeRec = null;
 let aiWakeRunning = false;
 let aiWakeBusy = false;
@@ -5826,11 +5826,11 @@ function updateAiWakeUi() {
     if (btn) {
         btn.classList.toggle('hidden', !aiWakeSupported());
         const label = on
-            ? tJs('ai.wake_off', 'Выключить отклик на «Привет, Зак»')
-            : tJs('ai.wake_on', 'Включить отклик на «Привет, Зак»');
+            ? tJs('ai.wake_off', 'Выключить отклик на «Эй, Зак»')
+            : tJs('ai.wake_on', 'Включить отклик на «Эй, Зак»');
         btn.setAttribute('aria-pressed', on ? 'true' : 'false');
         btn.setAttribute('aria-label', label);
-        btn.title = label + ' · ' + tJs('ai.wake_listening', 'Скажите «Привет, Зак» — распознавание речи выполняет браузер');
+        btn.title = label + ' · ' + tJs('ai.wake_listening', 'Скажите «Эй, Зак» — распознавание речи выполняет браузер');
         btn.classList.toggle('text-emerald-600', on);
         btn.classList.toggle('bg-emerald-50', on);
         btn.classList.toggle('dark:bg-emerald-950/30', on);
@@ -5903,7 +5903,7 @@ function aiWakeStart() {
             localStorage.setItem('zk_ai_wake', '0');
             aiWakeStop();
             updateAiWakeUi();
-            updateAiVoiceStatus('error', tJs('ai.wake_denied', 'Нет доступа к микрофону — отклик на «Привет, Зак» выключен.'));
+            updateAiVoiceStatus('error', tJs('ai.wake_denied', 'Нет доступа к микрофону — отклик на «Эй, Зак» выключен.'));
             return;
         }
         if (event.error !== 'no-speech' && event.error !== 'aborted') {
@@ -6037,7 +6037,7 @@ function aiWakeTriggered() {
     });
 }
 
-/** Включить режим «Привет, Зак» (вызывать внутри клика — браузер спросит разрешение на микрофон). */
+/** Включить режим «Эй, Зак» (вызывать внутри клика — браузер спросит разрешение на микрофон). */
 function aiWakeEnable() {
     localStorage.setItem('zk_ai_wake', '1');
     aiWakeFailCount = 0;
@@ -6049,22 +6049,22 @@ function aiWakeEnable() {
     aiWakeFetchAck();
 }
 
-const AI_WAKE_BARE_RE = /^[\s,.!?-]*(?:привет|приветик|здравствуй|здравствуйте|эй|хей|сәлем|салем|hey|hi|hello)[\s,.!?-]+(?:зак|зака|заки|заку|заг|зэк|зек|зах|жак|zak|zack|zach|zac)[\s,.!?)]*$/i;
+const AI_WAKE_BARE_RE = /^[\s,.!?-]*(?:(?:эй|эи|ей|хей|әй|hey)[\s,.!?-]+(?:зак|зака|заки|заку|заг|зэк|зек|зах|жак|zak|zack|zach|zac)|эйзак|эйзек|айзак|айзек|хейзак|heyzak)[\s,.!?)]*$/i;
 let aiLastInputVoice = false;
 
-/** Сообщение — только обращение «Привет, Зак» без вопроса. */
+/** Сообщение — только обращение «Эй, Зак» без вопроса. */
 function aiIsBareWakePhrase(text) {
     return AI_WAKE_BARE_RE.test(String(text || '').toLowerCase().replace(/ё/g, 'е'));
 }
 
-/** Ответ на «Привет, Зак» в чате: «Да, слушаю вас» и (если сказано голосом) сразу запись просьбы. */
+/** Ответ на «Эй, Зак» в чате: «Да, слушаю вас» и (если сказано голосом) сразу запись просьбы. */
 function aiHandleWakeGreeting(text, fromVoice) {
     aiWakeLog('greeting in chat, voice=' + fromVoice);
     appendAiUser(text);
     appendAiBot(tJs('ai.wake_ack', 'Да, слушаю вас'), [], [], null, []);
     aiLastTtsBtn = null;
     if (aiWakeSupported() && !aiWakeEnabled()) {
-        renderAiSuggestions([{ label: tJs('ai.wake_enable_chip', 'Всегда слушать «Привет, Зак»'), action: 'wake' }]);
+        renderAiSuggestions([{ label: tJs('ai.wake_enable_chip', 'Всегда слушать «Эй, Зак»'), action: 'wake' }]);
     }
     const listen = function () {
         aiWakeBusy = false;
