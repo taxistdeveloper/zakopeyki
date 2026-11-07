@@ -91,8 +91,8 @@ $myInitial = AvatarHelper::initial($me);
                 <div id="live-setup-pod-card" class="hidden"></div>
             </section>
 
-            <!-- Розыгрыш -->
-            <section class="live-setup-card">
+            <!-- Розыгрыш (скрыт, пока механика выключена: LiveGiveawayPolicy) -->
+            <section class="live-setup-card<?= \App\Services\Streaming\LiveGiveawayPolicy::isEnabled() ? '' : ' hidden' ?>">
                 <div class="live-setup-card-head">
                     <h3><?= htmlspecialchars(t('home.live_setup_giveaway')) ?></h3>
                     <span class="live-setup-tag"><?= htmlspecialchars(t('home.live_setup_optional')) ?></span>

@@ -1687,6 +1687,50 @@ class AdminController extends Controller
         $this->redirect('/admin/users/' . $userId);
     }
 
+    /** POST /admin/users/{id}/block — блокировка аккаунта (только админ, с причиной). */
+    public function userBlock(string $id): void
+    {
+        Auth::requireAdmin();
+        $userId = (int) $id;
+        $userModel = new User();
+        $user = $userModel->find($userId);
+        if (!$user) {
+            $_SESSION['error'] = t('admin.user_not_found');
+            $this->redirect('/admin/users');
+        }
+        if ($userId === (int) Auth::id() || ($user['role'] ?? '') === 'admin') {
+            $_SESSION['error'] = t('admin.user_block_forbidden');
+            $this->redirect('/admin/users/' . $userId);
+        }
+        $reason = trim((string) ($_POST['reason'] ?? ''));
+        if (mb_strlen($reason) < 3) {
+            $_SESSION['error'] = t('admin.user_block_reason_required');
+            $this->redirect('/admin/users/' . $userId);
+        }
+        if ($userModel->block($userId, $reason, (int) Auth::id())) {
+            ActivityLogger::warning('admin.user_block', 'Аккаунт заблокирован: #' . $userId, 'user', $userId, ['reason' => $reason]);
+            $_SESSION['flash'] = t('admin.user_blocked_ok');
+        } else {
+            $_SESSION['error'] = t('admin.user_block_failed');
+        }
+        $this->redirect('/admin/users/' . $userId);
+    }
+
+    /** POST /admin/users/{id}/unblock */
+    public function userUnblock(string $id): void
+    {
+        Auth::requireAdmin();
+        $userId = (int) $id;
+        $userModel = new User();
+        if ($userModel->unblock($userId)) {
+            ActivityLogger::info('admin.user_unblock', 'Аккаунт разблокирован: #' . $userId, 'user', $userId);
+            $_SESSION['flash'] = t('admin.user_unblocked_ok');
+        } else {
+            $_SESSION['error'] = t('admin.user_block_failed');
+        }
+        $this->redirect('/admin/users/' . $userId);
+    }
+
     public function userCreate(): void
     {
         Auth::requireAdmin();
@@ -2096,6 +2140,7 @@ class AdminController extends Controller
             'hasPem' => trim((string) $s->get('cf_stream_signing_key_pem', '')) !== '',
             'hasWebhook' => trim((string) $s->get('cf_stream_webhook_secret', '')) !== '',
             'requireSigned' => $s->getBool('cf_stream_require_signed', true) !== false,
+            'liveGiveawayEnabled' => \App\Services\Streaming\LiveGiveawayPolicy::isEnabled(),
             'flash' => $_SESSION['flash'] ?? null,
             'error' => $_SESSION['error'] ?? null,
         ]);
@@ -2122,6 +2167,14 @@ class AdminController extends Controller
             $s->set('cf_stream_webhook_secret', $wh);
         }
         $s->set('cf_stream_require_signed', isset($_POST['cf_stream_require_signed']) ? '1' : '0');
+        $giveawayWas = \App\Services\Streaming\LiveGiveawayPolicy::isEnabled();
+        $giveawayNow = isset($_POST['live_giveaway_enabled']);
+        $s->setBool(\App\Services\Streaming\LiveGiveawayPolicy::SETTING_KEY, $giveawayNow);
+        if ($giveawayWas !== $giveawayNow) {
+            ActivityLogger::warning('admin.live_giveaway_toggle', $giveawayNow ? 'Розыгрыш в эфире включён' : 'Розыгрыш в эфире выключен', 'settings', 0, [
+                'enabled' => $giveawayNow,
+            ]);
+        }
         ActivityLogger::info('admin.stream_settings', 'Обновлены настройки Cloudflare Stream', 'settings', 0);
         $_SESSION['flash'] = t('admin.stream_saved');
         $this->redirect('/admin/stream');

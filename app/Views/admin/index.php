@@ -589,6 +589,15 @@ $massPushEnabled = !empty($massPushEnabled);
             </div>
         </a>
         <?php endif; ?>
+        <?php if (\App\Core\Auth::can('contests')): ?>
+        <a href="<?= ProductHelper::url('/admin/contests') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 <?= $canTickets ? 'border-t border-brand-100 dark:border-brand-900/30' : '' ?> hover:bg-amber-50/40 dark:hover:bg-white/[0.03] transition">
+            <div class="min-w-0">
+                <h3 class="font-display font-bold text-amber-800 dark:text-amber-300"><?= htmlspecialchars(t('contests.admin.title')) ?></h3>
+                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('contests.admin.nav_hint')) ?></p>
+            </div>
+            <span class="text-xs font-bold text-amber-600">→</span>
+        </a>
+        <?php endif; ?>
         <?php if ($canAi): ?>
         <a href="<?= ProductHelper::url('/admin/ai') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 <?= $canTickets ? 'border-t border-brand-100 dark:border-brand-900/30' : '' ?> hover:bg-violet-50/40 dark:hover:bg-white/[0.03] transition">
             <div class="min-w-0">

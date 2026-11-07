@@ -45,6 +45,13 @@ $input = 'w-full h-11 px-3.5 rounded-xl border border-black/10 dark:border-white
             <input type="checkbox" name="cf_stream_require_signed" value="1" <?= !empty($requireSigned) ? 'checked' : '' ?>>
             <?= htmlspecialchars(t('admin.stream_require_signed')) ?>
         </label>
+        <div class="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800/40 p-3 space-y-1">
+            <label class="flex items-center gap-2 text-sm font-semibold">
+                <input type="checkbox" name="live_giveaway_enabled" value="1" <?= !empty($liveGiveawayEnabled) ? 'checked' : '' ?>>
+                <?= htmlspecialchars(t('admin.live_giveaway_enabled')) ?>
+            </label>
+            <p class="text-[12px] text-amber-800 dark:text-amber-300"><?= htmlspecialchars(t('admin.live_giveaway_legal_hint')) ?></p>
+        </div>
         <p class="text-[12px] text-gray-400"><?= htmlspecialchars(t('admin.stream_webhook_url')) ?>: <?= htmlspecialchars(ProductHelper::url('/webhooks/cloudflare/stream')) ?></p>
         <button class="h-11 px-5 rounded-xl bg-violet-700 text-white text-xs font-bold uppercase"><?= htmlspecialchars(t('admin.stream_save')) ?></button>
     </form>

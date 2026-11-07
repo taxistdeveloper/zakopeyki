@@ -51,6 +51,47 @@ $roleClass = match ($role) {
         <div class="bg-red-50 text-red-700 border border-red-100 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
 
+    <?php if (!$isAdminRole && !$isSelf): ?>
+    <?php $isBlockedUser = !empty($user['blocked_at']); ?>
+    <div class="rounded-[22px] border shadow-soft p-4 sm:p-5 space-y-3 <?= $isBlockedUser
+        ? 'bg-red-50/90 dark:bg-red-950/30 border-red-200/80 dark:border-red-800/40'
+        : 'bg-white/90 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/10' ?>">
+        <div class="min-w-0">
+            <h2 class="font-display font-bold text-ink-900 dark:text-white text-sm"><?= htmlspecialchars(t('admin.user_block_title')) ?></h2>
+            <p class="text-xs text-gray-500 mt-1">
+                <?php if ($isBlockedUser): ?>
+                    <?= htmlspecialchars(t('admin.user_blocked_since', ['date' => (string) $user['blocked_at']])) ?>
+                    · <?= htmlspecialchars((string) ($user['blocked_reason'] ?? '')) ?>
+                <?php else: ?>
+                    <?= htmlspecialchars(t('admin.user_block_hint')) ?>
+                <?php endif; ?>
+            </p>
+            <p class="text-[11px] text-gray-400 mt-1">
+                <?= htmlspecialchars(!empty($user['email_verified_at']) ? t('admin.user_email_verified') : t('admin.user_email_unverified')) ?>
+            </p>
+        </div>
+        <?php if ($isBlockedUser): ?>
+            <form method="post" action="<?= ProductHelper::url('/admin/users/' . $userId . '/unblock') ?>">
+                <?= csrf_field() ?>
+                <button type="submit" class="h-9 px-4 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition">
+                    <?= htmlspecialchars(t('admin.user_unblock')) ?>
+                </button>
+            </form>
+        <?php else: ?>
+            <form method="post" action="<?= ProductHelper::url('/admin/users/' . $userId . '/block') ?>" class="flex flex-wrap gap-2"
+                  onsubmit="return confirm(<?= htmlspecialchars(js_encode(t('admin.user_block_confirm'))) ?>)">
+                <?= csrf_field() ?>
+                <input name="reason" required minlength="3" maxlength="500"
+                       placeholder="<?= htmlspecialchars(t('admin.user_block_reason')) ?>"
+                       class="flex-1 min-w-[200px] h-9 px-3 rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 text-xs">
+                <button type="submit" class="h-9 px-4 rounded-xl text-xs font-bold text-white bg-red-600 hover:bg-red-700 transition">
+                    <?= htmlspecialchars(t('admin.user_block')) ?>
+                </button>
+            </form>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
+
     <?php if (!$isAdminRole): ?>
     <?php $hasSiteAccess = !empty($user['site_access']); ?>
     <div class="rounded-[22px] border shadow-soft p-4 sm:p-5 space-y-3 <?= $hasSiteAccess

@@ -9,6 +9,7 @@ use App\Helpers\GoogleOAuth;
 use App\Helpers\Mail;
 use App\Helpers\Totp;
 use App\Models\User;
+use App\Services\Security\AuthThrottle;
 
 class AuthController extends Controller
 {
@@ -40,6 +41,21 @@ class AuthController extends Controller
         $email = trim($_POST['email'] ?? '');
         $password = $_POST['password'] ?? '';
         $remember = !empty($_POST['remember']);
+
+        $throttle = (new AuthThrottle())->hitAll([
+            ['login_ip', AuthThrottle::ip()],
+            ['login_email', $email],
+        ]);
+        if (!$throttle['allowed']) {
+            $this->view('auth/login', [
+                'title' => t('auth.login_title'),
+                'error' => t('auth.too_many_attempts', ['minutes' => (string) max(1, (int) ceil(($throttle['retry_after'] ?? 60) / 60))]),
+                'email' => $email,
+                'remember' => $remember,
+            ], 'layouts/auth');
+            return;
+        }
+
         $user = (new User())->findByEmail($email);
 
         if (!$user || empty($user['password']) || !password_verify($password, $user['password'])) {
@@ -49,6 +65,17 @@ class AuthController extends Controller
             $this->view('auth/login', [
                 'title' => t('auth.login_title'),
                 'error' => t('auth.bad_credentials'),
+                'email' => $email,
+                'remember' => $remember,
+            ], 'layouts/auth');
+            return;
+        }
+
+        if ((new User())->isBlocked($user)) {
+            ActivityLogger::warning('auth.login_blocked', 'Вход в заблокированный аккаунт', 'user', (int) $user['id']);
+            $this->view('auth/login', [
+                'title' => t('auth.login_title'),
+                'error' => t('auth.account_blocked'),
                 'email' => $email,
                 'remember' => $remember,
             ], 'layouts/auth');
@@ -94,10 +121,16 @@ class AuthController extends Controller
         }
 
         $code = trim((string) ($_POST['code'] ?? ''));
+        $throttle = (new AuthThrottle())->hit('two_factor', 'u' . $userId);
+        if (!$throttle['allowed']) {
+            $this->clearTwoFactorChallenge();
+            $_SESSION['auth_error'] = t('auth.too_many_attempts', ['minutes' => (string) max(1, (int) ceil(($throttle['retry_after'] ?? 60) / 60))]);
+            $this->redirect('/login');
+        }
         $users = new User();
         $user = $users->find($userId);
 
-        if (!$user || !$users->hasTwoFactor($user)) {
+        if (!$user || !$users->hasTwoFactor($user) || $users->isBlocked($user)) {
             $this->clearTwoFactorChallenge();
             $_SESSION['auth_error'] = t('auth.two_factor_expired');
             $this->redirect('/login');
@@ -143,6 +176,31 @@ class AuthController extends Controller
         $phone = trim($_POST['phone'] ?? '');
         $acceptOffer = !empty($_POST['accept_offer']);
         $this->captureReferralFromRequest();
+
+        $throttle = (new AuthThrottle())->hit('register_ip', AuthThrottle::ip());
+        if (!$throttle['allowed']) {
+            $this->view('auth/register', [
+                'title' => t('auth.register_title'),
+                'error' => t('auth.too_many_attempts', ['minutes' => (string) max(1, (int) ceil(($throttle['retry_after'] ?? 60) / 60))]),
+                'name' => $name,
+                'email' => $email,
+                'phone' => $phone,
+                'referralRef' => (string) ($_SESSION['referral_ref'] ?? ''),
+            ], 'layouts/auth');
+            return;
+        }
+
+        if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->view('auth/register', [
+                'title' => t('auth.register_title'),
+                'error' => t('auth.forgot_invalid_email'),
+                'name' => $name,
+                'email' => $email,
+                'phone' => $phone,
+                'referralRef' => (string) ($_SESSION['referral_ref'] ?? ''),
+            ], 'layouts/auth');
+            return;
+        }
 
         if (!$acceptOffer) {
             $this->view('auth/register', [
@@ -190,8 +248,10 @@ class AuthController extends Controller
 
         $bonusResult = (new \App\Models\Bonus())->awardRegistration((int) $id);
         $this->applyReferralBonus((int) $id);
+        \App\Services\Contest\ContestReferralTracker::onRegistered((int) $id);
 
         $user = $users->find($id);
+        $this->sendVerificationEmail($user);
         Auth::login($user);
         ActivityLogger::info('auth.register', 'Регистрация: ' . $email, 'user', (int) $id, [
             'email' => $email,
@@ -300,6 +360,8 @@ class AuthController extends Controller
             $byEmail = $users->findByEmail($email);
             if ($byEmail) {
                 $users->linkGoogleId((int) $byEmail['id'], $googleId);
+                // Google подтвердил владение этим email (email_verified проверен выше)
+                $users->markEmailVerified((int) $byEmail['id']);
                 $user = $users->find((int) $byEmail['id']);
             } else {
                 $id = $users->create([
@@ -309,9 +371,11 @@ class AuthController extends Controller
                     'google_id' => $googleId,
                     'role' => 'user',
                 ]);
+                $users->markEmailVerified((int) $id);
                 $user = $users->find($id);
                 $bonusResult = (new \App\Models\Bonus())->awardRegistration((int) $id);
                 $this->applyReferralBonus((int) $id);
+                \App\Services\Contest\ContestReferralTracker::onRegistered((int) $id);
                 if (!empty($bonusResult['ok']) && empty($bonusResult['skipped']) && ($bonusResult['amount'] ?? 0) > 0) {
                     $_SESSION['flash'] = t('bonuses.flash_registration', [
                         'amount' => \App\Models\Bonus::format((int) $bonusResult['amount']),
@@ -329,6 +393,17 @@ class AuthController extends Controller
         if (!$user) {
             $_SESSION['auth_error'] = t('auth.google_failed');
             $this->redirect('/login');
+        }
+
+        if ($users->isBlocked($user)) {
+            ActivityLogger::warning('auth.login_blocked', 'Вход через Google в заблокированный аккаунт', 'user', (int) $user['id']);
+            $_SESSION['auth_error'] = t('auth.account_blocked');
+            $this->redirect('/login');
+        }
+
+        if (empty($user['email_verified_at']) && strcasecmp((string) $user['email'], $email) === 0) {
+            $users->markEmailVerified((int) $user['id']);
+            $user = $users->find((int) $user['id']) ?? $user;
         }
 
         if ($users->hasTwoFactor($user)) {
@@ -373,6 +448,19 @@ class AuthController extends Controller
             $this->view('auth/forgot-password', [
                 'title' => t('auth.forgot_title'),
                 'error' => t('auth.forgot_invalid_email'),
+                'email' => $email,
+            ], 'layouts/auth');
+            return;
+        }
+
+        $throttle = (new AuthThrottle())->hitAll([
+            ['forgot_ip', AuthThrottle::ip()],
+            ['forgot_email', $email],
+        ]);
+        if (!$throttle['allowed']) {
+            $this->view('auth/forgot-password', [
+                'title' => t('auth.forgot_title'),
+                'error' => t('auth.too_many_attempts', ['minutes' => (string) max(1, (int) ceil(($throttle['retry_after'] ?? 60) / 60))]),
                 'email' => $email,
             ], 'layouts/auth');
             return;
@@ -529,16 +617,86 @@ class AuthController extends Controller
         unset($_SESSION['pending_2fa']);
     }
 
+    /** GET /verify-email/{token} — подтверждение email по одноразовой ссылке. */
+    public function verifyEmail(string $token): void
+    {
+        $users = new User();
+        $user = $users->findByEmailVerifyToken($token);
+        if (!$user) {
+            $_SESSION[Auth::check() ? 'flash' : 'auth_error'] = t('auth.verify_invalid');
+            $this->redirect(Auth::check() ? '/profile' : '/login');
+        }
+
+        $users->markEmailVerified((int) $user['id']);
+        ActivityLogger::info('auth.email_verified', 'Email подтверждён', 'user', (int) $user['id']);
+
+        if (Auth::check() && (int) Auth::id() === (int) $user['id']) {
+            $fresh = $users->find((int) $user['id']);
+            if ($fresh) {
+                Auth::refresh($fresh);
+            }
+            $_SESSION['flash'] = t('auth.verify_success');
+            $this->redirect('/profile');
+        }
+
+        $_SESSION['auth_success'] = t('auth.verify_success');
+        $this->redirect('/login');
+    }
+
+    /** POST /profile/email/verify-resend — повторная отправка письма. */
+    public function resendVerification(): void
+    {
+        Auth::requireLogin();
+        $users = new User();
+        $user = $users->find((int) Auth::id());
+        if (!$user || $users->isEmailVerified($user)) {
+            $this->json(['ok' => true, 'already_verified' => true]);
+        }
+
+        $throttle = (new AuthThrottle())->hit('verify_resend', 'u' . (int) $user['id']);
+        if (!$throttle['allowed']) {
+            $this->json([
+                'ok' => false,
+                'message' => t('auth.too_many_attempts', ['minutes' => (string) max(1, (int) ceil(($throttle['retry_after'] ?? 60) / 60))]),
+            ], 429);
+        }
+
+        $sent = $this->sendVerificationEmail($user);
+        $this->json(['ok' => $sent, 'message' => $sent ? t('auth.verify_sent') : t('auth.verify_send_failed')], $sent ? 200 : 500);
+    }
+
+    private function sendVerificationEmail(?array $user): bool
+    {
+        if (!$user || !empty($user['email_verified_at']) || empty($user['email']) || !Mail::configured()) {
+            return false;
+        }
+        try {
+            $users = new User();
+            $token = $users->createEmailVerifyToken((int) $user['id'], 86400);
+            $mail = new Mail();
+            $url = $mail->absoluteUrl('/verify-email/' . $token);
+            $name = trim((string) ($user['name'] ?? '')) ?: (string) $user['email'];
+            $html = $mail->render('emails/password-reset', [
+                'name' => $name,
+                'resetUrl' => $url,
+                'greeting' => t('auth.reset_mail_greeting', ['name' => $name]),
+                'body' => t('auth.verify_mail_body'),
+                'cta' => t('auth.verify_mail_cta'),
+                'expiry' => t('auth.verify_mail_expiry'),
+                'linkHint' => t('auth.reset_mail_link_hint'),
+                'footer' => t('auth.reset_mail_footer'),
+            ]);
+            $text = t('auth.verify_mail_text', ['name' => $name, 'url' => $url]);
+            return $mail->send((string) $user['email'], t('auth.verify_mail_subject'), $text, $html);
+        } catch (\Throwable $e) {
+            ActivityLogger::exception($e, 'auth.verify_mail_failed');
+            return false;
+        }
+    }
+
     private function captureReferralFromRequest(): void
     {
-        $ref = trim((string) ($_POST['ref'] ?? $_GET['ref'] ?? ''));
-        if ($ref === '') {
-            return;
-        }
-        if (!preg_match('/^[a-zA-Z0-9_]{1,50}$/', $ref)) {
-            return;
-        }
-        $_SESSION['referral_ref'] = $ref;
+        \App\Helpers\ReferralCapture::captureFromRequest();
     }
 
     private function applyReferralBonus(int $newUserId): void

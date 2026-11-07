@@ -1,6 +1,8 @@
 <?php
 
 use App\Controllers\AdminController;
+use App\Controllers\AdminContestController;
+use App\Controllers\ContestController;
 use App\Controllers\AdminLibraryController;
 use App\Controllers\AdminTaskController;
 use App\Controllers\AiAssistantController;
@@ -176,6 +178,8 @@ $router->get('/forgot-password', [AuthController::class, 'forgotPasswordForm']);
 $router->post('/forgot-password', [AuthController::class, 'forgotPassword']);
 $router->get('/reset-password/{token}', [AuthController::class, 'resetPasswordForm']);
 $router->post('/reset-password/{token}', [AuthController::class, 'resetPassword']);
+$router->get('/verify-email/{token}', [AuthController::class, 'verifyEmail']);
+$router->post('/profile/email/verify-resend', [AuthController::class, 'resendVerification']);
 $router->get('/auth/google', [AuthController::class, 'googleRedirect']);
 $router->get('/auth/google/callback', [AuthController::class, 'googleCallback']);
 $router->post('/logout', [AuthController::class, 'logout']);
@@ -282,6 +286,27 @@ $router->post('/streams/live/comment', [StreamController::class, 'comment']);
 $router->post('/streams/live/like', [StreamController::class, 'like']);
 $router->post('/streams/live/giveaway/join', [StreamController::class, 'joinGiveaway']);
 $router->post('/streams/live/giveaway/draw', [StreamController::class, 'drawGiveaway']);
+
+// ── Конкурсы и розыгрыши (статические пути — раньше /contests/{slug}) ──
+$router->get('/contests', [ContestController::class, 'index']);
+$router->get('/contests/my', [ContestController::class, 'my']);
+$router->get('/contests/new', [ContestController::class, 'createForm']);
+$router->post('/contests', [ContestController::class, 'store']);
+$router->get('/contests/{id}/edit', [ContestController::class, 'editForm']);
+$router->post('/contests/{id}/update', [ContestController::class, 'update']);
+$router->post('/contests/{id}/submit', [ContestController::class, 'submit']);
+$router->post('/contests/{id}/cancel', [ContestController::class, 'cancel']);
+$router->get('/contests/{id}/manage', [ContestController::class, 'manage']);
+$router->get('/contests/{id}/qr.svg', [ContestController::class, 'qr']);
+$router->post('/contests/{id}/entries/{entryId}/review', [ContestController::class, 'reviewEntry']);
+$router->post('/contests/{id}/results', [ContestController::class, 'results']);
+$router->post('/contests/{id}/winners/{winnerId}/handed', [ContestController::class, 'handedOver']);
+$router->get('/contests/{slug}', [ContestController::class, 'show']);
+$router->post('/contests/{slug}/join', [ContestController::class, 'join']);
+$router->post('/contests/{slug}/withdraw', [ContestController::class, 'withdraw']);
+$router->post('/contests/{slug}/report', [ContestController::class, 'report']);
+$router->post('/contests/{slug}/winners/{winnerId}/confirm', [ContestController::class, 'confirmPrize']);
+$router->post('/contests/{slug}/winners/{winnerId}/dispute', [ContestController::class, 'disputePrize']);
 $router->post('/streams/live/feature', [StreamController::class, 'featureProduct']);
 $router->post('/streams/{id}/delete', [StreamController::class, 'delete']);
 
@@ -375,6 +400,18 @@ $router->post('/admin/users/{id}/permissions', [AdminController::class, 'userUpd
 $router->post('/admin/users/{id}/site-access', [AdminController::class, 'userToggleSiteAccess']);
 $router->post('/admin/users/{id}/aml-clear', [AdminController::class, 'userClearAml']);
 $router->post('/admin/users/{id}/delete', [AdminController::class, 'userDelete']);
+$router->post('/admin/users/{id}/block', [AdminController::class, 'userBlock']);
+$router->post('/admin/users/{id}/unblock', [AdminController::class, 'userUnblock']);
+$router->get('/admin/contests', [AdminContestController::class, 'index']);
+$router->post('/admin/contests/settings', [AdminContestController::class, 'saveSettings']);
+$router->post('/admin/contests/reports/{id}/resolve', [AdminContestController::class, 'resolveReport']);
+$router->get('/admin/contests/{id}', [AdminContestController::class, 'show']);
+$router->post('/admin/contests/{id}/approve', [AdminContestController::class, 'approve']);
+$router->post('/admin/contests/{id}/reject', [AdminContestController::class, 'reject']);
+$router->post('/admin/contests/{id}/suspend', [AdminContestController::class, 'suspend']);
+$router->post('/admin/contests/{id}/resume', [AdminContestController::class, 'resume']);
+$router->post('/admin/contests/{id}/cancel', [AdminContestController::class, 'cancel']);
+$router->post('/admin/contests/{id}/winners/{winnerId}/resolve', [AdminContestController::class, 'resolveDispute']);
 $router->post('/admin/delete/{id}', [AdminController::class, 'delete']);
 $router->post('/admin/toggle/{id}', [AdminController::class, 'toggleStatus']);
 $router->post('/admin/site-status', [AdminController::class, 'toggleSiteStatus']);

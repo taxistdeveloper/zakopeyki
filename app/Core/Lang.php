@@ -112,6 +112,19 @@ class Lang
         }
         /** @var array<string, mixed> $lines */
         $lines = require $file;
+
+        // Модульные словари: lang/modules/{locale}/*.php — массивы, рекурсивно
+        // сливаются с основным словарём (позволяет модулям не править общий файл).
+        $moduleDir = dirname(__DIR__, 2) . '/lang/modules/' . basename($file, '.php');
+        if (is_dir($moduleDir)) {
+            foreach (glob($moduleDir . '/*.php') ?: [] as $moduleFile) {
+                $extra = require $moduleFile;
+                if (is_array($extra)) {
+                    $lines = array_replace_recursive($lines, $extra);
+                }
+            }
+        }
+
         self::$lines = $lines;
     }
 

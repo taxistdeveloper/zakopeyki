@@ -10,6 +10,7 @@ class Auth
         'tickets',
         'ai_chats',
         'disputes',
+        'contests',
     ];
 
     private const REMEMBER_TTL = 60 * 60 * 24 * 30; // 30 дней
@@ -122,6 +123,35 @@ class Auth
         }
 
         return array_values(array_intersect(self::PERMISSIONS, array_map('strval', $list)));
+    }
+
+    /**
+     * Принудительный выход заблокированного пользователя. Сверка с БД не чаще раза в минуту,
+     * чтобы не добавлять запрос на каждую страницу.
+     */
+    public static function enforceAccountState(int $intervalSeconds = 60): void
+    {
+        if (!self::check()) {
+            return;
+        }
+        $checkedAt = (int) ($_SESSION['account_state_checked_at'] ?? 0);
+        if ($checkedAt > 0 && (time() - $checkedAt) < $intervalSeconds) {
+            return;
+        }
+        try {
+            $stmt = Database::connect()->prepare('SELECT blocked_at FROM users WHERE id = ? LIMIT 1');
+            $stmt->execute([(int) self::id()]);
+            $row = $stmt->fetch();
+        } catch (\Throwable) {
+            return; // колонка ещё не создана или БД недоступна
+        }
+        if ($row === false || !empty($row['blocked_at'])) {
+            self::logout();
+            self::start();
+            $_SESSION['auth_error'] = function_exists('t') ? t('auth.account_blocked') : 'Account blocked';
+            return;
+        }
+        $_SESSION['account_state_checked_at'] = time();
     }
 
     public static function logout(): void

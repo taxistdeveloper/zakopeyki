@@ -12,6 +12,12 @@ class Mail
         $this->config = $config ?? (require dirname(__DIR__, 2) . '/config/mail.php');
     }
 
+    /** Есть ли конфигурация почты (config/mail.php не хранится в репозитории). */
+    public static function configured(): bool
+    {
+        return is_file(dirname(__DIR__, 2) . '/config/mail.php');
+    }
+
     public function render(string $view, array $data = []): string
     {
         extract($data, EXTR_SKIP);

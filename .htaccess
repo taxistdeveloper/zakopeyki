@@ -19,6 +19,17 @@ DirectoryIndex index.php
     RewriteRule ^qa(/|$) - [F]
     RewriteRule ^docs(/|$) - [F]
     RewriteRule ^qa\.zip$ - [F]
+    # CLI-скрипты, логи, временные файлы, распакованные архивы, git и прочие скрытые файлы
+    RewriteRule ^bin(/|$) - [F]
+    RewriteRule ^logs(/|$) - [F]
+    RewriteRule ^tmp(/|$) - [F]
+    RewriteRule ^_vas[0-9]+_extract(/|$) - [F]
+    RewriteRule ^\.(?!well-known/) - [F]
+    # Служебные файлы в корне: отчёты, дампы, спецификации, тестовые артефакты
+    RewriteCond %{REQUEST_URI} !/(robots\.txt|sitemap[^/]*\.xml)$
+    RewriteRule ^[^/]+\.(md|txt|mp3|zip|sql|xml|log|sh)$ - [F]
+    RewriteRule ^openapi[^/]*\.json$ - [F]
+    RewriteRule ^tmp_[^/]*\.html$ - [F]
 
     RewriteRule ^\.env$ - [F]
     RewriteRule ^composer\.json$ - [F]

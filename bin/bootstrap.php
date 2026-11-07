@@ -6,6 +6,13 @@ declare(strict_types=1);
  * Общий bootstrap для CLI-скриптов (воркер, healthcheck, migrate).
  */
 
+// CLI-only: скрипты bin/ не должны выполняться через веб-сервер (дополнительно закрыто в .htaccess)
+if (PHP_SAPI !== 'cli' && PHP_SAPI !== 'phpdbg') {
+    http_response_code(403);
+    echo "CLI only\n";
+    exit(1);
+}
+
 $root = dirname(__DIR__);
 
 $appConfig = is_file($root . '/config/app.php') ? require $root . '/config/app.php' : [];

@@ -596,6 +596,41 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                 }
                 </script>
 
+                <?php if (array_key_exists('email_verified_at', (array) $user)): ?>
+                <div class="mt-10 pt-8 border-t border-black/[0.08] dark:border-white/10" id="email-verify">
+                    <h2 class="font-display text-xl font-bold"><?= htmlspecialchars(t('auth.verify_title')) ?></h2>
+                    <?php if (!empty($user['email_verified_at'])): ?>
+                        <p class="text-sm text-emerald-600 mt-2 font-semibold"><?= htmlspecialchars(t('auth.verify_done')) ?></p>
+                    <?php else: ?>
+                        <p class="text-sm text-gray-400 mt-1"><?= htmlspecialchars(t('auth.verify_hint')) ?></p>
+                        <button type="button" id="email-verify-resend"
+                                class="mt-3 h-10 px-4 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-xs font-bold transition"
+                                data-url="<?= htmlspecialchars(ProductHelper::url('/profile/email/verify-resend')) ?>">
+                            <?= htmlspecialchars(t('auth.verify_resend')) ?>
+                        </button>
+                        <p class="text-xs mt-2 text-gray-500" id="email-verify-status" aria-live="polite"></p>
+                        <script>
+                        (function () {
+                            var btn = document.getElementById('email-verify-resend');
+                            var out = document.getElementById('email-verify-status');
+                            if (!btn) return;
+                            btn.addEventListener('click', function () {
+                                btn.disabled = true;
+                                var meta = document.querySelector('meta[name="csrf-token"]');
+                                var body = new FormData();
+                                body.append('_csrf', meta ? meta.getAttribute('content') : '');
+                                fetch(btn.getAttribute('data-url'), { method: 'POST', body: body, credentials: 'same-origin' })
+                                    .then(function (r) { return r.json(); })
+                                    .then(function (d) { out.textContent = d.message || ''; })
+                                    .catch(function () { out.textContent = ''; })
+                                    .finally(function () { setTimeout(function () { btn.disabled = false; }, 30000); });
+                            });
+                        })();
+                        </script>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
+
                 <div class="mt-10 pt-8 border-t border-black/[0.08] dark:border-white/10">
                     <div class="mb-5 flex items-start gap-3">
                         <div class="w-11 h-11 rounded-2xl bg-brand-500 text-white flex items-center justify-center">
@@ -642,7 +677,9 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                         <div class="space-y-5 max-w-md">
                             <p class="text-sm text-gray-500 leading-relaxed"><?= htmlspecialchars(t('profile.two_factor_scan')) ?></p>
                             <div class="flex justify-center">
+                                <?php if (($twoFactorSetup['qr'] ?? '') !== ''): ?>
                                 <img src="<?= htmlspecialchars($twoFactorSetup['qr']) ?>" alt="QR" width="200" height="200" class="rounded-2xl border border-black/10 bg-white p-2">
+                                <?php endif; ?>
                             </div>
                             <div>
                                 <p class="text-xs text-gray-400 mb-1.5"><?= htmlspecialchars(t('profile.two_factor_manual')) ?></p>

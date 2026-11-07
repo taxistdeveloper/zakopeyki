@@ -30,6 +30,7 @@ spl_autoload_register(function (string $class): void {
 \App\Core\Auth::start();
 \App\Core\Lang::boot();
 \App\Helpers\ActivityLogger::registerHandlers();
+\App\Core\Auth::enforceAccountState();
 
 // stub_mode из БД (админка) перекрывает config/app.php
 try {
@@ -89,6 +90,7 @@ if (!empty($appConfig['stub_mode']) && !\App\Core\Auth::hasSiteAccess(true)) {
     $stubAllowedPrefix = '/reset-password/';
     $stubOk = in_array($stubPath, $stubAllowed, true)
         || str_starts_with($stubPath, $stubAllowedPrefix)
+        || str_starts_with($stubPath, '/verify-email/')
         || str_starts_with($stubPath, '/digital/certificate/');
 
     if (!$stubOk) {

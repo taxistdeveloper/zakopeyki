@@ -30,10 +30,17 @@ class Totp
         return 'otpauth://totp/' . $label . '?' . $query;
     }
 
+    /**
+     * QR-код как data URI (SVG), генерируется локально: секрет TOTP не уходит на внешние сервисы.
+     * Пустая строка — если данные не помещаются в QR (секрет показывается текстом рядом).
+     */
     public static function qrImageUrl(string $otpauthUri, int $size = 200): string
     {
-        return 'https://api.qrserver.com/v1/create-qr-code/?size=' . $size . 'x' . $size
-            . '&data=' . rawurlencode($otpauthUri);
+        try {
+            return 'data:image/svg+xml;base64,' . base64_encode(QrCode::svg($otpauthUri, $size));
+        } catch (\InvalidArgumentException) {
+            return '';
+        }
     }
 
     public static function verify(string $secret, string $code, ?int $timestamp = null): bool

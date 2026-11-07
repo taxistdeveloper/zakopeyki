@@ -63,6 +63,13 @@ class User extends Model
             'ship_contact_name' => 'VARCHAR(160) DEFAULT NULL AFTER ship_postal_code',
             'ship_phone' => 'VARCHAR(32) DEFAULT NULL AFTER ship_contact_name',
             'listing_rules_accepted_at' => 'DATETIME DEFAULT NULL AFTER ship_phone',
+            // Безопасность: блокировка аккаунта и подтверждение email
+            'blocked_at' => 'DATETIME DEFAULT NULL AFTER listing_rules_accepted_at',
+            'blocked_reason' => 'VARCHAR(500) DEFAULT NULL AFTER blocked_at',
+            'blocked_by' => 'INT UNSIGNED DEFAULT NULL AFTER blocked_reason',
+            'email_verified_at' => 'DATETIME DEFAULT NULL AFTER blocked_by',
+            'email_verify_token' => 'CHAR(64) DEFAULT NULL AFTER email_verified_at',
+            'email_verify_expires' => 'DATETIME DEFAULT NULL AFTER email_verify_token',
         ];
 
         foreach ($needed as $col => $def) {
@@ -442,6 +449,69 @@ class User extends Model
     {
         $stmt = $this->db->prepare('UPDATE users SET password = ? WHERE id = ?');
         return $stmt->execute([password_hash($password, PASSWORD_DEFAULT), $userId]);
+    }
+
+    public function isBlocked(?array $user): bool
+    {
+        return $user !== null && !empty($user['blocked_at']);
+    }
+
+    public function block(int $userId, string $reason, int $byAdminId): bool
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE users SET blocked_at = NOW(), blocked_reason = ?, blocked_by = ? WHERE id = ? AND blocked_at IS NULL'
+        );
+        $stmt->execute([mb_substr(trim($reason), 0, 500), $byAdminId, $userId]);
+        return $stmt->rowCount() > 0;
+    }
+
+    public function unblock(int $userId): bool
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE users SET blocked_at = NULL, blocked_reason = NULL, blocked_by = NULL WHERE id = ? AND blocked_at IS NOT NULL'
+        );
+        $stmt->execute([$userId]);
+        return $stmt->rowCount() > 0;
+    }
+
+    public function isEmailVerified(?array $user): bool
+    {
+        return $user !== null && !empty($user['email_verified_at']);
+    }
+
+    public function markEmailVerified(int $userId): bool
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE users SET email_verified_at = COALESCE(email_verified_at, NOW()),
+                    email_verify_token = NULL, email_verify_expires = NULL
+             WHERE id = ?'
+        );
+        return $stmt->execute([$userId]);
+    }
+
+    /** Одноразовый токен подтверждения email (plain возвращается один раз, хранится SHA-256). */
+    public function createEmailVerifyToken(int $userId, int $ttlSeconds = 86400): string
+    {
+        $plain = bin2hex(random_bytes(32));
+        $stmt = $this->db->prepare(
+            'UPDATE users SET email_verify_token = ?, email_verify_expires = ? WHERE id = ?'
+        );
+        $stmt->execute([hash('sha256', $plain), date('Y-m-d H:i:s', time() + max(300, $ttlSeconds)), $userId]);
+        return $plain;
+    }
+
+    public function findByEmailVerifyToken(string $plainToken): ?array
+    {
+        $plainToken = trim($plainToken);
+        if (!preg_match('/^[a-f0-9]{64}$/', $plainToken)) {
+            return null;
+        }
+        $stmt = $this->db->prepare(
+            'SELECT * FROM users WHERE email_verify_token = ? AND email_verify_expires IS NOT NULL AND email_verify_expires >= NOW() LIMIT 1'
+        );
+        $stmt->execute([hash('sha256', $plainToken)]);
+        $row = $stmt->fetch();
+        return $row ?: null;
     }
 
     /** Создаёт одноразовый токен сброса (plain возвращается один раз). TTL в секундах. */
