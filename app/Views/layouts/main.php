@@ -2556,6 +2556,7 @@ function url(string $path = ''): string
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
                     <button type="button" id="ai-assistant-docs" class="w-8 h-8 rounded-xl hover:bg-ink-900/5 dark:hover:bg-white/10 text-ink-700 dark:text-gray-300 cursor-pointer inline-flex items-center justify-center" title="<?= htmlspecialchars(t('ai.suggest_docs')) ?>" aria-label="<?= htmlspecialchars(t('ai.suggest_docs')) ?>"><?= \App\Helpers\IconHelper::svg('file', 'w-4 h-4') ?></button>
+                    <button type="button" id="ai-assistant-wake" class="hidden w-8 h-8 rounded-xl hover:bg-ink-900/5 dark:hover:bg-white/10 text-ink-700 dark:text-gray-300 cursor-pointer inline-flex items-center justify-center" aria-pressed="false" title="<?= htmlspecialchars(t('ai.wake_on')) ?>" aria-label="<?= htmlspecialchars(t('ai.wake_on')) ?>"><?= \App\Helpers\IconHelper::svg('mic', 'w-4 h-4') ?></button>
                     <button type="button" id="ai-assistant-speak" class="w-8 h-8 rounded-xl hover:bg-ink-900/5 dark:hover:bg-white/10 text-ink-700 dark:text-gray-300 cursor-pointer inline-flex items-center justify-center" aria-pressed="true" title="<?= htmlspecialchars(t('ai.auto_speak_off')) ?>" aria-label="<?= htmlspecialchars(t('ai.auto_speak_off')) ?>"><span data-speak-on><?= \App\Helpers\IconHelper::svg('volume', 'w-4 h-4') ?></span><span data-speak-off class="hidden"><?= \App\Helpers\IconHelper::svg('volume-off', 'w-4 h-4') ?></span></button>
                     <button type="button" id="ai-assistant-clear" class="w-8 h-8 rounded-xl hover:bg-ink-900/5 dark:hover:bg-white/10 text-ink-700 dark:text-gray-300 cursor-pointer inline-flex items-center justify-center" title="<?= htmlspecialchars(t('ai.clear')) ?>" aria-label="<?= htmlspecialchars(t('ai.clear')) ?>"><?= \App\Helpers\IconHelper::svg('trash', 'w-4 h-4') ?></button>
                     <button type="button" id="ai-assistant-close" class="w-8 h-8 rounded-xl hover:bg-ink-900/5 dark:hover:bg-white/10 text-ink-700 dark:text-gray-300 cursor-pointer" aria-label="<?= htmlspecialchars(t('ai.close')) ?>">✕</button>
@@ -2589,6 +2590,7 @@ function url(string $path = ''): string
                 <img src="<?= url('public/assets/img/zak-avatar.png') ?>" alt="" width="112" height="112"
                      class="w-full h-full object-contain object-center pointer-events-none select-none"
                      srcset="<?= url('public/assets/img/zak-avatar@2x.png') ?> 2x">
+                <span id="ai-wake-dot" class="hidden absolute top-3 right-3 w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-ink-900 animate-pulse" aria-hidden="true"></span>
             </span>
             <span class="ai-fab-label font-display font-semibold text-[10px] sm:text-[11px] tracking-wide text-white bg-[#1F4D3A] px-2.5 py-1 rounded-full shadow-soft border border-[#C9A227]/35 whitespace-nowrap"><?= htmlspecialchars(t('ai.toggle')) ?></span>
         </button>
@@ -2660,7 +2662,7 @@ function url(string $path = ''): string
             'ai.mic_btn', 'ai.mic_listening', 'ai.mic_processing', 'ai.mic_denied', 'ai.mic_not_found',
             'ai.mic_busy', 'ai.mic_error', 'ai.mic_unsupported', 'ai.mic_cancel', 'ai.mic_retry',
             'ai.mic_too_short', 'ai.mic_timeout', 'ai.mic_chat_busy',
-            'ai.tts_play', 'ai.auto_speak_on', 'ai.auto_speak_off', 'ai.tts_synthetic_notice', 'ai.tts_stop', 'ai.tts_pause', 'ai.tts_resume', 'ai.tts_unsupported', 'ai.tts_error',
+            'ai.tts_play', 'ai.wake_on', 'ai.wake_off', 'ai.wake_ack', 'ai.wake_listening', 'ai.wake_heard', 'ai.wake_denied', 'ai.auto_speak_on', 'ai.auto_speak_off', 'ai.tts_synthetic_notice', 'ai.tts_stop', 'ai.tts_pause', 'ai.tts_resume', 'ai.tts_unsupported', 'ai.tts_error',
             'js.now',
             'js.live_host', 'js.login_to_stream', 'js.stream_fail', 'js.stream_desc',
             'js.you', 'js.stream_error', 'js.live_connecting', 'js.live_waiting',

@@ -5285,6 +5285,7 @@ function stopAiVoice(silent) {
  *   запрос отменяется (кроме кликов в первые AI_VOICE_RESTART_GUARD_MS — это двойной клик).
  */
 function startAiVoice() {
+    aiWakeStop();
     stopAiTts();
 
     if (aiVoiceState === 'recording') {
@@ -5789,6 +5790,287 @@ function aiAutoSpeakLastReply() {
     aiLastTtsBtn = null;
     if (!btn || !aiAutoSpeakEnabled() || !btn.isConnected) return;
     btn.click();
+}
+
+/* ----- Пробуждение голосом: «Привет, Зак» → «Да, слушаю вас» → запись команды -----
+ * Фоновое распознавание — Web Speech API браузера (в Chrome звук обрабатывают серверы Google),
+ * поэтому режим включается только явно кнопкой в шапке чата и работает, пока вкладка видима. */
+const AI_WAKE_RE = /(?:^|[\s,.!?])(?:привет|приветик|здравствуй|эй|хей|сәлем|салем|hey|hi|hello)[\s,.!?-]+(?:зак|зака|заг|зэк|зек|зах|zak|zack|zach|zac)(?=$|[\s,.!?])/i;
+let aiWakeRec = null;
+let aiWakeRunning = false;
+let aiWakeBusy = false;
+let aiWakeAck = null;
+let aiWakeIdleSince = 0;
+let aiWakeRetryAt = 0;
+let aiWakeFailCount = 0;
+
+function aiWakeSupported() {
+    return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+}
+
+function aiWakeEnabled() {
+    return aiWakeSupported() && localStorage.getItem('zk_ai_wake') === '1';
+}
+
+function updateAiWakeUi() {
+    const btn = document.getElementById('ai-assistant-wake');
+    const dot = document.getElementById('ai-wake-dot');
+    const on = aiWakeEnabled();
+    if (btn) {
+        btn.classList.toggle('hidden', !aiWakeSupported());
+        const label = on
+            ? tJs('ai.wake_off', 'Выключить отклик на «Привет, Зак»')
+            : tJs('ai.wake_on', 'Включить отклик на «Привет, Зак»');
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        btn.setAttribute('aria-label', label);
+        btn.title = label + ' · ' + tJs('ai.wake_listening', 'Скажите «Привет, Зак» — распознавание речи выполняет браузер');
+        btn.classList.toggle('text-emerald-600', on);
+        btn.classList.toggle('bg-emerald-50', on);
+        btn.classList.toggle('dark:bg-emerald-950/30', on);
+    }
+    if (dot) dot.classList.toggle('hidden', !on);
+}
+
+function aiWakeStop() {
+    const rec = aiWakeRec;
+    aiWakeRec = null;
+    aiWakeRunning = false;
+    if (rec) {
+        try {
+            rec.onresult = null;
+            rec.onerror = null;
+            rec.onend = null;
+            rec.abort();
+        } catch (e) { /* ignore */ }
+    }
+}
+
+function aiWakeIsSpeaking() {
+    return !!aiActiveTtsAudio || !!(window.speechSynthesis && window.speechSynthesis.speaking);
+}
+
+function aiWakeCanListen() {
+    if (!aiWakeEnabled() || aiWakeRunning || aiWakeBusy) return false;
+    if (document.visibilityState !== 'visible') return false;
+    if (aiVoiceState === 'recording' || aiVoiceState === 'processing') return false;
+    if (aiChatBusy || aiActiveTtsBtn || aiWakeIsSpeaking()) return false;
+    return true;
+}
+
+function aiWakeStart() {
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRec) return;
+    let rec = null;
+    try {
+        rec = new SpeechRec();
+    } catch (e) {
+        return;
+    }
+    rec.lang = getSpeechLang();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.maxAlternatives = 3;
+
+    rec.onresult = function (event) {
+        if (aiWakeRec !== rec) return;
+        aiWakeFailCount = 0;
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            const res = event.results[i];
+            for (let j = 0; j < res.length; j++) {
+                const heard = ' ' + String(res[j].transcript || '').toLowerCase().replace(/ё/g, 'е') + ' ';
+                if (AI_WAKE_RE.test(heard)) {
+                    aiWakeTriggered();
+                    return;
+                }
+            }
+        }
+    };
+    rec.onerror = function (event) {
+        if (aiWakeRec !== rec) return;
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed' || event.error === 'audio-capture') {
+            localStorage.setItem('zk_ai_wake', '0');
+            aiWakeStop();
+            updateAiWakeUi();
+            updateAiVoiceStatus('error', tJs('ai.wake_denied', 'Нет доступа к микрофону — отклик на «Привет, Зак» выключен.'));
+            return;
+        }
+        if (event.error !== 'no-speech' && event.error !== 'aborted') {
+            aiWakeFailCount++;
+            aiWakeRetryAt = Date.now() + Math.min(30000, 1000 * Math.pow(2, aiWakeFailCount));
+        }
+    };
+    rec.onend = function () {
+        if (aiWakeRec === rec) {
+            aiWakeRec = null;
+            aiWakeRunning = false;
+        }
+    };
+
+    aiWakeRec = rec;
+    aiWakeRunning = true;
+    try {
+        rec.start();
+    } catch (e) {
+        aiWakeRec = null;
+        aiWakeRunning = false;
+        aiWakeFailCount++;
+        aiWakeRetryAt = Date.now() + Math.min(30000, 1000 * Math.pow(2, aiWakeFailCount));
+    }
+}
+
+/** Запросить (и закешировать) серверное аудио «Да, слушаю вас». */
+function aiWakeFetchAck() {
+    const lang = window.__lang || 'ru';
+    if (!window.__aiTtsServer) return Promise.resolve(null);
+    if (aiWakeAck && aiWakeAck.lang === lang && Date.now() - aiWakeAck.at < 15 * 60 * 1000) {
+        return Promise.resolve(aiWakeAck.url);
+    }
+    return fetch(window.__aiTtsUrl || '/ai/tts', {
+        method: 'POST',
+        headers: aiCsrfHeaders(),
+        credentials: 'same-origin',
+        body: JSON.stringify({
+            text: tJs('ai.wake_ack', 'Да, слушаю вас'),
+            language: lang,
+            guest_token: aiGuestToken
+        })
+    })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            const t = (data && data.tts) ? data.tts : data;
+            if (t && t.audio_url) {
+                aiWakeAck = { url: t.audio_url, lang: lang, at: Date.now() };
+                return t.audio_url;
+            }
+            return null;
+        })
+        .catch(function () { return null; });
+}
+
+function aiSpeakWakeAck(done) {
+    let finished = false;
+    let guard = null;
+    const finish = function () {
+        if (finished) return;
+        finished = true;
+        clearTimeout(guard);
+        stopAiTts();
+        done();
+    };
+    guard = setTimeout(finish, 8000);
+    const text = tJs('ai.wake_ack', 'Да, слушаю вас');
+
+    const viaBrowser = function () {
+        if (finished) return;
+        if (!window.speechSynthesis) { finish(); return; }
+        try {
+            const u = new SpeechSynthesisUtterance(text);
+            u.lang = getSpeechLang();
+            const v = selectBestVoice(null, window.__lang || 'ru');
+            if (v) u.voice = v;
+            u.onend = finish;
+            u.onerror = finish;
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.speak(u);
+        } catch (e) {
+            finish();
+        }
+    };
+
+    aiWakeFetchAck().then(function (url) {
+        if (finished) return;
+        if (!url) { viaBrowser(); return; }
+        const audio = getAiTtsAudioEl();
+        const playId = ++aiTtsPlayId;
+        audio.onended = function () { if (aiTtsPlayId === playId) finish(); };
+        audio.onerror = function () {
+            if (aiTtsPlayId !== playId) return;
+            aiWakeAck = null;
+            viaBrowser();
+        };
+        audio.src = url;
+        aiActiveTtsAudio = audio;
+        const p = audio.play();
+        if (p && p.catch) {
+            p.catch(function (err) {
+                if (aiTtsPlayId !== playId || finished) return;
+                if (err && err.name === 'NotAllowedError') { finish(); return; }
+                aiWakeAck = null;
+                viaBrowser();
+            });
+        }
+    });
+}
+
+function aiWakeTriggered() {
+    aiWakeStop();
+    aiWakeBusy = true;
+    const panel = document.getElementById('ai-assistant-panel');
+    if (panel && panel.classList.contains('hidden')) {
+        toggleAiAssistant(true);
+    }
+    updateAiVoiceStatus('recording', tJs('ai.wake_heard', 'Да, слушаю вас…'));
+    aiSpeakWakeAck(function () {
+        aiWakeBusy = false;
+        const p = document.getElementById('ai-assistant-panel');
+        if (!p || p.classList.contains('hidden') || aiChatBusy) {
+            updateAiVoiceStatus('idle');
+            return;
+        }
+        updateAiVoiceStatus('idle');
+        startAiVoice();
+    });
+}
+
+function aiWakeTick() {
+    if (!aiWakeEnabled()) {
+        if (aiWakeRunning) aiWakeStop();
+        return;
+    }
+    if (aiWakeRunning) {
+        // Не слушаем сами себя и не мешаем записи команды
+        if (aiWakeIsSpeaking() || aiVoiceState === 'recording' || document.visibilityState !== 'visible') {
+            aiWakeStop();
+        }
+        return;
+    }
+    if (!aiWakeCanListen()) {
+        aiWakeIdleSince = 0;
+        return;
+    }
+    const now = Date.now();
+    if (!aiWakeIdleSince) {
+        aiWakeIdleSince = now;
+        return;
+    }
+    if (now - aiWakeIdleSince < 1200 || now < aiWakeRetryAt) return;
+    aiWakeIdleSince = 0;
+    aiWakeStart();
+}
+
+function initAiWake() {
+    if (!document.getElementById('ai-assistant-toggle')) return;
+    updateAiWakeUi();
+    document.getElementById('ai-assistant-wake')?.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (aiWakeEnabled()) {
+            localStorage.setItem('zk_ai_wake', '0');
+            aiWakeStop();
+            updateAiWakeUi();
+            return;
+        }
+        localStorage.setItem('zk_ai_wake', '1');
+        aiWakeFailCount = 0;
+        aiWakeRetryAt = 0;
+        updateAiWakeUi();
+        aiUnlockTtsAudio();
+        aiWakeFetchAck();
+        // Запуск внутри клика — браузер спросит разрешение на микрофон
+        if (aiWakeCanListen()) aiWakeStart();
+    });
+    if (aiWakeEnabled()) aiWakeFetchAck();
+    setInterval(aiWakeTick, 500);
 }
 
 function selectBestVoice(voices, lang) {
@@ -6855,6 +7137,7 @@ function renderAiSuggestions(suggestions) {
 
 document.addEventListener('DOMContentLoaded', function () {
     updateLiveReturnFab();
+    initAiWake();
     document.getElementById('ai-assistant-toggle')?.addEventListener('click', function (e) {
         e.preventDefault();
         e.stopPropagation();
