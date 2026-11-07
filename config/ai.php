@@ -19,6 +19,33 @@ $envBool = static function (string $name, bool $default): bool {
     return $parsed ?? $default;
 };
 
+/**
+ * Python с установленным edge-tts. Порядок: AI_TTS_PYTHON_BIN → venv рядом с сайтом
+ * (<каталог над www>/edge-tts, напр. /var/www/<user>/data/edge-tts — внутри open_basedir ISPmanager)
+ * → системный edge-tts (pipx/brew). '' — не найден.
+ */
+$edgePython = (static function (): string {
+    $env = trim((string) (getenv('AI_TTS_PYTHON_BIN') ?: ''));
+    if ($env !== '') {
+        return $env;
+    }
+    $venvPython = dirname(__DIR__, 3) . '/edge-tts/bin/python';
+    if (@is_file($venvPython)) {
+        return $venvPython;
+    }
+    foreach (['/usr/local/bin/edge-tts', '/opt/homebrew/bin/edge-tts', '/usr/bin/edge-tts'] as $bin) {
+        if (@is_file($bin)) {
+            // Системный python бинарника (shebang), иначе провайдер сам найдёт python3
+            $head = (string) @file_get_contents($bin, false, null, 0, 200);
+            if (preg_match('~^#!\s*(\S+python\S*)~', $head, $m) && @is_file($m[1])) {
+                return $m[1];
+            }
+            return 'auto';
+        }
+    }
+    return '';
+})();
+
 /** Первый исполняемый файл из списка кандидатов (для автообнаружения whisper-cli). */
 $firstExecutable = static function (array $candidates): string {
     foreach ($candidates as $c) {
@@ -95,9 +122,10 @@ return [
         // browser | azure | edge_neural | mock. Если задан AZURE_SPEECH_KEY — по умолчанию azure (лицензируемый).
         // Без ключа Azure: живой нейроголос edge_neural, если установлен edge-tts (иначе роботизированный браузерный).
         'provider' => getenv('AI_TTS_PROVIDER') ?: ((getenv('AZURE_SPEECH_KEY') ?: '') !== '' ? 'azure' : (
-            (is_file('/usr/local/bin/edge-tts') || is_file('/opt/homebrew/bin/edge-tts') || is_file('/usr/bin/edge-tts'))
-                ? 'edge_neural' : 'browser'
+            $edgePython !== '' ? 'edge_neural' : 'browser'
         )),
+        /** Python с модулем edge_tts ('' — автоопределение в EdgeTtsProvider). */
+        'python_bin' => ($edgePython === 'auto') ? '' : $edgePython,
         /** Автоматически озвучивать каждый ответ Zak (пользователь может выключить в шапке чата). */
         'auto_speak' => $envBool('AI_TTS_AUTO_SPEAK', true),
         'max_text_chars' => 1500,
