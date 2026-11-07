@@ -29,7 +29,7 @@ $toggleUrlBase = ProductHelper::url('/admin/paid-services');
 $logsUrl = ProductHelper::url('/admin/logs?action=paid_services');
 $reloadUrl = ProductHelper::url('/admin/paid-services');
 ?>
-<section class="space-y-5 fade-up pb-8" id="paid-services-panel"
+<div class="adm" id="paid-services-panel"
     data-toggle-base="<?= htmlspecialchars($toggleUrlBase, ENT_QUOTES) ?>"
     data-reload="<?= htmlspecialchars($reloadUrl, ENT_QUOTES) ?>"
     data-msg-enable="<?= htmlspecialchars(t('admin.paid_services_enable_confirm'), ENT_QUOTES) ?>"
@@ -45,60 +45,67 @@ $reloadUrl = ProductHelper::url('/admin/paid-services');
     data-label-off="<?= htmlspecialchars(t('admin.paid_services_status_off'), ENT_QUOTES) ?>"
     data-btn-enable="<?= htmlspecialchars(t('admin.paid_services_enable'), ENT_QUOTES) ?>"
     data-btn-disable="<?= htmlspecialchars(t('admin.paid_services_disable'), ENT_QUOTES) ?>">
-    <div class="flex flex-wrap items-end justify-between gap-3">
+    <header class="adm-head">
         <div>
-            <a href="<?= ProductHelper::url('/admin') ?>" class="inline-flex text-sm text-gray-400 hover:text-brand-600 mb-2">← <?= htmlspecialchars(t('admin.title')) ?></a>
-            <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-brand-600"><?= htmlspecialchars(t('admin.eyebrow')) ?></p>
-            <h1 class="font-display text-xl sm:text-2xl font-bold text-ink-900 dark:text-white mt-1"><?= htmlspecialchars(t('admin.paid_services')) ?></h1>
-            <p class="text-sm text-gray-500 mt-1 max-w-2xl"><?= htmlspecialchars(t('admin.paid_services_hint')) ?></p>
+            <h1 class="adm-title"><?= htmlspecialchars(t('admin.paid_services')) ?></h1>
+            <p class="adm-sub"><?= htmlspecialchars(t('admin.paid_services_hint')) ?></p>
         </div>
-        <a href="<?= htmlspecialchars($logsUrl) ?>"
-           class="h-10 px-4 rounded-xl text-xs font-bold border border-black/10 dark:border-white/15 inline-flex items-center hover:border-brand-400 transition">
-            <?= htmlspecialchars(t('admin.paid_services_audit_link')) ?> →
-        </a>
-    </div>
+        <div class="adm-head-actions">
+            <a href="<?= htmlspecialchars($logsUrl) ?>" class="adm-btn"><?= htmlspecialchars(t('admin.paid_services_audit_link')) ?></a>
+        </div>
+    </header>
 
-    <div id="paid-services-banner" class="hidden rounded-2xl px-4 py-3 text-sm font-semibold border" role="status" aria-live="polite"></div>
+    <?php \App\Core\View::partial('admin/_nav'); ?>
+
+    <div id="paid-services-banner" class="adm-alert hidden" role="status" aria-live="polite"></div>
 
     <?php if (!empty($flash)): ?>
-        <div class="bg-emerald-50 dark:bg-emerald-900/25 text-emerald-800 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800/40 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars($flash) ?></div>
+        <div class="adm-alert adm-alert--ok" role="status"><?= htmlspecialchars($flash) ?></div>
     <?php endif; ?>
     <?php if (!empty($error)): ?>
-        <div class="bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border border-red-100 dark:border-red-900/40 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars($error) ?></div>
+        <div class="adm-alert adm-alert--error" role="alert"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
 
-    <div class="rounded-2xl border border-amber-200/80 dark:border-amber-800/40 bg-amber-50/70 dark:bg-amber-950/20 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
-        <?= htmlspecialchars(t('admin.paid_services_price_readonly_note')) ?>
-    </div>
+    <div class="adm-alert adm-alert--warn"><?= htmlspecialchars(t('admin.paid_services_price_readonly_note')) ?></div>
 
-    <div class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 shadow-soft p-4 sm:p-5 space-y-3">
-        <div class="flex flex-col sm:flex-row gap-3">
-            <label class="flex-1 min-w-0">
-                <span class="sr-only"><?= htmlspecialchars(t('admin.paid_services_search')) ?></span>
-                <input type="search" id="paid-services-search" autocomplete="off"
-                       placeholder="<?= htmlspecialchars(t('admin.paid_services_search'), ENT_QUOTES) ?>"
-                       class="w-full h-11 px-4 rounded-xl border border-black/[0.08] dark:border-white/10 bg-white dark:bg-white/[0.06] text-sm">
-            </label>
-            <label class="sm:w-48">
-                <span class="sr-only"><?= htmlspecialchars(t('admin.paid_services_filter')) ?></span>
-                <select id="paid-services-filter"
-                        class="w-full h-11 px-3 rounded-xl border border-black/[0.08] dark:border-white/10 bg-white dark:bg-white/[0.06] text-sm">
-                    <option value="all"><?= htmlspecialchars(t('admin.paid_services_filter_all')) ?></option>
-                    <option value="on"><?= htmlspecialchars(t('admin.paid_services_filter_on')) ?></option>
-                    <option value="off"><?= htmlspecialchars(t('admin.paid_services_filter_off')) ?></option>
-                    <option value="locked"><?= htmlspecialchars(t('admin.paid_services_filter_locked')) ?></option>
-                </select>
-            </label>
+    <section class="adm-card">
+        <div class="adm-card-head">
+            <div class="adm-toolbar grow" style="flex:1">
+                <label class="grow" style="min-width:200px">
+                    <span class="sr-only"><?= htmlspecialchars(t('admin.paid_services_search')) ?></span>
+                    <input type="search" id="paid-services-search" autocomplete="off"
+                           placeholder="<?= htmlspecialchars(t('admin.paid_services_search'), ENT_QUOTES) ?>"
+                           class="adm-input" style="width:100%">
+                </label>
+                <label>
+                    <span class="sr-only"><?= htmlspecialchars(t('admin.paid_services_filter')) ?></span>
+                    <select id="paid-services-filter" class="adm-select">
+                        <option value="all"><?= htmlspecialchars(t('admin.paid_services_filter_all')) ?></option>
+                        <option value="on"><?= htmlspecialchars(t('admin.paid_services_filter_on')) ?></option>
+                        <option value="off"><?= htmlspecialchars(t('admin.paid_services_filter_off')) ?></option>
+                        <option value="locked"><?= htmlspecialchars(t('admin.paid_services_filter_locked')) ?></option>
+                    </select>
+                </label>
+                <span class="subtle nowrap" style="font-size:12px" id="paid-services-count"></span>
+            </div>
         </div>
-        <p class="text-[11px] text-gray-400" id="paid-services-count"></p>
-    </div>
 
-    <?php if ($services === []): ?>
-        <div class="rounded-2xl border border-dashed border-black/10 dark:border-white/10 px-5 py-12 text-center text-sm text-gray-400">
-            <?= htmlspecialchars(t('admin.paid_services_empty')) ?>
-        </div>
-    <?php else: ?>
-        <div class="space-y-3" id="paid-services-list">
+        <?php if ($services === []): ?>
+            <div class="adm-empty"><?= htmlspecialchars(t('admin.paid_services_empty')) ?></div>
+        <?php else: ?>
+            <div class="adm-table-wrap">
+                <table class="adm-table">
+                    <thead>
+                        <tr>
+                            <th><?= htmlspecialchars(t('admin.paid_services')) ?></th>
+                            <th><?= htmlspecialchars(t('admin.paid_services_col_billing')) ?></th>
+                            <th class="num"><?= htmlspecialchars(t('admin.paid_services_col_price')) ?></th>
+                            <th class="num"><?= htmlspecialchars(t('admin.paid_services_col_duration')) ?></th>
+                            <th><?= htmlspecialchars(t('admin.paid_services_col_status')) ?></th>
+                            <th class="num"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="paid-services-list">
             <?php foreach ($services as $row):
                 $code = (string) ($row['code'] ?? '');
                 $vasId = (string) ($row['vas_id'] ?? '');
@@ -124,92 +131,83 @@ $reloadUrl = ProductHelper::url('/admin/paid-services');
 
                 $searchBlob = mb_strtolower(implode(' ', [$code, $vasId, $title, $billingLabel, $category, $notes]));
             ?>
-                <article
-                    class="js-ps-row rounded-[22px] border shadow-soft overflow-hidden bg-white/90 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/10"
-                    data-code="<?= htmlspecialchars($code, ENT_QUOTES) ?>"
-                    data-can-toggle="<?= $canToggle ? '1' : '0' ?>"
-                    data-enabled="<?= $salesEnabled === true ? '1' : ($salesEnabled === false ? '0' : '') ?>"
-                    data-avail="<?= htmlspecialchars($availKey, ENT_QUOTES) ?>"
-                    data-search="<?= htmlspecialchars($searchBlob, ENT_QUOTES) ?>">
-                    <div class="flex flex-col lg:flex-row lg:items-stretch gap-0">
-                        <div class="flex-1 min-w-0 px-4 sm:px-5 py-4 space-y-2">
-                            <div class="flex flex-wrap items-center gap-2">
-                                <span class="text-[10px] font-bold uppercase tracking-wider text-brand-600"><?= htmlspecialchars($vasId) ?></span>
-                                <span class="text-[10px] font-mono text-gray-400"><?= htmlspecialchars($code) ?></span>
-                                <?php if ($category !== ''): ?>
-                                    <span class="text-[10px] px-2 py-0.5 rounded-lg bg-black/[0.04] dark:bg-white/10 text-gray-500"><?= htmlspecialchars($category) ?></span>
+                        <tr
+                            class="js-ps-row"
+                            data-code="<?= htmlspecialchars($code, ENT_QUOTES) ?>"
+                            data-can-toggle="<?= $canToggle ? '1' : '0' ?>"
+                            data-enabled="<?= $salesEnabled === true ? '1' : ($salesEnabled === false ? '0' : '') ?>"
+                            data-avail="<?= htmlspecialchars($availKey, ENT_QUOTES) ?>"
+                            data-search="<?= htmlspecialchars($searchBlob, ENT_QUOTES) ?>">
+                            <td style="min-width:280px;max-width:460px">
+                                <div class="strong"><?= htmlspecialchars($title) ?></div>
+                                <div class="muted" style="font-size:12px;margin-top:2px">
+                                    <span class="mono"><?= htmlspecialchars($vasId) ?></span>
+                                    · <span class="mono"><?= htmlspecialchars($code) ?></span>
+                                    <?php if ($category !== ''): ?> · <?= htmlspecialchars($category) ?><?php endif; ?>
+                                    · <?= htmlspecialchars($implLabel) ?>
+                                </div>
+                                <?php if ($notes !== ''): ?>
+                                    <div class="subtle adm-clamp-2" style="font-size:12px;margin-top:4px" title="<?= htmlspecialchars($notes, ENT_QUOTES) ?>"><?= htmlspecialchars($notes) ?></div>
                                 <?php endif; ?>
-                                <span class="text-[10px] px-2 py-0.5 rounded-lg bg-black/[0.04] dark:bg-white/10 text-gray-500"><?= htmlspecialchars($implLabel) ?></span>
-                            </div>
-                            <h2 class="font-display font-bold text-ink-900 dark:text-white text-base sm:text-lg"><?= htmlspecialchars($title) ?></h2>
-                            <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-gray-600 dark:text-gray-300">
-                                <div>
-                                    <dt class="text-[10px] uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.paid_services_col_billing')) ?></dt>
-                                    <dd class="font-semibold mt-0.5"><?= htmlspecialchars($billingLabel) ?></dd>
-                                </div>
-                                <div>
-                                    <dt class="text-[10px] uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.paid_services_col_price')) ?></dt>
-                                    <dd class="font-semibold mt-0.5 flex flex-wrap items-center gap-2">
-                                        <?php if ($priceKzt === null || $priceKzt === ''): ?>
-                                            <span class="text-gray-400">—</span>
-                                        <?php else: ?>
-                                            <span><?= htmlspecialchars(Wallet::formatMoney((int) $priceKzt)) ?></span>
-                                            <?php if ($currency !== '' && $currency !== 'KZT'): ?>
-                                                <span class="text-gray-400"><?= htmlspecialchars($currency) ?></span>
-                                            <?php endif; ?>
-                                        <?php endif; ?>
-                                        <span class="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-900/30 px-1.5 py-0.5 rounded">
-                                            <?= htmlspecialchars(t('admin.paid_services_price_locked')) ?>
-                                        </span>
-                                    </dd>
-                                </div>
+                            </td>
+                            <td class="nowrap"><?= htmlspecialchars($billingLabel) ?></td>
+                            <td class="num">
+                                <?php if ($priceKzt === null || $priceKzt === ''): ?>
+                                    <span class="subtle">—</span>
+                                <?php else: ?>
+                                    <span class="strong"><?= htmlspecialchars(Wallet::formatMoney((int) $priceKzt)) ?></span>
+                                    <?php if ($currency !== '' && $currency !== 'KZT'): ?>
+                                        <span class="subtle"><?= htmlspecialchars($currency) ?></span>
+                                    <?php endif; ?>
+                                <?php endif; ?>
+                                <div class="subtle" style="font-size:11px"><?= htmlspecialchars(t('admin.paid_services_price_locked')) ?></div>
+                            </td>
+                            <td class="num">
                                 <?php if ($duration !== null && $duration !== ''): ?>
-                                    <div>
-                                        <dt class="text-[10px] uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.paid_services_col_duration')) ?></dt>
-                                        <dd class="font-semibold mt-0.5"><?= (int) $duration ?> <?= htmlspecialchars(t('admin.paid_services_days')) ?></dd>
-                                    </div>
+                                    <?= (int) $duration ?> <?= htmlspecialchars(t('admin.paid_services_days')) ?>
+                                <?php else: ?>
+                                    <span class="subtle">—</span>
                                 <?php endif; ?>
-                                <div>
-                                    <dt class="text-[10px] uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.paid_services_col_status')) ?></dt>
-                                    <dd class="font-semibold mt-0.5 js-ps-status">
-                                        <?php if ($availKey === 'on'): ?>
-                                            <span class="text-emerald-700 dark:text-emerald-300"><?= htmlspecialchars(t('admin.paid_services_status_on')) ?></span>
-                                        <?php elseif ($availKey === 'off'): ?>
-                                            <span class="text-amber-700 dark:text-amber-300"><?= htmlspecialchars(t('admin.paid_services_status_off')) ?></span>
-                                        <?php else: ?>
-                                            <span class="text-gray-400"><?= htmlspecialchars(t('admin.paid_services_status_na')) ?></span>
-                                        <?php endif; ?>
-                                    </dd>
+                            </td>
+                            <td class="nowrap js-ps-status">
+                                <?php if ($availKey === 'on'): ?>
+                                    <span class="adm-badge adm-badge--ok"><span class="adm-dot"></span><?= htmlspecialchars(t('admin.paid_services_status_on')) ?></span>
+                                <?php elseif ($availKey === 'off'): ?>
+                                    <span class="adm-badge adm-badge--warn"><span class="adm-dot"></span><?= htmlspecialchars(t('admin.paid_services_status_off')) ?></span>
+                                <?php else: ?>
+                                    <span class="adm-badge adm-badge--neutral"><span class="adm-dot"></span><?= htmlspecialchars(t('admin.paid_services_status_na')) ?></span>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <div class="actions">
+                                    <?php if ($canToggle && $salesEnabled !== null): ?>
+                                        <button type="button"
+                                                class="js-ps-toggle adm-btn adm-btn--sm<?= $salesEnabled ? ' adm-btn--danger' : '' ?>"
+                                                data-next="<?= $salesEnabled ? '0' : '1' ?>"
+                                                title="<?= htmlspecialchars(t('admin.paid_services_toggle_hint'), ENT_QUOTES) ?>"
+                                                aria-busy="false">
+                                            <?= htmlspecialchars($salesEnabled ? t('admin.paid_services_disable') : t('admin.paid_services_enable')) ?>
+                                        </button>
+                                    <?php else: ?>
+                                        <span class="subtle" style="font-size:12px"><?= htmlspecialchars(t('admin.paid_services_no_toggle')) ?></span>
+                                    <?php endif; ?>
                                 </div>
-                            </dl>
-                            <?php if ($notes !== ''): ?>
-                                <p class="text-[11px] text-gray-500 leading-relaxed"><?= htmlspecialchars($notes) ?></p>
-                            <?php endif; ?>
-                        </div>
-                        <div class="lg:w-52 shrink-0 border-t lg:border-t-0 lg:border-l border-black/[0.06] dark:border-white/10 px-4 sm:px-5 py-4 flex flex-col justify-center gap-2 bg-black/[0.015] dark:bg-white/[0.02]">
-                            <?php if ($canToggle && $salesEnabled !== null): ?>
-                                <button type="button"
-                                        class="js-ps-toggle h-10 px-4 rounded-xl text-xs font-bold text-white transition <?= $salesEnabled ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700' ?>"
-                                        data-next="<?= $salesEnabled ? '0' : '1' ?>"
-                                        aria-busy="false">
-                                    <?= htmlspecialchars($salesEnabled ? t('admin.paid_services_disable') : t('admin.paid_services_enable')) ?>
-                                </button>
-                                <p class="text-[10px] text-gray-400 leading-snug"><?= htmlspecialchars(t('admin.paid_services_toggle_hint')) ?></p>
-                            <?php else: ?>
-                                <p class="text-xs font-semibold text-gray-400"><?= htmlspecialchars(t('admin.paid_services_no_toggle')) ?></p>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                </article>
+                            </td>
+                        </tr>
             <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <div id="paid-services-empty-filter" class="adm-empty hidden">
+                <?= htmlspecialchars(t('admin.paid_services_filter_empty')) ?>
+            </div>
+        <?php endif; ?>
+        <div class="adm-card-foot">
+            <?= htmlspecialchars(t('admin.paid_services_toggle_hint')) ?>
+            <?= htmlspecialchars(t('admin.paid_services_audit_note')) ?>
         </div>
-        <div id="paid-services-empty-filter" class="hidden rounded-2xl border border-dashed border-black/10 dark:border-white/10 px-5 py-10 text-center text-sm text-gray-400">
-            <?= htmlspecialchars(t('admin.paid_services_filter_empty')) ?>
-        </div>
-    <?php endif; ?>
-
-    <p class="text-[11px] text-gray-400 max-w-3xl"><?= htmlspecialchars(t('admin.paid_services_audit_note')) ?></p>
-</section>
+    </section>
+</div>
 
 <script>
 (function () {
@@ -227,12 +225,9 @@ $reloadUrl = ProductHelper::url('/admin/paid-services');
 
     function showBanner(type, text) {
         if (!banner) return;
-        banner.classList.remove('hidden', 'bg-emerald-50', 'dark:bg-emerald-900/25', 'text-emerald-800', 'dark:text-emerald-300', 'border-emerald-100', 'dark:border-emerald-800/40', 'bg-red-50', 'dark:bg-red-950/30', 'text-red-700', 'dark:text-red-300', 'border-red-100', 'dark:border-red-900/40');
-        if (type === 'ok') {
-            banner.classList.add('bg-emerald-50', 'dark:bg-emerald-900/25', 'text-emerald-800', 'dark:text-emerald-300', 'border-emerald-100', 'dark:border-emerald-800/40');
-        } else {
-            banner.classList.add('bg-red-50', 'dark:bg-red-950/30', 'text-red-700', 'dark:text-red-300', 'border-red-100', 'dark:border-red-900/40');
-        }
+        banner.classList.remove('hidden', 'adm-alert--ok', 'adm-alert--error');
+        banner.classList.add(type === 'ok' ? 'adm-alert--ok' : 'adm-alert--error');
+        banner.setAttribute('role', type === 'ok' ? 'status' : 'alert');
         banner.textContent = text;
     }
 
@@ -263,17 +258,18 @@ $reloadUrl = ProductHelper::url('/admin/paid-services');
         row.setAttribute('data-enabled', enabled ? '1' : '0');
         row.setAttribute('data-avail', enabled ? 'on' : 'off');
         if (status) {
-            status.innerHTML = enabled
-                ? '<span class="text-emerald-700 dark:text-emerald-300">' + panel.getAttribute('data-label-on') + '</span>'
-                : '<span class="text-amber-700 dark:text-amber-300">' + panel.getAttribute('data-label-off') + '</span>';
+            var badge = document.createElement('span');
+            var dot = document.createElement('span');
+            badge.className = 'adm-badge ' + (enabled ? 'adm-badge--ok' : 'adm-badge--warn');
+            dot.className = 'adm-dot';
+            badge.appendChild(dot);
+            badge.appendChild(document.createTextNode(panel.getAttribute(enabled ? 'data-label-on' : 'data-label-off') || ''));
+            status.replaceChildren(badge);
         }
         if (btn) {
             btn.setAttribute('data-next', enabled ? '0' : '1');
             btn.textContent = enabled ? panel.getAttribute('data-btn-disable') : panel.getAttribute('data-btn-enable');
-            btn.classList.toggle('bg-amber-600', enabled);
-            btn.classList.toggle('hover:bg-amber-700', enabled);
-            btn.classList.toggle('bg-emerald-600', !enabled);
-            btn.classList.toggle('hover:bg-emerald-700', !enabled);
+            btn.classList.toggle('adm-btn--danger', enabled);
         }
         applyFilters();
     }

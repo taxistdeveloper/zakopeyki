@@ -34,6 +34,8 @@ USER → AiAssistantController → ProcessAiMessageJob → AIOrchestrator
 | `SpeechTextNormalizer` | Очистка Markdown/HTML, транскрипция валют (₸, KZT, тенге), чисел, пунктуации с сохранением казахских фонем |
 | `TtsResult` | Единый нормализованный DTO результатов TTS |
 | `TtsFactory` | Фабрика провайдеров синтеза речи по конфигурации (`ai.tts`) |
+| `AbstractCachedTtsProvider` | Общий конвейер серверного TTS: белый список голосов → закрытый кеш → подписанная ссылка → честный браузерный fallback |
+| `AzureTtsProvider` | Лицензируемый TTS Azure AI Speech (REST, SSML), ключ из окружения, только HTTPS-домены Microsoft |
 | `EdgeTtsProvider` | Серверный синтез через edge-tts (неофициальный endpoint Microsoft Edge — коммерческие условия не подтверждены, по умолчанию выключен), белый список голосов, честный fallback на браузер |
 | `TtsAudioCache` | Закрытый аудиокеш TTS: HMAC-ключи, подписанные ссылки с привязкой к владельцу и сроком, TTL, flock + атомарная запись |
 

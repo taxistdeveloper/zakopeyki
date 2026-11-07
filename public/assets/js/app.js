@@ -5727,6 +5727,70 @@ function stopAiTts() {
     aiActiveTtsUtterance = null;
 }
 
+/* ----- Автоозвучка ответов Zak ----- */
+const AI_SILENT_WAV = 'data:audio/wav;base64,UklGRsQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+let aiTtsAudioEl = null;
+let aiTtsPlayId = 0;
+let aiLastTtsBtn = null;
+
+function aiAutoSpeakEnabled() {
+    const saved = localStorage.getItem('zk_ai_auto_speak');
+    if (saved === '1') return true;
+    if (saved === '0') return false;
+    return window.__aiAutoSpeak !== false;
+}
+
+function updateAiAutoSpeakBtn() {
+    const btn = document.getElementById('ai-assistant-speak');
+    if (!btn) return;
+    const on = aiAutoSpeakEnabled();
+    const label = on
+        ? tJs('ai.auto_speak_off', 'Выключить автоозвучку ответов')
+        : tJs('ai.auto_speak_on', 'Включить автоозвучку ответов');
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.setAttribute('aria-label', label);
+    btn.title = label;
+    btn.querySelector('[data-speak-on]')?.classList.toggle('hidden', !on);
+    btn.querySelector('[data-speak-off]')?.classList.toggle('hidden', on);
+}
+
+/** Общий <audio>: разблокируется жестом пользователя, чтобы ответ можно было озвучить без клика (Safari/iOS). */
+function getAiTtsAudioEl() {
+    if (!aiTtsAudioEl) {
+        aiTtsAudioEl = new Audio();
+        aiTtsAudioEl.preload = 'auto';
+    }
+    return aiTtsAudioEl;
+}
+
+/** Вызывается внутри жеста (отправка, микрофон): снимает запрет автовоспроизведения. */
+function aiUnlockTtsAudio() {
+    if (!aiAutoSpeakEnabled() || aiActiveTtsAudio) return;
+    try {
+        const el = getAiTtsAudioEl();
+        el.onended = null;
+        el.onerror = null;
+        el.src = AI_SILENT_WAV;
+        const p = el.play();
+        if (p && p.catch) p.catch(function () { /* ignore */ });
+    } catch (e) { /* ignore */ }
+    if (window.speechSynthesis && !window.speechSynthesis.speaking) {
+        try {
+            const u = new SpeechSynthesisUtterance(' ');
+            u.volume = 0;
+            window.speechSynthesis.speak(u);
+        } catch (e) { /* ignore */ }
+    }
+}
+
+/** Озвучить только что пришедший ответ, если автоозвучка включена. */
+function aiAutoSpeakLastReply() {
+    const btn = aiLastTtsBtn;
+    aiLastTtsBtn = null;
+    if (!btn || !aiAutoSpeakEnabled() || !btn.isConnected) return;
+    btn.click();
+}
+
 function selectBestVoice(voices, lang) {
     if (!voices || !voices.length) {
         voices = getAiSpeechVoices();
@@ -5861,19 +5925,24 @@ function playAiTtsAudio(btn, src, onFail) {
         if (typeof onFail === 'function') onFail();
     };
     try {
-        const audio = new Audio(src);
+        const audio = getAiTtsAudioEl();
+        const playId = ++aiTtsPlayId;
+        audio.src = src;
         aiActiveTtsAudio = audio;
         aiActiveTtsBtn = btn;
         btn.innerHTML = aiTtsStopIcon();
         btn.setAttribute('aria-label', tJs('ai.tts_stop', 'Остановить воспроизведение'));
         btn.classList.add('text-accent-500');
 
-        audio.onended = function () { stopAiTts(); };
-        audio.onerror = function () { if (aiActiveTtsAudio === audio) fail(); };
+        const isCurrent = function () { return aiActiveTtsAudio === audio && aiTtsPlayId === playId; };
+        audio.onended = function () { if (isCurrent()) stopAiTts(); };
+        audio.onerror = function () { if (isCurrent()) fail(); };
         audio.play().catch(function (err) {
+            if (!isCurrent()) return;
             // NotAllowedError (автовоспроизведение запрещено) — не повод переходить на другой движок
             if (err && err.name === 'NotAllowedError') { stopAiTts(); return; }
-            if (aiActiveTtsAudio === audio) fail();
+            if (err && err.name === 'AbortError') return;
+            fail();
         });
     } catch (e) {
         fail();
@@ -6002,13 +6071,21 @@ function toggleAiMessageTts(btn, rawText, lang, ttsData) {
         });
 }
 
+/** Серверный синтез (Azure/Edge) включён — кнопка нужна и без speechSynthesis в браузере. */
+function aiTtsAvailable(ttsData) {
+    return Boolean(window.speechSynthesis || window.__aiTtsServer || (ttsData && ttsData.use_browser === false));
+}
+
 function renderAiTtsButton(text, language, ttsData) {
-    if (!text || !window.speechSynthesis) return null;
+    if (!text || !aiTtsAvailable(ttsData)) return null;
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'ai-msg-tts-btn inline-flex items-center justify-center w-7 h-7 rounded-lg hover:bg-ink-900/5 dark:hover:bg-white/10 text-ink-700 dark:text-gray-300 cursor-pointer transition';
     btn.setAttribute('aria-label', tJs('ai.tts_play', 'Озвучить ответ'));
-    btn.title = tJs('ai.tts_play', 'Озвучить ответ');
+    // Раскрытие синтетической природы голоса (Code of Conduct for Microsoft AI Services)
+    const notice = tJs('ai.tts_synthetic_notice', 'Голос синтезирован автоматически');
+    btn.setAttribute('aria-description', notice);
+    btn.title = tJs('ai.tts_play', 'Озвучить ответ') + ' · ' + notice;
     btn.innerHTML = aiTtsPlayIcon();
 
     btn.addEventListener('click', function (e) {
@@ -6016,6 +6093,7 @@ function renderAiTtsButton(text, language, ttsData) {
         e.stopPropagation();
         toggleAiMessageTts(btn, text, language, ttsData);
     });
+    aiLastTtsBtn = btn;
     return btn;
 }
 
@@ -6027,9 +6105,20 @@ function initAiAssistant() {
     // Уход со страницы / закрытие вкладки: освободить микрофон и отменить запрос STT
     window.addEventListener('pagehide', function () { stopAiVoice(true); });
 
+    updateAiAutoSpeakBtn();
+    document.getElementById('ai-assistant-speak')?.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const next = !aiAutoSpeakEnabled();
+        localStorage.setItem('zk_ai_auto_speak', next ? '1' : '0');
+        if (!next) stopAiTts();
+        updateAiAutoSpeakBtn();
+    });
+
     const form = document.getElementById('ai-chat-form');
     form?.addEventListener('submit', function (e) {
         e.preventDefault();
+        aiUnlockTtsAudio();
         stopAiVoice();
         const input = document.getElementById('ai-chat-input');
         const text = (input?.value || '').trim();
@@ -6042,6 +6131,7 @@ function initAiAssistant() {
     micBtn?.addEventListener('click', function (e) {
         e.preventDefault();
         e.stopPropagation();
+        aiUnlockTtsAudio();
         startAiVoice();
     });
 
@@ -6235,6 +6325,7 @@ function applyAiResponse(data) {
         data.documents || [],
         data.tts || null
     );
+    aiAutoSpeakLastReply();
 
 }
 
@@ -6468,6 +6559,7 @@ function removeAiTyping(id) {
 }
 
 function appendAiBot(text, products, suggestions, msgId, actions, documents, ttsData) {
+    aiLastTtsBtn = null;
     const box = aiMessagesEl();
     if (!box) return;
 
@@ -6594,7 +6686,7 @@ function appendAiBot(text, products, suggestions, msgId, actions, documents, tts
         bubble.appendChild(actRow);
     }
 
-    const canTts = Boolean(text && window.speechSynthesis);
+    const canTts = Boolean(text && aiTtsAvailable(ttsData));
     if (msgId || canTts) {
         const footer = document.createElement('div');
         footer.className = 'flex items-center justify-between gap-2 pt-1 border-t border-ink-900/5 dark:border-white/5 text-[11px] text-ink-700/60 dark:text-gray-400';

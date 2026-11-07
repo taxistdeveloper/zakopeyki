@@ -51,6 +51,9 @@ function url(string $path = ''): string
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <?php $isAdminUi = \App\Helpers\AdminNav::isAdminPage($currentNav ?? null); if ($isAdminUi): ?>
+    <link rel="stylesheet" href="<?= url('public/assets/admin/admin.css') ?>?v=<?= @filemtime(dirname(__DIR__, 3) . '/public/assets/admin/admin.css') ?: 1 ?>">
+    <?php endif; ?>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -2525,7 +2528,7 @@ function url(string $path = ''): string
         ]); ?>
 
         <main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 pb-28">
-            <div class="fade-up max-w-[1400px] mx-auto">
+            <div class="<?= !empty($isAdminUi) ? '' : 'fade-up ' ?>max-w-[1400px] mx-auto">
                 <?= $content ?>
             </div>
         </main>
@@ -2553,6 +2556,7 @@ function url(string $path = ''): string
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
                     <button type="button" id="ai-assistant-docs" class="w-8 h-8 rounded-xl hover:bg-ink-900/5 dark:hover:bg-white/10 text-ink-700 dark:text-gray-300 cursor-pointer inline-flex items-center justify-center" title="<?= htmlspecialchars(t('ai.suggest_docs')) ?>" aria-label="<?= htmlspecialchars(t('ai.suggest_docs')) ?>"><?= \App\Helpers\IconHelper::svg('file', 'w-4 h-4') ?></button>
+                    <button type="button" id="ai-assistant-speak" class="w-8 h-8 rounded-xl hover:bg-ink-900/5 dark:hover:bg-white/10 text-ink-700 dark:text-gray-300 cursor-pointer inline-flex items-center justify-center" aria-pressed="true" title="<?= htmlspecialchars(t('ai.auto_speak_off')) ?>" aria-label="<?= htmlspecialchars(t('ai.auto_speak_off')) ?>"><span data-speak-on><?= \App\Helpers\IconHelper::svg('volume', 'w-4 h-4') ?></span><span data-speak-off class="hidden"><?= \App\Helpers\IconHelper::svg('volume-off', 'w-4 h-4') ?></span></button>
                     <button type="button" id="ai-assistant-clear" class="w-8 h-8 rounded-xl hover:bg-ink-900/5 dark:hover:bg-white/10 text-ink-700 dark:text-gray-300 cursor-pointer inline-flex items-center justify-center" title="<?= htmlspecialchars(t('ai.clear')) ?>" aria-label="<?= htmlspecialchars(t('ai.clear')) ?>"><?= \App\Helpers\IconHelper::svg('trash', 'w-4 h-4') ?></button>
                     <button type="button" id="ai-assistant-close" class="w-8 h-8 rounded-xl hover:bg-ink-900/5 dark:hover:bg-white/10 text-ink-700 dark:text-gray-300 cursor-pointer" aria-label="<?= htmlspecialchars(t('ai.close')) ?>">✕</button>
                 </div>
@@ -2630,6 +2634,8 @@ function url(string $path = ''): string
         window.__aiConfirmUrl = <?= js_encode(url('/ai/action/confirm')) ?>;
         window.__aiVoiceUrl = <?= js_encode(url('/ai/voice')) ?>;
         window.__aiTtsUrl = <?= js_encode(url('/ai/tts')) ?>;
+        window.__aiTtsServer = <?= in_array((string) \App\Services\AI\Core\AiConfig::get('tts.provider', 'browser'), ['azure', 'azure_speech', 'edge', 'edge_neural'], true) ? 'true' : 'false' ?>;
+        window.__aiAutoSpeak = <?= !empty(\App\Services\AI\Core\AiConfig::get('tts.enabled', true)) && !empty(\App\Services\AI\Core\AiConfig::get('tts.auto_speak', true)) ? 'true' : 'false' ?>;
         window.__aiSttProvider = <?= js_encode((string) (\App\Services\AI\Core\AiConfig::get('voice.stt_provider', 'web_speech'))) ?>;
         window.__aiAvatarUrl = <?= js_encode(url('public/assets/img/zak-avatar.png')) ?>;
         window.__aiAvatarUrl2x = <?= js_encode(url('public/assets/img/zak-avatar@2x.png')) ?>;
@@ -2654,7 +2660,7 @@ function url(string $path = ''): string
             'ai.mic_btn', 'ai.mic_listening', 'ai.mic_processing', 'ai.mic_denied', 'ai.mic_not_found',
             'ai.mic_busy', 'ai.mic_error', 'ai.mic_unsupported', 'ai.mic_cancel', 'ai.mic_retry',
             'ai.mic_too_short', 'ai.mic_timeout', 'ai.mic_chat_busy',
-            'ai.tts_play', 'ai.tts_stop', 'ai.tts_pause', 'ai.tts_resume', 'ai.tts_unsupported', 'ai.tts_error',
+            'ai.tts_play', 'ai.auto_speak_on', 'ai.auto_speak_off', 'ai.tts_synthetic_notice', 'ai.tts_stop', 'ai.tts_pause', 'ai.tts_resume', 'ai.tts_unsupported', 'ai.tts_error',
             'js.now',
             'js.live_host', 'js.login_to_stream', 'js.stream_fail', 'js.stream_desc',
             'js.you', 'js.stream_error', 'js.live_connecting', 'js.live_waiting',

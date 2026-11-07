@@ -6,6 +6,7 @@ use App\Models\BusinessUpgradeRequest;
 $requests = $requests ?? [];
 $filterStatus = $filterStatus ?? 'pending';
 $pendingCount = (int) ($pendingCount ?? 0);
+$e = static fn ($s): string => htmlspecialchars((string) $s);
 
 $filters = [
     'pending' => t('admin.business_filter_pending'),
@@ -14,26 +15,27 @@ $filters = [
     'all' => t('admin.business_filter_all'),
 ];
 ?>
-<section class="space-y-5 fade-up pb-8">
-    <div class="flex flex-wrap items-end justify-between gap-3">
+<div class="adm">
+    <header class="adm-head">
         <div>
-            <a href="<?= ProductHelper::url('/admin') ?>" class="inline-flex text-sm text-gray-400 hover:text-brand-600 mb-2">← <?= htmlspecialchars(t('admin.title')) ?></a>
-            <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-brand-600"><?= htmlspecialchars(t('admin.eyebrow')) ?></p>
-            <h1 class="font-display text-xl sm:text-2xl font-bold text-ink-900 dark:text-white mt-1"><?= htmlspecialchars(t('admin.business')) ?></h1>
-            <p class="text-sm text-gray-500 mt-1"><?= htmlspecialchars(t('admin.business_hint')) ?></p>
+            <h1 class="adm-title"><?= $e(t('admin.business')) ?></h1>
+            <p class="adm-sub"><?= $e(t('admin.business_hint')) ?></p>
         </div>
-        <form method="post" action="<?= ProductHelper::url('/admin/business/reset-limits') ?>" onsubmit="return confirm(<?= json_encode(t('admin.business_reset_confirm')) ?>)">
-            <button type="submit" class="text-xs font-bold px-4 py-2.5 rounded-xl border border-black/10 dark:border-white/10 hover:border-brand-400 transition">
-                <?= htmlspecialchars(t('admin.business_reset_limits')) ?>
-            </button>
-        </form>
-    </div>
+        <div class="adm-head-actions">
+            <form method="post" action="<?= ProductHelper::url('/admin/business/reset-limits') ?>" class="adm-inline" onsubmit="return confirm(<?= $e(json_encode(t('admin.business_reset_confirm'))) ?>)">
+                <?= csrf_field() ?>
+                <button type="submit" class="adm-btn"><?= $e(t('admin.business_reset_limits')) ?></button>
+            </form>
+        </div>
+    </header>
+
+    <?php \App\Core\View::partial('admin/_nav'); ?>
 
     <?php if (!empty($flash)): ?>
-        <div class="bg-emerald-50 dark:bg-emerald-900/25 text-emerald-800 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800/40 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars($flash) ?></div>
+        <div class="adm-alert adm-alert--ok" role="status"><?= $e($flash) ?></div>
     <?php endif; ?>
     <?php if (!empty($error)): ?>
-        <div class="bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border border-red-100 dark:border-red-900/40 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars($error) ?></div>
+        <div class="adm-alert adm-alert--error" role="alert"><?= $e($error) ?></div>
     <?php endif; ?>
 
     <?php
@@ -42,138 +44,160 @@ $filters = [
     $businessAiAddonSalesFlags = is_array($businessAiAddonSalesFlags ?? null) ? $businessAiAddonSalesFlags : [];
     $aiInfographicSalesOn = !empty($businessAiAddonSalesFlags[\App\Services\Business\BusinessPackagePolicy::SLUG_AI_INFOGRAPHIC_ADDON]);
     $aiTryonSalesOn = !empty($businessAiAddonSalesFlags[\App\Services\Business\BusinessPackagePolicy::SLUG_AI_TRYON_ADDON]);
-    ?>
-    <div class="grid sm:grid-cols-2 lg:grid-cols-2 gap-3">
-        <div class="rounded-2xl border <?= $businessSalesEnabled ? 'border-emerald-200 bg-emerald-50/70' : 'border-amber-200 bg-amber-50/70' ?> p-4 space-y-2">
-            <p class="text-[10px] font-bold uppercase tracking-wider text-gray-500"><?= htmlspecialchars(t('admin.business_sales_label')) ?></p>
-            <p class="text-sm font-bold"><?= htmlspecialchars($businessSalesEnabled ? t('admin.business_sales_on') : t('admin.business_sales_off')) ?></p>
-            <p class="text-xs text-gray-600"><?= htmlspecialchars(t('admin.business_sales_hint')) ?></p>
-            <form method="post" action="<?= ProductHelper::url('/admin/business/package-sales') ?>">
-                <?= csrf_field() ?>
-                <input type="hidden" name="enabled" value="<?= $businessSalesEnabled ? '0' : '1' ?>">
-                <button type="submit" class="mt-1 h-10 px-4 rounded-xl text-xs font-bold text-white <?= $businessSalesEnabled ? 'bg-amber-600' : 'bg-emerald-600' ?>"
-                        onclick="return confirm(<?= json_encode($businessSalesEnabled ? t('admin.business_sales_disable_confirm') : t('admin.business_sales_enable_confirm')) ?>)">
-                    <?= htmlspecialchars($businessSalesEnabled ? t('admin.business_sales_disable') : t('admin.business_sales_enable')) ?>
-                </button>
-            </form>
-        </div>
-        <div class="rounded-2xl border <?= $businessFeaturesEnabled ? 'border-emerald-200 bg-emerald-50/70' : 'border-amber-200 bg-amber-50/70' ?> p-4 space-y-2">
-            <p class="text-[10px] font-bold uppercase tracking-wider text-gray-500"><?= htmlspecialchars(t('admin.business_features_label')) ?></p>
-            <p class="text-sm font-bold"><?= htmlspecialchars($businessFeaturesEnabled ? t('admin.business_features_on') : t('admin.business_features_off')) ?></p>
-            <p class="text-xs text-gray-600"><?= htmlspecialchars(t('admin.business_features_hint')) ?></p>
-            <form method="post" action="<?= ProductHelper::url('/admin/business/package-features') ?>">
-                <?= csrf_field() ?>
-                <input type="hidden" name="enabled" value="<?= $businessFeaturesEnabled ? '0' : '1' ?>">
-                <button type="submit" class="mt-1 h-10 px-4 rounded-xl text-xs font-bold text-white <?= $businessFeaturesEnabled ? 'bg-amber-600' : 'bg-emerald-600' ?>"
-                        onclick="return confirm(<?= json_encode($businessFeaturesEnabled ? t('admin.business_features_disable_confirm') : t('admin.business_features_enable_confirm')) ?>)">
-                    <?= htmlspecialchars($businessFeaturesEnabled ? t('admin.business_features_disable') : t('admin.business_features_enable')) ?>
-                </button>
-            </form>
-        </div>
-        <div class="rounded-2xl border <?= $aiInfographicSalesOn ? 'border-emerald-200 bg-emerald-50/70' : 'border-amber-200 bg-amber-50/70' ?> p-4 space-y-2">
-            <p class="text-[10px] font-bold uppercase tracking-wider text-gray-500"><?= htmlspecialchars(t('admin.business_ai_infographic_sales_label')) ?></p>
-            <p class="text-sm font-bold"><?= htmlspecialchars($aiInfographicSalesOn ? t('admin.business_ai_addon_sales_on') : t('admin.business_ai_addon_sales_off')) ?></p>
-            <p class="text-xs text-gray-600"><?= htmlspecialchars(t('admin.business_ai_infographic_sales_hint')) ?></p>
-            <form method="post" action="<?= ProductHelper::url('/admin/business/ai-addon-sales') ?>">
-                <?= csrf_field() ?>
-                <input type="hidden" name="package_slug" value="<?= htmlspecialchars(\App\Services\Business\BusinessPackagePolicy::SLUG_AI_INFOGRAPHIC_ADDON, ENT_QUOTES) ?>">
-                <input type="hidden" name="enabled" value="<?= $aiInfographicSalesOn ? '0' : '1' ?>">
-                <button type="submit" class="mt-1 h-10 px-4 rounded-xl text-xs font-bold text-white <?= $aiInfographicSalesOn ? 'bg-amber-600' : 'bg-emerald-600' ?>"
-                        onclick="return confirm(<?= json_encode($aiInfographicSalesOn ? t('admin.business_ai_infographic_sales_disable_confirm') : t('admin.business_ai_infographic_sales_enable_confirm')) ?>)">
-                    <?= htmlspecialchars($aiInfographicSalesOn ? t('admin.business_ai_addon_sales_disable') : t('admin.business_ai_addon_sales_enable')) ?>
-                </button>
-            </form>
-        </div>
-        <div class="rounded-2xl border <?= $aiTryonSalesOn ? 'border-emerald-200 bg-emerald-50/70' : 'border-amber-200 bg-amber-50/70' ?> p-4 space-y-2">
-            <p class="text-[10px] font-bold uppercase tracking-wider text-gray-500"><?= htmlspecialchars(t('admin.business_ai_tryon_sales_label')) ?></p>
-            <p class="text-sm font-bold"><?= htmlspecialchars($aiTryonSalesOn ? t('admin.business_ai_addon_sales_on') : t('admin.business_ai_addon_sales_off')) ?></p>
-            <p class="text-xs text-gray-600"><?= htmlspecialchars(t('admin.business_ai_tryon_sales_hint')) ?></p>
-            <form method="post" action="<?= ProductHelper::url('/admin/business/ai-addon-sales') ?>">
-                <?= csrf_field() ?>
-                <input type="hidden" name="package_slug" value="<?= htmlspecialchars(\App\Services\Business\BusinessPackagePolicy::SLUG_AI_TRYON_ADDON, ENT_QUOTES) ?>">
-                <input type="hidden" name="enabled" value="<?= $aiTryonSalesOn ? '0' : '1' ?>">
-                <button type="submit" class="mt-1 h-10 px-4 rounded-xl text-xs font-bold text-white <?= $aiTryonSalesOn ? 'bg-amber-600' : 'bg-emerald-600' ?>"
-                        onclick="return confirm(<?= json_encode($aiTryonSalesOn ? t('admin.business_ai_tryon_sales_disable_confirm') : t('admin.business_ai_tryon_sales_enable_confirm')) ?>)">
-                    <?= htmlspecialchars($aiTryonSalesOn ? t('admin.business_ai_addon_sales_disable') : t('admin.business_ai_addon_sales_enable')) ?>
-                </button>
-            </form>
-        </div>
-    </div>
 
-    <div class="flex flex-wrap gap-2">
-        <?php foreach ($filters as $key => $label): ?>
-            <a href="<?= ProductHelper::url('/admin/business?status=' . urlencode($key)) ?>"
-               class="text-xs font-bold px-3 py-2 rounded-xl border transition <?= $filterStatus === $key ? 'bg-ink-900 text-white border-ink-900' : 'border-black/10 dark:border-white/10 text-ink-700 dark:text-gray-300' ?>">
-                <?= htmlspecialchars($label) ?><?= $key === 'pending' ? ' (' . $pendingCount . ')' : '' ?>
-            </a>
-        <?php endforeach; ?>
+    $toggles = [
+        [
+            'label' => t('admin.business_sales_label'),
+            'hint' => t('admin.business_sales_hint'),
+            'on' => $businessSalesEnabled,
+            'state' => $businessSalesEnabled ? t('admin.business_sales_on') : t('admin.business_sales_off'),
+            'action' => '/admin/business/package-sales',
+            'slug' => null,
+            'confirm' => $businessSalesEnabled ? t('admin.business_sales_disable_confirm') : t('admin.business_sales_enable_confirm'),
+            'button' => $businessSalesEnabled ? t('admin.business_sales_disable') : t('admin.business_sales_enable'),
+        ],
+        [
+            'label' => t('admin.business_features_label'),
+            'hint' => t('admin.business_features_hint'),
+            'on' => $businessFeaturesEnabled,
+            'state' => $businessFeaturesEnabled ? t('admin.business_features_on') : t('admin.business_features_off'),
+            'action' => '/admin/business/package-features',
+            'slug' => null,
+            'confirm' => $businessFeaturesEnabled ? t('admin.business_features_disable_confirm') : t('admin.business_features_enable_confirm'),
+            'button' => $businessFeaturesEnabled ? t('admin.business_features_disable') : t('admin.business_features_enable'),
+        ],
+        [
+            'label' => t('admin.business_ai_infographic_sales_label'),
+            'hint' => t('admin.business_ai_infographic_sales_hint'),
+            'on' => $aiInfographicSalesOn,
+            'state' => $aiInfographicSalesOn ? t('admin.business_ai_addon_sales_on') : t('admin.business_ai_addon_sales_off'),
+            'action' => '/admin/business/ai-addon-sales',
+            'slug' => \App\Services\Business\BusinessPackagePolicy::SLUG_AI_INFOGRAPHIC_ADDON,
+            'confirm' => $aiInfographicSalesOn ? t('admin.business_ai_infographic_sales_disable_confirm') : t('admin.business_ai_infographic_sales_enable_confirm'),
+            'button' => $aiInfographicSalesOn ? t('admin.business_ai_addon_sales_disable') : t('admin.business_ai_addon_sales_enable'),
+        ],
+        [
+            'label' => t('admin.business_ai_tryon_sales_label'),
+            'hint' => t('admin.business_ai_tryon_sales_hint'),
+            'on' => $aiTryonSalesOn,
+            'state' => $aiTryonSalesOn ? t('admin.business_ai_addon_sales_on') : t('admin.business_ai_addon_sales_off'),
+            'action' => '/admin/business/ai-addon-sales',
+            'slug' => \App\Services\Business\BusinessPackagePolicy::SLUG_AI_TRYON_ADDON,
+            'confirm' => $aiTryonSalesOn ? t('admin.business_ai_tryon_sales_disable_confirm') : t('admin.business_ai_tryon_sales_enable_confirm'),
+            'button' => $aiTryonSalesOn ? t('admin.business_ai_addon_sales_disable') : t('admin.business_ai_addon_sales_enable'),
+        ],
+    ];
+    ?>
+    <section class="adm-card">
+        <div class="adm-table-wrap">
+            <table class="adm-table">
+                <tbody>
+                    <?php foreach ($toggles as $tg): ?>
+                    <tr>
+                        <td style="min-width:260px">
+                            <div class="strong"><?= $e($tg['label']) ?></div>
+                            <div class="muted adm-clamp-2" style="font-size:12px;margin-top:2px;max-width:72ch" title="<?= $e($tg['hint']) ?>"><?= $e($tg['hint']) ?></div>
+                        </td>
+                        <td class="nowrap">
+                            <span class="adm-badge adm-badge--<?= $tg['on'] ? 'ok' : 'neutral' ?>"><span class="adm-dot"></span><?= $e($tg['state']) ?></span>
+                        </td>
+                        <td>
+                            <div class="actions">
+                                <form method="post" action="<?= ProductHelper::url($tg['action']) ?>" class="adm-inline">
+                                    <?= csrf_field() ?>
+                                    <?php if ($tg['slug'] !== null): ?>
+                                        <input type="hidden" name="package_slug" value="<?= htmlspecialchars($tg['slug'], ENT_QUOTES) ?>">
+                                    <?php endif; ?>
+                                    <input type="hidden" name="enabled" value="<?= $tg['on'] ? '0' : '1' ?>">
+                                    <button type="submit" class="adm-switch" aria-pressed="<?= $tg['on'] ? 'true' : 'false' ?>"
+                                            aria-label="<?= $e($tg['button']) ?>" title="<?= $e($tg['button']) ?>"
+                                            onclick="return confirm(<?= $e(json_encode($tg['confirm'])) ?>)"></button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <div class="adm-toolbar">
+        <div class="adm-seg">
+            <?php foreach ($filters as $key => $label): $on = $filterStatus === $key; ?>
+                <a href="<?= ProductHelper::url('/admin/business?status=' . urlencode($key)) ?>" class="<?= $on ? 'is-active' : '' ?>"<?= $on ? ' aria-current="page"' : '' ?>>
+                    <?= $e($label) ?><?php if ($key === 'pending'): ?> <span class="adm-count<?= $pendingCount > 0 ? ' adm-count--warn' : '' ?>"><?= $pendingCount ?></span><?php endif; ?>
+                </a>
+            <?php endforeach; ?>
+        </div>
     </div>
 
     <?php if (!$requests): ?>
-        <div class="rounded-2xl border border-dashed border-black/10 dark:border-white/10 px-5 py-10 text-center text-sm text-gray-400">
-            <?= htmlspecialchars(t('admin.business_empty')) ?>
-        </div>
+        <div class="adm-card adm-empty"><?= $e(t('admin.business_empty')) ?></div>
     <?php else: ?>
-        <div class="space-y-3">
+        <div class="adm-stack">
             <?php foreach ($requests as $req):
                 $docs = BusinessUpgradeRequest::decodeDocs($req['doc_files'] ?? null);
                 $status = (string) ($req['status'] ?? 'pending');
+                $tone = $status === 'pending' ? 'warn' : ($status === 'approved' ? 'ok' : 'danger');
                 ?>
-                <article class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 sm:p-5 shadow-soft space-y-3">
-                    <div class="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                            <div class="text-sm font-bold text-ink-900 dark:text-white">
-                                <?= htmlspecialchars((string) ($req['business_name'] ?? '')) ?>
-                                <span class="text-xs font-semibold text-gray-400 uppercase ml-1"><?= htmlspecialchars(strtoupper((string) ($req['entity_type'] ?? ''))) ?></span>
-                            </div>
-                            <div class="text-xs text-gray-500 mt-1">
-                                <?= htmlspecialchars((string) ($req['user_name'] ?? '')) ?> · <?= htmlspecialchars((string) ($req['user_email'] ?? '')) ?>
-                                · БИН/ИИН <?= htmlspecialchars((string) ($req['bin'] ?? '')) ?>
-                            </div>
+                <article class="adm-card">
+                    <div class="adm-card-head">
+                        <div style="min-width:0">
+                            <h2 class="adm-card-title">
+                                <?= $e((string) ($req['business_name'] ?? '')) ?>
+                                <span class="adm-badge adm-badge--neutral"><?= $e(strtoupper((string) ($req['entity_type'] ?? ''))) ?></span>
+                            </h2>
+                            <p class="adm-card-sub">
+                                <?= $e((string) ($req['user_name'] ?? '')) ?> · <?= $e((string) ($req['user_email'] ?? '')) ?>
+                                · БИН/ИИН <span class="mono"><?= $e((string) ($req['bin'] ?? '')) ?></span>
+                            </p>
                             <?php if (!empty($req['address'])): ?>
-                                <div class="text-xs text-gray-400 mt-1"><?= htmlspecialchars((string) $req['address']) ?></div>
+                                <p class="adm-card-sub"><?= $e((string) $req['address']) ?></p>
                             <?php endif; ?>
                         </div>
-                        <span class="text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-lg
-                            <?= $status === 'pending' ? 'bg-amber-100 text-amber-800' : ($status === 'approved' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700') ?>">
-                            <?= htmlspecialchars(t('admin.business_status_' . $status)) ?>
-                        </span>
+                        <span class="adm-badge adm-badge--<?= $tone ?>"><span class="adm-dot"></span><?= $e(t('admin.business_status_' . $status)) ?></span>
                     </div>
 
-                    <?php if ($docs): ?>
-                        <div class="flex flex-wrap gap-2">
-                            <?php foreach ($docs as $doc): ?>
-                                <a class="text-xs font-semibold text-brand-600 hover:underline" href="<?= ProductHelper::url('public/uploads/business/' . rawurlencode($doc)) ?>" target="_blank" rel="noopener">
-                                    <?= htmlspecialchars($doc) ?>
-                                </a>
-                            <?php endforeach; ?>
+                    <?php if ($docs || ($status !== 'pending' && !empty($req['admin_note']))): ?>
+                        <div class="adm-card-body adm-stack" style="gap:8px">
+                            <?php if ($docs): ?>
+                                <div style="display:flex;flex-wrap:wrap;gap:6px 16px">
+                                    <?php foreach ($docs as $doc): ?>
+                                        <a class="adm-link" href="<?= ProductHelper::url('public/uploads/business/' . rawurlencode($doc)) ?>" target="_blank" rel="noopener"><?= $e($doc) ?></a>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+                            <?php if ($status !== 'pending' && !empty($req['admin_note'])): ?>
+                                <p class="muted" style="margin:0;font-size:13px"><?= $e((string) $req['admin_note']) ?></p>
+                            <?php endif; ?>
                         </div>
                     <?php endif; ?>
 
                     <?php if ($status === 'pending'): ?>
-                        <div class="flex flex-col sm:flex-row gap-2 pt-2 border-t border-black/[0.05] dark:border-white/10">
-                            <form method="post" action="<?= ProductHelper::url('/admin/business/' . (int) $req['id'] . '/approve') ?>" class="flex-1 flex gap-2">
-                                <input type="text" name="note" placeholder="<?= htmlspecialchars(t('admin.business_note')) ?>" class="flex-1 h-10 px-3 rounded-xl border border-black/10 dark:border-white/10 bg-transparent text-sm">
-                                <button type="submit" class="h-10 px-4 rounded-xl bg-emerald-600 text-white text-xs font-bold"><?= htmlspecialchars(t('admin.business_approve')) ?></button>
+                        <div class="adm-card-foot adm-grid-2" style="gap:8px">
+                            <form method="post" action="<?= ProductHelper::url('/admin/business/' . (int) $req['id'] . '/approve') ?>" class="adm-toolbar" style="flex-wrap:nowrap">
+                                <?= csrf_field() ?>
+                                <input type="text" name="note" placeholder="<?= $e(t('admin.business_note')) ?>" class="adm-input grow" style="min-width:0">
+                                <button type="submit" class="adm-btn adm-btn--sm"><?= $e(t('admin.business_approve')) ?></button>
                             </form>
-                            <form method="post" action="<?= ProductHelper::url('/admin/business/' . (int) $req['id'] . '/reject') ?>" class="flex-1 flex gap-2">
-                                <input type="text" name="reason" required placeholder="<?= htmlspecialchars(t('admin.business_reject_reason')) ?>" class="flex-1 h-10 px-3 rounded-xl border border-black/10 dark:border-white/10 bg-transparent text-sm">
-                                <button type="submit" class="h-10 px-4 rounded-xl bg-red-600 text-white text-xs font-bold"><?= htmlspecialchars(t('admin.business_reject')) ?></button>
+                            <form method="post" action="<?= ProductHelper::url('/admin/business/' . (int) $req['id'] . '/reject') ?>" class="adm-toolbar" style="flex-wrap:nowrap">
+                                <?= csrf_field() ?>
+                                <input type="text" name="reason" required placeholder="<?= $e(t('admin.business_reject_reason')) ?>" class="adm-input grow" style="min-width:0">
+                                <button type="submit" class="adm-btn adm-btn--danger adm-btn--sm"><?= $e(t('admin.business_reject')) ?></button>
                             </form>
                         </div>
                     <?php elseif ($status === 'approved' && ($req['user_account_type'] ?? '') === 'business'): ?>
-                        <?php if (!empty($req['admin_note'])): ?>
-                            <p class="text-xs text-gray-500"><?= htmlspecialchars((string) $req['admin_note']) ?></p>
-                        <?php endif; ?>
-                        <form method="post" action="<?= ProductHelper::url('/admin/business/' . (int) $req['id'] . '/revoke') ?>" class="flex flex-col sm:flex-row gap-2 pt-2 border-t border-black/[0.05] dark:border-white/10" onsubmit="return confirm(<?= json_encode(t('admin.business_revoke_confirm')) ?>)">
-                            <input type="text" name="reason" required placeholder="<?= htmlspecialchars(t('admin.business_revoke_reason')) ?>" class="flex-1 h-10 px-3 rounded-xl border border-black/10 dark:border-white/10 bg-transparent text-sm">
-                            <button type="submit" class="h-10 px-4 rounded-xl bg-red-600 text-white text-xs font-bold"><?= htmlspecialchars(t('admin.business_revoke')) ?></button>
-                        </form>
-                    <?php elseif (!empty($req['admin_note'])): ?>
-                        <p class="text-xs text-gray-500"><?= htmlspecialchars((string) $req['admin_note']) ?></p>
+                        <div class="adm-card-foot">
+                            <form method="post" action="<?= ProductHelper::url('/admin/business/' . (int) $req['id'] . '/revoke') ?>" class="adm-toolbar" style="flex-wrap:nowrap" onsubmit="return confirm(<?= $e(json_encode(t('admin.business_revoke_confirm'))) ?>)">
+                                <?= csrf_field() ?>
+                                <input type="text" name="reason" required placeholder="<?= $e(t('admin.business_revoke_reason')) ?>" class="adm-input grow" style="min-width:0">
+                                <button type="submit" class="adm-btn adm-btn--danger adm-btn--sm"><?= $e(t('admin.business_revoke')) ?></button>
+                            </form>
+                        </div>
                     <?php endif; ?>
                 </article>
             <?php endforeach; ?>
         </div>
     <?php endif; ?>
-</section>
+</div>

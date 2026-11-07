@@ -280,7 +280,7 @@ class AdminController extends Controller
                 };
                 $this->json(['ok' => false, 'error_code' => $code], $http);
             }
-            $_SESSION['error'] = match ($code) {
+            $message = match ($code) {
                 'forbidden' => t('admin.finance_journal_forbidden'),
                 'module_disabled' => t('admin.finance_journal_module_off_flash'),
                 'invalid_stream', 'invalid_date_range', 'invalid_query', 'invalid_filters',
@@ -289,9 +289,17 @@ class AdminController extends Controller
                 default => t('admin.finance_journal_error'),
             };
             if ($code === 'forbidden' || $code === 'module_disabled') {
+                $_SESSION['error'] = $message;
                 $this->redirect('/admin');
             }
-            $this->redirect('/admin/finance-journal');
+            // Сброс фильтров имеет смысл только если они были; иначе (query_failed и т.п.)
+            // редирект на тот же URL зациклится — показываем страницу с ошибкой.
+            if (!empty($_GET)) {
+                $_SESSION['error'] = $message;
+                $this->redirect('/admin/finance-journal');
+            }
+            $_SESSION['error'] = $message;
+            $result = ['items' => [], 'page' => 1, 'pages' => 1, 'total' => 0, 'per_page' => 40, 'filters' => []];
         }
 
         if ($wantsJson) {

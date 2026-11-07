@@ -92,7 +92,14 @@ return [
     /** Настройки озвучивания ответов и Text-to-Speech (TTS) */
     'tts' => [
         'enabled' => $envBool('AI_TTS_ENABLED', true),
-        'provider' => getenv('AI_TTS_PROVIDER') ?: 'browser', // browser | edge_neural | mock
+        // browser | azure | edge_neural | mock. Если задан AZURE_SPEECH_KEY — по умолчанию azure (лицензируемый).
+        // Без ключа Azure: живой нейроголос edge_neural, если установлен edge-tts (иначе роботизированный браузерный).
+        'provider' => getenv('AI_TTS_PROVIDER') ?: ((getenv('AZURE_SPEECH_KEY') ?: '') !== '' ? 'azure' : (
+            (is_file('/usr/local/bin/edge-tts') || is_file('/opt/homebrew/bin/edge-tts') || is_file('/usr/bin/edge-tts'))
+                ? 'edge_neural' : 'browser'
+        )),
+        /** Автоматически озвучивать каждый ответ Zak (пользователь может выключить в шапке чата). */
+        'auto_speak' => $envBool('AI_TTS_AUTO_SPEAK', true),
         'max_text_chars' => 1500,
         'default_language' => 'ru',
         /*
@@ -100,7 +107,23 @@ return [
          * kk-KZ-DariyaNeural не существует (edge-tts: NoAudioReceived) — не использовать.
          */
         'voices' => [
-            'ru' => ['ru-RU-DmitryNeural', 'ru-RU-SvetlanaNeural'],
+            // Первый голос — основной: Светлана звучит мягче и естественнее для помощника.
+            'ru' => ['ru-RU-SvetlanaNeural', 'ru-RU-DmitryNeural'],
+            'kk' => ['kk-KZ-AigulNeural', 'kk-KZ-DauletNeural'],
+            'en' => ['en-US-JennyNeural', 'en-US-GuyNeural'],
+        ],
+        /*
+         * Azure AI Speech (REST). Ключ только из окружения; регион ресурса, напр. westeurope.
+         * AZURE_SPEECH_ENDPOINT — если ресурс с собственным доменом (иначе строится из региона).
+         * Голоса — из официального списка Microsoft (language-support, проверено 2026-11-06).
+         */
+        'azure_key' => getenv('AZURE_SPEECH_KEY') ?: '',
+        'azure_region' => getenv('AZURE_SPEECH_REGION') ?: '',
+        'azure_endpoint' => getenv('AZURE_SPEECH_ENDPOINT') ?: '',
+        'azure_output_format' => 'audio-24khz-48kbitrate-mono-mp3',
+        'azure_timeout_seconds' => 15,
+        'azure_voices' => [
+            'ru' => ['ru-RU-DmitryNeural', 'ru-RU-SvetlanaNeural', 'ru-RU-DariyaNeural'],
             'kk' => ['kk-KZ-AigulNeural', 'kk-KZ-DauletNeural'],
             'en' => ['en-US-JennyNeural', 'en-US-GuyNeural'],
         ],

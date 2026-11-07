@@ -11,7 +11,7 @@ $q = (string) ($filters['q'] ?? '');
 $categoryId = (int) ($filters['category_id'] ?? 0);
 $dateFrom = (string) ($filters['date_from'] ?? '');
 $dateTo = (string) ($filters['date_to'] ?? '');
-$input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm';
+$e = static fn ($s): string => htmlspecialchars((string) $s);
 
 $query = static function (array $extra = []) use ($q, $categoryId, $dateFrom, $dateTo): string {
     $params = array_filter([
@@ -25,157 +25,155 @@ $query = static function (array $extra = []) use ($q, $categoryId, $dateFrom, $d
     return ProductHelper::url('/admin/library') . ($qs !== '' ? '?' . $qs : '');
 };
 ?>
-<section class="space-y-5 fade-up pb-8">
-    <div class="flex flex-wrap items-end justify-between gap-3">
+<div class="adm">
+    <header class="adm-head">
         <div>
-            <a href="<?= ProductHelper::url('/admin') ?>" class="inline-flex text-sm text-gray-400 hover:text-brand-600 mb-2">← <?= htmlspecialchars(t('admin.title')) ?></a>
-            <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-indigo-600"><?= htmlspecialchars(t('admin.eyebrow')) ?></p>
-            <h1 class="font-display text-xl sm:text-2xl font-bold text-ink-900 dark:text-white mt-1"><?= htmlspecialchars(t('admin.library')) ?></h1>
-            <p class="text-sm text-gray-500 mt-1"><?= htmlspecialchars(t('admin.library_hint')) ?></p>
+            <h1 class="adm-title"><?= $e(t('admin.library')) ?></h1>
+            <p class="adm-sub"><?= $e(t('admin.library_hint')) ?></p>
         </div>
         <?php if ($canManage): ?>
-            <a href="<?= ProductHelper::url('/admin/library/new' . ($categoryId ? '?category=' . $categoryId : '')) ?>"
-               class="h-11 px-4 inline-flex items-center rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold uppercase tracking-wider">
-                <?= htmlspecialchars(t('admin.library_new')) ?>
-            </a>
+            <div class="adm-head-actions">
+                <a href="<?= ProductHelper::url('/admin/library/new' . ($categoryId ? '?category=' . $categoryId : '')) ?>" class="adm-btn adm-btn--primary"><?= $e(t('admin.library_new')) ?></a>
+            </div>
         <?php endif; ?>
-    </div>
+    </header>
+
+    <?php \App\Core\View::partial('admin/_nav'); ?>
 
     <?php if (!empty($flash)): ?>
-        <div class="bg-emerald-50 dark:bg-emerald-900/25 text-emerald-800 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800/40 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars($flash) ?></div>
+        <div class="adm-alert adm-alert--ok" role="status"><?= $e($flash) ?></div>
     <?php endif; ?>
     <?php if (!empty($error)): ?>
-        <div class="bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border border-red-100 dark:border-red-900/40 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars($error) ?></div>
+        <div class="adm-alert adm-alert--error" role="alert"><?= $e($error) ?></div>
     <?php endif; ?>
 
-    <form method="get" action="<?= ProductHelper::url('/admin/library') ?>" class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 shadow-soft p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-        <div class="lg:col-span-2">
-            <label class="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1"><?= htmlspecialchars(t('admin.library_search')) ?></label>
-            <input type="search" name="q" value="<?= htmlspecialchars($q) ?>" class="<?= $input ?>" placeholder="<?= htmlspecialchars(t('admin.library_search_ph')) ?>">
-        </div>
-        <div>
-            <label class="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1"><?= htmlspecialchars(t('admin.library_category')) ?></label>
-            <select name="category" class="<?= $input ?>">
-                <option value=""><?= htmlspecialchars(t('admin.library_all_cats')) ?></option>
+    <form method="get" action="<?= ProductHelper::url('/admin/library') ?>" class="adm-toolbar" style="align-items:flex-end">
+        <label class="adm-field grow" style="min-width:220px">
+            <span class="adm-label"><?= $e(t('admin.library_search')) ?></span>
+            <input type="search" name="q" value="<?= $e($q) ?>" class="adm-input" placeholder="<?= $e(t('admin.library_search_ph')) ?>">
+        </label>
+        <label class="adm-field">
+            <span class="adm-label"><?= $e(t('admin.library_category')) ?></span>
+            <select name="category" class="adm-select">
+                <option value=""><?= $e(t('admin.library_all_cats')) ?></option>
                 <?php foreach ($categories as $cat): ?>
                     <option value="<?= (int) $cat['id'] ?>" <?= $categoryId === (int) $cat['id'] ? 'selected' : '' ?>>
-                        <?= htmlspecialchars(str_repeat('— ', (int) ($cat['depth'] ?? 0)) . $cat['name']) ?>
+                        <?= $e(str_repeat('— ', (int) ($cat['depth'] ?? 0)) . $cat['name']) ?>
                     </option>
                 <?php endforeach; ?>
             </select>
-        </div>
-        <div>
-            <label class="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1"><?= htmlspecialchars(t('admin.library_date_from')) ?></label>
-            <input type="date" name="date_from" value="<?= htmlspecialchars($dateFrom) ?>" class="<?= $input ?>">
-        </div>
-        <div>
-            <label class="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1"><?= htmlspecialchars(t('admin.library_date_to')) ?></label>
-            <input type="date" name="date_to" value="<?= htmlspecialchars($dateTo) ?>" class="<?= $input ?>">
-        </div>
-        <div class="sm:col-span-2 lg:col-span-5 flex gap-2">
-            <button type="submit" class="h-11 px-5 rounded-xl bg-ink-900 hover:bg-ink-800 text-white text-xs font-bold uppercase tracking-wider"><?= htmlspecialchars(t('admin.users_find')) ?></button>
-            <a href="<?= ProductHelper::url('/admin/library') ?>" class="h-11 px-4 inline-flex items-center rounded-xl border border-black/[0.08] dark:border-white/10 text-xs font-semibold"><?= htmlspecialchars(t('admin.tickets_all')) ?></a>
-        </div>
+        </label>
+        <label class="adm-field">
+            <span class="adm-label"><?= $e(t('admin.library_date_from')) ?></span>
+            <input type="date" name="date_from" value="<?= $e($dateFrom) ?>" class="adm-input" style="min-width:150px">
+        </label>
+        <label class="adm-field">
+            <span class="adm-label"><?= $e(t('admin.library_date_to')) ?></span>
+            <input type="date" name="date_to" value="<?= $e($dateTo) ?>" class="adm-input" style="min-width:150px">
+        </label>
+        <button type="submit" class="adm-btn"><?= $e(t('admin.users_find')) ?></button>
+        <a href="<?= ProductHelper::url('/admin/library') ?>" class="adm-btn adm-btn--ghost"><?= $e(t('admin.tickets_all')) ?></a>
     </form>
 
-    <div class="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-4">
-        <aside class="space-y-3">
-            <div class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 shadow-soft p-4">
-                <h2 class="font-display font-bold text-sm text-ink-900 dark:text-white mb-3"><?= htmlspecialchars(t('admin.library_folders')) ?></h2>
-                <a href="<?= htmlspecialchars($query(['category' => '', 'page' => null])) ?>"
-                   class="flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm <?= $categoryId === 0 ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-semibold' : 'hover:bg-black/[0.03] dark:hover:bg-white/[0.04]' ?>">
-                    <span><?= htmlspecialchars(t('admin.library_all_cats')) ?></span>
-                    <span class="text-[11px] text-gray-400"><?= (int) ($total ?? 0) ?></span>
-                </a>
-                <div class="mt-1 space-y-0.5">
+    <div class="adm-lib-grid">
+        <aside class="adm-stack">
+            <section class="adm-card">
+                <div class="adm-card-head">
+                    <h2 class="adm-card-title"><?= $e(t('admin.library_folders')) ?></h2>
+                </div>
+                <div class="adm-list">
+                    <a href="<?= $e($query(['category' => '', 'page' => null])) ?>"
+                       class="adm-row adm-folder<?= $categoryId === 0 ? ' is-active' : '' ?>"<?= $categoryId === 0 ? ' aria-current="page"' : '' ?>>
+                        <span class="adm-row-title truncate"><?= $e(t('admin.library_all_cats')) ?></span>
+                        <span class="adm-row-side"><?= (int) ($total ?? 0) ?></span>
+                    </a>
                     <?php foreach ($categories as $cat):
                         $cid = (int) $cat['id'];
                         $depth = (int) ($cat['depth'] ?? 0);
                     ?>
-                        <a href="<?= htmlspecialchars($query(['category' => (string) $cid, 'page' => null])) ?>"
-                           class="flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm <?= $categoryId === $cid ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-semibold' : 'hover:bg-black/[0.03] dark:hover:bg-white/[0.04]' ?>"
-                           style="padding-left: <?= 12 + min($depth, 2) * 14 ?>px">
-                            <span class="truncate"><?= htmlspecialchars((string) $cat['name']) ?></span>
-                            <span class="text-[11px] text-gray-400"><?= (int) ($cat['doc_count'] ?? 0) ?></span>
+                        <a href="<?= $e($query(['category' => (string) $cid, 'page' => null])) ?>"
+                           class="adm-row adm-folder<?= $categoryId === $cid ? ' is-active' : '' ?>"<?= $categoryId === $cid ? ' aria-current="page"' : '' ?>
+                           style="padding-left: <?= 16 + min($depth, 2) * 14 ?>px">
+                            <span class="adm-row-title truncate"><?= $e($cat['name']) ?></span>
+                            <span class="adm-row-side"><?= (int) ($cat['doc_count'] ?? 0) ?></span>
                         </a>
                     <?php endforeach; ?>
                 </div>
-            </div>
+            </section>
 
             <?php if ($canManage): ?>
-            <div class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 shadow-soft p-4">
-                <h2 class="font-display font-bold text-sm text-ink-900 dark:text-white mb-3"><?= htmlspecialchars(t('admin.library_cat_add')) ?></h2>
-                <form method="post" action="<?= ProductHelper::url('/admin/library/categories') ?>" class="space-y-2">
+            <section class="adm-card">
+                <div class="adm-card-head">
+                    <h2 class="adm-card-title"><?= $e(t('admin.library_cat_add')) ?></h2>
+                </div>
+                <form method="post" action="<?= ProductHelper::url('/admin/library/categories') ?>" class="adm-card-body" style="display:flex;flex-direction:column;gap:8px">
                     <?= csrf_field() ?>
-                    <input type="text" name="name" required minlength="2" maxlength="180" class="<?= $input ?>" placeholder="<?= htmlspecialchars(t('admin.library_cat_name')) ?>">
-                    <select name="parent_id" class="<?= $input ?>">
-                        <option value=""><?= htmlspecialchars(t('admin.library_cat_root')) ?></option>
+                    <input type="text" name="name" required minlength="2" maxlength="180" class="adm-input" placeholder="<?= $e(t('admin.library_cat_name')) ?>" aria-label="<?= $e(t('admin.library_cat_name')) ?>">
+                    <select name="parent_id" class="adm-select" aria-label="<?= $e(t('admin.library_cat_parent')) ?>">
+                        <option value=""><?= $e(t('admin.library_cat_root')) ?></option>
                         <?php foreach ($categories as $opt):
                             if ((int) ($opt['depth'] ?? 0) >= 1) {
                                 continue;
                             }
                         ?>
-                            <option value="<?= (int) $opt['id'] ?>"><?= htmlspecialchars((string) $opt['name']) ?></option>
+                            <option value="<?= (int) $opt['id'] ?>"><?= $e($opt['name']) ?></option>
                         <?php endforeach; ?>
                     </select>
-                    <p class="text-[11px] text-gray-400"><?= htmlspecialchars(t('admin.library_cat_parent_hint')) ?></p>
-                    <button type="submit" class="h-10 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold uppercase tracking-wider w-full">
-                        <?= htmlspecialchars(t('admin.library_cat_create')) ?>
-                    </button>
+                    <span class="adm-help"><?= $e(t('admin.library_cat_parent_hint')) ?></span>
+                    <button type="submit" class="adm-btn"><?= $e(t('admin.library_cat_create')) ?></button>
                 </form>
-            </div>
+            </section>
             <?php endif; ?>
         </aside>
 
-        <div class="space-y-3 min-w-0">
-            <?php if (empty($documents)): ?>
-                <div class="text-center py-14 rounded-2xl border border-dashed border-black/10 dark:border-white/10 text-gray-400 text-sm">
-                    <?= htmlspecialchars(t('admin.library_empty')) ?>
-                </div>
-            <?php else: ?>
-                <?php foreach ($documents as $doc):
-                    $did = (int) $doc['id'];
-                    $tags = array_filter(array_map('trim', explode(',', (string) ($doc['tags'] ?? ''))));
-                ?>
-                    <a href="<?= ProductHelper::url('/admin/library/' . $did) ?>" class="block bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 shadow-soft p-4 sm:p-5 hover:border-indigo-400/50 transition">
-                        <div class="flex flex-wrap items-start justify-between gap-2">
-                            <div class="min-w-0">
-                                <p class="text-[11px] font-semibold uppercase tracking-wider text-indigo-600"><?= htmlspecialchars((string) ($doc['category_name'] ?? '')) ?></p>
-                                <h3 class="font-display font-bold text-ink-900 dark:text-white mt-0.5"><?= htmlspecialchars((string) $doc['title']) ?></h3>
-                                <p class="text-[11px] text-gray-400 mt-1">
-                                    <?= htmlspecialchars((string) ($doc['author_name'] ?? '')) ?>
-                                    · <?= htmlspecialchars(substr((string) $doc['created_at'], 0, 16)) ?>
-                                    <?php if ((int) ($doc['file_count'] ?? 0) > 0): ?>
-                                        · <?= (int) $doc['file_count'] ?> <?= htmlspecialchars(t('admin.library_files_short')) ?>
-                                    <?php endif; ?>
-                                </p>
-                                <?php if ($tags): ?>
-                                    <div class="flex flex-wrap gap-1 mt-2">
-                                        <?php foreach ($tags as $tag): ?>
-                                            <span class="px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 text-[10px] font-semibold"><?= htmlspecialchars($tag) ?></span>
-                                        <?php endforeach; ?>
+        <div class="adm-stack" style="min-width:0">
+            <section class="adm-card">
+                <?php if (empty($documents)): ?>
+                    <div class="adm-empty"><?= $e(t('admin.library_empty')) ?></div>
+                <?php else: ?>
+                    <div class="adm-list">
+                        <?php foreach ($documents as $doc):
+                            $did = (int) $doc['id'];
+                            $tags = array_filter(array_map('trim', explode(',', (string) ($doc['tags'] ?? ''))));
+                        ?>
+                            <a href="<?= ProductHelper::url('/admin/library/' . $did) ?>" class="adm-row" style="align-items:flex-start">
+                                <div class="adm-row-main">
+                                    <div class="adm-row-title"><?= $e($doc['title']) ?></div>
+                                    <div class="adm-row-sub">
+                                        <?php if (!empty($doc['category_name'])): ?><?= $e($doc['category_name']) ?> · <?php endif; ?>
+                                        <?= $e($doc['author_name'] ?? '') ?>
+                                        <?php if ((int) ($doc['file_count'] ?? 0) > 0): ?>
+                                            · <?= (int) $doc['file_count'] ?> <?= $e(t('admin.library_files_short')) ?>
+                                        <?php endif; ?>
                                     </div>
+                                    <?php if ($tags): ?>
+                                        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">
+                                            <?php foreach ($tags as $tag): ?>
+                                                <span class="adm-badge adm-badge--neutral"><?= $e($tag) ?></span>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="adm-row-side nowrap"><?= $e(substr((string) $doc['created_at'], 0, 16)) ?></div>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+
+                    <?php if ($pages > 1): ?>
+                        <div class="adm-pager">
+                            <span><?= $e(t('admin.gig_cat_page', ['current' => (string) $page, 'total' => (string) $pages])) ?></span>
+                            <div style="display:flex;gap:8px">
+                                <?php if ($page > 1): ?>
+                                    <a href="<?= $e($query(['page' => (string) ($page - 1)])) ?>" class="adm-btn adm-btn--sm"><?= $e(t('admin.logs_prev')) ?></a>
+                                <?php endif; ?>
+                                <?php if ($page < $pages): ?>
+                                    <a href="<?= $e($query(['page' => (string) ($page + 1)])) ?>" class="adm-btn adm-btn--sm"><?= $e(t('admin.logs_next')) ?></a>
                                 <?php endif; ?>
                             </div>
-                            <span class="text-xs font-bold text-indigo-600"><?= htmlspecialchars(t('admin.open')) ?> →</span>
                         </div>
-                    </a>
-                <?php endforeach; ?>
-
-                <?php if ($pages > 1): ?>
-                    <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
-                        <p class="text-xs text-gray-500"><?= htmlspecialchars(t('admin.gig_cat_page', ['current' => (string) $page, 'total' => (string) $pages])) ?></p>
-                        <div class="flex gap-2">
-                            <?php if ($page > 1): ?>
-                                <a href="<?= htmlspecialchars($query(['page' => (string) ($page - 1)])) ?>" class="h-9 px-3 inline-flex items-center rounded-xl text-xs font-semibold bg-white/80 dark:bg-white/[0.04] border border-black/[0.06]"><?= htmlspecialchars(t('admin.logs_prev')) ?></a>
-                            <?php endif; ?>
-                            <?php if ($page < $pages): ?>
-                                <a href="<?= htmlspecialchars($query(['page' => (string) ($page + 1)])) ?>" class="h-9 px-3 inline-flex items-center rounded-xl text-xs font-semibold bg-white/80 dark:bg-white/[0.04] border border-black/[0.06]"><?= htmlspecialchars(t('admin.logs_next')) ?></a>
-                            <?php endif; ?>
-                        </div>
-                    </div>
+                    <?php endif; ?>
                 <?php endif; ?>
-            <?php endif; ?>
+            </section>
 
             <?php if ($canManage && $categoryId > 0):
                 $current = null;
@@ -188,40 +186,60 @@ $query = static function (array $extra = []) use ($q, $categoryId, $dateFrom, $d
                 if ($current):
                     $inUse = (int) ($current['doc_count'] ?? 0) > 0 || (int) ($current['child_count'] ?? 0) > 0;
             ?>
-                <div class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 shadow-soft p-4 sm:p-5">
-                    <h2 class="font-display font-bold text-sm text-ink-900 dark:text-white mb-3"><?= htmlspecialchars(t('admin.library_cat_edit')) ?></h2>
-                    <form method="post" action="<?= ProductHelper::url('/admin/library/categories/' . $categoryId . '/update') ?>" class="space-y-2">
+                <section class="adm-card">
+                    <div class="adm-card-head">
+                        <h2 class="adm-card-title"><?= $e(t('admin.library_cat_edit')) ?></h2>
+                    </div>
+                    <form method="post" action="<?= ProductHelper::url('/admin/library/categories/' . $categoryId . '/update') ?>">
                         <?= csrf_field() ?>
-                        <input type="text" name="name" required minlength="2" maxlength="180" class="<?= $input ?>" value="<?= htmlspecialchars((string) $current['name']) ?>">
-                        <?php if ((int) ($current['depth'] ?? 0) === 0): ?>
-                            <input type="hidden" name="parent_id" value="">
-                        <?php else: ?>
-                            <select name="parent_id" class="<?= $input ?>">
-                                <option value=""><?= htmlspecialchars(t('admin.library_cat_root')) ?></option>
-                                <?php foreach ($categories as $opt):
-                                    if ((int) ($opt['depth'] ?? 0) >= 1 || (int) $opt['id'] === $categoryId) {
-                                        continue;
-                                    }
-                                ?>
-                                    <option value="<?= (int) $opt['id'] ?>" <?= (int) ($current['parent_id'] ?? 0) === (int) $opt['id'] ? 'selected' : '' ?>><?= htmlspecialchars((string) $opt['name']) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        <?php endif; ?>
-                        <div class="flex flex-wrap gap-2">
-                            <button type="submit" class="h-10 px-4 rounded-xl bg-ink-900 text-white text-xs font-bold uppercase tracking-wider"><?= htmlspecialchars(t('admin.library_cat_save')) ?></button>
+                        <div class="adm-card-body">
+                            <div class="adm-form-grid">
+                                <div class="adm-field<?= (int) ($current['depth'] ?? 0) === 0 ? ' span-2' : '' ?>">
+                                    <label class="adm-label" for="lib-cat-name"><?= $e(t('admin.library_cat_name')) ?></label>
+                                    <input id="lib-cat-name" type="text" name="name" required minlength="2" maxlength="180" class="adm-input" value="<?= $e($current['name']) ?>">
+                                </div>
+                                <?php if ((int) ($current['depth'] ?? 0) === 0): ?>
+                                    <input type="hidden" name="parent_id" value="">
+                                <?php else: ?>
+                                    <div class="adm-field">
+                                        <label class="adm-label" for="lib-cat-parent"><?= $e(t('admin.library_cat_parent')) ?></label>
+                                        <select id="lib-cat-parent" name="parent_id" class="adm-select">
+                                            <option value=""><?= $e(t('admin.library_cat_root')) ?></option>
+                                            <?php foreach ($categories as $opt):
+                                                if ((int) ($opt['depth'] ?? 0) >= 1 || (int) $opt['id'] === $categoryId) {
+                                                    continue;
+                                                }
+                                            ?>
+                                                <option value="<?= (int) $opt['id'] ?>" <?= (int) ($current['parent_id'] ?? 0) === (int) $opt['id'] ? 'selected' : '' ?>><?= $e($opt['name']) ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <div class="adm-card-foot adm-form-actions" style="align-items:center">
                             <?php if (!$inUse): ?>
-                                <button type="submit" form="lib-cat-del-<?= $categoryId ?>" class="h-10 px-4 rounded-xl border border-red-200 text-red-600 text-xs font-bold uppercase tracking-wider"
-                                        onclick="return confirm(<?= json_encode(t('admin.library_cat_delete_confirm')) ?>)"><?= htmlspecialchars(t('admin.delete')) ?></button>
+                                <button type="submit" form="lib-cat-del-<?= $categoryId ?>" class="adm-btn adm-btn--danger"
+                                        onclick="return confirm(<?= $e(json_encode(t('admin.library_cat_delete_confirm'))) ?>)"><?= $e(t('admin.delete')) ?></button>
                             <?php else: ?>
-                                <span class="inline-flex items-center text-[11px] text-gray-400"><?= htmlspecialchars(t('admin.library_cat_in_use')) ?></span>
+                                <span class="adm-help"><?= $e(t('admin.library_cat_in_use')) ?></span>
                             <?php endif; ?>
+                            <button type="submit" class="adm-btn"><?= $e(t('admin.library_cat_save')) ?></button>
                         </div>
                     </form>
                     <?php if (!$inUse): ?>
-                        <form method="post" action="<?= ProductHelper::url('/admin/library/categories/' . $categoryId . '/delete') ?>" id="lib-cat-del-<?= $categoryId ?>" class="hidden"><?= csrf_field() ?></form>
+                        <form method="post" action="<?= ProductHelper::url('/admin/library/categories/' . $categoryId . '/delete') ?>" id="lib-cat-del-<?= $categoryId ?>" hidden><?= csrf_field() ?></form>
                     <?php endif; ?>
-                </div>
+                </section>
             <?php endif; endif; ?>
         </div>
     </div>
-</section>
+</div>
+<style>
+.adm-lib-grid { display: grid; gap: 16px; grid-template-columns: 1fr; align-items: start; }
+@media (min-width: 1024px) { .adm-lib-grid { grid-template-columns: 260px minmax(0, 1fr); } }
+.adm-folder { padding-top: 7px; padding-bottom: 7px; border-top: 0; }
+.adm-folder .adm-row-title { font-weight: 400; color: var(--adm-text-2); }
+.adm-folder.is-active { background: var(--adm-accent-soft); }
+.adm-folder.is-active .adm-row-title { font-weight: 500; color: var(--adm-text); }
+</style>

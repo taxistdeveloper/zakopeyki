@@ -15,6 +15,10 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 
 require dirname(__DIR__) . '/tests/bootstrap.php';
 
+// Этап 3 проверяет браузерный провайдер: фиксируем его независимо от Azure-ключа и установленного edge-tts.
+putenv('AI_TTS_PROVIDER=browser');
+\App\Services\AI\Core\AiConfig::reset();
+
 use App\Services\AI\DTO\TtsResult;
 use App\Services\AI\Support\SpeechTextNormalizer;
 use App\Services\AI\Contracts\TextToSpeechInterface;

@@ -1,58 +1,75 @@
 <?php
 use App\Helpers\ProductHelper;
-$input = 'w-full h-11 px-3.5 rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 text-sm';
+$e = static fn ($s): string => htmlspecialchars((string) $s);
+$saved = static fn (bool $has): string => $has ? ' <span class="adm-badge adm-badge--ok"><span class="adm-dot"></span>' . htmlspecialchars(t('admin.stream_saved_secret')) . '</span>' : '';
 ?>
-<section class="max-w-3xl mx-auto pb-16 space-y-5">
-    <div>
-        <a href="<?= ProductHelper::url('/admin') ?>" class="text-sm text-gray-400 hover:text-brand-600">← <?= htmlspecialchars(t('admin.title')) ?></a>
-        <h1 class="font-display text-2xl font-bold mt-2"><?= htmlspecialchars(t('admin.stream_title')) ?></h1>
-        <p class="text-sm text-gray-500 mt-1"><?= htmlspecialchars(t('admin.stream_hint')) ?></p>
-    </div>
+<div class="adm">
+    <header class="adm-head">
+        <div>
+            <h1 class="adm-title"><?= $e(t('admin.stream_title')) ?></h1>
+            <p class="adm-sub"><?= $e(t('admin.stream_hint')) ?></p>
+        </div>
+    </header>
+
+    <?php \App\Core\View::partial('admin/_nav'); ?>
+
     <?php if (!empty($flash)): ?>
-        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-800 px-4 py-3 text-sm font-semibold"><?= htmlspecialchars((string) $flash) ?></div>
+        <div class="adm-alert adm-alert--ok" role="status"><?= $e((string) $flash) ?></div>
     <?php endif; ?>
     <?php if (!empty($error)): ?>
-        <div class="rounded-2xl border border-red-200 bg-red-50 text-red-800 px-4 py-3 text-sm font-semibold"><?= htmlspecialchars((string) $error) ?></div>
+        <div class="adm-alert adm-alert--error" role="alert"><?= $e((string) $error) ?></div>
     <?php endif; ?>
 
-    <form method="post" action="<?= ProductHelper::url('/admin/stream') ?>" class="space-y-4 rounded-2xl border border-black/[0.06] p-5 bg-white dark:bg-white/[0.04]">
+    <form method="post" action="<?= ProductHelper::url('/admin/stream') ?>" class="adm-card" style="max-width:820px">
         <?= csrf_field() ?>
-        <div>
-            <label class="block text-xs font-bold mb-1">Account ID</label>
-            <input name="cf_stream_account_id" class="<?= $input ?>" value="<?= htmlspecialchars((string) ($accountId ?? '')) ?>">
+        <div class="adm-card-head">
+            <h2 class="adm-card-title">Cloudflare Stream</h2>
         </div>
-        <div>
-            <label class="block text-xs font-bold mb-1">API Token <?= !empty($hasToken) ? '(' . htmlspecialchars(t('admin.stream_saved_secret')) . ')' : '' ?></label>
-            <input type="password" name="cf_stream_api_token" class="<?= $input ?>" autocomplete="new-password" placeholder="<?= !empty($hasToken) ? '••••••••' : '' ?>">
-        </div>
-        <div>
-            <label class="block text-xs font-bold mb-1">Customer subdomain</label>
-            <input name="cf_stream_customer_subdomain" class="<?= $input ?>" placeholder="customer-xxxxx.cloudflarestream.com" value="<?= htmlspecialchars((string) ($customerSubdomain ?? '')) ?>">
-        </div>
-        <div>
-            <label class="block text-xs font-bold mb-1">Signing Key ID</label>
-            <input name="cf_stream_signing_key_id" class="<?= $input ?>" value="<?= htmlspecialchars((string) ($signingKeyId ?? '')) ?>">
-        </div>
-        <div>
-            <label class="block text-xs font-bold mb-1">Signing Key PEM <?= !empty($hasPem) ? '(' . htmlspecialchars(t('admin.stream_saved_secret')) . ')' : '' ?></label>
-            <textarea name="cf_stream_signing_key_pem" rows="6" class="<?= $input ?> h-auto py-3 font-mono text-xs" placeholder="-----BEGIN PRIVATE KEY-----"></textarea>
-        </div>
-        <div>
-            <label class="block text-xs font-bold mb-1">Webhook secret <?= !empty($hasWebhook) ? '(' . htmlspecialchars(t('admin.stream_saved_secret')) . ')' : '' ?></label>
-            <input type="password" name="cf_stream_webhook_secret" class="<?= $input ?>">
-        </div>
-        <label class="flex items-center gap-2 text-sm">
-            <input type="checkbox" name="cf_stream_require_signed" value="1" <?= !empty($requireSigned) ? 'checked' : '' ?>>
-            <?= htmlspecialchars(t('admin.stream_require_signed')) ?>
-        </label>
-        <div class="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800/40 p-3 space-y-1">
-            <label class="flex items-center gap-2 text-sm font-semibold">
-                <input type="checkbox" name="live_giveaway_enabled" value="1" <?= !empty($liveGiveawayEnabled) ? 'checked' : '' ?>>
-                <?= htmlspecialchars(t('admin.live_giveaway_enabled')) ?>
+        <div class="adm-card-body adm-form-grid">
+            <label class="adm-field">
+                <span class="adm-label">Account ID</span>
+                <input name="cf_stream_account_id" class="adm-input mono" value="<?= $e((string) ($accountId ?? '')) ?>">
             </label>
-            <p class="text-[12px] text-amber-800 dark:text-amber-300"><?= htmlspecialchars(t('admin.live_giveaway_legal_hint')) ?></p>
+            <label class="adm-field">
+                <span class="adm-label">API Token<?= $saved(!empty($hasToken)) ?></span>
+                <input type="password" name="cf_stream_api_token" class="adm-input" autocomplete="new-password" placeholder="<?= !empty($hasToken) ? '••••••••' : '' ?>">
+            </label>
+            <label class="adm-field">
+                <span class="adm-label">Customer subdomain</span>
+                <input name="cf_stream_customer_subdomain" class="adm-input mono" placeholder="customer-xxxxx.cloudflarestream.com" value="<?= $e((string) ($customerSubdomain ?? '')) ?>">
+            </label>
+            <label class="adm-field">
+                <span class="adm-label">Signing Key ID</span>
+                <input name="cf_stream_signing_key_id" class="adm-input mono" value="<?= $e((string) ($signingKeyId ?? '')) ?>">
+            </label>
+            <label class="adm-field span-2">
+                <span class="adm-label">Signing Key PEM<?= $saved(!empty($hasPem)) ?></span>
+                <textarea name="cf_stream_signing_key_pem" rows="6" class="adm-textarea mono" style="font-size:12px" placeholder="-----BEGIN PRIVATE KEY-----"></textarea>
+            </label>
+            <label class="adm-field">
+                <span class="adm-label">Webhook secret<?= $saved(!empty($hasWebhook)) ?></span>
+                <input type="password" name="cf_stream_webhook_secret" class="adm-input" autocomplete="new-password">
+            </label>
+            <div class="adm-field">
+                <span class="adm-label"><?= $e(t('admin.stream_webhook_url')) ?></span>
+                <span class="mono muted" style="font-size:12px;overflow-wrap:anywhere;padding-top:8px"><?= $e(ProductHelper::url('/webhooks/cloudflare/stream')) ?></span>
+            </div>
+            <div class="span-2">
+                <label class="adm-check">
+                    <input type="checkbox" name="cf_stream_require_signed" value="1" <?= !empty($requireSigned) ? 'checked' : '' ?>>
+                    <?= $e(t('admin.stream_require_signed')) ?>
+                </label>
+            </div>
+            <div class="span-2 adm-alert adm-alert--warn" style="display:flex;flex-direction:column;gap:6px">
+                <label class="adm-check" style="color:var(--adm-text);font-weight:500">
+                    <input type="checkbox" name="live_giveaway_enabled" value="1" <?= !empty($liveGiveawayEnabled) ? 'checked' : '' ?>>
+                    <?= $e(t('admin.live_giveaway_enabled')) ?>
+                </label>
+                <span style="font-size:12px"><?= $e(t('admin.live_giveaway_legal_hint')) ?></span>
+            </div>
         </div>
-        <p class="text-[12px] text-gray-400"><?= htmlspecialchars(t('admin.stream_webhook_url')) ?>: <?= htmlspecialchars(ProductHelper::url('/webhooks/cloudflare/stream')) ?></p>
-        <button class="h-11 px-5 rounded-xl bg-violet-700 text-white text-xs font-bold uppercase"><?= htmlspecialchars(t('admin.stream_save')) ?></button>
+        <div class="adm-card-foot adm-form-actions">
+            <button class="adm-btn adm-btn--primary"><?= $e(t('admin.stream_save')) ?></button>
+        </div>
     </form>
-</section>
+</div>

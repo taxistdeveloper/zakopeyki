@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\User;
 
 $nav = $currentNav ?? '';
+$admMode = \App\Helpers\AdminNav::isAdminPage($nav);
 $user = Auth::user();
 
 function navClass(string $key, string $nav): string
@@ -27,6 +28,22 @@ $navIcon = static fn (string $name): string => IconHelper::svg($name, 'w-[18px] 
         <button onclick="toggleSidebar()" class="lg:hidden absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-xl text-gray-400 hover:bg-black/5 hover:text-ink-800">✕</button>
     </div>
 
+    <?php if ($admMode): ?>
+    <nav class="adm-side" aria-label="<?= htmlspecialchars(t('admin.title')) ?>">
+        <a href="<?= ProductHelper::url('/') ?>" class="adm-side-back">← <?= htmlspecialchars(t('admin.nav_back_to_site')) ?></a>
+        <?php foreach (\App\Helpers\AdminNav::groups() as $admGroup): ?>
+            <div class="adm-side-group">
+                <p class="adm-side-title"><?= htmlspecialchars($admGroup['title']) ?></p>
+                <?php foreach ($admGroup['items'] as $admItem): ?>
+                    <a href="<?= ProductHelper::url($admItem['path']) ?>" class="adm-side-item<?= $admItem['active'] ? ' is-active' : '' ?>"<?= $admItem['active'] ? ' aria-current="page"' : '' ?>>
+                        <span class="truncate"><?= htmlspecialchars($admItem['label']) ?></span>
+                        <?php if ($admItem['count'] > 0): ?><span class="adm-side-count<?= $admItem['tone'] !== '' ? ' is-' . $admItem['tone'] : '' ?>"><?= $admItem['count'] > 99 ? '99+' : $admItem['count'] ?></span><?php endif; ?>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        <?php endforeach; ?>
+    </nav>
+    <?php else: ?>
     <nav class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto scrollbar-hide">
         <p class="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400"><?= htmlspecialchars(t('nav.menu')) ?></p>
         <a href="<?= ProductHelper::url('/') ?>" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition <?= navClass('home', $nav) ?>">
@@ -199,6 +216,7 @@ $navIcon = static fn (string $name): string => IconHelper::svg($name, 'w-[18px] 
         </div>
         <?php endif; ?>
     </nav>
+    <?php endif; ?>
 
     <?php if ($user): ?>
     <div class="p-3 m-3 rounded-2xl bg-white dark:bg-white/5 border border-black/[0.06] dark:border-white/10 shadow-soft">

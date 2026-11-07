@@ -8,820 +8,381 @@ $canDisputes = !empty($canDisputes);
 $isAdmin = !empty($isAdmin);
 $counts = $counts ?? [];
 $items = $items ?? [];
-$hasNav = true;
+$disputes = $disputes ?? [];
 $recentErrors = (int) ($recentErrors ?? 0);
 $stubMode = !empty($stubMode);
-$boostEnabled = !empty($boostEnabled);
-$paidServicesAdminEnabled = !empty($paidServicesAdminEnabled);
-$financeJournalEnabled = !empty($financeJournalEnabled);
-$serviceListingPublishEnabled = !empty($serviceListingPublishEnabled);
-$threeLiftsEnabled = !empty($threeLiftsEnabled);
-$highlightEnabled = !empty($highlightEnabled);
-$topFixedEnabled = !empty($topFixedEnabled);
-$topFixedXlEnabled = !empty($topFixedXlEnabled);
-$vipEnabled = !empty($vipEnabled);
 $adsFlags = is_array($adsFlags ?? null) ? $adsFlags : [];
-$targetPushEnabled = !empty($targetPushEnabled);
-$massPushEnabled = !empty($massPushEnabled);
+$e = static fn ($s): string => htmlspecialchars((string) $s);
+$u = static fn (string $p): string => ProductHelper::url($p);
+$cap = static fn (int $n): string => $n > 99 ? '99+' : (string) $n;
+
+/*
+ * Модули: [название, подсказка, включён, action, доп.поля, confirm вкл, confirm выкл, recover action, recover label, ссылка, подпись ссылки]
+ */
+$modules = [];
+if ($isAdmin) {
+    $simple = static function (string $k, bool $on, string $action, ?string $recover = null, ?string $open = null, ?string $openLabel = null, array $extra = []) {
+        return [
+            'name' => t("admin.{$k}_status"),
+            'hint' => t("admin.{$k}_hint"),
+            'on' => $on,
+            'action' => $action,
+            'extra' => $extra,
+            'confirm_on' => t("admin.{$k}_enable_confirm"),
+            'confirm_off' => t("admin.{$k}_disable_confirm"),
+            'label_on' => t("admin.{$k}_enable_action"),
+            'label_off' => t("admin.{$k}_disable_action"),
+            'recover' => $recover,
+            'recover_label' => $recover ? t("admin.{$k}_recover") : null,
+            'open' => $open,
+            'open_label' => $openLabel,
+        ];
+    };
+    $paidOn = !empty($paidServicesAdminEnabled);
+    $finOn = !empty($financeJournalEnabled);
+    $threeOn = !empty($threeLiftsEnabled);
+
+    $p = $simple('paid_services_module', $paidOn, '/admin/paid-services/module', null, $paidOn ? '/admin/paid-services' : null, t('admin.paid_services_module_open'));
+    $p['name'] = t('admin.paid_services');
+    $modules[] = $p;
+    $f = $simple('finance_journal_module', $finOn, '/admin/finance-journal/module', null, $finOn ? '/admin/finance-journal' : null, t('admin.finance_journal_module_open'));
+    $f['name'] = t('admin.finance_journal');
+    $modules[] = $f;
+    $modules[] = $simple('service_listing', !empty($serviceListingPublishEnabled), '/admin/service-listing-publish');
+    $modules[] = $simple('boost', !empty($boostEnabled), '/admin/boost', !empty($boostEnabled) ? '/admin/boost/recover' : null);
+    $modules[] = $simple('three_lifts', $threeOn, '/admin/three-lifts', null, null, null, ['expected' => $threeOn ? '1' : '0']);
+    $modules[] = $simple('highlight', !empty($highlightEnabled), '/admin/highlight', !empty($highlightEnabled) ? '/admin/highlight/recover' : null);
+    $modules[] = $simple('top_fixed', !empty($topFixedEnabled), '/admin/top-fixed', !empty($topFixedEnabled) ? '/admin/top-fixed/recover' : null);
+    $modules[] = $simple('top_fixed_xl', !empty($topFixedXlEnabled), '/admin/top-fixed-xl', !empty($topFixedXlEnabled) ? '/admin/top-fixed-xl/recover' : null);
+    $modules[] = $simple('vip', !empty($vipEnabled), '/admin/vip', !empty($vipEnabled) ? '/admin/vip/recover' : null);
+    foreach (['hero', 'category', 'sidebar', 'exclusive'] as $fmt) {
+        $on = !empty($adsFlags[$fmt]);
+        $name = t('ads.format_' . $fmt);
+        $modules[] = [
+            'name' => t('admin.ads_switch') . ' · ' . $name,
+            'hint' => t('admin.ads_switch_hint', ['rate' => t('ads.rate_' . $fmt)]),
+            'on' => $on,
+            'action' => '/admin/ads/' . $fmt,
+            'extra' => [],
+            'confirm_on' => t('admin.ads_enable_confirm', ['name' => $name]),
+            'confirm_off' => t('admin.ads_disable_confirm', ['name' => $name]),
+            'label_on' => t('admin.ads_enable_action'),
+            'label_off' => t('admin.ads_disable_action'),
+            'recover' => $on ? '/admin/ads/' . $fmt . '/recover' : null,
+            'recover_label' => t('admin.ads_recover'),
+            'open' => '/admin/ads',
+            'open_label' => t('admin.ads_moderation'),
+        ];
+    }
+    $modules[] = $simple('target_push', !empty($targetPushEnabled), '/admin/target-push', null, '/admin/target-push', t('admin.target_push_moderation'));
+    $modules[] = $simple('mass_push', !empty($massPushEnabled), '/admin/mass-push', null, '/admin/mass-push', t('admin.mass_push_moderation'));
+}
+
+/* Очереди, требующие внимания */
+$attention = [];
+if ($canTickets) {
+    $attention[] = ['/admin/tickets', t('admin.tickets'), t('admin.tickets_hint'), (int) ($ticketUnread ?? 0), (int) ($openTickets ?? 0), 'danger'];
+}
+if ($canAi) {
+    $attention[] = ['/admin/ai-chats', t('admin.dash_escalated'), t('admin.ai_chats_hint'), (int) ($aiEscalated ?? 0), null, 'warn'];
+}
+$attention[] = ['/admin/tasks', t('admin.dash_open_tasks'), t('admin.tasks_hint'), (int) ($openTasks ?? 0), null, 'warn'];
+if ($isAdmin) {
+    $attention[] = ['/admin/aml', t('admin.dash_aml_blocked'), t('admin.aml_hint'), (int) ($amlBlockedCount ?? 0), null, 'danger'];
+    $attention[] = ['/admin/logs', t('admin.dash_errors_24h'), t('admin.logs_hint'), $recentErrors, null, 'danger'];
+}
 ?>
-<section class="space-y-6 fade-up">
-    <div>
-        <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-red-500 mb-1"><?= htmlspecialchars(t('admin.eyebrow')) ?></p>
-        <h2 class="font-display text-xl sm:text-2xl font-bold tracking-tight text-ink-900 dark:text-white"><?= htmlspecialchars(t('admin.heading')) ?></h2>
-    </div>
+<div class="adm">
+    <header class="adm-head">
+        <div>
+            <h1 class="adm-title"><?= $e(t('admin.heading')) ?></h1>
+        </div>
+    </header>
+
+    <?php \App\Core\View::partial('admin/_nav'); ?>
 
     <?php if (!empty($flash)): ?>
-        <div class="bg-emerald-50 dark:bg-emerald-900/25 text-emerald-800 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800/40 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars($flash) ?></div>
+        <div class="adm-alert adm-alert--ok" role="status"><?= $e($flash) ?></div>
     <?php endif; ?>
     <?php if (!empty($error)): ?>
-        <div class="bg-red-50 dark:bg-red-900/25 text-red-800 dark:text-red-300 border border-red-100 dark:border-red-800/40 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars($error) ?></div>
+        <div class="adm-alert adm-alert--error" role="alert"><?= $e($error) ?></div>
     <?php endif; ?>
 
     <?php if ($isAdmin):
         $userStats = $userStats ?? [];
         $visitStats = $visitStats ?? [];
         $recentVisitors = $recentVisitors ?? [];
-        $statTotal = (int) ($userStats['total'] ?? $userCount ?? 0);
-        $statToday = (int) ($userStats['today'] ?? 0);
-        $statWeek = (int) ($userStats['week'] ?? 0);
-        $visitorsToday = (int) ($visitStats['visitors_today'] ?? 0);
-        $visitorsWeek = (int) ($visitStats['visitors_week'] ?? 0);
-        $visitorsTotal = (int) ($visitStats['visitors_total'] ?? 0);
-        $hitsToday = (int) ($visitStats['hits_today'] ?? 0);
     ?>
-    <div>
-        <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400 mb-2"><?= htmlspecialchars(t('admin.stats_visits_heading')) ?></p>
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft">
-                <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.stats_visitors_today')) ?></div>
-                <div class="font-display text-2xl font-bold mt-1 text-ink-900 dark:text-white"><?= $visitorsToday ?></div>
-                <div class="text-[10px] text-gray-400 mt-1"><?= $hitsToday ?> <?= htmlspecialchars(t('admin.stats_hits_label')) ?></div>
-            </div>
-            <div class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft">
-                <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.stats_visitors_week')) ?></div>
-                <div class="font-display text-2xl font-bold mt-1 text-ink-900 dark:text-white"><?= $visitorsWeek ?></div>
-            </div>
-            <div class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft">
-                <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.stats_visitors_total')) ?></div>
-                <div class="font-display text-2xl font-bold mt-1 text-ink-900 dark:text-white"><?= $visitorsTotal ?></div>
-            </div>
-            <a href="<?= ProductHelper::url('/admin/users') ?>" class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft hover:border-brand-400/50 transition block">
-                <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.stats_users_total')) ?></div>
-                <div class="font-display text-2xl font-bold mt-1 text-ink-900 dark:text-white"><?= $statTotal ?></div>
-                <div class="text-[10px] text-gray-400 mt-1">+<?= $statToday ?> <?= htmlspecialchars(t('admin.stats_today_short')) ?> · +<?= $statWeek ?> <?= htmlspecialchars(t('admin.stats_week_short')) ?></div>
-            </a>
+    <div class="adm-stats" style="--cols:4">
+        <div class="adm-stat">
+            <div class="adm-stat-label"><?= $e(t('admin.stats_visitors_today')) ?></div>
+            <div class="adm-stat-value"><?= (int) ($visitStats['visitors_today'] ?? 0) ?></div>
+            <div class="adm-stat-meta"><?= (int) ($visitStats['hits_today'] ?? 0) ?> <?= $e(t('admin.stats_hits_label')) ?></div>
         </div>
-    </div>
-
-    <details class="group bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 shadow-soft overflow-hidden">
-        <summary class="list-none cursor-pointer select-none px-4 py-3.5 flex items-center justify-between gap-3 hover:bg-black/[0.02] dark:hover:bg-white/[0.03] transition [&::-webkit-details-marker]:hidden">
-            <div class="min-w-0">
-                <h3 class="font-display font-bold text-ink-900 dark:text-white"><?= htmlspecialchars(t('admin.stats_recent_visitors')) ?></h3>
-                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.stats_recent_visitors_hint')) ?></p>
-            </div>
-            <div class="flex items-center gap-2 flex-shrink-0">
-                <?php if (!empty($recentVisitors)): ?>
-                    <span class="min-w-[1.25rem] h-5 px-1.5 rounded-full bg-brand-500 text-white text-[10px] font-bold flex items-center justify-center"><?= count($recentVisitors) ?></span>
-                <?php endif; ?>
-                <svg class="w-4 h-4 text-gray-400 transition-transform duration-200 group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
-                </svg>
-            </div>
-        </summary>
-        <?php if (empty($recentVisitors)): ?>
-            <div class="px-4 py-10 text-center text-sm text-gray-400 border-t border-black/[0.06] dark:border-white/10"><?= htmlspecialchars(t('admin.stats_visitors_empty')) ?></div>
-        <?php else: ?>
-            <div class="divide-y divide-black/[0.04] dark:divide-white/5 border-t border-black/[0.06] dark:border-white/10">
-                <?php foreach ($recentVisitors as $v):
-                    $uid = (int) ($v['user_id'] ?? 0);
-                    $name = trim((string) ($v['user_name'] ?? ''));
-                    $label = $name !== '' ? $name : t('admin.stats_guest');
-                    $path = (string) ($v['path'] ?? '/');
-                    $ip = (string) ($v['ip'] ?? '');
-                    $when = (string) ($v['last_seen_at'] ?? '');
-                    $hits = (int) ($v['hits'] ?? 1);
-                ?>
-                    <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
-                        <div class="min-w-0 flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-xl <?= $uid > 0 ? 'bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300' : 'bg-gray-100 text-gray-500 dark:bg-white/10' ?> flex items-center justify-center text-[11px] font-bold flex-shrink-0">
-                                <?= htmlspecialchars(mb_strtoupper(mb_substr($label, 0, 1))) ?>
-                            </div>
-                            <div class="min-w-0">
-                                <?php if ($uid > 0): ?>
-                                    <a href="<?= ProductHelper::url('/admin/users/' . $uid) ?>" class="text-xs font-semibold text-ink-900 dark:text-white hover:text-brand-600 truncate block">
-                                        <?= htmlspecialchars($label) ?>
-                                    </a>
-                                <?php else: ?>
-                                    <p class="text-xs font-semibold text-ink-900 dark:text-white truncate"><?= htmlspecialchars($label) ?></p>
-                                <?php endif; ?>
-                                <p class="text-[11px] text-gray-400 mt-0.5 truncate">
-                                    <?= htmlspecialchars($path) ?>
-                                    <?php if ($ip !== ''): ?> · <?= htmlspecialchars($ip) ?><?php endif; ?>
-                                    · <?= $hits ?> <?= htmlspecialchars(t('admin.stats_hits_label')) ?>
-                                </p>
-                            </div>
-                        </div>
-                        <span class="text-[10px] text-gray-400 flex-shrink-0"><?= htmlspecialchars(substr($when, 0, 16)) ?></span>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
-    </details>
-
-    <div class="rounded-[22px] border shadow-soft overflow-hidden <?= $stubMode
-        ? 'bg-amber-50/90 dark:bg-amber-950/30 border-amber-200/80 dark:border-amber-800/40'
-        : 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/40' ?>">
-        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
-            <div class="min-w-0">
-                <p class="text-[10px] font-semibold uppercase tracking-[0.14em] <?= $stubMode ? 'text-amber-600' : 'text-emerald-600' ?>">
-                    <?= htmlspecialchars(t('admin.site_status')) ?>
-                </p>
-                <h3 class="font-display font-bold text-ink-900 dark:text-white mt-0.5">
-                    <?= htmlspecialchars($stubMode ? t('admin.site_closed') : t('admin.site_open')) ?>
-                </h3>
-                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.site_status_hint')) ?></p>
-            </div>
-            <form method="post" action="<?= ProductHelper::url('/admin/site-status') ?>" class="shrink-0">
-                <?= csrf_field() ?>
-                <input type="hidden" name="open" value="<?= $stubMode ? '1' : '0' ?>">
-                <button type="submit"
-                    class="h-10 px-4 rounded-xl text-xs font-bold text-white transition <?= $stubMode
-                        ? 'bg-emerald-600 hover:bg-emerald-700'
-                        : 'bg-amber-600 hover:bg-amber-700' ?>"
-                    onclick="return confirm(<?= json_encode($stubMode ? t('admin.site_open_confirm') : t('admin.site_close_confirm')) ?>)">
-                    <?= htmlspecialchars($stubMode ? t('admin.site_open_action') : t('admin.site_close_action')) ?>
-                </button>
-            </form>
+        <div class="adm-stat">
+            <div class="adm-stat-label"><?= $e(t('admin.stats_visitors_week')) ?></div>
+            <div class="adm-stat-value"><?= (int) ($visitStats['visitors_week'] ?? 0) ?></div>
         </div>
-    </div>
-
-    <div class="rounded-[22px] border shadow-soft overflow-hidden <?= $paidServicesAdminEnabled
-        ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/40'
-        : 'bg-white/90 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/10' ?>">
-        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
-            <div class="min-w-0">
-                <p class="text-[10px] font-semibold uppercase tracking-[0.14em] <?= $paidServicesAdminEnabled ? 'text-emerald-600' : 'text-gray-500' ?>">
-                    <?= htmlspecialchars(t('admin.paid_services_module_status')) ?>
-                </p>
-                <h3 class="font-display font-bold text-ink-900 dark:text-white mt-0.5">
-                    <?= htmlspecialchars($paidServicesAdminEnabled ? t('admin.paid_services_module_on') : t('admin.paid_services_module_off')) ?>
-                </h3>
-                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.paid_services_module_hint')) ?></p>
-            </div>
-            <div class="flex flex-wrap items-center gap-2 shrink-0">
-                <?php if ($paidServicesAdminEnabled): ?>
-                    <a href="<?= ProductHelper::url('/admin/paid-services') ?>"
-                       class="h-10 px-4 rounded-xl text-xs font-bold border border-black/10 dark:border-white/15 inline-flex items-center text-ink-800 dark:text-gray-200">
-                        <?= htmlspecialchars(t('admin.paid_services_module_open')) ?>
-                    </a>
-                <?php endif; ?>
-                <form method="post" action="<?= ProductHelper::url('/admin/paid-services/module') ?>">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="enabled" value="<?= $paidServicesAdminEnabled ? '0' : '1' ?>">
-                    <button type="submit"
-                        class="h-10 px-4 rounded-xl text-xs font-bold text-white transition <?= $paidServicesAdminEnabled
-                            ? 'bg-amber-600 hover:bg-amber-700'
-                            : 'bg-emerald-600 hover:bg-emerald-700' ?>"
-                        onclick="return confirm(<?= json_encode($paidServicesAdminEnabled ? t('admin.paid_services_module_disable_confirm') : t('admin.paid_services_module_enable_confirm')) ?>)">
-                        <?= htmlspecialchars($paidServicesAdminEnabled ? t('admin.paid_services_module_disable_action') : t('admin.paid_services_module_enable_action')) ?>
-                    </button>
-                </form>
-            </div>
+        <div class="adm-stat">
+            <div class="adm-stat-label"><?= $e(t('admin.stats_visitors_total')) ?></div>
+            <div class="adm-stat-value"><?= (int) ($visitStats['visitors_total'] ?? 0) ?></div>
         </div>
-    </div>
-
-    <div class="rounded-[22px] border shadow-soft overflow-hidden <?= $financeJournalEnabled
-        ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/40'
-        : 'bg-white/90 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/10' ?>">
-        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
-            <div class="min-w-0">
-                <p class="text-[10px] font-semibold uppercase tracking-[0.14em] <?= $financeJournalEnabled ? 'text-emerald-600' : 'text-gray-500' ?>">
-                    <?= htmlspecialchars(t('admin.finance_journal_module_status')) ?>
-                </p>
-                <h3 class="font-display font-bold text-ink-900 dark:text-white mt-0.5">
-                    <?= htmlspecialchars($financeJournalEnabled ? t('admin.finance_journal_module_on') : t('admin.finance_journal_module_off')) ?>
-                </h3>
-                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.finance_journal_module_hint')) ?></p>
-            </div>
-            <div class="flex flex-wrap items-center gap-2 shrink-0">
-                <?php if ($financeJournalEnabled): ?>
-                    <a href="<?= ProductHelper::url('/admin/finance-journal') ?>"
-                       class="h-10 px-4 rounded-xl text-xs font-bold border border-black/10 dark:border-white/15 inline-flex items-center text-ink-800 dark:text-gray-200">
-                        <?= htmlspecialchars(t('admin.finance_journal_module_open')) ?>
-                    </a>
-                <?php endif; ?>
-                <form method="post" action="<?= ProductHelper::url('/admin/finance-journal/module') ?>">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="enabled" value="<?= $financeJournalEnabled ? '0' : '1' ?>">
-                    <button type="submit"
-                        class="h-10 px-4 rounded-xl text-xs font-bold text-white transition <?= $financeJournalEnabled
-                            ? 'bg-amber-600 hover:bg-amber-700'
-                            : 'bg-emerald-600 hover:bg-emerald-700' ?>"
-                        onclick="return confirm(<?= json_encode($financeJournalEnabled ? t('admin.finance_journal_module_disable_confirm') : t('admin.finance_journal_module_enable_confirm')) ?>)">
-                        <?= htmlspecialchars($financeJournalEnabled ? t('admin.finance_journal_module_disable_action') : t('admin.finance_journal_module_enable_action')) ?>
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <div class="rounded-[22px] border shadow-soft overflow-hidden <?= $serviceListingPublishEnabled
-        ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/40'
-        : 'bg-white/90 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/10' ?>">
-        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
-            <div class="min-w-0">
-                <p class="text-[10px] font-semibold uppercase tracking-[0.14em] <?= $serviceListingPublishEnabled ? 'text-emerald-600' : 'text-gray-500' ?>">
-                    <?= htmlspecialchars(t('admin.service_listing_status')) ?>
-                </p>
-                <h3 class="font-display font-bold text-ink-900 dark:text-white mt-0.5">
-                    <?= htmlspecialchars($serviceListingPublishEnabled ? t('admin.service_listing_on') : t('admin.service_listing_off')) ?>
-                </h3>
-                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.service_listing_hint')) ?></p>
-            </div>
-            <div class="flex flex-wrap items-center gap-2 shrink-0">
-                <form method="post" action="<?= ProductHelper::url('/admin/service-listing-publish') ?>">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="enabled" value="<?= $serviceListingPublishEnabled ? '0' : '1' ?>">
-                    <button type="submit"
-                        class="h-10 px-4 rounded-xl text-xs font-bold text-white transition <?= $serviceListingPublishEnabled
-                            ? 'bg-amber-600 hover:bg-amber-700'
-                            : 'bg-emerald-600 hover:bg-emerald-700' ?>"
-                        onclick="return confirm(<?= json_encode($serviceListingPublishEnabled ? t('admin.service_listing_disable_confirm') : t('admin.service_listing_enable_confirm')) ?>)">
-                        <?= htmlspecialchars($serviceListingPublishEnabled ? t('admin.service_listing_disable_action') : t('admin.service_listing_enable_action')) ?>
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <div class="rounded-[22px] border shadow-soft overflow-hidden <?= $boostEnabled
-        ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/40'
-        : 'bg-white/90 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/10' ?>">
-        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
-            <div class="min-w-0">
-                <p class="text-[10px] font-semibold uppercase tracking-[0.14em] <?= $boostEnabled ? 'text-emerald-600' : 'text-gray-500' ?>">
-                    <?= htmlspecialchars(t('admin.boost_status')) ?>
-                </p>
-                <h3 class="font-display font-bold text-ink-900 dark:text-white mt-0.5">
-                    <?= htmlspecialchars($boostEnabled ? t('admin.boost_on') : t('admin.boost_off')) ?>
-                </h3>
-                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.boost_hint')) ?></p>
-            </div>
-            <div class="flex flex-wrap items-center gap-2 shrink-0">
-                <?php if ($boostEnabled): ?>
-                    <form method="post" action="<?= ProductHelper::url('/admin/boost/recover') ?>">
-                        <?= csrf_field() ?>
-                        <button type="submit" class="h-10 px-4 rounded-xl text-xs font-bold border border-black/10 dark:border-white/15 text-ink-800 dark:text-gray-200">
-                            <?= htmlspecialchars(t('admin.boost_recover')) ?>
-                        </button>
-                    </form>
-                <?php endif; ?>
-                <form method="post" action="<?= ProductHelper::url('/admin/boost') ?>">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="enabled" value="<?= $boostEnabled ? '0' : '1' ?>">
-                    <button type="submit"
-                        class="h-10 px-4 rounded-xl text-xs font-bold text-white transition <?= $boostEnabled
-                            ? 'bg-amber-600 hover:bg-amber-700'
-                            : 'bg-emerald-600 hover:bg-emerald-700' ?>"
-                        onclick="return confirm(<?= json_encode($boostEnabled ? t('admin.boost_disable_confirm') : t('admin.boost_enable_confirm')) ?>)">
-                        <?= htmlspecialchars($boostEnabled ? t('admin.boost_disable_action') : t('admin.boost_enable_action')) ?>
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <div class="rounded-[22px] border shadow-soft overflow-hidden <?= $threeLiftsEnabled
-        ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/40'
-        : 'bg-white/90 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/10' ?>">
-        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
-            <div class="min-w-0">
-                <p class="text-[10px] font-semibold uppercase tracking-[0.14em] <?= $threeLiftsEnabled ? 'text-emerald-600' : 'text-gray-500' ?>">
-                    <?= htmlspecialchars(t('admin.three_lifts_status')) ?>
-                </p>
-                <h3 class="font-display font-bold text-ink-900 dark:text-white mt-0.5">
-                    <?= htmlspecialchars($threeLiftsEnabled ? t('admin.three_lifts_on') : t('admin.three_lifts_off')) ?>
-                </h3>
-                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.three_lifts_hint')) ?></p>
-            </div>
-            <form method="post" action="<?= ProductHelper::url('/admin/three-lifts') ?>" class="shrink-0">
-                <?= csrf_field() ?>
-                <input type="hidden" name="expected" value="<?= $threeLiftsEnabled ? '1' : '0' ?>">
-                <input type="hidden" name="enabled" value="<?= $threeLiftsEnabled ? '0' : '1' ?>">
-                <button type="submit"
-                    class="h-10 px-4 rounded-xl text-xs font-bold text-white transition <?= $threeLiftsEnabled
-                        ? 'bg-amber-600 hover:bg-amber-700'
-                        : 'bg-emerald-600 hover:bg-emerald-700' ?>"
-                    onclick="return confirm(<?= json_encode($threeLiftsEnabled ? t('admin.three_lifts_disable_confirm') : t('admin.three_lifts_enable_confirm')) ?>)">
-                    <?= htmlspecialchars($threeLiftsEnabled ? t('admin.three_lifts_disable_action') : t('admin.three_lifts_enable_action')) ?>
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <div class="rounded-[22px] border shadow-soft overflow-hidden <?= $highlightEnabled
-        ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/40'
-        : 'bg-white/90 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/10' ?>">
-        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
-            <div class="min-w-0">
-                <p class="text-[10px] font-semibold uppercase tracking-[0.14em] <?= $highlightEnabled ? 'text-emerald-600' : 'text-gray-500' ?>">
-                    <?= htmlspecialchars(t('admin.highlight_status')) ?>
-                </p>
-                <h3 class="font-display font-bold text-ink-900 dark:text-white mt-0.5">
-                    <?= htmlspecialchars($highlightEnabled ? t('admin.highlight_on') : t('admin.highlight_off')) ?>
-                </h3>
-                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.highlight_hint')) ?></p>
-            </div>
-            <div class="flex flex-wrap items-center gap-2 shrink-0">
-                <?php if ($highlightEnabled): ?>
-                    <form method="post" action="<?= ProductHelper::url('/admin/highlight/recover') ?>">
-                        <?= csrf_field() ?>
-                        <button type="submit" class="h-10 px-4 rounded-xl text-xs font-bold border border-black/10 dark:border-white/15 text-ink-800 dark:text-gray-200">
-                            <?= htmlspecialchars(t('admin.highlight_recover')) ?>
-                        </button>
-                    </form>
-                <?php endif; ?>
-                <form method="post" action="<?= ProductHelper::url('/admin/highlight') ?>">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="enabled" value="<?= $highlightEnabled ? '0' : '1' ?>">
-                    <button type="submit"
-                        class="h-10 px-4 rounded-xl text-xs font-bold text-white transition <?= $highlightEnabled
-                            ? 'bg-amber-600 hover:bg-amber-700'
-                            : 'bg-emerald-600 hover:bg-emerald-700' ?>"
-                        onclick="return confirm(<?= json_encode($highlightEnabled ? t('admin.highlight_disable_confirm') : t('admin.highlight_enable_confirm')) ?>)">
-                        <?= htmlspecialchars($highlightEnabled ? t('admin.highlight_disable_action') : t('admin.highlight_enable_action')) ?>
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <div class="rounded-[22px] border shadow-soft overflow-hidden <?= $topFixedEnabled
-        ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/40'
-        : 'bg-white/90 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/10' ?>">
-        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
-            <div class="min-w-0">
-                <p class="text-[10px] font-semibold uppercase tracking-[0.14em] <?= $topFixedEnabled ? 'text-emerald-600' : 'text-gray-500' ?>">
-                    <?= htmlspecialchars(t('admin.top_fixed_status')) ?>
-                </p>
-                <h3 class="font-display font-bold text-ink-900 dark:text-white mt-0.5">
-                    <?= htmlspecialchars($topFixedEnabled ? t('admin.top_fixed_on') : t('admin.top_fixed_off')) ?>
-                </h3>
-                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.top_fixed_hint')) ?></p>
-            </div>
-            <div class="flex flex-wrap items-center gap-2 shrink-0">
-                <?php if ($topFixedEnabled): ?>
-                    <form method="post" action="<?= ProductHelper::url('/admin/top-fixed/recover') ?>">
-                        <?= csrf_field() ?>
-                        <button type="submit" class="h-10 px-4 rounded-xl text-xs font-bold border border-black/10 dark:border-white/15 text-ink-800 dark:text-gray-200">
-                            <?= htmlspecialchars(t('admin.top_fixed_recover')) ?>
-                        </button>
-                    </form>
-                <?php endif; ?>
-                <form method="post" action="<?= ProductHelper::url('/admin/top-fixed') ?>">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="enabled" value="<?= $topFixedEnabled ? '0' : '1' ?>">
-                    <button type="submit"
-                        class="h-10 px-4 rounded-xl text-xs font-bold text-white transition <?= $topFixedEnabled
-                            ? 'bg-amber-600 hover:bg-amber-700'
-                            : 'bg-emerald-600 hover:bg-emerald-700' ?>"
-                        onclick="return confirm(<?= json_encode($topFixedEnabled ? t('admin.top_fixed_disable_confirm') : t('admin.top_fixed_enable_confirm')) ?>)">
-                        <?= htmlspecialchars($topFixedEnabled ? t('admin.top_fixed_disable_action') : t('admin.top_fixed_enable_action')) ?>
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <div class="rounded-[22px] border shadow-soft overflow-hidden <?= $topFixedXlEnabled
-        ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/40'
-        : 'bg-white/90 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/10' ?>">
-        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
-            <div class="min-w-0">
-                <p class="text-[10px] font-semibold uppercase tracking-[0.14em] <?= $topFixedXlEnabled ? 'text-emerald-600' : 'text-gray-500' ?>">
-                    <?= htmlspecialchars(t('admin.top_fixed_xl_status')) ?>
-                </p>
-                <h3 class="font-display font-bold text-ink-900 dark:text-white mt-0.5">
-                    <?= htmlspecialchars($topFixedXlEnabled ? t('admin.top_fixed_xl_on') : t('admin.top_fixed_xl_off')) ?>
-                </h3>
-                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.top_fixed_xl_hint')) ?></p>
-            </div>
-            <div class="flex flex-wrap items-center gap-2 shrink-0">
-                <?php if ($topFixedXlEnabled): ?>
-                    <form method="post" action="<?= ProductHelper::url('/admin/top-fixed-xl/recover') ?>">
-                        <?= csrf_field() ?>
-                        <button type="submit" class="h-10 px-4 rounded-xl text-xs font-bold border border-black/10 dark:border-white/15 text-ink-800 dark:text-gray-200">
-                            <?= htmlspecialchars(t('admin.top_fixed_xl_recover')) ?>
-                        </button>
-                    </form>
-                <?php endif; ?>
-                <form method="post" action="<?= ProductHelper::url('/admin/top-fixed-xl') ?>">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="enabled" value="<?= $topFixedXlEnabled ? '0' : '1' ?>">
-                    <button type="submit"
-                        class="h-10 px-4 rounded-xl text-xs font-bold text-white transition <?= $topFixedXlEnabled
-                            ? 'bg-amber-600 hover:bg-amber-700'
-                            : 'bg-emerald-600 hover:bg-emerald-700' ?>"
-                        onclick="return confirm(<?= json_encode($topFixedXlEnabled ? t('admin.top_fixed_xl_disable_confirm') : t('admin.top_fixed_xl_enable_confirm')) ?>)">
-                        <?= htmlspecialchars($topFixedXlEnabled ? t('admin.top_fixed_xl_disable_action') : t('admin.top_fixed_xl_enable_action')) ?>
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <div class="rounded-[22px] border shadow-soft overflow-hidden <?= $vipEnabled
-        ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/40'
-        : 'bg-white/90 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/10' ?>">
-        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
-            <div class="min-w-0">
-                <p class="text-[10px] font-semibold uppercase tracking-[0.14em] <?= $vipEnabled ? 'text-emerald-600' : 'text-gray-500' ?>">
-                    <?= htmlspecialchars(t('admin.vip_status')) ?>
-                </p>
-                <h3 class="font-display font-bold text-ink-900 dark:text-white mt-0.5">
-                    <?= htmlspecialchars($vipEnabled ? t('admin.vip_on') : t('admin.vip_off')) ?>
-                </h3>
-                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.vip_hint')) ?></p>
-            </div>
-            <div class="flex flex-wrap items-center gap-2 shrink-0">
-                <?php if ($vipEnabled): ?>
-                    <form method="post" action="<?= ProductHelper::url('/admin/vip/recover') ?>">
-                        <?= csrf_field() ?>
-                        <button type="submit" class="h-10 px-4 rounded-xl text-xs font-bold border border-black/10 dark:border-white/15 text-ink-800 dark:text-gray-200">
-                            <?= htmlspecialchars(t('admin.vip_recover')) ?>
-                        </button>
-                    </form>
-                <?php endif; ?>
-                <form method="post" action="<?= ProductHelper::url('/admin/vip') ?>">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="enabled" value="<?= $vipEnabled ? '0' : '1' ?>">
-                    <button type="submit"
-                        class="h-10 px-4 rounded-xl text-xs font-bold text-white transition <?= $vipEnabled
-                            ? 'bg-amber-600 hover:bg-amber-700'
-                            : 'bg-emerald-600 hover:bg-emerald-700' ?>"
-                        onclick="return confirm(<?= json_encode($vipEnabled ? t('admin.vip_disable_confirm') : t('admin.vip_enable_confirm')) ?>)">
-                        <?= htmlspecialchars($vipEnabled ? t('admin.vip_disable_action') : t('admin.vip_enable_action')) ?>
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <?php
-    $adSwitchOrder = ['hero', 'category', 'sidebar', 'exclusive'];
-    foreach ($adSwitchOrder as $adFormat):
-        $adOn = !empty($adsFlags[$adFormat]);
-        $adName = t('ads.format_' . $adFormat);
-    ?>
-    <div class="rounded-[22px] border shadow-soft overflow-hidden <?= $adOn
-        ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/40'
-        : 'bg-white/90 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/10' ?>">
-        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
-            <div class="min-w-0">
-                <p class="text-[10px] font-semibold uppercase tracking-[0.14em] <?= $adOn ? 'text-emerald-600' : 'text-gray-500' ?>">
-                    <?= htmlspecialchars(t('admin.ads_switch')) ?>
-                </p>
-                <h3 class="font-display font-bold text-ink-900 dark:text-white mt-0.5">
-                    <?= htmlspecialchars($adOn ? t('admin.ads_switch_on', ['name' => $adName]) : t('admin.ads_switch_off', ['name' => $adName])) ?>
-                </h3>
-                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.ads_switch_hint', ['rate' => t('ads.rate_' . $adFormat)])) ?></p>
-            </div>
-            <div class="flex flex-wrap items-center gap-2 shrink-0">
-                <a href="<?= ProductHelper::url('/admin/ads') ?>" class="h-10 px-4 rounded-xl text-xs font-bold border border-black/10 dark:border-white/15 inline-flex items-center"><?= htmlspecialchars(t('admin.ads_moderation')) ?></a>
-                <?php if ($adOn): ?>
-                    <form method="post" action="<?= ProductHelper::url('/admin/ads/' . $adFormat . '/recover') ?>">
-                        <?= csrf_field() ?>
-                        <button type="submit" class="h-10 px-4 rounded-xl text-xs font-bold border border-black/10 dark:border-white/15 text-ink-800 dark:text-gray-200">
-                            <?= htmlspecialchars(t('admin.ads_recover')) ?>
-                        </button>
-                    </form>
-                <?php endif; ?>
-                <form method="post" action="<?= ProductHelper::url('/admin/ads/' . $adFormat) ?>">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="enabled" value="<?= $adOn ? '0' : '1' ?>">
-                    <button type="submit"
-                        class="h-10 px-4 rounded-xl text-xs font-bold text-white transition <?= $adOn
-                            ? 'bg-amber-600 hover:bg-amber-700'
-                            : 'bg-emerald-600 hover:bg-emerald-700' ?>"
-                        onclick="return confirm(<?= json_encode($adOn ? t('admin.ads_disable_confirm', ['name' => $adName]) : t('admin.ads_enable_confirm', ['name' => $adName])) ?>)">
-                        <?= htmlspecialchars($adOn ? t('admin.ads_disable_action') : t('admin.ads_enable_action')) ?>
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-    <?php endforeach; ?>
-
-    <div class="rounded-[22px] border shadow-soft overflow-hidden <?= $targetPushEnabled
-        ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/40'
-        : 'bg-white/90 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/10' ?>">
-        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
-            <div class="min-w-0">
-                <p class="text-[10px] font-semibold uppercase tracking-[0.14em] <?= $targetPushEnabled ? 'text-emerald-600' : 'text-gray-500' ?>">
-                    <?= htmlspecialchars(t('admin.target_push_status')) ?>
-                </p>
-                <h3 class="font-display font-bold text-ink-900 dark:text-white mt-0.5">
-                    <?= htmlspecialchars($targetPushEnabled ? t('admin.target_push_on') : t('admin.target_push_off')) ?>
-                </h3>
-                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.target_push_hint')) ?></p>
-            </div>
-            <div class="flex flex-wrap items-center gap-2 shrink-0">
-                <a href="<?= ProductHelper::url('/admin/target-push') ?>" class="h-10 px-4 rounded-xl text-xs font-bold border border-black/10 dark:border-white/15 inline-flex items-center"><?= htmlspecialchars(t('admin.target_push_moderation')) ?></a>
-                <form method="post" action="<?= ProductHelper::url('/admin/target-push') ?>">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="enabled" value="<?= $targetPushEnabled ? '0' : '1' ?>">
-                    <button type="submit"
-                        class="h-10 px-4 rounded-xl text-xs font-bold text-white transition <?= $targetPushEnabled
-                            ? 'bg-amber-600 hover:bg-amber-700'
-                            : 'bg-emerald-600 hover:bg-emerald-700' ?>"
-                        onclick="return confirm(<?= json_encode($targetPushEnabled ? t('admin.target_push_disable_confirm') : t('admin.target_push_enable_confirm')) ?>)">
-                        <?= htmlspecialchars($targetPushEnabled ? t('admin.target_push_disable_action') : t('admin.target_push_enable_action')) ?>
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <div class="rounded-[22px] border shadow-soft overflow-hidden <?= $massPushEnabled
-        ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/40'
-        : 'bg-white/90 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/10' ?>">
-        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
-            <div class="min-w-0">
-                <p class="text-[10px] font-semibold uppercase tracking-[0.14em] <?= $massPushEnabled ? 'text-emerald-600' : 'text-gray-500' ?>">
-                    <?= htmlspecialchars(t('admin.mass_push_status')) ?>
-                </p>
-                <h3 class="font-display font-bold text-ink-900 dark:text-white mt-0.5">
-                    <?= htmlspecialchars($massPushEnabled ? t('admin.mass_push_on') : t('admin.mass_push_off')) ?>
-                </h3>
-                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.mass_push_hint')) ?></p>
-            </div>
-            <div class="flex flex-wrap items-center gap-2 shrink-0">
-                <a href="<?= ProductHelper::url('/admin/mass-push') ?>" class="h-10 px-4 rounded-xl text-xs font-bold border border-black/10 dark:border-white/15 inline-flex items-center"><?= htmlspecialchars(t('admin.mass_push_moderation')) ?></a>
-                <form method="post" action="<?= ProductHelper::url('/admin/mass-push') ?>">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="enabled" value="<?= $massPushEnabled ? '0' : '1' ?>">
-                    <button type="submit"
-                        class="h-10 px-4 rounded-xl text-xs font-bold text-white transition <?= $massPushEnabled
-                            ? 'bg-amber-600 hover:bg-amber-700'
-                            : 'bg-emerald-600 hover:bg-emerald-700' ?>"
-                        onclick="return confirm(<?= json_encode($massPushEnabled ? t('admin.mass_push_disable_confirm') : t('admin.mass_push_enable_confirm')) ?>)">
-                        <?= htmlspecialchars($massPushEnabled ? t('admin.mass_push_disable_action') : t('admin.mass_push_enable_action')) ?>
-                    </button>
-                </form>
-            </div>
-        </div>
+        <a class="adm-stat" href="<?= $u('/admin/users') ?>">
+            <div class="adm-stat-label"><?= $e(t('admin.stats_users_total')) ?></div>
+            <div class="adm-stat-value"><?= (int) ($userStats['total'] ?? $userCount ?? 0) ?></div>
+            <div class="adm-stat-meta">+<?= (int) ($userStats['today'] ?? 0) ?> <?= $e(t('admin.stats_today_short')) ?> · +<?= (int) ($userStats['week'] ?? 0) ?> <?= $e(t('admin.stats_week_short')) ?></div>
+        </a>
     </div>
     <?php endif; ?>
 
-    <?php if ($hasNav): ?>
-    <div class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-brand-200/70 dark:border-brand-900/40 shadow-soft overflow-hidden">
-        <?php if ($canTickets): ?>
-        <a href="<?= ProductHelper::url('/admin/tickets') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 hover:bg-brand-50/40 dark:hover:bg-white/[0.03] transition">
-            <div class="min-w-0">
-                <h3 class="font-display font-bold text-brand-800 dark:text-brand-300"><?= htmlspecialchars(t('admin.tickets')) ?></h3>
-                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.tickets_hint')) ?></p>
+    <div class="adm-grid-2">
+        <section class="adm-card">
+            <div class="adm-card-head">
+                <h2 class="adm-card-title"><?= $e(t('admin.dash_attention')) ?></h2>
             </div>
-            <div class="flex items-center gap-2">
-                <?php if (!empty($ticketUnread)): ?>
-                    <span class="min-w-[1.25rem] h-5 px-1.5 rounded-full bg-accent-500 text-white text-[10px] font-bold flex items-center justify-center"><?= (int) $ticketUnread > 99 ? '99+' : (int) $ticketUnread ?></span>
+            <div class="adm-list">
+                <?php foreach ($attention as [$href, $label, $hint, $count, $total, $tone]): ?>
+                    <a class="adm-row" href="<?= $u($href) ?>">
+                        <div class="adm-row-main">
+                            <div class="adm-row-title"><?= $e($label) ?></div>
+                            <div class="adm-row-sub truncate"><?= $e($hint) ?></div>
+                        </div>
+                        <div class="adm-row-side">
+                            <?php if ($total !== null): ?><span class="subtle"><?= $e(t('admin.dash_open_total', ['n' => $total])) ?></span><?php endif; ?>
+                            <span class="adm-count<?= $count > 0 ? ' adm-count--' . $tone : '' ?>"><?= $cap($count) ?></span>
+                        </div>
+                    </a>
+                <?php endforeach; ?>
+                <?php if ($canDisputes): ?>
+                    <a class="adm-row" href="#disputes">
+                        <div class="adm-row-main">
+                            <div class="adm-row-title"><?= $e(t('admin.dash_disputes')) ?></div>
+                            <div class="adm-row-sub truncate"><?= $e(t('admin.disputes_hint')) ?></div>
+                        </div>
+                        <div class="adm-row-side"><span class="adm-count<?= count($disputes) > 0 ? ' adm-count--warn' : '' ?>"><?= $cap(count($disputes)) ?></span></div>
+                    </a>
                 <?php endif; ?>
-                <span class="text-xs font-bold text-brand-600"><?= (int) ($openTickets ?? 0) ?> →</span>
             </div>
-        </a>
-        <?php endif; ?>
-        <?php if (\App\Core\Auth::can('contests')): ?>
-        <a href="<?= ProductHelper::url('/admin/contests') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 <?= $canTickets ? 'border-t border-brand-100 dark:border-brand-900/30' : '' ?> hover:bg-amber-50/40 dark:hover:bg-white/[0.03] transition">
-            <div class="min-w-0">
-                <h3 class="font-display font-bold text-amber-800 dark:text-amber-300"><?= htmlspecialchars(t('contests.admin.title')) ?></h3>
-                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('contests.admin.nav_hint')) ?></p>
-            </div>
-            <span class="text-xs font-bold text-amber-600">→</span>
-        </a>
-        <?php endif; ?>
-        <?php if ($canAi): ?>
-        <a href="<?= ProductHelper::url('/admin/ai') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 <?= $canTickets ? 'border-t border-brand-100 dark:border-brand-900/30' : '' ?> hover:bg-violet-50/40 dark:hover:bg-white/[0.03] transition">
-            <div class="min-w-0">
-                <h3 class="font-display font-bold text-violet-800 dark:text-violet-300">AI Dashboard</h3>
-                <p class="text-xs text-gray-500 mt-0.5">Метрики, модели, промпты, индексация KB</p>
-            </div>
-            <span class="text-xs font-bold text-violet-600">→</span>
-        </a>
-        <a href="<?= ProductHelper::url('/admin/ai-chats') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 border-t border-brand-100 dark:border-brand-900/30 hover:bg-violet-50/40 dark:hover:bg-white/[0.03] transition">
-            <div class="min-w-0">
-                <h3 class="font-display font-bold text-violet-800 dark:text-violet-300"><?= htmlspecialchars(t('admin.ai_chats')) ?></h3>
-                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.ai_chats_hint')) ?></p>
-            </div>
-            <div class="flex items-center gap-2">
-                <?php if (!empty($aiEscalated)): ?>
-                    <span class="min-w-[1.25rem] h-5 px-1.5 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center"><?= (int) $aiEscalated > 99 ? '99+' : (int) $aiEscalated ?></span>
-                <?php endif; ?>
-                <span class="text-xs font-bold text-violet-600"><?= (int) ($aiEscalated ?? 0) ?> →</span>
-            </div>
-        </a>
-        <?php endif; ?>
-        <a href="<?= ProductHelper::url('/admin/library') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 <?= ($canTickets || $canAi) ? 'border-t border-brand-100 dark:border-brand-900/30' : '' ?> hover:bg-indigo-50/40 dark:hover:bg-white/[0.03] transition">
-            <div class="min-w-0">
-                <h3 class="font-display font-bold text-indigo-800 dark:text-indigo-300"><?= htmlspecialchars(t('admin.library')) ?></h3>
-                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.library_hint')) ?></p>
-            </div>
-            <span class="text-xs font-bold text-indigo-600"><?= (int) ($libraryCount ?? 0) ?> →</span>
-        </a>
-        <a href="<?= ProductHelper::url('/admin/tasks') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 border-t border-brand-100 dark:border-brand-900/30 hover:bg-sky-50/40 dark:hover:bg-white/[0.03] transition">
-            <div class="min-w-0">
-                <h3 class="font-display font-bold text-sky-800 dark:text-sky-300"><?= htmlspecialchars(t('admin.tasks')) ?></h3>
-                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.tasks_hint')) ?></p>
-            </div>
-            <div class="flex items-center gap-2">
-                <?php if (!empty($openTasks)): ?>
-                    <span class="min-w-[1.25rem] h-5 px-1.5 rounded-full bg-sky-500 text-white text-[10px] font-bold flex items-center justify-center"><?= (int) $openTasks > 99 ? '99+' : (int) $openTasks ?></span>
-                <?php endif; ?>
-                <span class="text-xs font-bold text-sky-600"><?= (int) ($openTasks ?? 0) ?> →</span>
-            </div>
-        </a>
+        </section>
+
         <?php if ($isAdmin): ?>
-        <a href="<?= ProductHelper::url('/admin/users') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 border-t border-brand-100 dark:border-brand-900/30 hover:bg-brand-50/40 dark:hover:bg-white/[0.03] transition">
-            <div class="min-w-0">
-                <h3 class="font-display font-bold text-ink-800 dark:text-gray-200"><?= htmlspecialchars(t('admin.users')) ?></h3>
-                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.users_hint')) ?></p>
+        <section class="adm-card">
+            <div class="adm-card-head">
+                <div>
+                    <h2 class="adm-card-title"><?= $e(t('admin.stats_recent_visitors')) ?></h2>
+                    <p class="adm-card-sub"><?= $e(t('admin.stats_recent_visitors_hint')) ?></p>
+                </div>
+                <?php if (!empty($recentVisitors)): ?><span class="adm-count"><?= count($recentVisitors) ?></span><?php endif; ?>
             </div>
-            <span class="text-xs font-bold text-brand-600"><?= (int) ($userCount ?? 0) ?> →</span>
-        </a>
-        <a href="<?= ProductHelper::url('/admin/aml') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 border-t border-brand-100 dark:border-brand-900/30 hover:bg-red-50/40 dark:hover:bg-white/[0.03] transition">
-            <div class="min-w-0">
-                <h3 class="font-display font-bold text-red-800 dark:text-red-300"><?= htmlspecialchars(t('admin.aml')) ?></h3>
-                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.aml_hint')) ?></p>
-            </div>
-            <div class="flex items-center gap-2">
-                <?php if (!empty($amlBlockedCount)): ?>
-                    <span class="min-w-[1.25rem] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center"><?= (int) $amlBlockedCount > 99 ? '99+' : (int) $amlBlockedCount ?></span>
-                <?php endif; ?>
-                <span class="text-xs font-bold text-red-600"><?= htmlspecialchars(t('admin.aml_open')) ?> →</span>
-            </div>
-        </a>
-        <?php if ($paidServicesAdminEnabled): ?>
-        <a href="<?= ProductHelper::url('/admin/paid-services') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 border-t border-brand-100 dark:border-brand-900/30 hover:bg-brand-50/40 dark:hover:bg-white/[0.03] transition">
-            <div class="min-w-0">
-                <h3 class="font-display font-bold text-brand-800 dark:text-brand-300"><?= htmlspecialchars(t('admin.paid_services')) ?></h3>
-                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.paid_services_hint_short')) ?></p>
-            </div>
-            <span class="text-xs font-bold text-brand-600"><?= htmlspecialchars(t('admin.aml_open')) ?> →</span>
-        </a>
-        <?php endif; ?>
-        <a href="<?= ProductHelper::url('/admin/business') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 border-t border-brand-100 dark:border-brand-900/30 hover:bg-sky-50/40 dark:hover:bg-white/[0.03] transition">
-            <div class="min-w-0">
-                <h3 class="font-display font-bold text-sky-800 dark:text-sky-300"><?= htmlspecialchars(t('admin.business')) ?></h3>
-                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.business_hint')) ?></p>
-            </div>
-            <span class="text-xs font-bold text-sky-600"><?= htmlspecialchars(t('admin.aml_open')) ?> →</span>
-        </a>
-        <a href="<?= ProductHelper::url('/admin/stream') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 border-t border-brand-100 dark:border-brand-900/30 hover:bg-violet-50/40 dark:hover:bg-white/[0.03] transition">
-            <div class="min-w-0">
-                <h3 class="font-display font-bold text-violet-800 dark:text-violet-300"><?= htmlspecialchars(t('admin.stream_title')) ?></h3>
-                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.stream_hint')) ?></p>
-            </div>
-            <span class="text-xs font-bold text-violet-600"><?= htmlspecialchars(t('admin.gig_categories_open')) ?> →</span>
-        </a>
-        <a href="<?= ProductHelper::url('/admin/gig-categories') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 border-t border-brand-100 dark:border-brand-900/30 hover:bg-teal-50/40 dark:hover:bg-white/[0.03] transition">
-            <div class="min-w-0">
-                <h3 class="font-display font-bold text-teal-800 dark:text-teal-300"><?= htmlspecialchars(t('admin.gig_categories')) ?></h3>
-                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.gig_categories_hint')) ?></p>
-            </div>
-            <span class="text-xs font-bold text-teal-600"><?= htmlspecialchars(t('admin.gig_categories_open')) ?> →</span>
-        </a>
-        <?php if ($financeJournalEnabled): ?>
-        <a href="<?= ProductHelper::url('/admin/finance-journal') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 border-t border-brand-100 dark:border-brand-900/30 hover:bg-emerald-50/40 dark:hover:bg-white/[0.03] transition">
-            <div class="min-w-0">
-                <h3 class="font-display font-bold text-emerald-800 dark:text-emerald-300"><?= htmlspecialchars(t('admin.finance_journal')) ?></h3>
-                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.finance_journal_hint_short')) ?></p>
-            </div>
-            <span class="text-xs font-bold text-emerald-600"><?= htmlspecialchars(t('admin.aml_open')) ?> →</span>
-        </a>
-        <?php endif; ?>
-        <a href="<?= ProductHelper::url('/admin/logs') ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 border-t border-brand-100 dark:border-brand-900/30 hover:bg-red-50/40 dark:hover:bg-white/[0.03] transition">
-            <div class="min-w-0">
-                <h3 class="font-display font-bold text-red-800 dark:text-red-300"><?= htmlspecialchars(t('admin.logs')) ?></h3>
-                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.logs_hint')) ?></p>
-            </div>
-            <div class="flex items-center gap-2">
-                <?php if ($recentErrors > 0): ?>
-                    <span class="min-w-[1.25rem] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center"><?= $recentErrors > 99 ? '99+' : $recentErrors ?></span>
-                <?php endif; ?>
-                <span class="text-xs font-bold text-red-600"><?= htmlspecialchars(t('admin.logs_open')) ?> →</span>
-            </div>
-        </a>
-        <?php endif; ?>
-    </div>
-    <?php endif; ?>
-
-    <?php if ($canDisputes && !empty($disputes)): ?>
-        <div class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-violet-200/70 dark:border-violet-900/40 shadow-soft overflow-hidden">
-            <div class="px-4 py-3.5 border-b border-violet-100 dark:border-violet-900/30 bg-violet-50/50 dark:bg-violet-950/20">
-                <h3 class="font-display font-bold text-violet-800 dark:text-violet-300"><?= htmlspecialchars(t('admin.disputes')) ?> (<?= count($disputes) ?>)</h3>
-                <p class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars(t('admin.disputes_hint')) ?></p>
-            </div>
-            <div class="divide-y divide-black/[0.04] dark:divide-white/5">
-                <?php foreach ($disputes as $d): ?>
-                    <a href="<?= ProductHelper::url('/orders/' . (int) $d['id']) ?>" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 hover:bg-violet-50/40 dark:hover:bg-white/[0.03] transition">
-                        <div class="min-w-0">
-                            <p class="text-xs font-semibold text-ink-900 dark:text-white">#<?= (int) $d['id'] ?> · <?= htmlspecialchars($d['product_title']) ?></p>
-                            <p class="text-[11px] text-gray-400 mt-0.5"><?= htmlspecialchars($d['buyer_name']) ?> ↔ <?= htmlspecialchars($d['seller_name']) ?></p>
+            <?php if (empty($recentVisitors)): ?>
+                <div class="adm-empty"><?= $e(t('admin.stats_visitors_empty')) ?></div>
+            <?php else: ?>
+                <div class="adm-list" style="max-height: 340px; overflow-y: auto;">
+                    <?php foreach ($recentVisitors as $v):
+                        $uid = (int) ($v['user_id'] ?? 0);
+                        $name = trim((string) ($v['user_name'] ?? ''));
+                        $label = $name !== '' ? $name : t('admin.stats_guest');
+                        $ip = (string) ($v['ip'] ?? '');
+                    ?>
+                        <div class="adm-row">
+                            <span class="adm-avatar"><?= $e(mb_strtoupper(mb_substr($label, 0, 1))) ?></span>
+                            <div class="adm-row-main">
+                                <?php if ($uid > 0): ?>
+                                    <a class="adm-row-title adm-link" style="color:inherit" href="<?= $u('/admin/users/' . $uid) ?>"><?= $e($label) ?></a>
+                                <?php else: ?>
+                                    <div class="adm-row-title subtle"><?= $e($label) ?></div>
+                                <?php endif; ?>
+                                <div class="adm-row-sub truncate mono"><?= $e($v['path'] ?? '/') ?><?= $ip !== '' ? ' · ' . $e($ip) : '' ?> · <?= (int) ($v['hits'] ?? 1) ?> <?= $e(t('admin.stats_hits_label')) ?></div>
+                            </div>
+                            <div class="adm-row-side nowrap"><?= $e(substr((string) ($v['last_seen_at'] ?? ''), 0, 16)) ?></div>
                         </div>
-                        <span class="text-xs font-bold text-violet-600"><?= htmlspecialchars(t('admin.resolve')) ?> →</span>
-                    </a>
-                <?php endforeach; ?>
-            </div>
-        </div>
-    <?php endif; ?>
-
-    <?php if ($canProducts): ?>
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft">
-            <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400"><?= htmlspecialchars(t('admin.active_lots')) ?></div>
-            <div class="font-display text-2xl font-bold mt-1"><?= array_sum($counts) ?></div>
-        </div>
-        <?php $i = 0; foreach ($counts as $type => $cnt): if ($i++ >= 3) break; ?>
-            <div class="rounded-2xl bg-white/90 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 p-4 shadow-soft">
-                <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 truncate"><?= ProductHelper::label($type) ?></div>
-                <div class="font-display text-2xl font-bold mt-1"><?= (int) $cnt ?></div>
-            </div>
-        <?php endforeach; ?>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        </section>
+        <?php endif; ?>
     </div>
-    <?php endif; ?>
 
-    <?php if ($canProducts): ?>
-    <details class="group bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 shadow-soft overflow-hidden">
-        <summary class="list-none cursor-pointer select-none px-4 py-3.5 flex items-center justify-between gap-3 hover:bg-black/[0.02] dark:hover:bg-white/[0.03] transition [&::-webkit-details-marker]:hidden">
-            <div class="min-w-0">
-                <h3 class="font-display font-bold text-ink-900 dark:text-white"><?= htmlspecialchars(t('admin.active_lots')) ?></h3>
+    <?php if ($isAdmin): ?>
+    <section class="adm-card">
+        <div class="adm-card-head">
+            <div>
+                <h2 class="adm-card-title"><?= $e(t('admin.dash_modules')) ?></h2>
+                <p class="adm-card-sub"><?= $e(t('admin.dash_modules_hint')) ?></p>
             </div>
-            <div class="flex items-center gap-2 flex-shrink-0">
-                <?php if (!empty($items)): ?>
-                    <span class="min-w-[1.25rem] h-5 px-1.5 rounded-full bg-brand-500 text-white text-[10px] font-bold flex items-center justify-center"><?= count($items) ?></span>
-                <?php endif; ?>
-                <svg class="w-4 h-4 text-gray-400 transition-transform duration-200 group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
-                </svg>
-            </div>
-        </summary>
-        <div class="overflow-x-auto border-t border-black/[0.06] dark:border-white/10">
-            <table class="w-full text-left text-xs">
-                <thead class="bg-ink-50/80 dark:bg-white/[0.03] border-b border-black/[0.06] dark:border-white/10">
+        </div>
+        <div class="adm-table-wrap">
+            <table class="adm-table">
+                <thead>
                     <tr>
-                        <th class="px-4 py-3.5 font-semibold text-gray-500">ID</th>
-                        <th class="px-4 py-3.5 font-semibold text-gray-500"><?= htmlspecialchars(t('admin.name')) ?></th>
-                        <th class="px-4 py-3.5 font-semibold text-gray-500"><?= htmlspecialchars(t('admin.type')) ?></th>
-                        <th class="px-4 py-3.5 font-semibold text-gray-500"><?= htmlspecialchars(t('admin.status')) ?></th>
-                        <th class="px-4 py-3.5 font-semibold text-gray-500"><?= htmlspecialchars(t('admin.price')) ?></th>
-                        <th class="px-4 py-3.5 font-semibold text-gray-500"><?= htmlspecialchars(t('admin.actions')) ?></th>
+                        <th><?= $e(t('admin.dash_module')) ?></th>
+                        <th><?= $e(t('admin.dash_state')) ?></th>
+                        <th class="num"></th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-black/[0.04] dark:divide-white/5">
-                    <?php foreach ($items as $item): ?>
-                        <tr class="js-row-link cursor-pointer hover:bg-brand-50/40 dark:hover:bg-white/[0.03] transition" data-href="<?= ProductHelper::url('/product/' . $item['id']) ?>">
-                            <td class="px-4 py-3.5 text-gray-400"><?= (int) $item['id'] ?></td>
-                            <td class="px-4 py-3.5 font-semibold max-w-[220px] truncate text-ink-800 dark:text-gray-200"><?= htmlspecialchars($item['title']) ?></td>
-                            <td class="px-4 py-3.5"><?= ProductHelper::label($item['type']) ?></td>
-                            <td class="px-4 py-3.5">
-                                <span class="inline-flex px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wide <?= $item['status'] === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-gray-100 text-gray-500 dark:bg-white/10' ?>"><?= $item['status'] ?></span>
-                            </td>
-                            <td class="px-4 py-3.5 font-display font-bold"><?= htmlspecialchars(ProductHelper::formatPrice($item)) ?></td>
-                            <td class="px-4 py-3.5 whitespace-nowrap">
-                                <div class="flex items-center gap-3">
-                                    <a href="<?= ProductHelper::url('/product/' . $item['id']) ?>" class="text-brand-600 hover:underline font-semibold"><?= htmlspecialchars(t('admin.open')) ?></a>
-                                    <form method="post" action="<?= ProductHelper::url('/admin/toggle/' . $item['id']) ?>" class="inline">
-                                        <button class="text-amber-600 hover:underline font-semibold"><?= htmlspecialchars(t('admin.archive')) ?></button>
+                <tbody>
+                    <tr>
+                        <td style="min-width:260px">
+                            <div class="strong"><?= $e(t('admin.site_status')) ?></div>
+                            <div class="muted" style="font-size:12px;margin-top:2px"><?= $e(t('admin.site_status_hint')) ?></div>
+                        </td>
+                        <td class="nowrap">
+                            <span class="adm-badge adm-badge--<?= $stubMode ? 'warn' : 'ok' ?>"><span class="adm-dot"></span><?= $e($stubMode ? t('admin.dash_site_closed') : t('admin.dash_site_open')) ?></span>
+                        </td>
+                        <td>
+                            <div class="actions">
+                                <form method="post" action="<?= $u('/admin/site-status') ?>" class="adm-inline">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="open" value="<?= $stubMode ? '1' : '0' ?>">
+                                    <button type="submit" class="adm-btn adm-btn--sm<?= $stubMode ? '' : ' adm-btn--danger' ?>"
+                                        onclick="return confirm(<?= $e(json_encode($stubMode ? t('admin.site_open_confirm') : t('admin.site_close_confirm'))) ?>)">
+                                        <?= $e($stubMode ? t('admin.site_open_action') : t('admin.site_close_action')) ?>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    <?php foreach ($modules as $m): ?>
+                    <tr>
+                        <td style="min-width:260px">
+                            <div class="strong"><?= $e($m['name']) ?></div>
+                            <div class="muted adm-clamp-2" style="font-size:12px;margin-top:2px;max-width:72ch" title="<?= $e($m['hint']) ?>"><?= $e($m['hint']) ?></div>
+                        </td>
+                        <td class="nowrap">
+                            <span class="adm-badge adm-badge--<?= $m['on'] ? 'ok' : 'neutral' ?>"><span class="adm-dot"></span><?= $e($m['on'] ? t('admin.dash_on') : t('admin.dash_off')) ?></span>
+                        </td>
+                        <td>
+                            <div class="actions">
+                                <?php if ($m['open']): ?>
+                                    <a class="adm-link" href="<?= $u($m['open']) ?>"><?= $e($m['open_label']) ?></a>
+                                <?php endif; ?>
+                                <?php if ($m['recover']): ?>
+                                    <form method="post" action="<?= $u($m['recover']) ?>" class="adm-inline">
+                                        <?= csrf_field() ?>
+                                        <button type="submit" class="adm-btn adm-btn--sm"><?= $e($m['recover_label']) ?></button>
                                     </form>
-                                    <form method="post" action="<?= ProductHelper::url('/admin/delete/' . $item['id']) ?>" class="inline" onsubmit="return confirm(<?= json_encode(t('admin.confirm_delete')) ?>)">
-                                        <button class="text-red-600 hover:underline font-semibold"><?= htmlspecialchars(t('admin.delete')) ?></button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
+                                <?php endif; ?>
+                                <form method="post" action="<?= $u($m['action']) ?>" class="adm-inline">
+                                    <?= csrf_field() ?>
+                                    <?php foreach ($m['extra'] as $k => $v): ?>
+                                        <input type="hidden" name="<?= $e($k) ?>" value="<?= $e($v) ?>">
+                                    <?php endforeach; ?>
+                                    <input type="hidden" name="enabled" value="<?= $m['on'] ? '0' : '1' ?>">
+                                    <button type="submit" class="adm-switch" aria-pressed="<?= $m['on'] ? 'true' : 'false' ?>"
+                                        aria-label="<?= $e($m['on'] ? $m['label_off'] : $m['label_on']) ?>"
+                                        title="<?= $e($m['on'] ? $m['label_off'] : $m['label_on']) ?>"
+                                        onclick="return confirm(<?= $e(json_encode($m['on'] ? $m['confirm_off'] : $m['confirm_on'])) ?>)"></button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
                     <?php endforeach; ?>
                 </tbody>
             </table>
         </div>
-    </details>
-    <?php elseif (!$hasNav && empty($disputes)): ?>
-        <div class="text-center py-14 rounded-2xl border border-dashed border-black/10 dark:border-white/10 text-gray-400 text-sm">
-            <?= htmlspecialchars(t('admin.manager_no_access')) ?>
-        </div>
+    </section>
     <?php endif; ?>
-</section>
+
+    <?php if ($canDisputes && !empty($disputes)): ?>
+    <section class="adm-card" id="disputes">
+        <div class="adm-card-head">
+            <div>
+                <h2 class="adm-card-title"><?= $e(t('admin.disputes')) ?> <span class="adm-count"><?= count($disputes) ?></span></h2>
+                <p class="adm-card-sub"><?= $e(t('admin.disputes_hint')) ?></p>
+            </div>
+        </div>
+        <div class="adm-list">
+            <?php foreach ($disputes as $d): ?>
+                <a class="adm-row" href="<?= $u('/orders/' . (int) $d['id']) ?>">
+                    <div class="adm-row-main">
+                        <div class="adm-row-title truncate"><span class="subtle">#<?= (int) $d['id'] ?></span> <?= $e($d['product_title']) ?></div>
+                        <div class="adm-row-sub"><?= $e($d['buyer_name']) ?> ↔ <?= $e($d['seller_name']) ?></div>
+                    </div>
+                    <span class="adm-link"><?= $e(t('admin.resolve')) ?></span>
+                </a>
+            <?php endforeach; ?>
+        </div>
+    </section>
+    <?php endif; ?>
+
+    <?php if ($canProducts): ?>
+    <section class="adm-card">
+        <div class="adm-card-head">
+            <h2 class="adm-card-title"><?= $e(t('admin.dash_products')) ?></h2>
+        </div>
+        <div class="adm-stats" style="--cols:4;border:0;border-radius:0;box-shadow:none;border-bottom:1px solid var(--adm-border)">
+            <div class="adm-stat">
+                <div class="adm-stat-label"><?= $e(t('admin.active_lots')) ?></div>
+                <div class="adm-stat-value"><?= (int) array_sum($counts) ?></div>
+            </div>
+            <?php $i = 0; foreach ($counts as $type => $cnt): if ($i++ >= 3) break; ?>
+                <div class="adm-stat">
+                    <div class="adm-stat-label truncate"><?= ProductHelper::label($type) ?></div>
+                    <div class="adm-stat-value"><?= (int) $cnt ?></div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+        <details>
+            <summary class="adm-card-head" style="cursor:pointer;list-style:none;border-bottom:0">
+                <span class="adm-card-title"><?= $e(t('admin.active_lots')) ?> <span class="adm-count"><?= count($items) ?></span></span>
+                <svg class="adm-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </summary>
+            <div class="adm-table-wrap" style="border-top:1px solid var(--adm-border)">
+                <table class="adm-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th><?= $e(t('admin.name')) ?></th>
+                            <th><?= $e(t('admin.type')) ?></th>
+                            <th><?= $e(t('admin.status')) ?></th>
+                            <th class="num"><?= $e(t('admin.price')) ?></th>
+                            <th class="num"><?= $e(t('admin.actions')) ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($items as $item): ?>
+                            <tr class="js-row-link" data-href="<?= $u('/product/' . $item['id']) ?>">
+                                <td class="subtle"><?= (int) $item['id'] ?></td>
+                                <td class="strong truncate" style="max-width:280px"><?= $e($item['title']) ?></td>
+                                <td><?= ProductHelper::label($item['type']) ?></td>
+                                <td>
+                                    <span class="adm-badge adm-badge--<?= $item['status'] === 'active' ? 'ok' : 'neutral' ?>"><span class="adm-dot"></span><?= $e($item['status']) ?></span>
+                                </td>
+                                <td class="num strong"><?= $e(ProductHelper::formatPrice($item)) ?></td>
+                                <td>
+                                    <div class="actions">
+                                        <a href="<?= $u('/product/' . $item['id']) ?>" class="adm-link"><?= $e(t('admin.open')) ?></a>
+                                        <form method="post" action="<?= $u('/admin/toggle/' . $item['id']) ?>" class="adm-inline">
+                                            <?= csrf_field() ?>
+                                            <button class="adm-link adm-link--muted"><?= $e(t('admin.archive')) ?></button>
+                                        </form>
+                                        <form method="post" action="<?= $u('/admin/delete/' . $item['id']) ?>" class="adm-inline" onsubmit="return confirm(<?= $e(json_encode(t('admin.confirm_delete'))) ?>)">
+                                            <?= csrf_field() ?>
+                                            <button class="adm-link adm-link--danger"><?= $e(t('admin.delete')) ?></button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </details>
+    </section>
+    <?php elseif (!$isAdmin && !$canTickets && !$canAi && empty($disputes)): ?>
+        <div class="adm-card adm-empty"><?= $e(t('admin.manager_no_access')) ?></div>
+    <?php endif; ?>
+</div>
 <script>
 (function () {
     document.querySelectorAll('.js-row-link').forEach(function (row) {
         row.addEventListener('click', function (e) {
-            // Ignore clicks on links, buttons, form controls or text selections
             if (e.target.closest('a, button, input, select, textarea, label')) return;
             if (window.getSelection && String(window.getSelection())) return;
             const href = row.getAttribute('data-href');
             if (!href) return;
-            if (e.metaKey || e.ctrlKey) {
-                window.open(href, '_blank');
-            } else {
-                window.location.href = href;
-            }
+            if (e.metaKey || e.ctrlKey) window.open(href, '_blank');
+            else window.location.href = href;
         });
     });
 })();

@@ -86,8 +86,24 @@ Rate limit: `config/ai.php` → `rate_limit.per_minute` / `per_hour`.
 
 ## TTS (синтез речи)
 
-Провайдер по умолчанию — `browser` (Web Speech Synthesis в браузере пользователя, сервер только нормализует текст).
-Серверный `edge_neural` включается `AI_TTS_PROVIDER=edge_neural` и **не рекомендуется для продакшена** до юридического согласования (см. ниже).
+| Провайдер | Когда используется | Статус |
+|-----------|-------------------|--------|
+| `azure` | по умолчанию, если задан `AZURE_SPEECH_KEY` | лицензируемый (Azure AI Speech), рекомендуется |
+| `browser` | по умолчанию без ключа Azure | голос ОС/браузера пользователя, сервер только нормализует текст |
+| `edge_neural` | только явно `AI_TTS_PROVIDER=edge_neural` | **не для продакшена**: правовое основание не установлено (см. ниже) |
+
+Явный `AI_TTS_PROVIDER` всегда важнее автоматического выбора.
+
+### Подключение Azure AI Speech
+
+1. В портале Azure создать ресурс Speech (регион ближе к пользователям, например `westeurope`), взять Key 1.
+2. Задать переменные окружения веб-сервера (не в репозитории):
+   `AZURE_SPEECH_KEY=<ключ>`, `AZURE_SPEECH_REGION=westeurope`
+   (или `AZURE_SPEECH_ENDPOINT=https://<имя>.cognitiveservices.azure.com/cognitiveservices/v1` для ресурса с собственным доменом).
+3. Проверка: `AZURE_SPEECH_KEY=… AZURE_SPEECH_REGION=… php tools/run_tts_azure_tests.php` — часть B делает реальный синтез ru/kk/en.
+
+Детали: REST `POST https://{region}.tts.speech.microsoft.com/cognitiveservices/v1`, SSML, формат `audio-24khz-48kbitrate-mono-mp3`, тайм-аут 15 с. Ключ уходит только на домены `*.microsoft.com` / `*.azure.com` / `*.azure.us` по HTTPS, в ответы и логи не попадает. Голоса — `ai.tts.azure_voices` (официальный список Microsoft: ru-RU Dmitry/Svetlana/Dariya, kk-KZ Aigul/Daulet, en-US Jenny/Guy). Для kk-KZ Microsoft указывает: фонемы, пользовательский лексикон и виземы не поддерживаются — исправить произношение через SSML нельзя.
+Обязательства по условиям Microsoft: пользователю раскрывается синтетическая природа голоса (подсказка «Голос синтезирован автоматически» на кнопке озвучивания); текст ответа передаётся в Microsoft как обработчику данных — учесть в политике конфиденциальности. Цена: $15 за 1 млн символов (S1), 0,5 млн символов/мес бесплатно (F0); кеш снижает повторные расходы.
 
 ### Аудиокеш
 

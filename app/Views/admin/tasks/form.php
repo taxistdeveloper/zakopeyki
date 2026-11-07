@@ -9,83 +9,101 @@ $isEdit = is_array($task);
 $action = $isEdit
     ? ProductHelper::url('/admin/tasks/' . (int) $task['id'] . '/update')
     : ProductHelper::url('/admin/tasks');
-$input = 'ui-input w-full h-11 px-3.5 rounded-xl border border-black/[0.1] dark:border-white/10 bg-white dark:bg-white/5 text-sm';
+$e = static fn ($s): string => htmlspecialchars((string) $s);
+$cancelUrl = $isEdit
+    ? ProductHelper::url('/admin/tasks/' . (int) $task['id'])
+    : ProductHelper::url('/admin/tasks');
 $deadlineVal = '';
 if ($isEdit && !empty($task['deadline'])) {
     $deadlineVal = str_replace(' ', 'T', substr((string) $task['deadline'], 0, 16));
 }
 ?>
-<section class="space-y-5 fade-up pb-8 max-w-3xl">
-    <div>
-        <a href="<?= ProductHelper::url('/admin/tasks') ?>" class="inline-flex text-sm text-gray-400 hover:text-brand-600 mb-2">← <?= htmlspecialchars(t('admin.tasks')) ?></a>
-        <h1 class="font-display text-xl sm:text-2xl font-bold text-ink-900 dark:text-white"><?= htmlspecialchars((string) ($title ?? t('admin.task_new'))) ?></h1>
-    </div>
+<div class="adm">
+    <header class="adm-head">
+        <div style="min-width:0">
+            <nav class="adm-crumbs" aria-label="breadcrumb">
+                <a href="<?= ProductHelper::url('/admin/tasks') ?>"><?= $e(t('admin.tasks')) ?></a>
+                <?php if ($isEdit): ?>
+                    <span class="sep">/</span>
+                    <a href="<?= $cancelUrl ?>" class="truncate" style="max-width:40ch"><?= $e($task['title'] ?? '') ?></a>
+                <?php endif; ?>
+            </nav>
+            <h1 class="adm-title"><?= $e($title ?? t('admin.task_new')) ?></h1>
+        </div>
+    </header>
+
+    <?php \App\Core\View::partial('admin/_nav'); ?>
 
     <?php if (!empty($error)): ?>
-        <div class="bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border border-red-100 dark:border-red-900/40 px-4 py-3 rounded-2xl text-sm font-semibold"><?= htmlspecialchars($error) ?></div>
+        <div class="adm-alert adm-alert--error" role="alert"><?= $e($error) ?></div>
     <?php endif; ?>
 
-    <form method="post" action="<?= $action ?>" enctype="multipart/form-data" class="bg-white/90 dark:bg-white/[0.04] rounded-[22px] border border-black/[0.06] dark:border-white/10 shadow-soft p-4 sm:p-6 space-y-4">
+    <form method="post" action="<?= $action ?>" enctype="multipart/form-data" class="adm-card" style="max-width:880px">
         <?= csrf_field() ?>
-        <div>
-            <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('admin.task_title')) ?></label>
-            <input type="text" name="title" required minlength="2" maxlength="240" class="<?= $input ?>"
-                   value="<?= htmlspecialchars((string) ($task['title'] ?? '')) ?>">
+        <div class="adm-card-body">
+            <div class="adm-form-grid">
+                <div class="adm-field span-2">
+                    <label class="adm-label" for="task-title"><?= $e(t('admin.task_title')) ?></label>
+                    <input id="task-title" type="text" name="title" required minlength="2" maxlength="240" class="adm-input"
+                           value="<?= $e($task['title'] ?? '') ?>">
+                </div>
+                <div class="adm-field span-2">
+                    <label class="adm-label" for="task-body"><?= $e(t('admin.task_description')) ?></label>
+                    <textarea id="task-body" name="description" rows="8" class="adm-textarea" style="min-height:180px"><?= $e($task['description'] ?? '') ?></textarea>
+                </div>
+                <div class="adm-field">
+                    <label class="adm-label" for="task-priority"><?= $e(t('admin.task_priority')) ?></label>
+                    <select id="task-priority" name="priority" class="adm-select">
+                        <?php foreach (OpsTask::PRIORITIES as $pr): ?>
+                            <option value="<?= $pr ?>" <?= ($task['priority'] ?? 'medium') === $pr ? 'selected' : '' ?>><?= $e(t('admin.task_priority_' . $pr)) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="adm-field">
+                    <label class="adm-label" for="task-status"><?= $e(t('admin.status')) ?></label>
+                    <select id="task-status" name="status" class="adm-select">
+                        <?php foreach (OpsTask::STATUSES as $st): ?>
+                            <option value="<?= $st ?>" <?= ($task['status'] ?? 'new') === $st ? 'selected' : '' ?>><?= $e(t('admin.task_status_' . $st)) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="adm-field">
+                    <label class="adm-label" for="task-assignee"><?= $e(t('admin.task_assignee')) ?></label>
+                    <select id="task-assignee" name="assignee_id" class="adm-select">
+                        <option value=""><?= $e(t('admin.task_unassigned')) ?></option>
+                        <?php foreach ($staff as $u): ?>
+                            <option value="<?= (int) $u['id'] ?>" <?= (int) ($task['assignee_id'] ?? 0) === (int) $u['id'] ? 'selected' : '' ?>>
+                                <?= $e($u['name']) ?> (<?= $e(t('nav.role_' . $u['role'])) ?>)
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="adm-field">
+                    <label class="adm-label" for="task-deadline"><?= $e(t('admin.task_deadline')) ?></label>
+                    <input id="task-deadline" type="datetime-local" name="deadline" class="adm-input" value="<?= $e($deadlineVal) ?>">
+                </div>
+                <div class="adm-field span-2">
+                    <label class="adm-label" for="task-files"><?= $e(t('admin.library_files')) ?></label>
+                    <input id="task-files" type="file" name="files[]" multiple accept=".pdf,.docx,.xlsx,.png,.jpg,.jpeg" style="font-size:13px;max-width:100%">
+                    <span class="adm-help"><?= $e(t('admin.library_files_hint')) ?></span>
+                    <?php if ($isEdit && !empty($files)): ?>
+                        <div style="display:flex;flex-direction:column;gap:2px;margin-top:4px">
+                            <?php foreach ($files as $file): ?>
+                                <a href="<?= ProductHelper::url('/admin/tasks/files/' . (int) $file['id']) ?>" class="adm-link truncate"><?= $e($file['original_name']) ?></a>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
         </div>
-        <div>
-            <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('admin.task_description')) ?></label>
-            <textarea id="task-body" name="description" rows="8" class="<?= $input ?> min-h-[180px] py-3"><?= htmlspecialchars((string) ($task['description'] ?? '')) ?></textarea>
+        <div class="adm-card-foot adm-form-actions">
+            <a href="<?= $cancelUrl ?>" class="adm-btn adm-btn--ghost"><?= $e(t('admin.cancel')) ?></a>
+            <button type="submit" class="adm-btn adm-btn--primary">
+                <?= $e($isEdit ? t('admin.task_save') : t('admin.task_create')) ?>
+            </button>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-                <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('admin.task_priority')) ?></label>
-                <select name="priority" class="<?= $input ?>">
-                    <?php foreach (OpsTask::PRIORITIES as $pr): ?>
-                        <option value="<?= $pr ?>" <?= ($task['priority'] ?? 'medium') === $pr ? 'selected' : '' ?>><?= htmlspecialchars(t('admin.task_priority_' . $pr)) ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('admin.status')) ?></label>
-                <select name="status" class="<?= $input ?>">
-                    <?php foreach (OpsTask::STATUSES as $st): ?>
-                        <option value="<?= $st ?>" <?= ($task['status'] ?? 'new') === $st ? 'selected' : '' ?>><?= htmlspecialchars(t('admin.task_status_' . $st)) ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('admin.task_assignee')) ?></label>
-                <select name="assignee_id" class="<?= $input ?>">
-                    <option value=""><?= htmlspecialchars(t('admin.task_unassigned')) ?></option>
-                    <?php foreach ($staff as $u): ?>
-                        <option value="<?= (int) $u['id'] ?>" <?= (int) ($task['assignee_id'] ?? 0) === (int) $u['id'] ? 'selected' : '' ?>>
-                            <?= htmlspecialchars((string) $u['name']) ?> (<?= htmlspecialchars(t('nav.role_' . $u['role'])) ?>)
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('admin.task_deadline')) ?></label>
-                <input type="datetime-local" name="deadline" class="<?= $input ?>" value="<?= htmlspecialchars($deadlineVal) ?>">
-            </div>
-        </div>
-        <div>
-            <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('admin.library_files')) ?></label>
-            <input type="file" name="files[]" multiple accept=".pdf,.docx,.xlsx,.png,.jpg,.jpeg" class="block w-full text-sm text-gray-500 file:mr-3 file:h-10 file:px-4 file:rounded-xl file:border-0 file:bg-sky-600 file:text-white file:text-xs file:font-bold">
-            <p class="text-[11px] text-gray-400 mt-1"><?= htmlspecialchars(t('admin.library_files_hint')) ?></p>
-        </div>
-        <?php if ($isEdit && !empty($files)): ?>
-            <div class="space-y-1">
-                <?php foreach ($files as $file): ?>
-                    <a href="<?= ProductHelper::url('/admin/tasks/files/' . (int) $file['id']) ?>" class="block text-sm text-sky-700 dark:text-sky-300 truncate"><?= htmlspecialchars((string) $file['original_name']) ?></a>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
-        <button type="submit" class="h-11 px-5 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold uppercase tracking-wider">
-            <?= htmlspecialchars($isEdit ? t('admin.task_save') : t('admin.task_create')) ?>
-        </button>
     </form>
-</section>
+</div>
 <script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.4/tinymce.min.js" referrerpolicy="origin"></script>
 <script>
 (function () {
