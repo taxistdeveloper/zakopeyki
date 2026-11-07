@@ -5661,7 +5661,9 @@ function handleVoiceRecognized(text, provider, gen) {
         return;
     }
     updateAiVoiceStatus('idle');
+    aiLastInputVoice = true;
     sendAiMessage(text);
+    aiLastInputVoice = false;
     if (inputEl && inputEl.value === text) {
         inputEl.value = '';
     }
@@ -5795,7 +5797,7 @@ function aiAutoSpeakLastReply() {
 /* ----- Пробуждение голосом: «Привет, Зак» → «Да, слушаю вас» → запись команды -----
  * Фоновое распознавание — Web Speech API браузера (в Chrome звук обрабатывают серверы Google),
  * поэтому режим включается только явно кнопкой в шапке чата и работает, пока вкладка видима. */
-const AI_WAKE_RE = /(?:^|[\s,.!?])(?:привет|приветик|здравствуй|эй|хей|сәлем|салем|hey|hi|hello)[\s,.!?-]+(?:зак|зака|заг|зэк|зек|зах|zak|zack|zach|zac)(?=$|[\s,.!?])/i;
+const AI_WAKE_RE = /(?:^|[\s,.!?])(?:привет|приветик|здравствуй|эй|хей|сәлем|салем|hey|hi|hello)[\s,.!?-]+(?:зак|зака|заки|заку|заг|зэк|зек|зах|жак|zak|zack|zach|zac)(?=$|[\s,.!?])/i;
 let aiWakeRec = null;
 let aiWakeRunning = false;
 let aiWakeBusy = false;
@@ -5803,6 +5805,11 @@ let aiWakeAck = null;
 let aiWakeIdleSince = 0;
 let aiWakeRetryAt = 0;
 let aiWakeFailCount = 0;
+
+/** Диагностика пробуждения в консоли браузера (фильтр «Zak wake»). */
+function aiWakeLog() {
+    try { console.info.apply(console, ['[Zak wake]'].concat(Array.prototype.slice.call(arguments))); } catch (e) { /* ignore */ }
+}
 
 function aiWakeSupported() {
     return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
@@ -5845,8 +5852,10 @@ function aiWakeStop() {
     }
 }
 
+/** Говорит ли сейчас сам Zak. speechSynthesis.speaking не используем: «разогревочная» пустая фраза
+ * и зависшие очереди Chrome держат его true, и пробуждение никогда бы не запустилось. */
 function aiWakeIsSpeaking() {
-    return !!aiActiveTtsAudio || !!(window.speechSynthesis && window.speechSynthesis.speaking);
+    return !!aiActiveTtsAudio || !!aiActiveTtsBtn;
 }
 
 function aiWakeCanListen() {
@@ -5878,7 +5887,9 @@ function aiWakeStart() {
             const res = event.results[i];
             for (let j = 0; j < res.length; j++) {
                 const heard = ' ' + String(res[j].transcript || '').toLowerCase().replace(/ё/g, 'е') + ' ';
+                if (j === 0) aiWakeLog('heard:', heard.trim(), res.isFinal ? '(final)' : '');
                 if (AI_WAKE_RE.test(heard)) {
+                    aiWakeLog('wake phrase detected');
                     aiWakeTriggered();
                     return;
                 }
@@ -5887,6 +5898,7 @@ function aiWakeStart() {
     };
     rec.onerror = function (event) {
         if (aiWakeRec !== rec) return;
+        aiWakeLog('error:', event.error, event.message || '');
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed' || event.error === 'audio-capture') {
             localStorage.setItem('zk_ai_wake', '0');
             aiWakeStop();
@@ -5900,6 +5912,7 @@ function aiWakeStart() {
         }
     };
     rec.onend = function () {
+        aiWakeLog('recognition ended');
         if (aiWakeRec === rec) {
             aiWakeRec = null;
             aiWakeRunning = false;
@@ -5910,7 +5923,9 @@ function aiWakeStart() {
     aiWakeRunning = true;
     try {
         rec.start();
+        aiWakeLog('listening, lang', rec.lang);
     } catch (e) {
+        aiWakeLog('start failed:', e && e.message);
         aiWakeRec = null;
         aiWakeRunning = false;
         aiWakeFailCount++;
@@ -6022,6 +6037,51 @@ function aiWakeTriggered() {
     });
 }
 
+/** Включить режим «Привет, Зак» (вызывать внутри клика — браузер спросит разрешение на микрофон). */
+function aiWakeEnable() {
+    localStorage.setItem('zk_ai_wake', '1');
+    aiWakeFailCount = 0;
+    aiWakeRetryAt = 0;
+    updateAiWakeUi();
+    if (aiWakeCanListen()) aiWakeStart();
+    else aiWakeLog('cannot start now: voiceState=' + aiVoiceState + ', chatBusy=' + aiChatBusy + ', speaking=' + aiWakeIsSpeaking());
+    aiUnlockTtsAudio();
+    aiWakeFetchAck();
+}
+
+const AI_WAKE_BARE_RE = /^[\s,.!?-]*(?:привет|приветик|здравствуй|здравствуйте|эй|хей|сәлем|салем|hey|hi|hello)[\s,.!?-]+(?:зак|зака|заки|заку|заг|зэк|зек|зах|жак|zak|zack|zach|zac)[\s,.!?)]*$/i;
+let aiLastInputVoice = false;
+
+/** Сообщение — только обращение «Привет, Зак» без вопроса. */
+function aiIsBareWakePhrase(text) {
+    return AI_WAKE_BARE_RE.test(String(text || '').toLowerCase().replace(/ё/g, 'е'));
+}
+
+/** Ответ на «Привет, Зак» в чате: «Да, слушаю вас» и (если сказано голосом) сразу запись просьбы. */
+function aiHandleWakeGreeting(text, fromVoice) {
+    aiWakeLog('greeting in chat, voice=' + fromVoice);
+    appendAiUser(text);
+    appendAiBot(tJs('ai.wake_ack', 'Да, слушаю вас'), [], [], null, []);
+    aiLastTtsBtn = null;
+    if (aiWakeSupported() && !aiWakeEnabled()) {
+        renderAiSuggestions([{ label: tJs('ai.wake_enable_chip', 'Всегда слушать «Привет, Зак»'), action: 'wake' }]);
+    }
+    const listen = function () {
+        aiWakeBusy = false;
+        if (fromVoice && !aiChatBusy) {
+            updateAiVoiceStatus('idle');
+            startAiVoice();
+        }
+    };
+    aiWakeStop();
+    aiWakeBusy = true;
+    if (aiAutoSpeakEnabled()) {
+        aiSpeakWakeAck(listen);
+    } else {
+        listen();
+    }
+}
+
 function aiWakeTick() {
     if (!aiWakeEnabled()) {
         if (aiWakeRunning) aiWakeStop();
@@ -6050,6 +6110,7 @@ function aiWakeTick() {
 
 function initAiWake() {
     if (!document.getElementById('ai-assistant-toggle')) return;
+    aiWakeLog('init: supported=' + aiWakeSupported() + ', enabled=' + aiWakeEnabled() + ', secure=' + window.isSecureContext);
     updateAiWakeUi();
     document.getElementById('ai-assistant-wake')?.addEventListener('click', function (e) {
         e.preventDefault();
@@ -6060,14 +6121,7 @@ function initAiWake() {
             updateAiWakeUi();
             return;
         }
-        localStorage.setItem('zk_ai_wake', '1');
-        aiWakeFailCount = 0;
-        aiWakeRetryAt = 0;
-        updateAiWakeUi();
-        aiUnlockTtsAudio();
-        aiWakeFetchAck();
-        // Запуск внутри клика — браузер спросит разрешение на микрофон
-        if (aiWakeCanListen()) aiWakeStart();
+        aiWakeEnable();
     });
     if (aiWakeEnabled()) aiWakeFetchAck();
     setInterval(aiWakeTick, 500);
@@ -6522,6 +6576,12 @@ function sendAiSuggestion(message) {
 function sendAiMessage(text) {
     stopAiTts();
     if (aiChatBusy || !text) return;
+    const fromVoice = aiLastInputVoice;
+    aiLastInputVoice = false;
+    if (aiIsBareWakePhrase(text)) {
+        aiHandleWakeGreeting(text, fromVoice);
+        return;
+    }
     aiChatBusy = true;
 
     appendAiUser(text);
@@ -7127,6 +7187,11 @@ function renderAiSuggestions(suggestions) {
         btn.addEventListener('click', function () {
             if (s.action === 'docs') {
                 showAiDocuments();
+                return;
+            }
+            if (s.action === 'wake') {
+                aiWakeEnable();
+                row.innerHTML = '';
                 return;
             }
             sendAiSuggestion(s.message || s.label || '');

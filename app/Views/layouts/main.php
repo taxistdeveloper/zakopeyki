@@ -2662,7 +2662,7 @@ function url(string $path = ''): string
             'ai.mic_btn', 'ai.mic_listening', 'ai.mic_processing', 'ai.mic_denied', 'ai.mic_not_found',
             'ai.mic_busy', 'ai.mic_error', 'ai.mic_unsupported', 'ai.mic_cancel', 'ai.mic_retry',
             'ai.mic_too_short', 'ai.mic_timeout', 'ai.mic_chat_busy',
-            'ai.tts_play', 'ai.wake_on', 'ai.wake_off', 'ai.wake_ack', 'ai.wake_listening', 'ai.wake_heard', 'ai.wake_denied', 'ai.auto_speak_on', 'ai.auto_speak_off', 'ai.tts_synthetic_notice', 'ai.tts_stop', 'ai.tts_pause', 'ai.tts_resume', 'ai.tts_unsupported', 'ai.tts_error',
+            'ai.tts_play', 'ai.wake_on', 'ai.wake_off', 'ai.wake_ack', 'ai.wake_enable_chip', 'ai.wake_listening', 'ai.wake_heard', 'ai.wake_denied', 'ai.auto_speak_on', 'ai.auto_speak_off', 'ai.tts_synthetic_notice', 'ai.tts_stop', 'ai.tts_pause', 'ai.tts_resume', 'ai.tts_unsupported', 'ai.tts_error',
             'js.now',
             'js.live_host', 'js.login_to_stream', 'js.stream_fail', 'js.stream_desc',
             'js.you', 'js.stream_error', 'js.live_connecting', 'js.live_waiting',
