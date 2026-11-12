@@ -25,14 +25,13 @@ use App\Services\BusinessPackageService;
 use App\Services\Listing\ListingShippingService;
 use App\Services\Listing\ServiceListingFeeService;
 use App\Services\MicroTaskService;
+use App\Services\Listing\ListingService;
 use App\Services\PersonalLimitService;
 
 class ProfileController extends Controller
 {
     private const AVATAR_EXT = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
     private const MAX_AVATAR = 3 * 1024 * 1024;
-    private const PRODUCT_EXT = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
-    private const MAX_PRODUCT_IMAGE = 5 * 1024 * 1024;
 
     public function index(): void
     {
@@ -483,203 +482,76 @@ class ProfileController extends Controller
             $type = 'new';
         }
 
-        $lotsFailUrl = '/profile?tab=lots';
-        $this->requireListingRules($type === 'gig' ? '/profile?tab=lots&type=gig' : $lotsFailUrl);
-
-        $amlFail = $this->guardAml($type === 'gig' ? '/profile?tab=lots&type=gig' : $lotsFailUrl);
-        if ($amlFail !== null) {
-            $this->redirect($amlFail);
-        }
-
-        if ($type !== 'gig') {
-            $limitCheck = (new PersonalLimitService())->assertCanPublish(Auth::user() ?: []);
-            if (!$limitCheck['ok']) {
-                $_SESSION['error'] = $limitCheck['error'] ?? t('business.err_limit_reached_short');
-                $this->redirect('/profile?tab=business');
-            }
-            $pkgCheck = (new BusinessPackageService())->assertCanCreateListing(Auth::id());
-            if (!$pkgCheck['ok']) {
-                $_SESSION['error'] = $pkgCheck['error'] ?? t('business.err_generic');
-                $this->redirect('/profile?tab=business');
-            }
-        }
-
-        $title = trim($_POST['title'] ?? '');
-        $description = trim($_POST['description'] ?? '');
-
         if ($type === 'gig') {
+            // Биржа услуг — отдельный поток (не ListingService)
+            $gigUrl = '/profile?tab=lots&type=gig';
+            $this->requireListingRules($gigUrl);
+            $amlFail = $this->guardAml($gigUrl);
+            if ($amlFail !== null) {
+                $this->redirect($amlFail);
+            }
+            $description = trim($_POST['description'] ?? '');
             if ($description === '') {
                 $_SESSION['error'] = t('flash.title_desc_required');
-                $this->redirect('/profile?tab=lots&type=gig');
+                $this->redirect($gigUrl);
             }
             $this->storeGig($description);
             return;
         }
 
-        if ($title === '' || $description === '') {
-            $_SESSION['error'] = t('flash.title_desc_required');
-            $this->redirect($lotsFailUrl);
-        }
-
-        $characteristics = ProductHelper::normalizeCharacteristics($_POST['characteristics'] ?? '');
-        if ($characteristics === null) {
-            $_SESSION['error'] = t('profile.characteristics_invalid');
-            $this->redirect($lotsFailUrl);
-        }
-
-        $exchangeFor = trim($_POST['exchange_for'] ?? '');
-        if ($type === 'exchange' && $exchangeFor === '') {
-            $_SESSION['error'] = t('flash.exchange_for_required');
-            $this->redirect('/profile?tab=lots');
-        }
-        if ($type !== 'exchange') {
-            $exchangeFor = '';
-        }
-
-        $pkgService = new BusinessPackageService();
-        $listingFeeSvc = new ServiceListingFeeService();
-        $publishGate = $listingFeeSvc->assertCanPublishNew($type);
-        if (!$publishGate['ok']) {
-            $_SESSION['error'] = $publishGate['error'] ?? t('flash.service_publish_disabled');
-            $this->redirect('/profile?tab=lots&type=service');
-        }
-        $afford = $listingFeeSvc->assertAffordable(Auth::id(), $type, Auth::isStaff());
-        if (!$afford['ok']) {
-            $_SESSION['error'] = $afford['error'] ?? t('flash.service_fee_need', [
-                'amount' => Wallet::formatMoney($listingFeeSvc->feeForType($type)),
-            ]);
-            $_SESSION['error_cta'] = 'wallet';
-            $this->redirect('/profile?tab=lots&type=service');
-        }
-        $serviceFee = (int) ($afford['fee'] ?? 0);
-
-        $maxPhotos = $pkgService->maxPhotosForUser(Auth::id());
-        $resolved = $this->resolveProductImages(null, true, $maxPhotos);
-        if (!empty($resolved['error'])) {
-            $_SESSION['error'] = $resolved['error'];
-            $this->redirect($lotsFailUrl);
-        }
-
-        $price = in_array($type, ['free', 'exchange', 'service'], true) ? 0 : ($_POST['price'] ?? 0);
-        $priceLabel = match ($type) {
-            'free' => 'Бесплатно',
-            'exchange' => 'Обмен',
-            'service' => t('price.negotiable'),
-            default => null,
-        };
-
-        $auction = $this->auctionFieldsFromPost($type, (int) preg_replace('/\D/', '', (string) $price));
-        if (!empty($auction['error'])) {
-            $_SESSION['error'] = $auction['error'];
-            $this->redirect($lotsFailUrl);
-        }
-
-        $whatsapp = ProductHelper::normalizeWhatsappInput($_POST['whatsapp'] ?? '');
-        if (!$whatsapp['ok']) {
-            $_SESSION['error'] = t('profile.whatsapp_invalid');
-            $this->redirect($lotsFailUrl);
-        }
-
-        $category = ProductHelper::normalizeCategory($_POST['category'] ?? null, $type);
-
-        $quantity = 1;
-        if (ProductHelper::tracksInventory(['type' => $type])) {
-            $parsedQty = ProductHelper::parseStockQuantity($_POST['quantity'] ?? 1);
-            if (!$parsedQty['ok']) {
-                $_SESSION['error'] = $parsedQty['error'] ?? t('flash.quantity_invalid');
-                $this->redirect($lotsFailUrl);
-            }
-            $quantity = $parsedQty['value'];
-        }
-
-        $dbUser = (new User())->find(Auth::id());
-        $shippingSvc = new ListingShippingService();
-        $shipResult = $shippingSvc->validateAndBuild(Auth::id(), $type, $_POST, $dbUser);
-        if (!$shipResult['ok']) {
-            $_SESSION['error'] = $shipResult['error'] ?? t('listing_shipping.validation_failed');
-            if (!empty($shipResult['missing_fields']) && is_array($shipResult['missing_fields'])) {
-                $_SESSION['listing_shipping_errors'] = [
-                    'field' => $shipResult['field'] ?? null,
-                    'error_code' => $shipResult['error_code'] ?? null,
-                    'missing_fields' => $shipResult['missing_fields'],
-                ];
-            }
-            $this->redirect($lotsFailUrl);
-        }
-
-        $productId = (new Product())->create(array_merge([
-            'user_id' => Auth::id(),
-            'type' => $type,
-            'category' => $category,
-            'title' => $title,
-            'description' => $description,
-            'characteristics' => $characteristics,
-            'price' => $price,
-            'exchange_for' => $exchangeFor !== '' ? mb_substr($exchangeFor, 0, 255) : null,
-            'price_label' => $priceLabel,
-            'location' => trim($_POST['location'] ?? 'Караганда'),
-            'whatsapp' => $whatsapp['value'],
-            'image' => $resolved['cover'],
-            'images' => $resolved['images'],
-            'quantity' => $quantity,
-        ], $auction['fields']));
-
-        if (!empty($shipResult['data'])) {
-            $save = $shippingSvc->saveForOwnedProduct((int) $productId, Auth::id(), $shipResult['data']);
-            if (!$save['ok']) {
-                (new Product())->delete((int) $productId);
-                $_SESSION['error'] = $save['error'] ?? t('listing_shipping.validation_failed');
-                $this->redirect($lotsFailUrl);
-            }
-        }
-
-        if ($serviceFee > 0) {
-            $pay = $listingFeeSvc->chargeForPublishedProduct(
-                Auth::id(),
-                $type,
-                (int) $productId,
-                Auth::isStaff()
-            );
-            if (!$pay['ok']) {
-                $products = new Product();
-                $products->deleteProductFiles($resolved['images'] ?? []);
-                $products->delete((int) $productId);
-                $payErr = (string) ($pay['error'] ?? '');
-                $_SESSION['error'] = $payErr !== ''
-                    ? $payErr
-                    : t('flash.service_fee_failed');
-                $_SESSION['error_cta'] = 'wallet';
-                $this->redirect('/profile?tab=lots&type=service');
-            }
-            $serviceFee = (int) ($pay['fee'] ?? $serviceFee);
-        }
-
-        ActivityLogger::info('product.create', 'Добавлено объявление «' . $title . '»', 'product', $productId, [
-            'type' => $type,
-            'price' => $price,
-            'listing_fee' => $serviceFee,
-        ]);
-
-        $pkgService->consumeListing(Auth::id());
-
-        $bonusResult = (new \App\Models\Bonus())->awardListing((int) Auth::id(), (int) $productId);
-
-        $sellerName = (string) (Auth::user()['name'] ?? 'Продавец');
-        $shortTitle = mb_strlen($title) > 80 ? mb_substr($title, 0, 77) . '…' : $title;
-        (new Follow())->notifyFollowers(
-            Auth::id(),
-            t('seller.notify_product', ['name' => $sellerName, 'title' => $shortTitle])
+        // Общая логика с мобильным API — ListingService
+        $result = (new ListingService())->create(
+            (int) Auth::id(),
+            array_merge($_POST, ['type' => $type]),
+            $_FILES['images'] ?? null,
+            Auth::isStaff()
         );
+        $fresh = (new User())->find((int) Auth::id());
+        if ($fresh) {
+            Auth::refresh($fresh);
+        }
+        if (empty($result['ok'])) {
+            $this->failListing($result, '/profile?tab=lots');
+        }
 
-        $_SESSION['flash'] = $serviceFee > 0
-            ? t('flash.service_published', ['amount' => Wallet::formatMoney($serviceFee)])
+        $fee = (int) ($result['fee'] ?? 0);
+        $_SESSION['flash'] = $fee > 0
+            ? t('flash.service_published', ['amount' => Wallet::formatMoney($fee)])
             : t('flash.lot_published');
-        if (!empty($bonusResult['ok']) && empty($bonusResult['skipped']) && ($bonusResult['amount'] ?? 0) > 0) {
+        if (($result['bonus'] ?? 0) > 0) {
             $_SESSION['flash'] .= ' ' . t('bonuses.flash_listing', [
-                'amount' => \App\Models\Bonus::format((int) $bonusResult['amount']),
+                'amount' => \App\Models\Bonus::format((int) $result['bonus']),
             ]);
         }
         $this->redirect('/profile?tab=my-listings');
+    }
+
+    /**
+     * Ошибка ListingService → flash и redirect (как было до выноса логики в сервис).
+     *
+     * @param array<string, mixed> $result
+     */
+    private function failListing(array $result, string $failUrl): never
+    {
+        $_SESSION['error'] = (string) ($result['error'] ?? t('business.err_generic'));
+        $code = (string) ($result['code'] ?? '');
+        if (in_array($code, ['limit_reached', 'package_limit'], true)) {
+            $this->redirect('/profile?tab=business');
+        }
+        if (in_array($code, ['service_publish_disabled', 'service_fee_unaffordable', 'service_fee_failed'], true)) {
+            if ($code !== 'service_publish_disabled') {
+                $_SESSION['error_cta'] = 'wallet';
+            }
+            $this->redirect('/profile?tab=lots&type=service');
+        }
+        if ($code === 'shipping_invalid' && !empty($result['missing_fields']) && is_array($result['missing_fields'])) {
+            $_SESSION['listing_shipping_errors'] = [
+                'field' => $result['field'] ?? null,
+                'error_code' => $result['shipping_error_code'] ?? null,
+                'missing_fields' => $result['missing_fields'],
+            ];
+        }
+        $this->redirect($failUrl);
     }
 
     private function storeGig(string $description): void
@@ -786,129 +658,16 @@ class ProfileController extends Controller
     {
         Auth::requireLogin();
 
-        $products = new Product();
-        $product = $products->find((int) $id);
-        if (!$product || (int) $product['user_id'] !== Auth::id()) {
-            $_SESSION['error'] = t('flash.lot_not_found');
-            $this->redirect('/profile?tab=lots');
-        }
-
-        $type = $_POST['type'] ?? $product['type'];
-        if (!isset(ProductHelper::marketplaceTypes()[$type]) || $type === 'gig') {
-            $type = isset(ProductHelper::marketplaceTypes()[$product['type'] ?? ''])
-                ? $product['type']
-                : 'used';
-        }
-        if ($type === 'gig') {
+        $product = (new Product())->find((int) $id);
+        if ($product && (int) $product['user_id'] === Auth::id() && ($product['type'] ?? '') === 'gig') {
             $_SESSION['error'] = t('gigs.err_edit_as_product');
             $this->redirect('/profile?tab=lots');
         }
-        $editUrl = '/profile?tab=lots&edit=' . (int) $id;
 
-        $title = trim($_POST['title'] ?? '');
-        $description = trim($_POST['description'] ?? '');
-        if ($title === '' || $description === '') {
-            $_SESSION['error'] = t('flash.title_desc_required');
-            $this->redirect($editUrl);
+        $result = (new ListingService())->update((int) Auth::id(), (int) $id, $_POST, $_FILES['images'] ?? null);
+        if (empty($result['ok'])) {
+            $this->failListing($result, ($result['code'] ?? '') === 'not_found' ? '/profile?tab=lots' : '/profile?tab=lots&edit=' . (int) $id);
         }
-
-        $characteristics = ProductHelper::normalizeCharacteristics($_POST['characteristics'] ?? '');
-        if ($characteristics === null) {
-            $_SESSION['error'] = t('profile.characteristics_invalid');
-            $this->redirect($editUrl);
-        }
-
-        $exchangeFor = trim($_POST['exchange_for'] ?? '');
-        if ($type === 'exchange' && $exchangeFor === '') {
-            $_SESSION['error'] = t('flash.exchange_for_required');
-            $this->redirect($editUrl);
-        }
-        if ($type !== 'exchange') {
-            $exchangeFor = '';
-        }
-
-        $resolved = $this->resolveProductImages($product);
-        if (!empty($resolved['error'])) {
-            $_SESSION['error'] = $resolved['error'];
-            $this->redirect($editUrl);
-        }
-
-        $noPrice = in_array($type, ['free', 'exchange', 'service'], true);
-        $price = $noPrice ? 0 : ($_POST['price'] ?? $product['price']);
-        $priceLabel = match ($type) {
-            'free' => 'Бесплатно',
-            'exchange' => 'Обмен',
-            'service' => t('price.negotiable'),
-            default => null,
-        };
-
-        $auction = $this->auctionFieldsFromPost($type, (int) preg_replace('/\D/', '', (string) $price), $product);
-        if (!empty($auction['error'])) {
-            $_SESSION['error'] = $auction['error'];
-            $this->redirect($editUrl);
-        }
-
-        $whatsapp = ProductHelper::normalizeWhatsappInput($_POST['whatsapp'] ?? '');
-        if (!$whatsapp['ok']) {
-            $_SESSION['error'] = t('profile.whatsapp_invalid');
-            $this->redirect($editUrl);
-        }
-
-        $category = ProductHelper::normalizeCategory($_POST['category'] ?? ($product['category'] ?? null), $type);
-
-        $quantity = max(1, (int) ($product['quantity'] ?? 1));
-        if (ProductHelper::tracksInventory(['type' => $type])) {
-            $parsedQty = ProductHelper::parseStockQuantity($_POST['quantity'] ?? $quantity);
-            if (!$parsedQty['ok']) {
-                $_SESSION['error'] = $parsedQty['error'] ?? t('flash.quantity_invalid');
-                $this->redirect($editUrl);
-            }
-            $quantity = $parsedQty['value'];
-        }
-
-        $dbUser = (new User())->find(Auth::id());
-        $shippingSvc = new ListingShippingService();
-        $shipResult = $shippingSvc->validateAndBuild(Auth::id(), $type, $_POST, $dbUser);
-        if (!$shipResult['ok']) {
-            $_SESSION['error'] = $shipResult['error'] ?? t('listing_shipping.validation_failed');
-            if (!empty($shipResult['missing_fields']) && is_array($shipResult['missing_fields'])) {
-                $_SESSION['listing_shipping_errors'] = [
-                    'field' => $shipResult['field'] ?? null,
-                    'error_code' => $shipResult['error_code'] ?? null,
-                    'missing_fields' => $shipResult['missing_fields'],
-                ];
-            }
-            $this->redirect($editUrl);
-        }
-
-        $products->updateProduct((int) $id, array_merge([
-            'type' => $type,
-            'category' => $category,
-            'title' => $title,
-            'description' => $description,
-            'characteristics' => $characteristics,
-            'price' => $price,
-            'exchange_for' => $exchangeFor !== '' ? mb_substr($exchangeFor, 0, 255) : null,
-            'price_label' => $priceLabel,
-            'location' => trim($_POST['location'] ?? ($product['location'] ?? 'Караганда')),
-            'whatsapp' => $whatsapp['value'],
-            'image' => $resolved['cover'],
-            'images' => $resolved['images'],
-            'quantity' => $quantity,
-            'status' => $product['status'] ?? 'active',
-        ], $auction['fields']));
-
-        if (!empty($shipResult['data'])) {
-            $save = $shippingSvc->saveForOwnedProduct((int) $id, Auth::id(), $shipResult['data']);
-            if (!$save['ok']) {
-                $_SESSION['error'] = $save['error'] ?? t('listing_shipping.validation_failed');
-                $this->redirect($editUrl);
-            }
-        }
-
-        ActivityLogger::info('product.update', 'Обновлено объявление «' . $title . '»', 'product', (int) $id, [
-            'type' => $type,
-        ]);
 
         $_SESSION['flash'] = t('flash.lot_updated');
         $this->redirect('/profile?tab=my-listings');
@@ -918,35 +677,11 @@ class ProfileController extends Controller
     {
         Auth::requireLogin();
 
-        $products = new Product();
-        $product = $products->find((int) $id);
-        if (!$product || (int) $product['user_id'] !== Auth::id()) {
-            $_SESSION['error'] = t('flash.lot_not_found');
-            $this->redirect('/profile?tab=lots');
+        $result = (new ListingService())->delete((int) Auth::id(), (int) $id);
+        if (empty($result['ok'])) {
+            $_SESSION['error'] = (string) ($result['error'] ?? t('flash.lot_not_found'));
+            $this->redirect(($result['code'] ?? '') === 'not_found' ? '/profile?tab=lots' : '/profile?tab=my-listings#profile-published-lots');
         }
-
-        if ((new Order())->hasActiveOrdersForProduct((int) $id)) {
-            $_SESSION['error'] = 'Невозможно удалить товар с активным заказом';
-            $this->redirect('/profile?tab=my-listings#profile-published-lots');
-            return;
-        }
-
-        if (($product['type'] ?? '') === 'auction' && ($product['status'] ?? '') === 'active') {
-            if ($products->countBids((int) $id) > 0) {
-                $_SESSION['error'] = 'Невозможно удалить аукцион с действующими ставками.';
-                $this->redirect('/profile?tab=my-listings#profile-published-lots');
-                return;
-            }
-        }
-
-        $products->deleteProductFiles(ProductHelper::decodeImages($product));
-        $products->delete((int) $id);
-        ActivityLogger::info(
-            'product.delete',
-            'Удалено объявление «' . ($product['title'] ?? '') . '»',
-            'product',
-            (int) $id
-        );
         $_SESSION['flash'] = t('flash.lot_deleted');
         $this->redirect('/profile?tab=my-listings#profile-published-lots');
     }
@@ -958,124 +693,13 @@ class ProfileController extends Controller
     }
 
     /**
+     * Фото объявления (биржа услуг) — общая логика ListingService::resolveImages.
+     *
      * @return array{images?: list<string>, cover?: string, error?: string}
      */
     private function resolveProductImages(?array $existingProduct = null, bool $required = true, ?int $maxPhotos = null): array
     {
-        $products = new Product();
-        $oldFiles = $existingProduct ? ProductHelper::decodeImages($existingProduct) : [];
-        $max = max(1, $maxPhotos ?? (new BusinessPackageService())->maxPhotosForUser((int) Auth::id()));
-
-        $keep = $_POST['keep_images'] ?? [];
-        if (!is_array($keep)) {
-            $keep = [];
-        }
-        $kept = [];
-        foreach ($keep as $file) {
-            $name = basename((string) $file);
-            if ($name !== '' && in_array($name, $oldFiles, true) && !in_array($name, $kept, true)) {
-                $kept[] = $name;
-            }
-        }
-
-        $removed = array_diff($oldFiles, $kept);
-        if ($removed) {
-            $products->deleteProductFiles(array_values($removed));
-        }
-
-        $slotsLeft = $max - count($kept);
-        $uploaded = $slotsLeft > 0 ? $this->uploadProductImages($slotsLeft) : [];
-        if (!empty($uploaded['error'])) {
-            return ['error' => $uploaded['error']];
-        }
-
-        $images = array_values(array_slice(array_merge($kept, $uploaded['files'] ?? []), 0, $max));
-        if (!$images) {
-            if (!$required) {
-                return ['images' => [], 'cover' => ''];
-            }
-            return ['error' => t('flash.need_photo_n', ['n' => (string) $max])];
-        }
-
-        $coverRaw = trim((string) ($_POST['cover'] ?? ''));
-        $cover = null;
-        if (strpos($coverRaw, '__new__') === 0) {
-            $idx = (int) substr($coverRaw, 7);
-            $newFiles = $uploaded['files'] ?? [];
-            $cover = $newFiles[$idx] ?? null;
-        } elseif ($coverRaw !== '' && in_array(basename($coverRaw), $images, true)) {
-            $cover = basename($coverRaw);
-        }
-
-        if (!$cover || !in_array($cover, $images, true)) {
-            $cover = $images[0];
-        }
-
-        return ['images' => $images, 'cover' => $cover];
-    }
-
-    /**
-     * @return array{files?: list<string>, error?: string}
-     */
-    private function uploadProductImages(int $max): array
-    {
-        if ($max < 1) {
-            return ['files' => []];
-        }
-
-        if (empty($_FILES['images']) || !is_array($_FILES['images']['name'] ?? null)) {
-            return ['files' => []];
-        }
-
-        $names = $_FILES['images']['name'];
-        $tmps = $_FILES['images']['tmp_name'];
-        $errors = $_FILES['images']['error'];
-        $sizes = $_FILES['images']['size'];
-
-        $dir = __DIR__ . '/../../public/uploads/products';
-        if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
-            return ['error' => t('flash.photo_save_fail')];
-        }
-        if (!is_writable($dir)) {
-            return ['error' => t('flash.photo_save_fail')];
-        }
-
-        $saved = [];
-        $count = is_array($names) ? count($names) : 0;
-        for ($i = 0; $i < $count; $i++) {
-            if (count($saved) >= $max) {
-                break;
-            }
-            $name = $names[$i] ?? '';
-            if ($name === '' || ($errors[$i] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
-                continue;
-            }
-            if (($errors[$i] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) {
-                return ['error' => t('flash.upload_error')];
-            }
-            if (($sizes[$i] ?? 0) > self::MAX_PRODUCT_IMAGE) {
-                return ['error' => t('flash.photo_too_big')];
-            }
-
-            $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-            if (!in_array($ext, self::PRODUCT_EXT, true)) {
-                return ['error' => t('flash.photo_formats')];
-            }
-            if (!\App\Helpers\UploadHelper::isAllowedUpload((string) $tmps[$i], (string) $name, self::PRODUCT_EXT)) {
-                return ['error' => t('flash.photo_formats')];
-            }
-
-            $ext = \App\Helpers\UploadHelper::normalizeExt((string) $name);
-            $filename = 'product_' . Auth::id() . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
-            $dest = $dir . '/' . $filename;
-            if (!@move_uploaded_file($tmps[$i], $dest)) {
-                return ['error' => t('flash.photo_save_fail')];
-            }
-            \App\Helpers\UploadHelper::applyWatermark($dest);
-            $saved[] = $filename;
-        }
-
-        return ['files' => $saved];
+        return (new ListingService())->resolveImages((int) Auth::id(), $existingProduct, $_POST, $_FILES['images'] ?? null, $required, $maxPhotos);
     }
 
     public function avatar(): void
@@ -1163,19 +787,36 @@ class ProfileController extends Controller
         $confirm = trim($_POST['confirm_text'] ?? '');
         $users = new User();
         $userId = Auth::id();
+        $deletion = new \App\Services\Auth\AccountDeletionService();
 
         if (!in_array($confirm, ['УДАЛИТЬ', t('profile.delete_word')], true)) {
             $_SESSION['error'] = t('flash.delete_confirm_word');
             $this->redirect('/profile?tab=password');
         }
 
-        if ($password === '' || !$users->verifyPassword($userId, $password)) {
-            $_SESSION['error'] = t('flash.wrong_password');
+        // Аккаунт с паролем — подтверждение паролем; без пароля (вход через Google/Apple) —
+        // требуется недавний вход (не старше 10 минут). Раньше такие аккаунты удалить было нельзя.
+        if ($deletion->hasPassword($userId)) {
+            if ($password === '' || !$users->verifyPassword($userId, $password)) {
+                $_SESSION['error'] = t('flash.wrong_password');
+                $this->redirect('/profile?tab=password');
+            }
+        } elseif (time() - (int) ($_SESSION['auth_time'] ?? 0) > \App\Services\Auth\AccountDeletionService::REAUTH_WINDOW) {
+            $_SESSION['error'] = t('mobile_api.reauth_required');
             $this->redirect('/profile?tab=password');
         }
 
-        if (!$users->deleteAccount($userId)) {
-            $_SESSION['error'] = t('flash.delete_fail');
+        $result = $deletion->delete($userId, 'web');
+        if (!$result['ok']) {
+            $_SESSION['error'] = $result['error'] === 'deletion_blocked'
+                ? implode(' ', array_map(
+                    static fn (array $b): string => t('mobile_api.blocker_' . $b['code'], [
+                        'count' => (string) ($b['count'] ?? ''),
+                        'amount' => \App\Models\Wallet::formatMoney((int) ($b['amount'] ?? 0)),
+                    ]),
+                    $result['blockers'] ?? []
+                ))
+                : t('flash.delete_fail');
             $this->redirect('/profile?tab=password');
         }
 
@@ -1201,86 +842,5 @@ class ProfileController extends Controller
 
         $_SESSION['error'] = $result['error'] ?? t('flash.aml_blocked');
         return $redirect;
-    }
-
-    /**
-     * @return array{error?: string, fields: array<string, mixed>}
-     */
-    private function auctionFieldsFromPost(string $type, int $startPrice, ?array $existing = null): array
-    {
-        if ($type !== 'auction') {
-            return ['fields' => []];
-        }
-
-        $kind = (string) ($_POST['auction_kind'] ?? ($existing['auction_kind'] ?? 'english'));
-        if (!in_array($kind, ['english', 'dutch', 'continuous'], true)) {
-            $kind = 'english';
-        }
-
-        $bidStep = (int) preg_replace('/\D/', '', (string) ($_POST['bid_step'] ?? ($existing['bid_step'] ?? 1000)));
-        if ($bidStep < 1) {
-            $bidStep = 1000;
-        }
-
-        $hours = (int) ($_POST['auction_hours'] ?? 24);
-        if (!in_array($hours, [1, 6, 24, 72, 168], true)) {
-            $hours = 24;
-        }
-
-        $reserveRaw = preg_replace('/\D/', '', (string) ($_POST['auction_reserve'] ?? ''));
-        $reserve = $reserveRaw !== '' ? (int) $reserveRaw : null;
-
-        $buyNowRaw = preg_replace('/\D/', '', (string) ($_POST['auction_buy_now'] ?? ''));
-        $buyNow = $buyNowRaw !== '' ? (int) $buyNowRaw : null;
-        if ($kind !== 'dutch' && $buyNow !== null && $buyNow <= $startPrice) {
-            return ['error' => t('profile.auction_buy_now_invalid'), 'fields' => []];
-        }
-
-        $fields = [
-            'auction_kind' => $kind,
-            'bid_step' => $bidStep,
-            'anti_snipe_seconds' => 30,
-            'auto_extend_seconds' => 120,
-            'auction_start_at' => $existing['auction_start_at'] ?? date('Y-m-d H:i:s'),
-            'auction_reserve' => $reserve,
-            'auction_buy_now' => $kind === 'dutch' ? null : $buyNow,
-            'auction_min_price' => null,
-            'auction_step_interval' => null,
-            'auction_end_at' => null,
-            'inactivity_timeout_seconds' => null,
-        ];
-
-        if ($kind === 'continuous') {
-            $inactivityHours = (int) ($_POST['inactivity_hours'] ?? 24);
-            if (!in_array($inactivityHours, [1, 6, 24, 72, 168], true)) {
-                $inactivityHours = 24;
-            }
-            $fields['inactivity_timeout_seconds'] = $inactivityHours * 3600;
-            $fields['auction_end_at'] = null;
-        } else {
-            $startTs = !empty($existing['auction_start_at'])
-                ? strtotime((string) $existing['auction_start_at'])
-                : time();
-            $fields['auction_end_at'] = date('Y-m-d H:i:s', $startTs + ($hours * 3600));
-        }
-
-        if ($kind === 'dutch') {
-            $minPrice = (int) preg_replace('/\D/', '', (string) ($_POST['auction_min_price'] ?? '0'));
-            if ($minPrice < 1 || $minPrice >= $startPrice) {
-                return ['error' => t('profile.auction_min_invalid'), 'fields' => []];
-            }
-            $intervalMin = (int) ($_POST['auction_step_minutes'] ?? 1);
-            if ($intervalMin < 1) {
-                $intervalMin = 1;
-            }
-            $fields['auction_min_price'] = $minPrice;
-            $fields['auction_step_interval'] = $intervalMin * 60;
-        }
-
-        if ($startPrice < 1) {
-            return ['error' => t('profile.auction_start_required'), 'fields' => []];
-        }
-
-        return ['fields' => $fields];
     }
 }

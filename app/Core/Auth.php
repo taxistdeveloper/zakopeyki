@@ -46,6 +46,8 @@ class Auth
         session_regenerate_id(true);
         self::setUser($user);
         $_SESSION['remember_me'] = $remember;
+        // Время входа — для действий, требующих недавней аутентификации (удаление аккаунта без пароля)
+        $_SESSION['auth_time'] = time();
         if ($remember) {
             self::refreshSessionCookie(self::REMEMBER_TTL);
         }

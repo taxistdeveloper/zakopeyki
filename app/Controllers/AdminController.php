@@ -2018,6 +2018,33 @@ class AdminController extends Controller
         }
     }
 
+    /**
+     * M-01 / B0.6: документы KYC бизнес-заявок — только через авторизованный endpoint
+     * (прямой доступ к public/uploads/business закрыт .htaccess).
+     */
+    public function businessDocument(string $file): void
+    {
+        Auth::requireAdmin();
+        $safe = basename($file);
+        if ($safe === '' || $safe !== $file || !preg_match('/^biz_\d+_\d+_[a-f0-9]+\.(jpe?g|png|webp|pdf)$/i', $safe)) {
+            http_response_code(404);
+            exit;
+        }
+        $path = dirname(__DIR__, 2) . '/public/uploads/business/' . $safe;
+        if (!is_file($path)) {
+            http_response_code(404);
+            exit;
+        }
+        $mime = \App\Helpers\UploadHelper::detectMime($path) ?: 'application/octet-stream';
+        header('Content-Type: ' . $mime);
+        header('X-Content-Type-Options: nosniff');
+        header('Cache-Control: private, no-store');
+        header('Content-Length: ' . (string) filesize($path));
+        header('Content-Disposition: inline; filename="' . $safe . '"');
+        readfile($path);
+        exit;
+    }
+
     public function businessRequests(): void
     {
         Auth::requireAdmin();

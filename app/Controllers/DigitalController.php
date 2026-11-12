@@ -343,8 +343,8 @@ class DigitalController extends Controller
         $raw = (string) file_get_contents('php://input');
         $sig = (string) ($_SERVER['HTTP_WEBHOOK_SIGNATURE'] ?? $_SERVER['HTTP_CF_WEBHOOK_SIGNATURE'] ?? '');
         $cf = new CloudflareStreamClient();
-        $secret = trim((string) ((new \App\Models\Setting())->get('cf_stream_webhook_secret', '')));
-        if ($secret !== '' && !$cf->verifyWebhookSignature($raw, $sig)) {
+        // M-01 / B0.7: без настроенного секрета webhook не принимается (раньше принимался любой запрос)
+        if (!$cf->verifyWebhookSignature($raw, $sig)) {
             $this->json(['ok' => false, 'error' => 'invalid_signature'], 401);
             return;
         }

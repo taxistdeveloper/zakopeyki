@@ -1,0 +1,317 @@
+{
+  "@@locale": "en",
+  "appTitle": "Zakopeyki.kz",
+  "navHome": "Home",
+  "navFavorites": "Favorites",
+  "navProfile": "Profile",
+  "searchHint": "Search goods and services",
+  "allTypes": "All",
+  "retry": "Retry",
+  "loadError": "Couldn't load data",
+  "networkError": "Can't reach the server. Check your connection.",
+  "emptyFeed": "Nothing found",
+  "emptyFavorites": "No favorites yet",
+  "loginTitle": "Sign in",
+  "loginSubtitle": "Sign in to save favorites and make purchases",
+  "email": "Email",
+  "password": "Password",
+  "loginButton": "Sign in",
+  "fieldRequired": "Required field",
+  "twoFactorTitle": "Confirm sign-in",
+  "twoFactorHint": "Enter the 6-digit code from your authenticator app or a recovery code",
+  "code": "Code",
+  "confirm": "Confirm",
+  "logout": "Sign out",
+  "logoutAll": "Sign out on all devices",
+  "language": "Language",
+  "loginRequired": "Sign in to your account",
+  "loginRequiredFavorites": "Sign in to see your favorites",
+  "description": "Description",
+  "characteristics": "Specifications",
+  "exchangeFor": "Will exchange for",
+  "seller": "Seller",
+  "business": "Business",
+  "ratingCount": "{count, plural, =0{no reviews} one{{count} review} other{{count} reviews}}",
+  "@ratingCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "inStock": "In stock: {count}",
+  "@inStock": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "buyOnSite": "Buy on the website",
+  "openOnSite": "Open on the website",
+  "safeDealInfo": "Safe Deal: money is held until you confirm receipt. Buyer fee {percent}%.",
+  "@safeDealInfo": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "auctionEnds": "Auction ends {date}",
+  "@auctionEnds": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "siteClosedTitle": "Opening soon",
+  "siteClosedText": "Zakopeyki.kz opens soon. Access is currently limited to closed beta participants.",
+  "legalOffer": "Terms of use",
+  "legalPrivacy": "Privacy policy",
+  "views": "Views: {count}",
+  "@views": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "addedToFavorites": "Added to favorites",
+  "removedFromFavorites": "Removed from favorites",
+  "sessionExpired": "Session ended. Please sign in again.",
+  "registerTitle": "Create account",
+  "registerButton": "Create account",
+  "name": "Name",
+  "phoneOptional": "Phone (optional)",
+  "passwordHint": "At least 8 characters",
+  "acceptOfferPrefix": "I accept the",
+  "offerLink": "terms of use",
+  "noAccount": "No account yet?",
+  "createAccount": "Create account",
+  "haveAccount": "Already have an account? Sign in",
+  "forgotPassword": "Forgot password?",
+  "forgotTitle": "Reset password",
+  "forgotHint": "Enter your account email and we'll send a link to set a new password.",
+  "sendLink": "Send link",
+  "orDivider": "or",
+  "appleUnavailable": "Sign in with Apple isn't available on this device",
+  "invalidEmail": "Enter a valid email",
+  "passwordTooShort": "Password must be at least 8 characters",
+  "offerRequired": "Please accept the terms of use",
+  "registrationBonus": "You received {points} bonus points for signing up!",
+  "@registrationBonus": {
+    "placeholders": {
+      "points": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "appleSignIn": "Sign in with Apple",
+  "typeNew": "New",
+  "typeUsed": "Used",
+  "typeAuction": "Auction",
+  "typeService": "Services",
+  "typeExchange": "Barter",
+  "typeFree": "Free",
+  "typeGig": "Gigs",
+  "deleteAccount": "Delete account",
+  "deleteAccountTitle": "Delete account",
+  "deleteAccountIntro": "Your account will be deleted permanently:",
+  "deleteAccountPoint1": "your name, email, phone, IIN/BIN, addresses, profile photo and password will be erased;",
+  "deleteAccountPoint2": "your listings will be unpublished; favorites and follows will be removed;",
+  "deleteAccountPoint3": "completed deals stay in anonymized form — the other party and payment records need them;",
+  "deleteAccountPoint4": "bonus points will be lost. You can register again with the same email.",
+  "deleteAccountBlocked": "Your account can't be deleted right now:",
+  "deleteAccountConfirm": "I understand this can't be undone",
+  "deleteAccountPasswordHint": "Enter your password to confirm",
+  "deleteAccountReauthHint": "To confirm, sign in again (e.g. with Apple) and come straight back to this screen.",
+  "deleteAccountReauthButton": "Sign in again",
+  "deleteAccountButton": "Delete account permanently",
+  "accountDeleted": "Account deleted",
+  "myListings": "My listings",
+  "newListing": "Post a listing",
+  "editListing": "Edit listing",
+  "listingType": "Listing type",
+  "listingTitle": "Title",
+  "listingDescription": "Description",
+  "listingPrice": "Price, ₸",
+  "listingCategory": "Category",
+  "chooseCategory": "Choose a category",
+  "listingQuantity": "Quantity",
+  "listingExchangeFor": "What do you want in exchange",
+  "listingLocation": "City",
+  "listingCharacteristics": "Specifications (optional)",
+  "listingCharacteristicsHint": "One per line: \"Color: black\"",
+  "photos": "Photos",
+  "photosHint": "Up to {max} photos. Tap a photo to make it the cover.",
+  "@photosHint": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "addPhotoGallery": "Gallery",
+  "addPhotoCamera": "Camera",
+  "coverBadge": "Cover",
+  "removePhoto": "Remove photo",
+  "iinLabel": "IIN (12 digits)",
+  "binLabel": "BIN (12 digits)",
+  "taxIdHint": "Needed once to verify sellers (Kazakhstan AFM requirement). Stored on the server, never shown to buyers.",
+  "acceptListingRules": "I accept the listing rules",
+  "pickupOnlyNote": "Listings posted from the app are pickup-only. CDEK delivery, auctions and paid services can be set up on the website for now.",
+  "publish": "Publish",
+  "save": "Save",
+  "listingPublished": "Listing published",
+  "listingSaved": "Changes saved",
+  "listingBonus": "+{points} bonus points for the listing",
+  "@listingBonus": {
+    "placeholders": {
+      "points": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteListing": "Delete listing",
+  "deleteListingConfirm": "Delete this listing? This can't be undone.",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "listingDeleted": "Listing deleted",
+  "emptyMyListings": "You have no listings yet",
+  "editOnSite": "This listing type is edited on the website",
+  "statusActive": "Active",
+  "statusSold": "Sold",
+  "statusArchived": "Archived",
+  "statusReserved": "Reserved",
+  "statusOutOfStock": "Out of stock",
+  "needPhoto": "Add at least one photo",
+  "uploading": "Uploading {percent}%",
+  "@uploading": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "publishBlocked": "Publishing unavailable",
+  "listingRulesRequired": "Please accept the listing rules",
+  "navCart": "Cart",
+  "addToCart": "Add to cart",
+  "inCart": "In cart",
+  "buyNow": "Buy now",
+  "addedToCart": "Added to cart",
+  "emptyCart": "Your cart is empty",
+  "cartTotal": "Total",
+  "checkoutAll": "Checkout",
+  "remove": "Remove",
+  "checkoutTitle": "Checkout",
+  "dealSafe": "Safe Deal",
+  "dealSafeHint": "The money is held by the platform until you confirm receipt. After receiving you have {hours} h to inspect and open a dispute.",
+  "@dealSafeHint": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "dealDirect": "Pay the seller directly",
+  "dealDirectHint": "No deal protection and no fee. The money goes straight to the seller and can't be refunded through the platform.",
+  "dealFee": "Safe Deal fee",
+  "subtotal": "Items",
+  "totalToPay": "To pay",
+  "delivery": "Delivery",
+  "deliveryPickup": "Pickup",
+  "deliveryKazpost": "Kazpost",
+  "deliveryCourier": "Courier",
+  "deliveryOther": "Other",
+  "deliveryCdek": "CDEK",
+  "deliveryDigital": "Digital item",
+  "deliveryCdekOnSite": "CDEK delivery can only be arranged on the website for now",
+  "payment": "Payment",
+  "payCard": "Card (Halyk ePay)",
+  "payCardSimulated": "Card (test mode)",
+  "payWallet": "Wallet",
+  "walletBalance": "Balance: {amount}",
+  "@walletBalance": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "walletNotEnough": "Not enough money in the wallet",
+  "payButton": "Pay {amount}",
+  "@payButton": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "paymentOpening": "Opening the payment page…",
+  "paymentCheck": "Checking the payment…",
+  "paymentCancelled": "Payment not completed. The order is awaiting payment — you can cancel it in My orders.",
+  "orderPlaced": "Order placed",
+  "myOrders": "My orders",
+  "ordersBuying": "Buying",
+  "ordersSelling": "Selling",
+  "emptyOrders": "No orders yet",
+  "orderTitle": "Order #{id}",
+  "@orderTitle": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "orderSeller": "Seller",
+  "orderBuyer": "Buyer",
+  "orderQty": "Quantity: {qty}",
+  "@orderQty": {
+    "placeholders": {
+      "qty": {
+        "type": "int"
+      }
+    }
+  },
+  "orderTracking": "Tracking number",
+  "orderInspectUntil": "Inspection until {date}",
+  "@orderInspectUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "orderPayout": "You receive (after 10% commission)",
+  "openOnSiteDetails": "Details on the website",
+  "actionShip": "I've shipped it",
+  "actionDelivered": "I've received it",
+  "actionConfirm": "Confirm, all good",
+  "actionCancel": "Cancel order",
+  "actionDispute": "Return or dispute",
+  "shipTitle": "Ship the item",
+  "shipTracking": "Tracking or waybill number",
+  "shipCarrier": "Carrier (optional)",
+  "confirmTitle": "Confirm receipt?",
+  "confirmText": "The money will be released to the seller. This can't be undone.",
+  "cancelTitle": "Cancel the order?",
+  "cancelText": "If it's paid, the money returns to your Zakopeyki wallet.",
+  "deliveredTitle": "Received the item?",
+  "deliveredText": "The inspection period starts. If something's wrong, open a dispute before it ends.",
+  "disputeTitle": "Return or dispute",
+  "disputeReason": "Reason",
+  "disputeComment": "Describe the problem",
+  "disputeSend": "Send",
+  "reason_not_as_described": "Not as described",
+  "reason_not_received": "Not received",
+  "reason_changed_mind": "Changed my mind",
+  "reason_courier_void": "Refused on courier delivery",
+  "reason_digital_defect": "Problem with a digital item",
+  "confirmAction": "Confirm",
+  "back": "Back",
+  "ordersOtherOnSite": "Return negotiations and arbitration are on the website.",
+  "retryPayment": "Check payment"
+}

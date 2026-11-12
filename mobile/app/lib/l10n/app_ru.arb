@@ -1,0 +1,317 @@
+{
+  "@@locale": "ru",
+  "appTitle": "Zakopeyki.kz",
+  "navHome": "Главная",
+  "navFavorites": "Избранное",
+  "navProfile": "Профиль",
+  "searchHint": "Поиск товаров и услуг",
+  "allTypes": "Все",
+  "retry": "Повторить",
+  "loadError": "Не удалось загрузить данные",
+  "networkError": "Нет соединения с сервером. Проверьте интернет.",
+  "emptyFeed": "Ничего не найдено",
+  "emptyFavorites": "В избранном пока пусто",
+  "loginTitle": "Вход",
+  "loginSubtitle": "Войдите, чтобы сохранять избранное и совершать покупки",
+  "email": "Email",
+  "password": "Пароль",
+  "loginButton": "Войти",
+  "fieldRequired": "Обязательное поле",
+  "twoFactorTitle": "Подтверждение входа",
+  "twoFactorHint": "Введите 6-значный код из приложения-аутентификатора или резервный код",
+  "code": "Код",
+  "confirm": "Подтвердить",
+  "logout": "Выйти",
+  "logoutAll": "Выйти на всех устройствах",
+  "language": "Язык",
+  "loginRequired": "Войдите в аккаунт",
+  "loginRequiredFavorites": "Войдите, чтобы видеть избранное",
+  "description": "Описание",
+  "characteristics": "Характеристики",
+  "exchangeFor": "Обменяю на",
+  "seller": "Продавец",
+  "business": "Бизнес",
+  "ratingCount": "{count, plural, =0{нет отзывов} one{{count} отзыв} few{{count} отзыва} other{{count} отзывов}}",
+  "@ratingCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "inStock": "В наличии: {count}",
+  "@inStock": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "buyOnSite": "Купить на сайте",
+  "openOnSite": "Открыть на сайте",
+  "safeDealInfo": "Безопасная сделка: деньги удерживаются до подтверждения получения. Сбор покупателя {percent}%.",
+  "@safeDealInfo": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "auctionEnds": "Аукцион до {date}",
+  "@auctionEnds": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "siteClosedTitle": "Скоро открытие",
+  "siteClosedText": "Zakopeyki.kz скоро откроется. Доступ пока открыт только участникам закрытого тестирования.",
+  "legalOffer": "Пользовательское соглашение",
+  "legalPrivacy": "Политика конфиденциальности",
+  "views": "Просмотры: {count}",
+  "@views": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "addedToFavorites": "Добавлено в избранное",
+  "removedFromFavorites": "Удалено из избранного",
+  "sessionExpired": "Сессия завершена. Войдите заново.",
+  "registerTitle": "Регистрация",
+  "registerButton": "Зарегистрироваться",
+  "name": "Имя",
+  "phoneOptional": "Телефон (необязательно)",
+  "passwordHint": "Не короче 8 символов",
+  "acceptOfferPrefix": "Я принимаю",
+  "offerLink": "пользовательское соглашение",
+  "noAccount": "Нет аккаунта?",
+  "createAccount": "Зарегистрироваться",
+  "haveAccount": "Уже есть аккаунт? Войти",
+  "forgotPassword": "Забыли пароль?",
+  "forgotTitle": "Восстановление пароля",
+  "forgotHint": "Укажите email аккаунта — мы отправим ссылку для создания нового пароля.",
+  "sendLink": "Отправить ссылку",
+  "orDivider": "или",
+  "appleUnavailable": "Вход через Apple недоступен на этом устройстве",
+  "invalidEmail": "Введите корректный email",
+  "passwordTooShort": "Пароль должен быть не короче 8 символов",
+  "offerRequired": "Примите пользовательское соглашение",
+  "registrationBonus": "Вам начислено {points} бонусов за регистрацию!",
+  "@registrationBonus": {
+    "placeholders": {
+      "points": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "appleSignIn": "Вход с Apple",
+  "typeNew": "Новый товар",
+  "typeUsed": "Товар Б/У",
+  "typeAuction": "Аукцион",
+  "typeService": "Услуги",
+  "typeExchange": "Бартер",
+  "typeFree": "Даром",
+  "typeGig": "Биржа услуг",
+  "deleteAccount": "Удалить аккаунт",
+  "deleteAccountTitle": "Удаление аккаунта",
+  "deleteAccountIntro": "Аккаунт будет удалён без возможности восстановления:",
+  "deleteAccountPoint1": "имя, email, телефон, ИИН/БИН, адреса, фото профиля и пароль будут стёрты;",
+  "deleteAccountPoint2": "объявления снимутся с публикации, избранное и подписки удалятся;",
+  "deleteAccountPoint3": "история завершённых сделок сохранится в обезличенном виде — она нужна второй стороне и для учёта платежей;",
+  "deleteAccountPoint4": "бонусные баллы сгорят. Тот же email можно будет зарегистрировать снова.",
+  "deleteAccountBlocked": "Сейчас удалить аккаунт нельзя:",
+  "deleteAccountConfirm": "Я понимаю, что удаление необратимо",
+  "deleteAccountPasswordHint": "Введите пароль для подтверждения",
+  "deleteAccountReauthHint": "Для подтверждения войдите заново (например, через Apple) и сразу вернитесь на этот экран.",
+  "deleteAccountReauthButton": "Войти заново",
+  "deleteAccountButton": "Удалить аккаунт навсегда",
+  "accountDeleted": "Аккаунт удалён",
+  "myListings": "Мои объявления",
+  "newListing": "Подать объявление",
+  "editListing": "Редактировать объявление",
+  "listingType": "Тип объявления",
+  "listingTitle": "Название",
+  "listingDescription": "Описание",
+  "listingPrice": "Цена, ₸",
+  "listingCategory": "Категория",
+  "chooseCategory": "Выберите категорию",
+  "listingQuantity": "Количество",
+  "listingExchangeFor": "Что хотите получить взамен",
+  "listingLocation": "Город",
+  "listingCharacteristics": "Характеристики (необязательно)",
+  "listingCharacteristicsHint": "По одной на строку: «Цвет: чёрный»",
+  "photos": "Фото",
+  "photosHint": "До {max} фото. Нажмите на фото, чтобы сделать его обложкой.",
+  "@photosHint": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "addPhotoGallery": "Из галереи",
+  "addPhotoCamera": "Камера",
+  "coverBadge": "Обложка",
+  "removePhoto": "Удалить фото",
+  "iinLabel": "ИИН (12 цифр)",
+  "binLabel": "БИН (12 цифр)",
+  "taxIdHint": "Нужен один раз для проверки продавца (требование АФМ РК). Хранится на сервере и не показывается покупателям.",
+  "acceptListingRules": "Я принимаю правила размещения объявлений",
+  "pickupOnlyNote": "Из приложения объявление публикуется с самовывозом. Доставку CDEK, аукционы и платные услуги пока можно настроить на сайте.",
+  "publish": "Опубликовать",
+  "save": "Сохранить",
+  "listingPublished": "Объявление опубликовано",
+  "listingSaved": "Изменения сохранены",
+  "listingBonus": "+{points} бонусов за объявление",
+  "@listingBonus": {
+    "placeholders": {
+      "points": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteListing": "Удалить объявление",
+  "deleteListingConfirm": "Удалить это объявление? Это действие нельзя отменить.",
+  "cancel": "Отмена",
+  "delete": "Удалить",
+  "listingDeleted": "Объявление удалено",
+  "emptyMyListings": "У вас пока нет объявлений",
+  "editOnSite": "Этот тип объявления редактируется на сайте",
+  "statusActive": "Активно",
+  "statusSold": "Продано",
+  "statusArchived": "В архиве",
+  "statusReserved": "Забронировано",
+  "statusOutOfStock": "Нет в наличии",
+  "needPhoto": "Добавьте хотя бы одно фото",
+  "uploading": "Загрузка {percent}%",
+  "@uploading": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "publishBlocked": "Публикация недоступна",
+  "listingRulesRequired": "Примите правила размещения объявлений",
+  "navCart": "Корзина",
+  "addToCart": "В корзину",
+  "inCart": "В корзине",
+  "buyNow": "Купить",
+  "addedToCart": "Добавлено в корзину",
+  "emptyCart": "Корзина пуста",
+  "cartTotal": "Итого",
+  "checkoutAll": "Оформить заказ",
+  "remove": "Удалить",
+  "checkoutTitle": "Оформление заказа",
+  "dealSafe": "Безопасная сделка",
+  "dealSafeHint": "Деньги хранятся на платформе, пока вы не подтвердите получение. После получения есть {hours} ч на проверку и спор.",
+  "@dealSafeHint": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "dealDirect": "Напрямую продавцу",
+  "dealDirectHint": "Без защиты сделки и сбора. Деньги сразу уходят продавцу, вернуть их через платформу нельзя.",
+  "dealFee": "Сбор за безопасную сделку",
+  "subtotal": "Товары",
+  "totalToPay": "К оплате",
+  "delivery": "Получение",
+  "deliveryPickup": "Самовывоз",
+  "deliveryKazpost": "Казпочта",
+  "deliveryCourier": "Курьер",
+  "deliveryOther": "Другое",
+  "deliveryCdek": "CDEK",
+  "deliveryDigital": "Цифровой товар",
+  "deliveryCdekOnSite": "Доставку CDEK пока можно оформить только на сайте",
+  "payment": "Оплата",
+  "payCard": "Картой (Halyk ePay)",
+  "payCardSimulated": "Картой (тестовый режим)",
+  "payWallet": "С кошелька",
+  "walletBalance": "Баланс: {amount}",
+  "@walletBalance": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "walletNotEnough": "Недостаточно средств на кошельке",
+  "payButton": "Оплатить {amount}",
+  "@payButton": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "paymentOpening": "Открываем страницу оплаты…",
+  "paymentCheck": "Проверяем оплату…",
+  "paymentCancelled": "Оплата не завершена. Заказ ждёт оплаты — его можно отменить в «Мои заказы».",
+  "orderPlaced": "Заказ оформлен",
+  "myOrders": "Мои заказы",
+  "ordersBuying": "Покупки",
+  "ordersSelling": "Продажи",
+  "emptyOrders": "Заказов пока нет",
+  "orderTitle": "Заказ №{id}",
+  "@orderTitle": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "orderSeller": "Продавец",
+  "orderBuyer": "Покупатель",
+  "orderQty": "Количество: {qty}",
+  "@orderQty": {
+    "placeholders": {
+      "qty": {
+        "type": "int"
+      }
+    }
+  },
+  "orderTracking": "Трек-номер",
+  "orderInspectUntil": "Проверка до {date}",
+  "@orderInspectUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "orderPayout": "Вы получите (за вычетом комиссии 10%)",
+  "openOnSiteDetails": "Подробнее на сайте",
+  "actionShip": "Отправил товар",
+  "actionDelivered": "Товар получен",
+  "actionConfirm": "Подтвердить, всё в порядке",
+  "actionCancel": "Отменить заказ",
+  "actionDispute": "Возврат или спор",
+  "shipTitle": "Отправка товара",
+  "shipTracking": "Трек-номер или номер накладной",
+  "shipCarrier": "Служба доставки (необязательно)",
+  "confirmTitle": "Подтвердить получение?",
+  "confirmText": "Деньги будут переведены продавцу. Отменить это нельзя.",
+  "cancelTitle": "Отменить заказ?",
+  "cancelText": "Если заказ оплачен, деньги вернутся на ваш кошелёк Zakopeyki.",
+  "deliveredTitle": "Товар получен?",
+  "deliveredText": "Начнётся срок на проверку товара. Если что-то не так — откройте спор до его окончания.",
+  "disputeTitle": "Возврат или спор",
+  "disputeReason": "Причина",
+  "disputeComment": "Опишите проблему",
+  "disputeSend": "Отправить",
+  "reason_not_as_described": "Не соответствует описанию",
+  "reason_not_received": "Не получил товар",
+  "reason_changed_mind": "Передумал",
+  "reason_courier_void": "Отказ при доставке курьером",
+  "reason_digital_defect": "Проблема с цифровым товаром",
+  "confirmAction": "Подтвердить",
+  "back": "Назад",
+  "ordersOtherOnSite": "Переговоры по возврату и арбитраж — на сайте.",
+  "retryPayment": "Проверить оплату"
+}

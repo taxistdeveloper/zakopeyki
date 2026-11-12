@@ -23,6 +23,12 @@ class Payment extends Model
 
     private function ensureTable(): void
     {
+        // DDL внутри транзакции делает неявный COMMIT в MySQL и ломает вызывающую транзакцию
+        // (EscrowService::cancelByBuyer: заказ отменялся, а платёж и остаток — нет). Таблица к этому
+        // моменту уже существует; проверка выполнится при следующем вызове вне транзакции.
+        if ($this->db->inTransaction()) {
+            return;
+        }
         if (self::$ensured) {
             return;
         }

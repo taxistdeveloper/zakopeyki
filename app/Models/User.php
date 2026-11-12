@@ -877,6 +877,14 @@ class User extends Model
             return false;
         }
 
+        // Фото и результаты виртуальной примерки: файлы у нас и данные у AI-провайдера (docs/tryon/04).
+        // Строки tryon_jobs удалятся каскадом вместе с пользователем.
+        try {
+            (new \App\Services\TryOn\TryOnService())->purgeUser($userId);
+        } catch (\Throwable $e) {
+            error_log('[tryon] purgeUser failed for account deletion: ' . get_class($e));
+        }
+
         $root = dirname(__DIR__, 2);
 
         if (!empty($user['avatar_file'])) {

@@ -4,3 +4,14 @@ config/freedompay.php
 config/cdek.php
 storage/
 tools/phpunit.phar
+config/app.local.php
+# Flutter build artifacts (mobile/)
+mobile/**/build/
+mobile/**/.dart_tool/
+mobile/**/.flutter-plugins
+mobile/**/.flutter-plugins-dependencies
+mobile/**/ios/Pods/
+mobile/**/ios/.symlinks/
+mobile/**/android/.gradle/
+mobile/**/android/local.properties
+mobile/**/*.iml

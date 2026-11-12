@@ -30,17 +30,19 @@ assert_true(
     'Order::hasActiveOrdersForProduct method exists'
 );
 
-// 2. Verify ProfileController::deleteLot checks hasActiveOrdersForProduct
+// 2. Удаление объявления (сайт и приложение) идёт через ListingService::delete — проверки там
 $profileControllerCode = file_get_contents(dirname(__DIR__) . '/app/Controllers/ProfileController.php');
+$listingServiceCode = file_get_contents(dirname(__DIR__) . '/app/Services/Listing/ListingService.php');
 assert_true(
-    str_contains($profileControllerCode, 'hasActiveOrdersForProduct'),
-    'ProfileController::deleteLot checks hasActiveOrdersForProduct'
+    str_contains($profileControllerCode, 'ListingService())->delete(')
+        && str_contains($listingServiceCode, 'hasActiveOrdersForProduct'),
+    'deleteLot → ListingService::delete checks hasActiveOrdersForProduct'
 );
 
-// 3. Verify ProfileController::deleteLot checks active auction bids
+// 3. ListingService::delete checks active auction bids
 assert_true(
-    str_contains($profileControllerCode, 'countBids'),
-    'ProfileController::deleteLot checks active auction bids'
+    str_contains($listingServiceCode, 'countBids'),
+    'ListingService::delete checks active auction bids'
 );
 
 // 4. Verify database schema for orders has ON DELETE RESTRICT

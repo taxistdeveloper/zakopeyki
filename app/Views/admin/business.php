@@ -164,7 +164,7 @@ $filters = [
                             <?php if ($docs): ?>
                                 <div style="display:flex;flex-wrap:wrap;gap:6px 16px">
                                     <?php foreach ($docs as $doc): ?>
-                                        <a class="adm-link" href="<?= ProductHelper::url('public/uploads/business/' . rawurlencode($doc)) ?>" target="_blank" rel="noopener"><?= $e($doc) ?></a>
+                                        <a class="adm-link" href="<?= ProductHelper::url('/admin/business/document/' . rawurlencode($doc)) ?>" target="_blank" rel="noopener"><?= $e($doc) ?></a>
                                     <?php endforeach; ?>
                                 </div>
                             <?php endif; ?>

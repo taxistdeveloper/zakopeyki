@@ -9,6 +9,7 @@ use App\Helpers\GoogleOAuth;
 use App\Helpers\Mail;
 use App\Helpers\Totp;
 use App\Models\User;
+use App\Services\Auth\AccountService;
 use App\Services\Security\AuthThrottle;
 
 class AuthController extends Controller
@@ -190,84 +191,42 @@ class AuthController extends Controller
             return;
         }
 
-        if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $this->view('auth/register', [
-                'title' => t('auth.register_title'),
-                'error' => t('auth.forgot_invalid_email'),
-                'name' => $name,
-                'email' => $email,
-                'phone' => $phone,
-                'referralRef' => (string) ($_SESSION['referral_ref'] ?? ''),
-            ], 'layouts/auth');
-            return;
-        }
-
-        if (!$acceptOffer) {
-            $this->view('auth/register', [
-                'title' => t('auth.register_title'),
-                'error' => t('auth.offer_required'),
-                'name' => $name,
-                'email' => $email,
-                'phone' => $phone,
-                'referralRef' => (string) ($_SESSION['referral_ref'] ?? ''),
-            ], 'layouts/auth');
-            return;
-        }
-
-        if ($name === '' || $email === '' || strlen($password) < 8) {
-            $this->view('auth/register', [
-                'title' => t('auth.register_title'),
-                'error' => t('auth.fill_fields'),
-                'name' => $name,
-                'email' => $email,
-                'phone' => $phone,
-                'referralRef' => (string) ($_SESSION['referral_ref'] ?? ''),
-            ], 'layouts/auth');
-            return;
-        }
-
-        $users = new User();
-        if ($users->findByEmail($email)) {
-            $this->view('auth/register', [
-                'title' => t('auth.register_title'),
-                'error' => t('auth.email_taken'),
-                'name' => $name,
-                'email' => $email,
-                'phone' => $phone,
-                'referralRef' => (string) ($_SESSION['referral_ref'] ?? ''),
-            ], 'layouts/auth');
-            return;
-        }
-
-        $id = $users->create([
+        // Правила регистрации — общие с мобильным API (AccountService)
+        $referral = (string) ($_SESSION['referral_ref'] ?? '');
+        unset($_SESSION['referral_ref']);
+        $result = (new AccountService())->register([
             'name' => $name,
             'email' => $email,
             'password' => $password,
             'phone' => $phone,
-        ]);
+            'accept_offer' => $acceptOffer,
+        ], $referral);
+        if (!$result['ok']) {
+            $errorKey = [
+                'invalid_email' => 'auth.forgot_invalid_email',
+                'offer_required' => 'auth.offer_required',
+                'email_taken' => 'auth.email_taken',
+            ][$result['error']] ?? 'auth.fill_fields';
+            if ($referral !== '') {
+                $_SESSION['referral_ref'] = $referral;
+            }
+            $this->view('auth/register', [
+                'title' => t('auth.register_title'),
+                'error' => t($errorKey),
+                'name' => $name,
+                'email' => $email,
+                'phone' => $phone,
+                'referralRef' => $referral,
+            ], 'layouts/auth');
+            return;
+        }
 
-        $bonusResult = (new \App\Models\Bonus())->awardRegistration((int) $id);
-        $this->applyReferralBonus((int) $id);
-        \App\Services\Contest\ContestReferralTracker::onRegistered((int) $id);
-
-        $user = $users->find($id);
-        $this->sendVerificationEmail($user);
+        $user = $result['user'];
         Auth::login($user);
-        ActivityLogger::info('auth.register', 'Регистрация: ' . $email, 'user', (int) $id, [
-            'email' => $email,
-            'bonus' => $bonusResult['amount'] ?? 0,
-        ]);
-
-        if (!empty($bonusResult['ok']) && empty($bonusResult['skipped']) && ($bonusResult['amount'] ?? 0) > 0) {
+        if ($result['bonus'] > 0) {
             $_SESSION['flash'] = t('bonuses.flash_registration', [
-                'amount' => \App\Models\Bonus::format((int) $bonusResult['amount']),
+                'amount' => \App\Models\Bonus::format($result['bonus']),
             ]);
-            (new \App\Models\Notification())->createFor(
-                (int) $id,
-                t('bonuses.notify_registration', [
-                    'amount' => \App\Models\Bonus::format((int) $bonusResult['amount']),
-                ])
-            );
         }
 
         $appConfig = $GLOBALS['appConfig'] ?? [];
@@ -354,40 +313,14 @@ class AuthController extends Controller
         }
 
         $users = new User();
-        $user = $users->findByGoogleId($googleId);
-
-        if (!$user) {
-            $byEmail = $users->findByEmail($email);
-            if ($byEmail) {
-                $users->linkGoogleId((int) $byEmail['id'], $googleId);
-                // Google подтвердил владение этим email (email_verified проверен выше)
-                $users->markEmailVerified((int) $byEmail['id']);
-                $user = $users->find((int) $byEmail['id']);
-            } else {
-                $id = $users->create([
-                    'name' => $name,
-                    'email' => $email,
-                    'password' => null,
-                    'google_id' => $googleId,
-                    'role' => 'user',
-                ]);
-                $users->markEmailVerified((int) $id);
-                $user = $users->find($id);
-                $bonusResult = (new \App\Models\Bonus())->awardRegistration((int) $id);
-                $this->applyReferralBonus((int) $id);
-                \App\Services\Contest\ContestReferralTracker::onRegistered((int) $id);
-                if (!empty($bonusResult['ok']) && empty($bonusResult['skipped']) && ($bonusResult['amount'] ?? 0) > 0) {
-                    $_SESSION['flash'] = t('bonuses.flash_registration', [
-                        'amount' => \App\Models\Bonus::format((int) $bonusResult['amount']),
-                    ]);
-                    (new \App\Models\Notification())->createFor(
-                        (int) $id,
-                        t('bonuses.notify_registration', [
-                            'amount' => \App\Models\Bonus::format((int) $bonusResult['amount']),
-                        ])
-                    );
-                }
-            }
+        $referral = (string) ($_SESSION['referral_ref'] ?? '');
+        unset($_SESSION['referral_ref']);
+        $resolved = (new AccountService($users))->resolveExternalIdentity('google', $googleId, $email, true, $name, $referral);
+        $user = $resolved['ok'] ? $resolved['user'] : null;
+        if ($resolved['ok'] && $resolved['bonus'] > 0) {
+            $_SESSION['flash'] = t('bonuses.flash_registration', [
+                'amount' => \App\Models\Bonus::format($resolved['bonus']),
+            ]);
         }
 
         if (!$user) {
@@ -466,39 +399,14 @@ class AuthController extends Controller
             return;
         }
 
-        $users = new User();
-        $user = $users->findByEmail($email);
-        $resetUrl = null;
-        if ($user) {
-            $token = $users->createPasswordResetToken((int) $user['id'], 3600);
-            $mail = new Mail();
-            $resetUrl = $mail->absoluteUrl('/reset-password/' . $token);
-            $name = trim((string) ($user['name'] ?? '')) ?: $email;
-            $subject = t('auth.reset_mail_subject');
-            $text = t('auth.reset_mail_text', [
-                'name' => $name,
-                'url' => $resetUrl,
-                'minutes' => '60',
-            ]);
-            $html = $mail->render('emails/password-reset', [
-                'name' => $name,
-                'resetUrl' => $resetUrl,
-                'greeting' => t('auth.reset_mail_greeting', ['name' => $name]),
-                'body' => t('auth.reset_mail_body'),
-                'cta' => t('auth.reset_mail_cta'),
-                'expiry' => t('auth.reset_mail_expiry', ['minutes' => '60']),
-                'linkHint' => t('auth.reset_mail_link_hint'),
-                'footer' => t('auth.reset_mail_footer'),
-            ]);
-            $mail->send($email, $subject, $text, $html);
-        }
+        $resetUrl = (new AccountService())->requestPasswordReset($email);
 
         // Одинаковый ответ — не раскрываем, существует ли email
         $_SESSION['auth_success'] = t('auth.forgot_sent');
 
-        // На локали без рабочего SMTP показываем ссылку на экране
-        $host = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
-        $isLocal = str_contains($host, 'localhost') || str_contains($host, '127.0.0.1');
+        // На локали без рабочего SMTP показываем ссылку на экране.
+        // M-01 / B0.4: только по конфигурации окружения, НЕ по заголовку Host (его задаёт клиент).
+        $isLocal = (string) ($GLOBALS['appConfig']['env'] ?? 'production') === 'local';
         if ($isLocal && $resetUrl) {
             $_SESSION['auth_reset_url'] = $resetUrl;
         }
@@ -667,31 +575,7 @@ class AuthController extends Controller
 
     private function sendVerificationEmail(?array $user): bool
     {
-        if (!$user || !empty($user['email_verified_at']) || empty($user['email']) || !Mail::configured()) {
-            return false;
-        }
-        try {
-            $users = new User();
-            $token = $users->createEmailVerifyToken((int) $user['id'], 86400);
-            $mail = new Mail();
-            $url = $mail->absoluteUrl('/verify-email/' . $token);
-            $name = trim((string) ($user['name'] ?? '')) ?: (string) $user['email'];
-            $html = $mail->render('emails/password-reset', [
-                'name' => $name,
-                'resetUrl' => $url,
-                'greeting' => t('auth.reset_mail_greeting', ['name' => $name]),
-                'body' => t('auth.verify_mail_body'),
-                'cta' => t('auth.verify_mail_cta'),
-                'expiry' => t('auth.verify_mail_expiry'),
-                'linkHint' => t('auth.reset_mail_link_hint'),
-                'footer' => t('auth.reset_mail_footer'),
-            ]);
-            $text = t('auth.verify_mail_text', ['name' => $name, 'url' => $url]);
-            return $mail->send((string) $user['email'], t('auth.verify_mail_subject'), $text, $html);
-        } catch (\Throwable $e) {
-            ActivityLogger::exception($e, 'auth.verify_mail_failed');
-            return false;
-        }
+        return (new AccountService())->sendVerificationEmail($user);
     }
 
     private function captureReferralFromRequest(): void
@@ -703,30 +587,6 @@ class AuthController extends Controller
     {
         $ref = trim((string) ($_SESSION['referral_ref'] ?? ''));
         unset($_SESSION['referral_ref']);
-        if ($ref === '' || $newUserId <= 0) {
-            return;
-        }
-
-        $users = new User();
-        $referrer = $users->findByReferralCode($ref);
-        if (!$referrer) {
-            return;
-        }
-
-        $referrerId = (int) $referrer['id'];
-        if ($referrerId === $newUserId) {
-            return;
-        }
-
-        $users->setReferredBy($newUserId, $referrerId);
-        $result = (new \App\Models\Bonus())->awardReferral($referrerId, $newUserId);
-        if (!empty($result['ok']) && empty($result['skipped']) && ($result['amount'] ?? 0) > 0) {
-            (new \App\Models\Notification())->createFor(
-                $referrerId,
-                t('bonuses.notify_referral', [
-                    'amount' => \App\Models\Bonus::format((int) $result['amount']),
-                ])
-            );
-        }
+        (new AccountService())->applyReferral($newUserId, $ref);
     }
 }

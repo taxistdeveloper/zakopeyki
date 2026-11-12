@@ -91,7 +91,11 @@ if (!empty($appConfig['stub_mode']) && !\App\Core\Auth::hasSiteAccess(true)) {
     $stubOk = in_array($stubPath, $stubAllowed, true)
         || str_starts_with($stubPath, $stubAllowedPrefix)
         || str_starts_with($stubPath, '/verify-email/')
-        || str_starts_with($stubPath, '/digital/certificate/');
+        || str_starts_with($stubPath, '/digital/certificate/')
+        // мобильное API само проверяет доступ при заглушке (BaseMobileController::guardSiteOpen)
+        || str_starts_with($stubPath, '/api/mobile/')
+        || str_starts_with($stubPath, '/payments/halyk/app/')
+        || $stubPath === '/payments/app-return';
 
     if (!$stubOk) {
         \App\Core\View::render('stub/coming-soon', [

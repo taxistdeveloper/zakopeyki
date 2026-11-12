@@ -21,6 +21,8 @@ DirectoryIndex index.php
     RewriteRule ^qa\.zip$ - [F]
     # CLI-скрипты, логи, временные файлы, распакованные архивы, git и прочие скрытые файлы
     RewriteRule ^bin(/|$) - [F]
+    # Исходники мобильного приложения (Flutter)
+    RewriteRule ^mobile(/|$) - [F]
     RewriteRule ^logs(/|$) - [F]
     RewriteRule ^tmp(/|$) - [F]
     RewriteRule ^_vas[0-9]+_extract(/|$) - [F]

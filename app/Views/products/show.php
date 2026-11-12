@@ -27,6 +27,17 @@ $buyUrl = Auth::check() ? $checkoutUrl : ProductHelper::url('/login');
 $buyText = Auth::check() ? $buyLabel : t('product.login_to_buy');
 $showBuyChoice = $purchasable && ProductHelper::supportsDirectBuy($item);
 
+// AI Virtual Try-On: кнопка только для поддерживаемых товаров (docs/tryon)
+$tryonSettings = new \App\Services\TryOn\TryOnSettings();
+$tryonProductType = (string) ($item['tryon_type'] ?? '');
+$tryonAvailable = !$isOwnProduct
+    && \App\Services\TryOn\TryOnTypes::isValid($tryonProductType)
+    && in_array($tryonProductType, $tryonSettings->enabledTypes(), true)
+    && (Auth::check() ? $tryonSettings->isEnabledFor((int) Auth::id()) : $tryonSettings->isPubliclyEnabled())
+    && ProductHelper::decodeImages($item) !== [];
+$tryonBtnClass = 'w-full inline-flex items-center justify-center gap-2 h-12 px-3 rounded-xl border-2 border-brand-500/70 bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-500/20 font-semibold text-[13px] sm:text-sm transition';
+$tryonIconSvg = '<svg class="w-[18px] h-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg>';
+
 $catalogByType = [
     'new' => ['url' => '/catalog/new', 'label' => t('nav.new')],
     'used' => ['url' => '/catalog/used', 'label' => t('nav.used')],
@@ -524,6 +535,19 @@ $vipIso = $vipOn
                     <span class="cart-btn-label truncate"><?= htmlspecialchars($inCart ? t('card.in_cart') : t('card.add_cart')) ?></span>
                 </button>
             </div>
+            <?php if ($tryonAvailable): ?>
+                <?php if (Auth::check()): ?>
+                    <button type="button" data-tryon-open class="<?= $tryonBtnClass ?>">
+                        <?= $tryonIconSvg ?>
+                        <span class="truncate"><?= htmlspecialchars(t('tryon.ui.button')) ?></span>
+                    </button>
+                <?php else: ?>
+                    <a href="<?= ProductHelper::url('/login') ?>" class="<?= $tryonBtnClass ?>">
+                        <?= $tryonIconSvg ?>
+                        <span class="truncate"><?= htmlspecialchars(t('tryon.ui.button_login')) ?></span>
+                    </a>
+                <?php endif; ?>
+            <?php endif; ?>
             <?php if (!$isOwnProduct): ?>
                 <div class="grid grid-cols-2 gap-2.5">
                     <?php if (Auth::check()): ?>
@@ -943,3 +967,8 @@ $vipIso = $vipOn
     if (next) next.addEventListener('click', function (e) { e.stopPropagation(); setActive(index + 1); });
 })();
 </script>
+
+<?php if (!empty($tryonAvailable) && Auth::check()): ?>
+<?php View::partial('partials/tryon-modal', ['item' => $item]); ?>
+<script src="<?= ProductHelper::url('public/assets/js/tryon.js') ?>?v=<?= (int) (@filemtime(__DIR__ . '/../../../public/assets/js/tryon.js') ?: time()) ?>" defer></script>
+<?php endif; ?>

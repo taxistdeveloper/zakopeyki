@@ -54,6 +54,8 @@ class Product extends Model
             $this->ensureColumn('winner_user_id', 'ALTER TABLE products ADD COLUMN winner_user_id INT UNSIGNED DEFAULT NULL AFTER last_bid_at');
             $this->ensureColumn('winning_bid_id', 'ALTER TABLE products ADD COLUMN winning_bid_id INT UNSIGNED DEFAULT NULL AFTER winner_user_id');
             $this->ensureColumn('view_count', 'ALTER TABLE products ADD COLUMN view_count INT UNSIGNED NOT NULL DEFAULT 0 AFTER winning_bid_id');
+            // AI Virtual Try-On (docs/tryon/03-database.md): NULL = примерка не поддерживается
+            $this->ensureColumn('tryon_type', 'ALTER TABLE products ADD COLUMN tryon_type VARCHAR(16) DEFAULT NULL AFTER category');
 
             $this->db->exec(
                 "CREATE TABLE IF NOT EXISTS product_views (
@@ -116,7 +118,18 @@ class Product extends Model
         }
     }
 
-    public function allActive(?string $type = null, ?string $search = null, ?string $category = null): array
+    /**
+     * @param int|null $limit  null — без ограничения (web, прежнее поведение); иначе страница для мобильного API
+     * @param bool $runLifts   запускать отложенные VIP-поднятия (web — да; API — нет, это делает cron)
+     */
+    public function allActive(
+        ?string $type = null,
+        ?string $search = null,
+        ?string $category = null,
+        ?int $limit = null,
+        int $offset = 0,
+        bool $runLifts = true
+    ): array
     {
         $sql = 'SELECT p.*, u.name AS seller_name, u.phone AS seller_phone,
                        u.account_type AS seller_account_type, u.business_status AS seller_business_status,
@@ -185,9 +198,14 @@ class Product extends Model
         } else {
             $sql .= ' ' . \App\Services\Boost\BoostPolicy::catalogOrderSql();
         }
-        try {
-            (new \App\Services\Vip\VipService())->runDueLifts(10);
-        } catch (\Throwable) {
+        if ($runLifts) {
+            try {
+                (new \App\Services\Vip\VipService())->runDueLifts(10);
+            } catch (\Throwable) {
+            }
+        }
+        if ($limit !== null) {
+            $sql .= ' LIMIT ' . max(1, (int) $limit) . ' OFFSET ' . max(0, $offset);
         }
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
@@ -494,6 +512,12 @@ class Product extends Model
         ]);
 
         return (int) $this->db->lastInsertId();
+    }
+
+    /** Тип виртуальной примерки товара (TryOnTypes) или NULL. */
+    public function setTryOnType(int $id, ?string $tryonType): void
+    {
+        $this->db->prepare('UPDATE products SET tryon_type = ? WHERE id = ?')->execute([$tryonType, $id]);
     }
 
     public function updateProduct(int $id, array $data): bool

@@ -69,6 +69,61 @@ final class HalykEpayGateway implements PaymentGatewayInterface
         return hash_equals((string) ($intent['secret_hash'] ?? ''), $secret);
     }
 
+    /**
+     * Строгая проверка postLink от ePay.
+     * Принимается только callback, для которого есть серверный intent (создан initPayment),
+     * secret_hash совпадает, терминал/валюта/сумма (для успешной оплаты) соответствуют intent.
+     *
+     * @param array<string, mixed> $params
+     * @return array{ok: bool, intent?: array<string, mixed>, error?: string}
+     */
+    public static function validatePostLink(array $params, string $expectedTerminal = ''): array
+    {
+        $invoiceId = (string) ($params['invoiceId'] ?? $params['invoiceID'] ?? '');
+        $secret = (string) ($params['secret_hash'] ?? '');
+        if ($invoiceId === '') {
+            return ['ok' => false, 'error' => 'invoice_missing'];
+        }
+        if ($secret === '') {
+            return ['ok' => false, 'error' => 'secret_hash_missing'];
+        }
+        $intent = \App\Services\HalykEpay\IntentStore::getByInvoice($invoiceId);
+        if (!is_array($intent)) {
+            return ['ok' => false, 'error' => 'intent_not_found'];
+        }
+        $expectedSecret = (string) ($intent['secret_hash'] ?? '');
+        if ($expectedSecret === '' || !hash_equals($expectedSecret, $secret)) {
+            return ['ok' => false, 'error' => 'secret_hash_mismatch'];
+        }
+        if ((string) ($intent['order_id'] ?? '') === '') {
+            return ['ok' => false, 'error' => 'intent_invalid'];
+        }
+
+        $terminal = (string) ($params['terminal'] ?? $params['terminalId'] ?? '');
+        if ($terminal !== '' && $expectedTerminal !== '' && !hash_equals($expectedTerminal, $terminal)) {
+            return ['ok' => false, 'error' => 'terminal_mismatch'];
+        }
+
+        $currency = strtoupper((string) ($params['currency'] ?? ''));
+        $intentCurrency = strtoupper((string) ($intent['currency'] ?? 'KZT'));
+        if ($currency !== '' && $currency !== $intentCurrency) {
+            return ['ok' => false, 'error' => 'currency_mismatch'];
+        }
+
+        $code = strtolower((string) ($params['code'] ?? ''));
+        $reasonCode = (int) ($params['reasonCode'] ?? -1);
+        $isSuccess = $code === 'ok' || $reasonCode === 0;
+        if ($isSuccess && (string) ($intent['payment_type'] ?? 'payment') !== 'cardVerification') {
+            $intentAmount = round((float) ($intent['amount'] ?? 0), 2);
+            $paidAmount = round((float) ($params['amount'] ?? -1), 2);
+            if ($intentAmount <= 0 || abs($intentAmount - $paidAmount) > 0.009) {
+                return ['ok' => false, 'error' => 'amount_mismatch'];
+            }
+        }
+
+        return ['ok' => true, 'intent' => $intent];
+    }
+
     public function client(): HalykClient
     {
         return $this->client;
