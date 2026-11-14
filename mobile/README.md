@@ -1,74 +1,74 @@
-# Zakopeyki.kz — мобильное приложение (Flutter)
+# Закопейки — Android-приложение (Flutter)
 
-Код приложения: [`app/`](app/). Backend — существующий PHP-сайт, API `/api/mobile/v1` (см. `app/Controllers/Api/Mobile/`).
+Нативное Android-приложение маркетплейса: данные с сайта через мобильный API, свой мобильный дизайн.
 
-## Стек
+Все разделы — нативные экраны на `/api/mobile/v1`:
 
-Flutter 3.47 / Dart 3.13 · Riverpod 3 (состояние) · go_router (навигация) · Dio (HTTP) · flutter_secure_storage (Keychain/Keystore) · cached_network_image · gen-l10n (ru / kk / en).
+- каталог, поиск, фильтры, карточка товара, избранное, «Поделиться»;
+- вход (email + 2FA, Google), регистрация, сброс пароля;
+- корзина, оформление (сделка, доставка, оплата картой/кошельком);
+- мои покупки и продажи, действия по сделке;
+- мои объявления: подача, правка, удаление, фото;
+- **сообщения** (список диалогов, переписка, непрочитанные);
+- кошелёк (баланс, история, пополнение картой);
+- уведомления (ссылки открывают нужный экран приложения);
+- личные данные, пароль, двухфакторная аутентификация;
+- поддержка (обращения и переписка);
+- профиль продавца (объявления, отзывы, подписка);
+- торги на аукционе (ставка, «купить сейчас», история ставок).
 
-```
-app/lib/
-  app.dart                 роутер, тема, локализация
-  core/api/                ApiClient (Bearer, авто-refresh, конверт ошибок), ApiException
-  core/auth/               AuthController (вход, 2FA, восстановление сессии, выход)
-  core/storage/            SecureStore (refresh-токен, device id, язык)
-  core/locale/, widgets/   язык интерфейса, тема бренда, состояния ошибок
-  features/catalog/        лента, поиск, фильтр по типу, карточка товара, избранное (действие)
-  features/favorites/      экран избранного
-  features/auth/           вход + 2FA
-  features/profile/        профиль, язык, правовые документы, выход
-  l10n/                    app_ru.arb (шаблон), app_kk.arb, app_en.arb
-```
+Страницами сайта внутри приложения остаются только юридические документы (оферта, политика, правила) и правка объявлений типов, которых нет в API приложения (аукцион, услуги, СДЭК).
 
-Правило: бизнес-логика (цены, комиссии, доступность покупки) — только на сервере; клиент отображает.
+Оплата картой — форма банка Halyk ePay (WebView), возврат в приложение по `zakopeyki://payment-result`.
 
-## Локальный запуск (iOS-симулятор)
+## Как работает сессия
 
-```bash
-# 1. backend (из корня репозитория)
-php -S 127.0.0.1:8137 bin/dev_router.php
-# 2. тестовый пользователь (только local; пароль — в самом скрипте)
-php bin/seed_mobile_test_user.php
-# 3. приложение
-cd mobile/app && flutter run --dart-define=API_BASE_URL=http://127.0.0.1:8137
-```
+Сервер — боевой мобильный API `/api/mobile/v1` (`app/Controllers/Api/Mobile/`, ветка `feature/contests-module`). Ответы `{success, data, meta?}` / `{success:false, error:{code, message, fields?}}`.
 
-Сайт в режиме заглушки (`stub_mode`) — каталог в приложении видят только admin и пользователи с `site_access` (тестовый пользователь его имеет). Для Android-эмулятора хост — `http://10.0.2.2:8137`; предварительно установить Android `cmdline-tools` (`flutter doctor`).
+1. При первом запуске генерируется `device_id` (Keystore), он уходит в заголовке `X-Device-Id`.
+2. Вход: `POST /auth/login` → `access_token` (15 мин, только в памяти) + `refresh_token` (60 дней, Keystore). При 2FA — `challenge_token` → `POST /auth/2fa`.
+3. Запросы с `Authorization: Bearer`; на 401 клиент один раз делает `POST /auth/refresh` и повторяет запрос.
+4. Пока сайт в режиме «скоро открытие», каталог (`site_closed`) доступен только admin и аккаунтам с `site_access`.
+5. Встроенный WebView (документы, платёжная форма банка) не делит сессию с приложением — API работает только по Bearer.
 
-## Android
+Ссылки `/product/{id}` внутри WebView открывают нативную карточку, `tel:`/`wa.me`/`t.me` — внешние приложения. `<input type="file">` на сайте открывает камеру/галерею.
 
-- `applicationId` `kz.zakopeyki.zakopeyki`, minSdk 23, targetSdk — по Flutter (API 36, требование Google Play с 31.08.2026).
-- Сеть: `INTERNET` в основном манифесте; `network_security_config` — release только HTTPS, debug дополнительно разрешает HTTP к `10.0.2.2`/`127.0.0.1` (локальный backend из эмулятора). `allowBackup=false` (токены не попадают в резервные копии), predictive back включён.
-- Иконка/сплэш: монета «10» с сайта, adaptive icon (`dart run flutter_launcher_icons`).
-- Подпись release: `android/key.properties` (в .gitignore, образец — `android/key.properties.example`). Без него release подписывается debug-ключом — **такой файл нельзя загружать в Google Play**.
+## Вход через Google
 
-```bash
-# локальный запуск в эмуляторе (backend на хосте)
-flutter run -d emulator-5554 --dart-define=API_BASE_URL=http://10.0.2.2:8137
-# сборка для Google Play
-flutter build appbundle --release --dart-define=API_BASE_URL=https://zakopeyki.kz
-```
+Нативный Google Sign-In (`google_sign_in`) → ID-токен → `POST /api/mobile/v1/auth/google`. Токен выпускается для web-клиента сайта (`kGoogleServerClientId` в `lib/config.dart`).
 
-На этом Mac (Intel i7-9750H, 16 ГБ) образ Android 17 (Play Store) зависает. Рабочий вариант — лёгкий AVD `Zakopeyki_API34` (Android 14 `google_apis` x86_64):
-```bash
-~/Library/Android/sdk/emulator/emulator -avd Zakopeyki_API34 -gpu host
-```
-Не запускайте одновременно эмулятор, сборку Gradle и iOS-симулятор — 16 ГБ не хватает.
+Чтобы заработало, нужно один раз настроить:
 
-## Тесты
+1. **Google Cloud Console** (проект, где web-клиент сайта) → Credentials → Create OAuth client ID → **Android**:
+   package `kz.zakopeyki.app`, SHA-1 ключа подписи. Для текущих сборок (debug-ключ этой машины):
+   `50:70:18:AE:39:05:85:34:40:A6:65:AA:36:F5:C7:B4:1E:F6:DD:53`. При переходе на свой release-ключ / Google Play App Signing — добавить и их SHA-1.
+2. **Сервер**: переменная окружения `GOOGLE_MOBILE_CLIENT_IDS=<web client id сайта>` (см. `config/mobile.php`). Пока она пустая, API отвечает `provider_disabled`.
+
+## Запуск
 
 ```bash
-cd mobile/app
-flutter analyze
-flutter test                                   # unit + widget (12)
-flutter test integration_test -d <simulator> \
-  --dart-define=API_BASE_URL=http://127.0.0.1:8137 \
-  --dart-define=TEST_EMAIL=mobile.test@zakopeyki.local --dart-define=TEST_PASSWORD=<из seed-скрипта>
-php ../../tools/run_mobile_api_tests.php       # backend: токены, презентер (20)
+flutter pub get
 ```
 
-## Безопасность
+Против боевого сайта (по умолчанию `https://zakopeyki.kz`):
 
-- В приложении нет секретов backend; `API_BASE_URL` — единственная настройка сборки.
-- Access-токен (15 мин) — только в памяти; refresh-токен (60 дн., ротация, обнаружение повторного использования) — в Keychain/Keystore.
-- iOS: разрешён HTTP только для локальной сети (`NSAllowsLocalNetworking`) — интернет-трафик только HTTPS.
+```bash
+flutter run
+```
+
+Против локального MAMP из эмулятора Android:
+
+```bash
+flutter run --dart-define=SITE_URL=http://10.0.2.2/zakopeyki   # нужен локальный backend с веткой feature/contests-module
+```
+
+Сборка релиза (нужен ключ подписи, см. ниже):
+
+```bash
+flutter build appbundle --release
+```
+
+## Что ещё не сделано
+
+- Ключ подписи релиза (`android/key.properties`) и иконка/сплэш — сейчас стандартные Flutter.
+- Push-уведомления (FCM).

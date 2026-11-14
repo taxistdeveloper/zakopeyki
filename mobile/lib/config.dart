@@ -1,0 +1,54 @@
+/// Адрес сайта. Для локальной отладки:
+///   flutter run --dart-define=SITE_URL=http://10.0.2.2/zakopeyki
+const String kSiteUrl = String.fromEnvironment(
+  'SITE_URL',
+  defaultValue: 'https://zakopeyki.kz',
+);
+
+const String kApiPrefix = '/api/mobile/v1';
+
+const String kAppVersion = '1.0.0';
+
+/// Web OAuth client сайта (тот же, что у входа через Google на сайте; публичный, не секрет).
+/// ID-токен Google Sign-In выдаётся с aud = этот client id — его же должен знать сервер
+/// (GOOGLE_MOBILE_CLIENT_IDS в config/mobile.php).
+const String kGoogleServerClientId = String.fromEnvironment(
+  'GOOGLE_SERVER_CLIENT_ID',
+  defaultValue: '341406337487-94kl58qqor20ksgm0gut87hpe477gmrv.apps.googleusercontent.com',
+);
+
+/// Маркер приложения в User-Agent WebView.
+const String kAppMarker = 'ZakopeykiApp/$kAppVersion';
+
+Uri siteUri(String path) {
+  final base = Uri.parse(kSiteUrl);
+  final basePath = base.path.endsWith('/')
+      ? base.path.substring(0, base.path.length - 1)
+      : base.path;
+  final p = path.startsWith('/') ? path : '/$path';
+  final parsed = Uri.parse(p);
+  return base.replace(
+    path: '$basePath${parsed.path}',
+    query: parsed.hasQuery ? parsed.query : null,
+  );
+}
+
+/// Путь страницы сайта без базового префикса (/zakopeyki) — или null, если ссылка не на наш сайт.
+String? sitePathOf(Uri uri) {
+  final base = Uri.parse(kSiteUrl);
+  if (uri.host != base.host) return null;
+  if (base.hasPort && uri.port != base.port) return null;
+  final basePath = base.path.endsWith('/')
+      ? base.path.substring(0, base.path.length - 1)
+      : base.path;
+  var path = uri.path;
+  if (basePath.isNotEmpty) {
+    if (!path.startsWith(basePath)) return null;
+    path = path.substring(basePath.length);
+  }
+  if (path.isEmpty) path = '/';
+  if (path.length > 1 && path.endsWith('/')) {
+    path = path.substring(0, path.length - 1);
+  }
+  return path;
+}
