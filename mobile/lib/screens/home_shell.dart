@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../main.dart';
 import '../nav.dart';
+import 'cart_screen.dart';
 import 'catalog_screen.dart';
 import 'favorites_screen.dart';
+import 'my_listings_screen.dart';
 import 'profile_screen.dart';
-import 'web_screen.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -16,15 +17,23 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
+  int _cartVisit = 0;
 
   static const _sellIndex = 2;
+  static const _cartIndex = 3;
 
   void _onTap(int i) {
     if (i == _sellIndex) {
-      requireLogin(context, () => openWeb(context, '/profile?tab=lots', title: 'Мои объявления'));
+      requireLogin(context, () async {
+        final id = await openListingForm(context);
+        if (id != null && mounted) openProduct(context, id);
+      });
       return;
     }
-    setState(() => _index = i);
+    setState(() {
+      if (i == _cartIndex) _cartVisit++; // корзину перечитываем при каждом открытии вкладки
+      _index = i;
+    });
   }
 
   @override
@@ -32,6 +41,7 @@ class _HomeShellState extends State<HomeShell> {
     final session = SessionScope.of(context);
     // Ключи по пользователю: при входе/выходе вкладки создаются заново
     final uid = session.user?.id;
+    final cartCount = session.cartCount;
 
     return Scaffold(
       body: IndexedStack(
@@ -40,12 +50,7 @@ class _HomeShellState extends State<HomeShell> {
           const CatalogScreen(),
           FavoritesScreen(key: ValueKey('fav-$uid')),
           const SizedBox.shrink(),
-          session.loggedIn
-              ? WebScreen(key: ValueKey('chat-$uid'), path: '/chat', title: 'Сообщения', embedded: true)
-              : const LoginPrompt(
-                  icon: Icons.chat_bubble_outline_rounded,
-                  text: 'Войдите, чтобы переписываться с продавцами и покупателями',
-                ),
+          CartScreen(key: ValueKey('cart-$uid-$_cartVisit'), embedded: true),
           const ProfileScreen(),
         ],
       ),
@@ -53,20 +58,28 @@ class _HomeShellState extends State<HomeShell> {
         selectedIndex: _index,
         onDestinationSelected: _onTap,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.search_rounded), label: 'Каталог'),
-          NavigationDestination(
+        destinations: [
+          const NavigationDestination(icon: Icon(Icons.search_rounded), label: 'Каталог'),
+          const NavigationDestination(
             icon: Icon(Icons.favorite_border_rounded),
             selectedIcon: Icon(Icons.favorite_rounded),
             label: 'Избранное',
           ),
-          NavigationDestination(icon: Icon(Icons.add_circle_rounded, size: 32), label: 'Подать'),
+          const NavigationDestination(icon: Icon(Icons.add_circle_rounded, size: 32), label: 'Подать'),
           NavigationDestination(
-            icon: Icon(Icons.chat_bubble_outline_rounded),
-            selectedIcon: Icon(Icons.chat_bubble_rounded),
-            label: 'Сообщения',
+            icon: Badge(
+              isLabelVisible: cartCount > 0,
+              label: Text('$cartCount'),
+              child: const Icon(Icons.shopping_bag_outlined),
+            ),
+            selectedIcon: Badge(
+              isLabelVisible: cartCount > 0,
+              label: Text('$cartCount'),
+              child: const Icon(Icons.shopping_bag_rounded),
+            ),
+            label: 'Корзина',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.person_outline_rounded),
             selectedIcon: Icon(Icons.person_rounded),
             label: 'Профиль',

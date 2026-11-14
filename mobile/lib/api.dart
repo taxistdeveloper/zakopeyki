@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 
 import 'config.dart';
 import 'models.dart';
+import 'shop_models.dart';
 
 class ApiException implements Exception {
   final int status;
@@ -89,23 +90,40 @@ class Api {
     );
   }
 
-  Future<_Envelope> _send(Future<http.Response> Function() call, {bool retryAuth = true}) async {
+  Future<_Envelope> _multipart(String path, Map<String, String> fields, List<String> keep, List<String> files) {
+    final uri = siteUri('$kApiPrefix$path');
+    return _send(() async {
+      final req = http.MultipartRequest('POST', uri)
+        ..headers.addAll(_headers)
+        ..fields.addAll(fields);
+      for (var i = 0; i < keep.length; i++) {
+        req.fields['keep_images[$i]'] = keep[i];
+      }
+      for (final f in files) {
+        req.files.add(await http.MultipartFile.fromPath('images[]', f));
+      }
+      return http.Response.fromStream(await _client.send(req));
+    }, timeout: const Duration(seconds: 120));
+  }
+
+  Future<_Envelope> _send(Future<http.Response> Function() call,
+      {bool retryAuth = true, Duration timeout = _timeout}) async {
     final hadToken = accessToken != null;
     try {
-      return await _sendOnce(call);
+      return await _sendOnce(call, timeout);
     } on ApiException catch (e) {
       final refresher = onUnauthorized;
       if (e.isUnauthorized && hadToken && retryAuth && refresher != null && await refresher()) {
-        return _sendOnce(call);
+        return _sendOnce(call, timeout);
       }
       rethrow;
     }
   }
 
-  Future<_Envelope> _sendOnce(Future<http.Response> Function() call) async {
+  Future<_Envelope> _sendOnce(Future<http.Response> Function() call, Duration timeout) async {
     http.Response res;
     try {
-      res = await call().timeout(_timeout);
+      res = await call().timeout(timeout);
     } on SocketException {
       throw ApiException(0, 'network', 'Нет соединения с интернетом');
     } on TimeoutException {
@@ -248,6 +266,107 @@ class Api {
   Future<bool> toggleFavorite(int id) async {
     final e = await _post('/products/$id/favorite');
     return e.data['is_favorite'] == true;
+  }
+
+  // --- регистрация -------------------------------------------------------
+
+  Future<AuthSession> register({
+    required String name,
+    required String email,
+    required String password,
+    String? phone,
+    required String deviceName,
+  }) async {
+    final e = await _post('/auth/register', {
+      'name': name,
+      'email': email,
+      'password': password,
+      if (phone != null && phone.isNotEmpty) 'phone': phone,
+      'accept_offer': true,
+      'device_id': deviceId,
+      'device_name': deviceName,
+      'platform': 'android',
+    }, false);
+    return _session(e.data);
+  }
+
+  Future<String> forgotPassword(String email) async {
+    final e = await _post('/auth/forgot-password', {'email': email}, false);
+    return e.data['message']?.toString() ?? 'Письмо отправлено';
+  }
+
+  // --- корзина и оформление ------------------------------------------------
+
+  Future<CartData> cart() async => CartData.fromJson((await _get('/cart')).data);
+
+  Future<CartData> addToCart(int productId, [int qty = 1]) async =>
+      CartData.fromJson((await _post('/cart/items', {'product_id': productId, 'qty': qty})).data);
+
+  Future<CartData> setCartQty(int productId, int qty) async =>
+      CartData.fromJson((await _post('/cart/items/$productId/qty', {'qty': qty})).data);
+
+  Future<CartData> removeFromCart(int productId) async =>
+      CartData.fromJson((await _post('/cart/items/$productId/remove')).data);
+
+  Future<CheckoutOptions> checkoutOptions({int? productId, int qty = 1}) async {
+    final e = await _get('/checkout/options',
+        productId == null ? {'source': 'cart'} : {'product_id': '$productId', 'qty': '$qty'});
+    return CheckoutOptions.fromJson(e.data);
+  }
+
+  Future<CheckoutResult> checkout({
+    int? productId,
+    int qty = 1,
+    required String dealMode,
+    required String delivery,
+    required String payment,
+  }) async {
+    final e = await _post('/checkout', {
+      if (productId == null) 'source': 'cart' else 'product_id': productId,
+      'qty': qty,
+      'deal_mode': dealMode,
+      'delivery_method': delivery,
+      'payment_method': payment,
+    });
+    return CheckoutResult.fromJson(e.data);
+  }
+
+  // --- заказы ------------------------------------------------------------
+
+  Future<List<Order>> orders(String role) async {
+    final e = await _get('/orders', {'role': role});
+    return ((e.data['items'] as List?) ?? []).map((o) => Order.fromJson(o as Map<String, dynamic>)).toList();
+  }
+
+  Future<Order> order(int id) async => Order.fromJson((await _get('/orders/$id')).data['order'] as Map<String, dynamic>);
+
+  Future<Order> orderAction(int id, String action, [Map<String, dynamic>? body]) async =>
+      Order.fromJson((await _post('/orders/$id/$action', body)).data['order'] as Map<String, dynamic>);
+
+  // --- объявления --------------------------------------------------------
+
+  Future<ListingForm> listingForm() async => ListingForm.fromJson((await _get('/listings/form')).data);
+
+  Future<List<MyListing>> myListings() async => (((await _get('/me/listings')).data['items'] as List?) ?? [])
+      .map((e) => MyListing.fromJson(e as Map<String, dynamic>))
+      .toList();
+
+  Future<EditableListing> editableListing(int id) async =>
+      EditableListing.fromJson((await _get('/me/listings/$id')).data['listing'] as Map<String, dynamic>);
+
+  /// Создание (id == null) или правка объявления. [files] — локальные пути новых фото.
+  Future<int> saveListing({
+    int? id,
+    required Map<String, String> fields,
+    List<String> keepImages = const [],
+    List<String> files = const [],
+  }) async {
+    final e = await _multipart(id == null ? '/listings' : '/listings/$id', fields, keepImages, files);
+    return (e.data['product_id'] as num?)?.toInt() ?? id ?? 0;
+  }
+
+  Future<void> deleteListing(int id) async {
+    await _post('/listings/$id/delete');
   }
 
   List<ProductCard> _cards(Object? list) => ((list as List?) ?? [])

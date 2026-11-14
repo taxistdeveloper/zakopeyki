@@ -4,7 +4,7 @@ import '../api.dart';
 import '../main.dart';
 import '../nav.dart';
 import '../session.dart';
-import 'web_screen.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -84,12 +84,65 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _openWebAuth(String path, String title) async {
-    await Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => WebScreen(path: path, title: title),
-    ));
-    // После регистрации / сброса пароля на сайте — входим здесь тем же email и паролем.
-    if (mounted) showSnack(context, 'Теперь войдите с email и паролем');
+  Future<void> _register() async {
+    final ok = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const RegisterScreen()),
+    );
+    if (ok == true && mounted) Navigator.of(context).pop(true);
+  }
+
+  Future<void> _forgot() async {
+    final email = TextEditingController(text: _email.text.trim());
+    final sent = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        var busy = false;
+        String? error;
+        return StatefulBuilder(
+          builder: (ctx, setLocal) => AlertDialog(
+            title: const Text('Восстановление пароля'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Пришлём ссылку для смены пароля на вашу почту.'),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: email,
+                  autofocus: true,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: InputDecoration(labelText: 'Email', errorText: error),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Отмена')),
+              FilledButton(
+                onPressed: busy
+                    ? null
+                    : () async {
+                        setLocal(() {
+                          busy = true;
+                          error = null;
+                        });
+                        try {
+                          final msg = await SessionScope.read(context).api.forgotPassword(email.text.trim());
+                          if (ctx.mounted) Navigator.pop(ctx, msg);
+                        } on ApiException catch (e) {
+                          setLocal(() {
+                            busy = false;
+                            error = e.fields['email'] ?? e.message;
+                          });
+                        }
+                      },
+                child: const Text('Отправить'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    email.dispose();
+    if (sent != null && mounted) showSnack(context, sent);
   }
 
   @override
@@ -191,12 +244,12 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 8),
               TextButton(
-                onPressed: () => _openWebAuth('/forgot-password', 'Восстановление пароля'),
+                onPressed: _forgot,
                 child: const Text('Забыли пароль?'),
               ),
               const Divider(height: 32),
               OutlinedButton(
-                onPressed: () => _openWebAuth('/register', 'Регистрация'),
+                onPressed: _register,
                 child: const Text('Создать аккаунт'),
               ),
             ],

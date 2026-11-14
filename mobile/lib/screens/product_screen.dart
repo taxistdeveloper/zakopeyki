@@ -5,6 +5,9 @@ import '../main.dart';
 import '../models.dart';
 import '../nav.dart';
 import '../widgets/product_tile.dart';
+import 'cart_screen.dart';
+import 'checkout_screen.dart';
+import 'my_listings_screen.dart';
 
 class ProductScreen extends StatefulWidget {
   const ProductScreen({super.key, required this.id});
@@ -287,14 +290,43 @@ class _ProductScreenState extends State<ProductScreen> {
     );
   }
 
+  bool _adding = false;
+
+  Future<void> _addToCart(int id) async {
+    setState(() => _adding = true);
+    final session = SessionScope.read(context);
+    try {
+      final cart = await session.api.addToCart(id);
+      session.setCartCount(cart.count);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text(cart.notice ?? 'Добавлено в корзину'),
+          action: SnackBarAction(
+            label: 'Корзина',
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CartScreen())),
+          ),
+        ));
+    } on ApiException catch (e) {
+      if (mounted) showSnack(context, e.message);
+    } finally {
+      if (mounted) setState(() => _adding = false);
+    }
+  }
+
   Widget _actions(ProductDetail d) {
     final me = SessionScope.read(context).user;
     if (me != null && me.id == d.card.seller.id) {
       return _bar([
         Expanded(
-          child: FilledButton(
-            onPressed: () => openWeb(context, '/profile?tab=lots', title: 'Мои объявления'),
-            child: const Text('Управлять объявлением'),
+          child: FilledButton.icon(
+            onPressed: () async {
+              if (await openListingForm(context, editId: d.card.id) != null && mounted) _load();
+            },
+            icon: const Icon(Icons.edit_outlined, size: 18),
+            label: const Text('Редактировать'),
           ),
         ),
       ]);
@@ -321,19 +353,30 @@ class _ProductScreenState extends State<ProductScreen> {
             child: const Text('Сделать ставку'),
           ),
         )
-      else if (d.purchasable)
+      else if (d.purchasable) ...[
+        IconButton.filledTonal(
+          onPressed: _adding ? null : () => requireLogin(context, () => _addToCart(id)),
+          style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
+          tooltip: 'В корзину',
+          icon: _adding
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Icon(Icons.add_shopping_cart_rounded),
+        ),
         Expanded(
           child: FilledButton(
             onPressed: () => requireLogin(
               context,
               () async {
-                await openWeb(context, '/checkout/$id', title: 'Оформление');
+                await Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => CheckoutScreen(productId: id),
+                ));
                 if (mounted) _load();
               },
             ),
             child: const Text('Купить'),
           ),
         ),
+      ],
     ];
     return _bar(buttons);
   }

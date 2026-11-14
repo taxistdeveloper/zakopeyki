@@ -2,15 +2,18 @@ import 'package:flutter/material.dart';
 
 import '../main.dart';
 import '../nav.dart';
+import '../theme.dart';
+import 'cart_screen.dart';
 import 'home_shell.dart';
+import 'my_listings_screen.dart';
+import 'orders_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
-  static const _sections = [
-    (Icons.inventory_2_outlined, 'Мои объявления', '/profile?tab=lots'),
-    (Icons.shopping_cart_outlined, 'Корзина', '/cart'),
-    (Icons.receipt_long_outlined, 'Заказы и сделки', '/orders'),
+  /// Разделы, для которых в мобильном API пока нет методов, — открываются сайтом.
+  static const _webSections = [
+    (Icons.chat_bubble_outline_rounded, 'Сообщения', '/chat'),
     (Icons.account_balance_wallet_outlined, 'Кошелёк', '/wallet'),
     (Icons.notifications_none_rounded, 'Уведомления', '/profile?tab=notifications'),
     (Icons.manage_accounts_outlined, 'Личные данные', '/profile?tab=personal'),
@@ -73,20 +76,25 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            Container(
-              color: Colors.white,
-              child: Column(
-                children: [
-                  for (final (icon, title, path) in _sections)
-                    ListTile(
-                      leading: Icon(icon),
-                      title: Text(title),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () => openWeb(context, path, title: title),
-                    ),
-                ],
-              ),
+            _group([
+              _tile(context, Icons.sell_outlined, 'Мои объявления',
+                  () => _push(context, const MyListingsScreen())),
+              _tile(context, Icons.shopping_bag_outlined, 'Мои покупки',
+                  () => _push(context, const OrdersScreen())),
+              _tile(context, Icons.storefront_outlined, 'Мои продажи',
+                  () => _push(context, const OrdersScreen(initialRole: 'selling'))),
+              _tile(context, Icons.shopping_cart_outlined, 'Корзина',
+                  () => _push(context, const CartScreen()),
+                  badge: session.cartCount),
+            ]),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 6),
+              child: Text('Ещё', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w600)),
             ),
+            _group([
+              for (final (icon, title, path) in _webSections)
+                _tile(context, icon, title, () => openWeb(context, path, title: title)),
+            ]),
             const SizedBox(height: 8),
             Container(
               color: Colors.white,
@@ -114,4 +122,36 @@ class ProfileScreen extends StatelessWidget {
       ),
     );
   }
+
+  static Future<void> _push(BuildContext context, Widget screen) =>
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+
+  static Widget _group(List<Widget> tiles) => Container(
+        margin: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(children: tiles),
+      );
+
+  static Widget _tile(BuildContext context, IconData icon, String title, VoidCallback onTap, {int badge = 0}) =>
+      ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(10)),
+          child: Icon(icon, color: kBrand, size: 20),
+        ),
+        title: Text(title),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (badge > 0) Badge(label: Text('$badge')),
+            const Icon(Icons.chevron_right_rounded),
+          ],
+        ),
+        onTap: onTap,
+      );
 }

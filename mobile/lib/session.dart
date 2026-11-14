@@ -54,6 +54,7 @@ class Session extends ChangeNotifier {
       }
       await _loadCategories();
       await _checkSiteAccess();
+      refreshCartCount();
     } on ApiException catch (e) {
       startupError = e.message;
     } catch (e) {
@@ -71,6 +72,43 @@ class Session extends ChangeNotifier {
     if (r.needsTwoFactor) return r.challenge;
     await _applySession(r.session!);
     return null;
+  }
+
+  /// Регистрация по email: сразу входит в новый аккаунт.
+  Future<void> register({
+    required String name,
+    required String email,
+    required String password,
+    String? phone,
+  }) async {
+    await _ensureDeviceId();
+    final s = await api.register(
+      name: name,
+      email: email,
+      password: password,
+      phone: phone,
+      deviceName: deviceName,
+    );
+    await _applySession(s);
+  }
+
+  /// Количество товаров в корзине (бейдж на вкладке).
+  int cartCount = 0;
+
+  void setCartCount(int count) {
+    if (count == cartCount) return;
+    cartCount = count;
+    notifyListeners();
+  }
+
+  Future<void> refreshCartCount() async {
+    if (!loggedIn || stubLocked) {
+      setCartCount(0);
+      return;
+    }
+    try {
+      setCartCount((await api.cart()).count);
+    } catch (_) {}
   }
 
   Future<void>? _googleInit;
@@ -113,6 +151,7 @@ class Session extends ChangeNotifier {
     await _storage.write(key: _refreshKey, value: s.refreshToken);
     await _checkSiteAccess();
     notifyListeners();
+    refreshCartCount();
   }
 
   Future<void> logout() async {
@@ -122,6 +161,7 @@ class Session extends ChangeNotifier {
       // локально выходим в любом случае
     }
     await _clear();
+    cartCount = 0;
     await WebViewCookieManager().clearCookies();
     if (_googleInit != null) {
       // чтобы при следующем входе Google снова предложил выбрать аккаунт
