@@ -103,9 +103,9 @@ class _WebScreenState extends State<WebScreen> {
       return NavigationDecision.prevent;
     }
 
-    // Google блокирует OAuth во встроенных WebView
+    // Google блокирует OAuth во встроенных WebView — вход через нативный экран
     if (path == '/auth/google') {
-      showSnack(context, 'Вход через Google в приложении пока недоступен — войдите по email');
+      openLogin(context);
       return NavigationDecision.prevent;
     }
 

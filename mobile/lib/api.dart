@@ -167,6 +167,17 @@ class Api {
     return _loginResult(e.data);
   }
 
+  /// Вход / регистрация через Google: ID-токен из нативного Google Sign-In.
+  Future<LoginResult> google(String idToken, String deviceName) async {
+    final e = await _post('/auth/google', {
+      'id_token': idToken,
+      'device_id': deviceId,
+      'device_name': deviceName,
+      'platform': 'android',
+    }, false);
+    return _loginResult(e.data);
+  }
+
   Future<AuthSession> refresh(String refreshToken, String deviceName) async {
     final e = await _post('/auth/refresh', {
       'refresh_token': refreshToken,

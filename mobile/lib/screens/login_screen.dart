@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api.dart';
 import '../main.dart';
 import '../nav.dart';
+import '../session.dart';
 import 'web_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -27,6 +28,29 @@ class _LoginScreenState extends State<LoginScreen> {
     _password.dispose();
     _code.dispose();
     super.dispose();
+  }
+
+  Future<void> _google() async {
+    final session = SessionScope.read(context);
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final challenge = await session.loginWithGoogle();
+      if (!mounted) return;
+      if (challenge != null) {
+        setState(() => _challenge = challenge);
+        return;
+      }
+      Navigator.of(context).pop(true);
+    } on GoogleCancelled {
+      // пользователь закрыл выбор аккаунта
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _submit() async {
@@ -141,6 +165,30 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: const Text('Назад'),
               )
             else ...[
+              const SizedBox(height: 12),
+              const Row(
+                children: [
+                  Expanded(child: Divider()),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Text('или', style: TextStyle(color: Colors.black45)),
+                  ),
+                  Expanded(child: Divider()),
+                ],
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _busy ? null : _google,
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.black87,
+                ),
+                icon: const Text('G',
+                    style: TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF4285F4))),
+                label: const Text('Войти через Google'),
+              ),
               const SizedBox(height: 8),
               TextButton(
                 onPressed: () => _openWebAuth('/forgot-password', 'Восстановление пароля'),

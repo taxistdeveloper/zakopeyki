@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import 'api.dart';
@@ -72,6 +73,34 @@ class Session extends ChangeNotifier {
     return null;
   }
 
+  Future<void>? _googleInit;
+
+  /// Вход через Google. Возвращает challenge, если на аккаунте включена 2FA;
+  /// null — вошли; бросает [GoogleCancelled], если пользователь закрыл окно выбора аккаунта.
+  Future<String?> loginWithGoogle() async {
+    await _ensureDeviceId();
+    final google = GoogleSignIn.instance;
+    await (_googleInit ??= google.initialize(serverClientId: kGoogleServerClientId));
+    GoogleSignInAccount account;
+    try {
+      account = await google.authenticate();
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled ||
+          e.code == GoogleSignInExceptionCode.interrupted) {
+        throw GoogleCancelled();
+      }
+      throw ApiException(0, 'google_failed', 'Не удалось войти через Google (${e.code.name})');
+    }
+    final idToken = account.authentication.idToken;
+    if (idToken == null) {
+      throw ApiException(0, 'google_failed', 'Google не вернул токен входа');
+    }
+    final r = await api.google(idToken, deviceName);
+    if (r.needsTwoFactor) return r.challenge;
+    await _applySession(r.session!);
+    return null;
+  }
+
   Future<void> verifyTwoFactor(String challenge, String code) async {
     final r = await api.twoFactor(challenge, code);
     await _applySession(r.session!);
@@ -94,6 +123,10 @@ class Session extends ChangeNotifier {
     }
     await _clear();
     await WebViewCookieManager().clearCookies();
+    if (_googleInit != null) {
+      // чтобы при следующем входе Google снова предложил выбрать аккаунт
+      await GoogleSignIn.instance.signOut().catchError((_) {});
+    }
     siteAccess = false;
     await _checkSiteAccess();
     notifyListeners();
@@ -182,3 +215,6 @@ class Session extends ChangeNotifier {
     api.deviceId = id;
   }
 }
+
+/// Пользователь закрыл окно выбора Google-аккаунта.
+class GoogleCancelled implements Exception {}

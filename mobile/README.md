@@ -22,6 +22,17 @@
 
 Ссылки `/product/{id}` внутри WebView открывают нативную карточку, `tel:`/`wa.me`/`t.me` — внешние приложения. `<input type="file">` на сайте открывает камеру/галерею.
 
+## Вход через Google
+
+Нативный Google Sign-In (`google_sign_in`) → ID-токен → `POST /api/mobile/v1/auth/google`. Токен выпускается для web-клиента сайта (`kGoogleServerClientId` в `lib/config.dart`).
+
+Чтобы заработало, нужно один раз настроить:
+
+1. **Google Cloud Console** (проект, где web-клиент сайта) → Credentials → Create OAuth client ID → **Android**:
+   package `kz.zakopeyki.app`, SHA-1 ключа подписи. Для текущих сборок (debug-ключ этой машины):
+   `50:70:18:AE:39:05:85:34:40:A6:65:AA:36:F5:C7:B4:1E:F6:DD:53`. При переходе на свой release-ключ / Google Play App Signing — добавить и их SHA-1.
+2. **Сервер**: переменная окружения `GOOGLE_MOBILE_CLIENT_IDS=<web client id сайта>` (см. `config/mobile.php`). Пока она пустая, API отвечает `provider_disabled`.
+
 ## Запуск
 
 ```bash
@@ -49,7 +60,6 @@ flutter build appbundle --release
 ## Что ещё не сделано
 
 - Ключ подписи релиза (`android/key.properties`) и иконка/сплэш — сейчас стандартные Flutter.
-- Вход через Google: Google блокирует OAuth во встроенных WebView — нужен нативный Google Sign-In + серверный эндпоинт.
 - Push-уведомления (FCM).
 - Перенос в нативные экраны: корзина/оформление, заказы, подача объявления — для них в боевом API уже есть эндпоинты (`/cart`, `/checkout`, `/orders`, `/listings`).
 - Нативная регистрация (`POST /auth/register`) и сброс пароля (`/auth/forgot-password`).

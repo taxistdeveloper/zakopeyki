@@ -9,6 +9,14 @@ const String kApiPrefix = '/api/mobile/v1';
 
 const String kAppVersion = '1.0.0';
 
+/// Web OAuth client сайта (тот же, что у входа через Google на сайте; публичный, не секрет).
+/// ID-токен Google Sign-In выдаётся с aud = этот client id — его же должен знать сервер
+/// (GOOGLE_MOBILE_CLIENT_IDS в config/mobile.php).
+const String kGoogleServerClientId = String.fromEnvironment(
+  'GOOGLE_SERVER_CLIENT_ID',
+  defaultValue: '341406337487-94kl58qqor20ksgm0gut87hpe477gmrv.apps.googleusercontent.com',
+);
+
 /// Маркер приложения в User-Agent WebView.
 const String kAppMarker = 'ZakopeykiApp/$kAppVersion';
 
