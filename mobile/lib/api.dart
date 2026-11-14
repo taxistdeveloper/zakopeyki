@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 
 import 'config.dart';
 import 'models.dart';
+import 'account_models.dart';
 import 'shop_models.dart';
 
 class ApiException implements Exception {
@@ -367,6 +368,151 @@ class Api {
 
   Future<void> deleteListing(int id) async {
     await _post('/listings/$id/delete');
+  }
+
+  // --- сообщения ----------------------------------------------------------
+
+  Future<(List<ChatSummary>, int)> chats() async {
+    final e = await _get('/chats');
+    final items = ((e.data['items'] as List?) ?? [])
+        .map((c) => ChatSummary.fromJson(c as Map<String, dynamic>))
+        .toList();
+    return (items, (e.data['unread_total'] as num?)?.toInt() ?? 0);
+  }
+
+  Future<int> chatUnread() async => ((await _get('/chats/unread')).data['unread_total'] as num?)?.toInt() ?? 0;
+
+  /// Переписка; [after] > 0 — только новые сообщения (опрос).
+  Future<ChatThread> chat(int id, {int after = 0}) async {
+    final e = await _get('/chats/$id', after > 0 ? {'after': '$after'} : null);
+    final conv = e.data['conversation'];
+    return ChatThread(
+      conv is Map<String, dynamic> ? ChatConversation.fromJson(conv) : null,
+      ((e.data['messages'] as List?) ?? []).map((m) => ChatMessage.fromJson(m as Map<String, dynamic>)).toList(),
+      (e.data['unread_total'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  Future<ChatMessage> sendMessage(int chatId, String body) async =>
+      ChatMessage.fromJson((await _post('/chats/$chatId/messages', {'body': body})).data['message'] as Map<String, dynamic>);
+
+  /// Найти или создать диалог по товару или заказу.
+  Future<ChatConversation> startChat({int? productId, int? orderId}) async {
+    final e = await _post('/chats/start', {'product_id': ?productId, 'order_id': ?orderId});
+    return ChatConversation.fromJson(e.data['conversation'] as Map<String, dynamic>);
+  }
+
+  // --- аккаунт ------------------------------------------------------------
+
+  Future<AccountProfile> accountProfile() async =>
+      AccountProfile.fromJson((await _get('/me/profile')).data['profile'] as Map<String, dynamic>);
+
+  Future<(AccountProfile, AppUser)> updateAccountProfile(Map<String, String> fields) async {
+    final e = await _post('/me/profile', fields);
+    return (
+      AccountProfile.fromJson(e.data['profile'] as Map<String, dynamic>),
+      AppUser.fromJson(e.data['user'] as Map<String, dynamic>),
+    );
+  }
+
+  Future<String> changePassword(String? current, String password) async {
+    final e = await _post('/me/password', {'current_password': ?current, 'password': password});
+    return e.data['message']?.toString() ?? 'Пароль изменён';
+  }
+
+  Future<(String, String)> twoFactorSetup() async {
+    final e = await _post('/me/2fa/setup');
+    return (e.data['secret'] as String, e.data['otpauth_uri'] as String);
+  }
+
+  Future<List<String>> twoFactorConfirm(String secret, String code) async {
+    final e = await _post('/me/2fa/confirm', {'secret': secret, 'code': code});
+    return ((e.data['recovery_codes'] as List?) ?? []).map((c) => c.toString()).toList();
+  }
+
+  Future<void> twoFactorDisable(String? password, String code) async {
+    await _post('/me/2fa/disable', {'password': ?password, 'code': code});
+  }
+
+  Future<(List<AppNotification>, int)> notifications() async {
+    final e = await _get('/me/notifications');
+    return (
+      ((e.data['items'] as List?) ?? []).map((n) => AppNotification.fromJson(n as Map<String, dynamic>)).toList(),
+      (e.data['unread'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  Future<void> notificationsRead() async {
+    await _post('/me/notifications/read');
+  }
+
+  Future<void> notificationsClear() async {
+    await _post('/me/notifications/clear');
+  }
+
+  // --- кошелёк -------------------------------------------------------------
+
+  Future<WalletData> wallet() async => WalletData.fromJson((await _get('/wallet')).data);
+
+  /// Пополнение: null — зачислено сразу, иначе ссылка на форму оплаты картой.
+  Future<String?> walletDeposit(int amount) async {
+    final e = await _post('/wallet/deposit', {'amount': amount});
+    return e.data['status'] == 'pending' ? e.data['payment_url'] as String? : null;
+  }
+
+  Future<void> walletWithdraw(int amount, String dest, {String? taxId}) async {
+    await _post('/wallet/withdraw', {'amount': amount, 'dest': dest, 'iin': ?taxId});
+  }
+
+  // --- поддержка -----------------------------------------------------------
+
+  Future<(List<SupportTicket>, List<SupportCategory>)> supportTickets() async {
+    final e = await _get('/support/tickets');
+    return (
+      ((e.data['items'] as List?) ?? []).map((t) => SupportTicket.fromJson(t as Map<String, dynamic>)).toList(),
+      ((e.data['categories'] as List?) ?? [])
+          .map((c) => SupportCategory(c['code'].toString(), c['label'].toString()))
+          .toList(),
+    );
+  }
+
+  Future<(SupportTicket, List<SupportMessage>)> supportTicket(int id) async =>
+      _ticket(await _get('/support/tickets/$id'));
+
+  Future<SupportTicket> createSupportTicket(String subject, String body, String category) async {
+    final e = await _post('/support/tickets', {'subject': subject, 'body': body, 'category': category});
+    return SupportTicket.fromJson(e.data['ticket'] as Map<String, dynamic>);
+  }
+
+  Future<(SupportTicket, List<SupportMessage>)> replySupport(int id, String body) async =>
+      _ticket(await _post('/support/tickets/$id/reply', {'body': body}));
+
+  (SupportTicket, List<SupportMessage>) _ticket(_Envelope e) => (
+        SupportTicket.fromJson(e.data['ticket'] as Map<String, dynamic>),
+        ((e.data['messages'] as List?) ?? []).map((m) => SupportMessage.fromJson(m as Map<String, dynamic>)).toList(),
+      );
+
+  // --- продавец, аукцион ----------------------------------------------------
+
+  Future<SellerProfile> seller(int id) async =>
+      SellerProfile.fromJson((await _get('/users/$id')).data['user'] as Map<String, dynamic>);
+
+  Future<(bool, int)> toggleFollow(int id) async {
+    final e = await _post('/users/$id/follow');
+    return (e.data['is_following'] == true, (e.data['followers_count'] as num?)?.toInt() ?? 0);
+  }
+
+  Future<AuctionLive> auction(int id) async =>
+      AuctionLive.fromJson((await _get('/auctions/$id')).data['auction'] as Map<String, dynamic>);
+
+  Future<(AuctionLive, String)> placeBid(int id, int amount) async {
+    final e = await _post('/auctions/$id/bid', {'amount': amount});
+    return (AuctionLive.fromJson(e.data['auction'] as Map<String, dynamic>), e.data['message']?.toString() ?? 'Ставка принята');
+  }
+
+  Future<(AuctionLive, String)> auctionBuyNow(int id) async {
+    final e = await _post('/auctions/$id/buy-now');
+    return (AuctionLive.fromJson(e.data['auction'] as Map<String, dynamic>), e.data['message']?.toString() ?? 'Лот выкуплен');
   }
 
   List<ProductCard> _cards(Object? list) => ((list as List?) ?? [])

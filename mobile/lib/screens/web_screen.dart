@@ -6,6 +6,8 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import '../config.dart';
 import '../nav.dart';
+import 'chat_screen.dart';
+import 'chats_screen.dart';
 
 /// Раздел сайта внутри приложения.
 ///
@@ -100,6 +102,17 @@ class _WebScreenState extends State<WebScreen> {
     final m = _productPath.firstMatch(path);
     if (m != null && !uri.queryParameters.containsKey('full')) {
       openProduct(context, int.parse(m.group(1)!));
+      return NavigationDecision.prevent;
+    }
+
+    // Сообщения — нативные экраны
+    if (path == '/chat') {
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ChatsScreen()));
+      return NavigationDecision.prevent;
+    }
+    final chat = RegExp(r'^/chat/(\d+)$').firstMatch(path);
+    if (chat != null) {
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => ChatScreen(chatId: int.parse(chat.group(1)!))));
       return NavigationDecision.prevent;
     }
 

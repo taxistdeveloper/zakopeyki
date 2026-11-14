@@ -6,6 +6,7 @@ import '../nav.dart';
 import '../shop_models.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import 'chats_screen.dart';
 import 'orders_screen.dart';
 
 /// Карточка сделки и действия сторон (отправил / получил / подтвердить / спор / отмена).
@@ -199,6 +200,15 @@ class _OrderScreenState extends State<OrderScreen> {
                           ),
                         ],
                       ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    child: OutlinedButton.icon(
+                      onPressed: () => openChatFor(context, orderId: o.id),
+                      style: OutlinedButton.styleFrom(backgroundColor: Colors.white),
+                      icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                      label: Text(o.isBuyer ? 'Написать продавцу' : 'Написать покупателю'),
                     ),
                   ),
                   if (_hint(o) != null)

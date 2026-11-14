@@ -394,3 +394,104 @@ String listingStatusLabel(String s) => switch (s) {
       'draft' => 'Черновик',
       _ => s,
     };
+
+// ---------------------------------------------------------------- сообщения
+
+class ChatPeer {
+  final int id;
+  final String name;
+  final String? avatar;
+  ChatPeer(this.id, this.name, this.avatar);
+
+  String get initial => name.trim().isEmpty ? '?' : String.fromCharCode(name.trim().runes.first).toUpperCase();
+
+  factory ChatPeer.fromJson(Map<String, dynamic> j) =>
+      ChatPeer(_int(j['id']), _str(j['name']), j['avatar_url'] as String?);
+}
+
+class ChatProduct {
+  final int id;
+  final String title;
+  final String? image;
+  ChatProduct(this.id, this.title, this.image);
+
+  static ChatProduct? fromJson(Object? j) => j is Map<String, dynamic>
+      ? ChatProduct(_int(j['id']), _str(j['title']), j['image_url'] as String?)
+      : null;
+}
+
+class ChatSummary {
+  final int id;
+  final ChatPeer peer;
+  final ChatProduct? product;
+  final String? lastPreview;
+  final String? lastMessageAt;
+  final int unread;
+
+  ChatSummary(this.id, this.peer, this.product, this.lastPreview, this.lastMessageAt, this.unread);
+
+  factory ChatSummary.fromJson(Map<String, dynamic> j) => ChatSummary(
+        _int(j['id']),
+        ChatPeer.fromJson((j['peer'] as Map).cast<String, dynamic>()),
+        ChatProduct.fromJson(j['product']),
+        j['last_preview'] as String?,
+        j['last_message_at'] as String?,
+        _int(j['unread_count']),
+      );
+}
+
+class ChatConversation {
+  final int id;
+  final ChatPeer peer;
+  final ChatProduct? product;
+  final int? orderId;
+
+  ChatConversation(this.id, this.peer, this.product, this.orderId);
+
+  factory ChatConversation.fromJson(Map<String, dynamic> j) => ChatConversation(
+        _int(j['id']),
+        ChatPeer.fromJson((j['peer'] as Map).cast<String, dynamic>()),
+        ChatProduct.fromJson(j['product']),
+        j['order_id'] == null ? null : _int(j['order_id']),
+      );
+}
+
+class ChatMessage {
+  final int id;
+  final bool mine;
+  final String body;
+  final bool read;
+  final String? createdAt;
+  /// Локальное сообщение, ещё не подтверждённое сервером.
+  final bool pending;
+
+  ChatMessage(this.id, this.mine, this.body, this.read, this.createdAt, {this.pending = false});
+
+  factory ChatMessage.fromJson(Map<String, dynamic> j) => ChatMessage(
+        _int(j['id']),
+        j['is_mine'] == true,
+        _str(j['body']),
+        j['is_read'] == true,
+        j['created_at'] as String?,
+      );
+}
+
+class ChatThread {
+  final ChatConversation? conversation;
+  final List<ChatMessage> messages;
+  final int unreadTotal;
+  ChatThread(this.conversation, this.messages, this.unreadTotal);
+}
+
+/// «12:40», «вчера», «14.11» — для списка диалогов.
+String chatTime(String? iso) {
+  final d = iso == null ? null : DateTime.tryParse(iso)?.toLocal();
+  if (d == null) return '';
+  final now = DateTime.now();
+  String two(int v) => v.toString().padLeft(2, '0');
+  final today = DateTime(now.year, now.month, now.day);
+  final day = DateTime(d.year, d.month, d.day);
+  if (day == today) return '${two(d.hour)}:${two(d.minute)}';
+  if (today.difference(day).inDays == 1) return 'вчера';
+  return '${two(d.day)}.${two(d.month)}${d.year == now.year ? '' : '.${d.year % 100}'}';
+}

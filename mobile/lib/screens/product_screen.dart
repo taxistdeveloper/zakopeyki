@@ -6,6 +6,7 @@ import '../models.dart';
 import '../nav.dart';
 import '../widgets/product_tile.dart';
 import 'cart_screen.dart';
+import 'chats_screen.dart';
 import 'checkout_screen.dart';
 import 'my_listings_screen.dart';
 
@@ -337,7 +338,7 @@ class _ProductScreenState extends State<ProductScreen> {
         child: OutlinedButton.icon(
           onPressed: () => requireLogin(
             context,
-            () => openWeb(context, '/chat/start?product_id=$id', title: 'Сообщения'),
+            () => openChatFor(context, productId: id),
           ),
           icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
           label: const Text('Написать'),

@@ -55,6 +55,7 @@ class Session extends ChangeNotifier {
       await _loadCategories();
       await _checkSiteAccess();
       refreshCartCount();
+      refreshChatUnread();
     } on ApiException catch (e) {
       startupError = e.message;
     } catch (e) {
@@ -111,6 +112,25 @@ class Session extends ChangeNotifier {
     } catch (_) {}
   }
 
+  /// Непрочитанные сообщения (бейдж на вкладке «Сообщения»).
+  int chatUnread = 0;
+
+  void setChatUnread(int count) {
+    if (count == chatUnread) return;
+    chatUnread = count;
+    notifyListeners();
+  }
+
+  Future<void> refreshChatUnread() async {
+    if (!loggedIn || stubLocked) {
+      setChatUnread(0);
+      return;
+    }
+    try {
+      setChatUnread(await api.chatUnread());
+    } catch (_) {}
+  }
+
   Future<void>? _googleInit;
 
   /// Вход через Google. Возвращает challenge, если на аккаунте включена 2FA;
@@ -152,6 +172,7 @@ class Session extends ChangeNotifier {
     await _checkSiteAccess();
     notifyListeners();
     refreshCartCount();
+    refreshChatUnread();
   }
 
   Future<void> logout() async {
@@ -162,6 +183,7 @@ class Session extends ChangeNotifier {
     }
     await _clear();
     cartCount = 0;
+    chatUnread = 0;
     await WebViewCookieManager().clearCookies();
     if (_googleInit != null) {
       // чтобы при следующем входе Google снова предложил выбрать аккаунт

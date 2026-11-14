@@ -13,7 +13,6 @@ class ProfileScreen extends StatelessWidget {
 
   /// Разделы, для которых в мобильном API пока нет методов, — открываются сайтом.
   static const _webSections = [
-    (Icons.chat_bubble_outline_rounded, 'Сообщения', '/chat'),
     (Icons.account_balance_wallet_outlined, 'Кошелёк', '/wallet'),
     (Icons.notifications_none_rounded, 'Уведомления', '/profile?tab=notifications'),
     (Icons.manage_accounts_outlined, 'Личные данные', '/profile?tab=personal'),

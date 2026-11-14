@@ -7,6 +7,7 @@ import '../main.dart';
 import '../models.dart';
 import '../nav.dart';
 import '../widgets/product_tile.dart';
+import 'cart_screen.dart';
 
 class CatalogScreen extends StatefulWidget {
   const CatalogScreen({super.key});
@@ -176,8 +177,11 @@ class _CatalogScreenState extends State<CatalogScreen> {
             slivers: [
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-                  child: TextField(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 4, 4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
                     controller: _search,
                     onChanged: _onSearchChanged,
                     textInputAction: TextInputAction.search,
@@ -195,6 +199,21 @@ class _CatalogScreenState extends State<CatalogScreen> {
                               },
                             ),
                     ),
+                  ),
+                      ),
+                      IconButton(
+                        tooltip: 'Корзина',
+                        onPressed: () => requireLogin(
+                          context,
+                          () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CartScreen())),
+                        ),
+                        icon: Badge(
+                          isLabelVisible: SessionScope.of(context).cartCount > 0,
+                          label: Text('${SessionScope.of(context).cartCount}'),
+                          child: const Icon(Icons.shopping_bag_outlined, size: 28),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
