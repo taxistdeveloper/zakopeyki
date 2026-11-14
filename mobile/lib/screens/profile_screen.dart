@@ -58,14 +58,12 @@ class ProfileScreen extends StatelessWidget {
                                 .titleMedium
                                 ?.copyWith(fontWeight: FontWeight.w700)),
                         Text(user.email, style: const TextStyle(color: Colors.black54)),
-                        if (user.accountType == 'business')
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
+                        if (user.isBusiness)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 4),
                             child: Text(
-                              user.businessStatus == 'verified'
-                                  ? 'Бизнес-аккаунт'
-                                  : 'Бизнес-аккаунт · на проверке',
-                              style: const TextStyle(color: Color(0xFF2563EB), fontSize: 12),
+                              'Бизнес-аккаунт',
+                              style: TextStyle(color: Color(0xFF2563EB), fontSize: 12),
                             ),
                           ),
                       ],

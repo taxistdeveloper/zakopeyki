@@ -7,18 +7,20 @@
 | Каталог, поиск, фильтр по типу и категории | Корзина, оформление, оплата |
 | Карточка товара, галерея, похожие | Сообщения (`/chat`) |
 | Избранное | Подача и управление объявлениями |
-| Вход по email + 2FA | Заказы, кошелёк, поддержка, настройки профиля |
+| Вход по email + 2FA (Bearer + refresh) | Заказы, кошелёк, поддержка, настройки профиля |
 | Экран «скоро открытие» (stub_mode) | Регистрация, восстановление пароля |
 
 ## Как работает сессия
 
-1. Вход в приложении → `POST /api/mobile/v1/auth/login` → токен устройства `zkm_…` (хранится в `flutter_secure_storage`, в БД — только sha256, таблица `mobile_tokens`).
-2. Нативные запросы шлют токен в заголовке `X-Mobile-Token` (и `X-Zk-App` вместо CSRF для POST).
-3. Для WebView токен кладётся в cookie `zk_mt`; `App\Core\MobileAuth::bootstrap()` в `index.php` поднимает по нему обычную PHP-сессию — весь сайт работает без повторного входа.
-4. Регистрация в WebView: после неё страница сама делает `fetch('/api/mobile/v1/auth/session-token')` и передаёт токен в приложение через JS-канал `ZkApp`.
-5. Выход (в приложении или через меню сайта) отзывает токен.
+Сервер — боевой мобильный API `/api/mobile/v1` (`app/Controllers/Api/Mobile/`, ветка `feature/contests-module`). Ответы `{success, data, meta?}` / `{success:false, error:{code, message, fields?}}`.
 
-Ссылки `/product/{id}` внутри WebView открывают нативную карточку, `/login` — нативный вход, `tel:`/`wa.me`/`t.me` — внешние приложения. `<input type="file">` на сайте открывает камеру/галерею.
+1. При первом запуске генерируется `device_id` (Keystore), он уходит в заголовке `X-Device-Id`.
+2. Вход: `POST /auth/login` → `access_token` (15 мин, только в памяти) + `refresh_token` (60 дней, Keystore). При 2FA — `challenge_token` → `POST /auth/2fa`.
+3. Запросы с `Authorization: Bearer`; на 401 клиент один раз делает `POST /auth/refresh` и повторяет запрос.
+4. Пока сайт в режиме «скоро открытие», каталог (`site_closed`) доступен только admin и аккаунтам с `site_access`.
+5. **WebView не делит сессию с приложением**: API работает только по Bearer, поэтому в разделах сайта (корзина, чаты, кабинет) сайт при первом заходе попросит войти; cookie WebView сохраняются. Регистрация и сброс пароля — на сайте, затем вход в приложении.
+
+Ссылки `/product/{id}` внутри WebView открывают нативную карточку, `tel:`/`wa.me`/`t.me` — внешние приложения. `<input type="file">` на сайте открывает камеру/галерею.
 
 ## Запуск
 
@@ -35,7 +37,7 @@ flutter run
 Против локального MAMP из эмулятора Android:
 
 ```bash
-flutter run --dart-define=SITE_URL=http://10.0.2.2/zakopeyki
+flutter run --dart-define=SITE_URL=http://10.0.2.2/zakopeyki   # нужен локальный backend с веткой feature/contests-module
 ```
 
 Сборка релиза (нужен ключ подписи, см. ниже):
@@ -49,4 +51,5 @@ flutter build appbundle --release
 - Ключ подписи релиза (`android/key.properties`) и иконка/сплэш — сейчас стандартные Flutter.
 - Вход через Google: Google блокирует OAuth во встроенных WebView — нужен нативный Google Sign-In + серверный эндпоинт.
 - Push-уведомления (FCM).
-- Перенос в нативные экраны: подача объявления, чаты, корзина.
+- Перенос в нативные экраны: корзина/оформление, заказы, подача объявления — для них в боевом API уже есть эндпоинты (`/cart`, `/checkout`, `/orders`, `/listings`).
+- Нативная регистрация (`POST /auth/register`) и сброс пароля (`/auth/forgot-password`).

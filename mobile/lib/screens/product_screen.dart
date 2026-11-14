@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
 import '../main.dart';
@@ -48,12 +47,6 @@ class _ProductScreenState extends State<ProductScreen> {
         if (mounted) showSnack(context, e.message);
       }
     });
-  }
-
-  Future<void> _launch(Uri uri) async {
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) && mounted) {
-      showSnack(context, 'Не удалось открыть ссылку');
-    }
   }
 
   @override
@@ -206,29 +199,6 @@ class _ProductScreenState extends State<ProductScreen> {
               ],
             ),
           ),
-          if (d.similar.isNotEmpty) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-              child: Text('Похожие объявления',
-                  style: text.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-            ),
-            SizedBox(
-              height: 270,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: d.similar.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 10),
-                itemBuilder: (_, i) => SizedBox(
-                  width: 160,
-                  child: ProductTile(
-                    item: d.similar[i],
-                    onTap: () => openProduct(context, d.similar[i].id),
-                  ),
-                ),
-              ),
-            ),
-          ],
           const SizedBox(height: 24),
         ],
       ),
@@ -258,8 +228,8 @@ class _ProductScreenState extends State<ProductScreen> {
           Text('Текущая ставка: ${_money(a.currentPrice)}',
               style: const TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 4),
-          Text('Ставок: ${a.bids}${a.bidStep > 0 ? ' · шаг ${_money(a.bidStep)}' : ''}'),
-          if (a.endAt != null) Text('Завершение: ${a.endAt}'),
+          if (a.bidStep > 0) Text('Шаг ставки: ${_money(a.bidStep)}'),
+          if (a.endAt != null) Text('Завершение: ${_date(a.endAt!, withTime: true)}'),
           if (a.buyNow != null && a.buyNow! > 0) Text('Купить сразу: ${_money(a.buyNow!)}'),
         ],
       ),
@@ -299,8 +269,11 @@ class _ProductScreenState extends State<ProductScreen> {
                     ],
                   ],
                 ),
+                if (s.ratingCount > 0)
+                  Text('★ ${s.rating.toStringAsFixed(1)} · отзывов: ${s.ratingCount}',
+                      style: const TextStyle(color: Colors.black54, fontSize: 12)),
                 if (s.since != null)
-                  Text('На сайте с ${s.since!.split(' ').first}',
+                  Text('На сайте с ${_date(s.since!)}',
                       style: const TextStyle(color: Colors.black54, fontSize: 12)),
               ],
             ),
@@ -315,7 +288,8 @@ class _ProductScreenState extends State<ProductScreen> {
   }
 
   Widget _actions(ProductDetail d) {
-    if (d.isOwner) {
+    final me = SessionScope.read(context).user;
+    if (me != null && me.id == d.card.seller.id) {
       return _bar([
         Expanded(
           child: FilledButton(
@@ -327,13 +301,6 @@ class _ProductScreenState extends State<ProductScreen> {
     }
     final id = d.card.id;
     final buttons = <Widget>[
-      if (d.whatsapp != null)
-        IconButton.filledTonal(
-          onPressed: () => _launch(Uri.parse('https://wa.me/${d.whatsapp}')),
-          style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
-          icon: const Icon(Icons.phone_in_talk_rounded),
-          tooltip: 'WhatsApp',
-        ),
       Expanded(
         child: OutlinedButton.icon(
           onPressed: () => requireLogin(
@@ -404,6 +371,14 @@ class _ProductScreenState extends State<ProductScreen> {
         ),
       ),
     ));
+  }
+
+  static String _date(String iso, {bool withTime = false}) {
+    final d = DateTime.tryParse(iso)?.toLocal();
+    if (d == null) return iso;
+    String two(int v) => v.toString().padLeft(2, '0');
+    final date = '${two(d.day)}.${two(d.month)}.${d.year}';
+    return withTime ? '$date ${two(d.hour)}:${two(d.minute)}' : date;
   }
 
   static String _statusLabel(String s) => switch (s) {

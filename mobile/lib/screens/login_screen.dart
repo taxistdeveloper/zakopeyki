@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../main.dart';
+import '../nav.dart';
 import 'web_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -49,7 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } on ApiException catch (e) {
       setState(() {
         _error = e.message;
-        if (e.body['expired'] == true) {
+        if (e.code == 'two_factor_expired') {
           _challenge = null;
           _code.clear();
         }
@@ -60,12 +61,11 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _openWebAuth(String path, String title) async {
-    final session = SessionScope.read(context);
     await Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => WebScreen(path: path, title: title),
     ));
-    // Регистрация в WebView сама передаёт токен (см. WebScreen._onPageFinished)
-    if (mounted && session.loggedIn) Navigator.of(context).pop(true);
+    // После регистрации / сброса пароля на сайте — входим здесь тем же email и паролем.
+    if (mounted) showSnack(context, 'Теперь войдите с email и паролем');
   }
 
   @override

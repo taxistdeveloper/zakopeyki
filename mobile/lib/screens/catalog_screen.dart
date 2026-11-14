@@ -23,8 +23,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
 
   String? _type;
   Category? _category;
-  int _page = 0;
-  int _total = 0;
+  String? _cursor;
   bool _hasMore = true;
   bool _loading = false;
   String? _error;
@@ -62,7 +61,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
     _requestId++;
     setState(() {
       _items.clear();
-      _page = 0;
+      _cursor = null;
       _hasMore = true;
       _error = null;
       _loading = false;
@@ -79,20 +78,20 @@ class _CatalogScreenState extends State<CatalogScreen> {
             type: _type,
             query: _search.text.trim(),
             category: _category?.name,
-            page: _page + 1,
+            cursor: _cursor,
           );
       if (!mounted || req != _requestId) return;
       setState(() {
         _items.addAll(page.items);
-        _page = page.page;
-        _total = page.total;
+        _cursor = page.nextCursor;
         _hasMore = page.hasMore;
       });
     } on ApiException catch (e) {
       if (!mounted || req != _requestId) return;
       if (e.isStub) {
-        // Доступ к сайту отозвали — пересобираем корень
-        SessionScope.read(context).start();
+        // Доступ к сайту закрыт — пересобираем корень
+        final s = SessionScope.read(context)..siteAccess = false;
+        s.start();
         return;
       }
       setState(() => _error = e.message);
@@ -243,14 +242,6 @@ class _CatalogScreenState extends State<CatalogScreen> {
                           ),
                       ],
                     ),
-                  ),
-                ),
-              if (_page > 0)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
-                    child: Text('Найдено: $_total',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54)),
                   ),
                 ),
               SliverPadding(

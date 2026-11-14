@@ -7,11 +7,10 @@ const String kSiteUrl = String.fromEnvironment(
 
 const String kApiPrefix = '/api/mobile/v1';
 
-/// Cookie с токеном устройства для WebView (см. App\Core\MobileAuth на сервере).
-const String kTokenCookie = 'zk_mt';
+const String kAppVersion = '1.0.0';
 
-/// Маркер приложения в User-Agent WebView и заголовок для API.
-const String kAppMarker = 'ZakopeykiApp/1.0';
+/// Маркер приложения в User-Agent WebView.
+const String kAppMarker = 'ZakopeykiApp/$kAppVersion';
 
 Uri siteUri(String path) {
   final base = Uri.parse(kSiteUrl);

@@ -1,40 +1,42 @@
+// Модели под контракт боевого API /api/mobile/v1 (App\Services\MobileApi\Presenter).
+
 class AppUser {
   final int id;
   final String name;
   final String email;
   final String? phone;
-  final String role;
-  final String accountType;
-  final String businessStatus;
   final String? avatar;
-  final String avatarLetter;
+  final bool isBusiness;
+  final bool emailVerified;
 
   AppUser({
     required this.id,
     required this.name,
     required this.email,
     this.phone,
-    required this.role,
-    required this.accountType,
-    required this.businessStatus,
     this.avatar,
-    required this.avatarLetter,
+    this.isBusiness = false,
+    this.emailVerified = false,
   });
+
+  String get avatarLetter {
+    final n = name.trim();
+    return n.isEmpty ? 'U' : String.fromCharCode(n.runes.first).toUpperCase();
+  }
 
   factory AppUser.fromJson(Map<String, dynamic> j) => AppUser(
         id: _int(j['id']),
         name: _str(j['name']),
         email: _str(j['email']),
         phone: j['phone']?.toString(),
-        role: _str(j['role'], 'user'),
-        accountType: _str(j['account_type'], 'personal'),
-        businessStatus: _str(j['business_status'], 'none'),
-        avatar: j['avatar'] as String?,
-        avatarLetter: _str(j['avatar_letter'], 'U'),
+        avatar: j['avatar_url'] as String?,
+        isBusiness: j['is_business'] == true,
+        emailVerified: j['email_verified'] == true,
       );
 }
 
 class Category {
+  /// Значение для фильтра ?category= (пустая строка — «все»).
   final String name;
   final String label;
   final List<Category> children;
@@ -42,7 +44,7 @@ class Category {
   Category({required this.name, required this.label, this.children = const []});
 
   factory Category.fromJson(Map<String, dynamic> j) => Category(
-        name: _str(j['name']),
+        name: _str(j['value']),
         label: _str(j['label']),
         children: ((j['children'] as List?) ?? [])
             .map((e) => Category.fromJson(e as Map<String, dynamic>))
@@ -59,32 +61,21 @@ class ListingType {
 class AppConfig {
   final bool stubMode;
   final String opensAt;
-  final bool siteAccess;
-  final AppUser? user;
   final List<ListingType> types;
-  final List<Category> categories;
+  List<Category> categories;
 
   AppConfig({
     required this.stubMode,
     required this.opensAt,
-    required this.siteAccess,
-    required this.user,
     required this.types,
-    required this.categories,
+    this.categories = const [],
   });
 
   factory AppConfig.fromJson(Map<String, dynamic> j) => AppConfig(
-        stubMode: j['stub_mode'] == true,
-        opensAt: _str(j['opens_at']),
-        siteAccess: j['site_access'] == true,
-        user: j['user'] is Map<String, dynamic>
-            ? AppUser.fromJson(j['user'] as Map<String, dynamic>)
-            : null,
-        types: ((j['types'] as List?) ?? [])
-            .map((e) => ListingType(_str(e['key']), _str(e['label'])))
-            .toList(),
-        categories: ((j['categories'] as List?) ?? [])
-            .map((e) => Category.fromJson(e as Map<String, dynamic>))
+        stubMode: j['site_open'] == false,
+        opensAt: _str(j['site_opens_at']),
+        types: ((j['listing_types'] as List?) ?? [])
+            .map((e) => ListingType(_str(e['code']), _str(e['label'])))
             .toList(),
       );
 }
@@ -95,16 +86,31 @@ class Seller {
   final bool isBusiness;
   final String? avatar;
   final String? since;
+  final double rating;
+  final int ratingCount;
 
-  Seller({required this.id, required this.name, required this.isBusiness, this.avatar, this.since});
+  Seller({
+    required this.id,
+    required this.name,
+    required this.isBusiness,
+    this.avatar,
+    this.since,
+    this.rating = 0,
+    this.ratingCount = 0,
+  });
 
-  factory Seller.fromJson(Map<String, dynamic> j) => Seller(
-        id: _int(j['id']),
-        name: _str(j['name']),
-        isBusiness: j['is_business'] == true,
-        avatar: j['avatar'] as String?,
-        since: j['since']?.toString(),
-      );
+  factory Seller.fromJson(Map<String, dynamic> j) {
+    final r = (j['rating'] as Map?)?.cast<String, dynamic>() ?? const {};
+    return Seller(
+      id: _int(j['id']),
+      name: _str(j['name']),
+      isBusiness: j['is_business'] == true,
+      avatar: j['avatar_url'] as String?,
+      since: j['member_since']?.toString(),
+      rating: (r['average'] as num?)?.toDouble() ?? 0,
+      ratingCount: _int(r['count']),
+    );
+  }
 }
 
 class ProductCard {
@@ -143,15 +149,15 @@ class ProductCard {
         title: _str(j['title']),
         type: _str(j['type']),
         typeLabel: _str(j['type_label']),
-        price: _int(j['price']),
+        price: _int((j['price'] as Map?)?['amount']),
         priceText: _str(j['price_text']),
-        category: _str(j['category']),
+        category: _str(j['category_label'] ?? j['category']),
         location: _str(j['location']),
         status: _str(j['status'], 'active'),
-        image: j['image'] as String?,
-        url: _str(j['url']),
+        image: j['cover_url'] as String?,
+        url: _str(j['web_url'], '/product/${j['id']}'),
         seller: Seller.fromJson((j['seller'] as Map?)?.cast<String, dynamic>() ?? {}),
-        favorited: j['favorited'] == true,
+        favorited: j['is_favorite'] == true,
       );
 }
 
@@ -166,16 +172,14 @@ class AuctionInfo {
   final int bidStep;
   final String? endAt;
   final int? buyNow;
-  final int bids;
 
-  AuctionInfo({required this.currentPrice, required this.bidStep, this.endAt, this.buyNow, required this.bids});
+  AuctionInfo({required this.currentPrice, required this.bidStep, this.endAt, this.buyNow});
 
   factory AuctionInfo.fromJson(Map<String, dynamic> j) => AuctionInfo(
-        currentPrice: _int(j['current_price']),
+        currentPrice: _int(j['current_bid']),
         bidStep: _int(j['bid_step']),
-        endAt: j['end_at']?.toString(),
+        endAt: j['ends_at']?.toString(),
         buyNow: j['buy_now'] == null ? null : _int(j['buy_now']),
-        bids: _int(j['bids']),
       );
 }
 
@@ -184,13 +188,11 @@ class ProductDetail {
   final String description;
   final List<Characteristic> characteristics;
   final List<String> images;
-  final int quantity;
+  final int? quantity;
   final bool purchasable;
-  final bool isOwner;
-  final String? whatsapp;
+  final String? exchangeFor;
   final int views;
   final AuctionInfo? auction;
-  final List<ProductCard> similar;
 
   ProductDetail({
     required this.card,
@@ -199,53 +201,39 @@ class ProductDetail {
     required this.images,
     required this.quantity,
     required this.purchasable,
-    required this.isOwner,
-    required this.whatsapp,
+    required this.exchangeFor,
     required this.views,
     required this.auction,
-    required this.similar,
   });
 
   factory ProductDetail.fromJson(Map<String, dynamic> root) {
-    final j = root['item'] as Map<String, dynamic>;
+    final j = root['product'] as Map<String, dynamic>;
     return ProductDetail(
       card: ProductCard.fromJson(j),
       description: _str(j['description']),
       characteristics: ((j['characteristics'] as List?) ?? [])
           .map((e) => Characteristic(_str(e['name']), _str(e['value'])))
+          .where((c) => c.name.isNotEmpty)
           .toList(),
       images: ((j['images'] as List?) ?? []).map((e) => e.toString()).toList(),
-      quantity: _int(j['quantity']),
-      purchasable: j['purchasable'] == true,
-      isOwner: j['is_owner'] == true,
-      whatsapp: j['whatsapp'] as String?,
-      views: _int(j['views']),
+      quantity: j['quantity_available'] == null ? null : _int(j['quantity_available']),
+      purchasable: j['can_buy'] == true,
+      exchangeFor: j['exchange_for'] as String?,
+      views: _int(j['view_count']),
       auction: j['auction'] is Map<String, dynamic>
           ? AuctionInfo.fromJson(j['auction'] as Map<String, dynamic>)
           : null,
-      similar: ((root['similar'] as List?) ?? [])
-          .map((e) => ProductCard.fromJson(e as Map<String, dynamic>))
-          .toList(),
     );
   }
 }
 
 class ProductPage {
   final List<ProductCard> items;
-  final int page;
-  final int total;
-  final bool hasMore;
+  final String? nextCursor;
 
-  ProductPage({required this.items, required this.page, required this.total, required this.hasMore});
+  ProductPage({required this.items, required this.nextCursor});
 
-  factory ProductPage.fromJson(Map<String, dynamic> j) => ProductPage(
-        items: ((j['items'] as List?) ?? [])
-            .map((e) => ProductCard.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        page: _int(j['page'], 1),
-        total: _int(j['total']),
-        hasMore: j['has_more'] == true,
-      );
+  bool get hasMore => nextCursor != null;
 }
 
 int _int(Object? v, [int def = 0]) {

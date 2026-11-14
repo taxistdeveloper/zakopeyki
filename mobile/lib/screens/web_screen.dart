@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -7,10 +5,12 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import '../config.dart';
-import '../main.dart';
 import '../nav.dart';
 
-/// Раздел сайта внутри приложения. Сессия поднимается по cookie zk_mt.
+/// Раздел сайта внутри приложения.
+///
+/// Мобильный API работает только по Bearer-токенам, поэтому у WebView своя
+/// cookie-сессия сайта: при первом заходе в закрытый раздел сайт попросит войти.
 class WebScreen extends StatefulWidget {
   const WebScreen({super.key, required this.path, this.title, this.embedded = false});
 
@@ -29,10 +29,8 @@ class _WebScreenState extends State<WebScreen> {
   int _progress = 0;
   String? _pageTitle;
   String? _error;
-  bool _adopting = false;
 
   static final _productPath = RegExp(r'^/product/(\d+)$');
-  static const _authPaths = {'/login', '/login/2fa', '/register', '/forgot-password', '/logout'};
 
   /// Ссылки, которые всегда открываем во внешних приложениях.
   static const _externalHosts = {
@@ -47,7 +45,6 @@ class _WebScreenState extends State<WebScreen> {
     _web = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.white)
-      ..addJavaScriptChannel('ZkApp', onMessageReceived: _onJsMessage)
       ..setNavigationDelegate(NavigationDelegate(
         onNavigationRequest: _onNavigation,
         onProgress: (p) => setState(() => _progress = p),
@@ -106,13 +103,6 @@ class _WebScreenState extends State<WebScreen> {
       return NavigationDecision.prevent;
     }
 
-    // Вход по паролю — нативный экран
-    if (path == '/login' && !uri.queryParameters.containsKey('code')) {
-      final ok = await openLogin(context);
-      if (ok && mounted) _web.reload();
-      return NavigationDecision.prevent;
-    }
-
     // Google блокирует OAuth во встроенных WebView
     if (path == '/auth/google') {
       showSnack(context, 'Вход через Google в приложении пока недоступен — войдите по email');
@@ -129,45 +119,6 @@ class _WebScreenState extends State<WebScreen> {
       _progress = 100;
       _pageTitle = title;
     });
-
-    final session = SessionScope.read(context);
-    final uri = Uri.tryParse(url);
-    final path = uri == null ? null : sitePathOf(uri);
-    if (path == null) return;
-
-    if (session.loggedIn) {
-      // Выход через меню сайта: сервер отозвал токен, синхронизируемся
-      if (path == '/' || _authPaths.contains(path)) session.refreshUser();
-      return;
-    }
-
-    // Пользователь зарегистрировался / вошёл на сайте — забираем токен устройства.
-    // Запрос идёт изнутри страницы, поэтому httponly-cookie сессии уходит автоматически.
-    if (_authPaths.contains(path) || _adopting) return;
-    _adopting = true;
-    final endpoint = jsonEncode(siteUri('$kApiPrefix/auth/session-token').toString());
-    final device = jsonEncode(session.deviceName);
-    await _web.runJavaScript('''
-      fetch($endpoint, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: {'X-Zk-App': '$kAppMarker', 'Content-Type': 'application/json', 'Accept': 'application/json'},
-        body: JSON.stringify({device: $device})
-      }).then(function (r) { return r.status === 200 ? r.text() : null; })
-        .then(function (t) { if (t) ZkApp.postMessage(t); })
-        .catch(function () {});
-    ''').catchError((_) {});
-    _adopting = false;
-  }
-
-  Future<void> _onJsMessage(JavaScriptMessage message) async {
-    try {
-      final data = jsonDecode(message.message);
-      if (data is Map<String, dynamic> && data['ok'] == true && data['token'] != null) {
-        await SessionScope.read(context).adoptWebLogin(data);
-        if (mounted) showSnack(context, 'Вы вошли в аккаунт');
-      }
-    } catch (_) {}
   }
 
   Future<void> _openExternal(Uri uri) async {
