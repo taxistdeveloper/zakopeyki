@@ -38,9 +38,22 @@ use App\Controllers\BusinessApiController;
 use App\Controllers\MicroTaskCompletionController;
 use App\Controllers\MicroTaskController;
 use App\Controllers\MicroTaskOfferController;
+use App\Controllers\MobileApiController;
 use App\Core\Router;
 
 $router = new Router();
+
+// Мобильное приложение (Flutter): /api/mobile/v1/*
+$router->get('/api/mobile/v1/config', [MobileApiController::class, 'config']);
+$router->post('/api/mobile/v1/auth/login', [MobileApiController::class, 'login']);
+$router->post('/api/mobile/v1/auth/2fa', [MobileApiController::class, 'twoFactor']);
+$router->post('/api/mobile/v1/auth/session-token', [MobileApiController::class, 'sessionToken']);
+$router->post('/api/mobile/v1/auth/logout', [MobileApiController::class, 'logout']);
+$router->get('/api/mobile/v1/me', [MobileApiController::class, 'me']);
+$router->get('/api/mobile/v1/products', [MobileApiController::class, 'products']);
+$router->get('/api/mobile/v1/products/{id}', [MobileApiController::class, 'product']);
+$router->get('/api/mobile/v1/favorites', [MobileApiController::class, 'favorites']);
+$router->post('/api/mobile/v1/favorites/{id}/toggle', [MobileApiController::class, 'toggleFavorite']);
 
 $router->get('/', [HomeController::class, 'index']);
 $router->get('/about', [HomeController::class, 'about']);

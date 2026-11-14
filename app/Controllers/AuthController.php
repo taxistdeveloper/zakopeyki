@@ -344,6 +344,8 @@ class AuthController extends Controller
     public function logout(): void
     {
         ActivityLogger::info('auth.logout', 'Выход из аккаунта');
+        // Выход из WebView приложения: отзываем токен устройства, иначе сессия поднимется снова
+        \App\Core\MobileAuth::revokeCurrent();
         Auth::logout();
         $this->redirect('/');
     }

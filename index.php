@@ -28,6 +28,8 @@ spl_autoload_register(function (string $class): void {
 });
 
 \App\Core\Auth::start();
+// Мобильное приложение: поднять сессию по токену устройства (Bearer / cookie zk_mt)
+\App\Core\MobileAuth::bootstrap();
 \App\Core\Lang::boot();
 \App\Helpers\ActivityLogger::registerHandlers();
 
@@ -89,6 +91,8 @@ if (!empty($appConfig['stub_mode']) && !\App\Core\Auth::hasSiteAccess(true)) {
     $stubAllowedPrefix = '/reset-password/';
     $stubOk = in_array($stubPath, $stubAllowed, true)
         || str_starts_with($stubPath, $stubAllowedPrefix)
+        // API приложения сам отвечает JSON-ом {error: "stub"} для закрытых разделов
+        || str_starts_with($stubPath, '/api/mobile/v1/')
         || str_starts_with($stubPath, '/digital/certificate/');
 
     if (!$stubOk) {

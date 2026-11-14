@@ -3,6 +3,10 @@ DirectoryIndex index.php
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
+    # PHP под CGI/FastCGI не видит Authorization без этого (Bearer для API)
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
     # Works at domain root (zakopeyki.kz) and in a subfolder (/zakapeiku/).
     # Do not hardcode RewriteBase — Apache uses the .htaccess directory.
 
@@ -19,6 +23,8 @@ DirectoryIndex index.php
     RewriteRule ^qa(/|$) - [F]
     RewriteRule ^docs(/|$) - [F]
     RewriteRule ^qa\.zip$ - [F]
+    # Исходники Flutter-приложения
+    RewriteRule ^mobile(/|$) - [F]
 
     RewriteRule ^\.env$ - [F]
     RewriteRule ^composer\.json$ - [F]

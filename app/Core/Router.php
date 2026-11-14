@@ -68,6 +68,11 @@ class Router
             return true;
         }
 
+        // Мобильное приложение: вместо CSRF — заголовок X-Zk-App (кросс-доменно без CORS не отправить)
+        if (str_starts_with($path, '/api/mobile/v1/') && MobileAuth::isAppRequest()) {
+            return true;
+        }
+
         // Seller API: Bearer-аутентификация вместо session CSRF
         if (str_starts_with($path, '/api/v1/business/')) {
             $auth = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
