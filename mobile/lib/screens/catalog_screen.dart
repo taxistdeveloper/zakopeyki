@@ -7,6 +7,7 @@ import '../main.dart';
 import '../models.dart';
 import '../nav.dart';
 import '../widgets/product_tile.dart';
+import 'app_drawer.dart';
 import 'cart_screen.dart';
 
 class CatalogScreen extends StatefulWidget {
@@ -167,6 +168,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
     final categoriesApply = _type == null || _type == 'new' || _type == 'used';
 
     return Scaffold(
+      drawer: AppDrawer(currentType: _type, onType: _setType),
       body: SafeArea(
         bottom: false,
         child: RefreshIndicator(
@@ -177,9 +179,16 @@ class _CatalogScreenState extends State<CatalogScreen> {
             slivers: [
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 4, 4),
+                  padding: const EdgeInsets.fromLTRB(4, 12, 4, 4),
                   child: Row(
                     children: [
+                      Builder(
+                        builder: (ctx) => IconButton(
+                          tooltip: 'Меню',
+                          onPressed: () => Scaffold.of(ctx).openDrawer(),
+                          icon: const Icon(Icons.menu_rounded, size: 28),
+                        ),
+                      ),
                       Expanded(
                         child: TextField(
                     controller: _search,

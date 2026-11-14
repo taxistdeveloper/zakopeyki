@@ -10,7 +10,10 @@ import '../widgets/common.dart';
 
 /// Мои обращения в поддержку.
 class SupportListScreen extends StatefulWidget {
-  const SupportListScreen({super.key});
+  const SupportListScreen({super.key, this.newTicketCategory});
+
+  /// Если задано — после загрузки сразу открыть форму обращения с этой темой.
+  final String? newTicketCategory;
 
   @override
   State<SupportListScreen> createState() => _SupportListScreenState();
@@ -36,16 +39,23 @@ class _SupportListScreenState extends State<SupportListScreen> {
           _items = items;
           _categories = cats;
         });
+        final preset = widget.newTicketCategory;
+        if (preset != null && !_presetShown) {
+          _presetShown = true;
+          _create(category: preset);
+        }
       }
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     }
   }
 
-  Future<void> _create() async {
+  bool _presetShown = false;
+
+  Future<void> _create({String category = 'general'}) async {
     final ticket = await Navigator.of(context).push<SupportTicket>(MaterialPageRoute(
       fullscreenDialog: true,
-      builder: (_) => _NewTicketScreen(categories: _categories),
+      builder: (_) => _NewTicketScreen(categories: _categories, initialCategory: category),
     ));
     if (ticket == null || !mounted) return;
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => SupportTicketScreen(id: ticket.id)));
@@ -135,9 +145,10 @@ Color _statusColor(String s) => switch (s) {
     };
 
 class _NewTicketScreen extends StatefulWidget {
-  const _NewTicketScreen({required this.categories});
+  const _NewTicketScreen({required this.categories, this.initialCategory = 'general'});
 
   final List<SupportCategory> categories;
+  final String initialCategory;
 
   @override
   State<_NewTicketScreen> createState() => _NewTicketScreenState();
@@ -146,7 +157,7 @@ class _NewTicketScreen extends StatefulWidget {
 class _NewTicketScreenState extends State<_NewTicketScreen> {
   final _subject = TextEditingController();
   final _body = TextEditingController();
-  String _category = 'general';
+  late String _category = widget.initialCategory;
   bool _busy = false;
   String? _error;
 
