@@ -240,7 +240,8 @@ class Session extends ChangeNotifier {
       await api.products(limit: 1);
       siteAccess = true;
     } on ApiException catch (e) {
-      if (e.isStub) siteAccess = false;
+      // Заглушку показываем только на явный ответ site_closed; прочие ошибки увидит каталог.
+      siteAccess = !e.isStub;
     }
   }
 

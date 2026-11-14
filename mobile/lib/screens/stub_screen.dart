@@ -11,7 +11,8 @@ class StubScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final session = SessionScope.of(context);
-    final opensAt = DateTime.tryParse(session.config?.opensAt ?? '');
+    final raw = session.config?.opensAt ?? '';
+    final opensAt = raw.length >= 10 ? DateTime.tryParse(raw.substring(0, 10)) : null;
 
     return Scaffold(
       backgroundColor: Colors.white,

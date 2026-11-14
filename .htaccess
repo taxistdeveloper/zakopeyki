@@ -3,6 +3,11 @@ DirectoryIndex index.php
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
+    # Мобильное API (/api/mobile/v1) авторизуется по заголовку Authorization: Bearer.
+    # PHP в режиме FastCGI/CGI его не получает без явной передачи.
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
     # Works at domain root (zakopeyki.kz) and in a subfolder (/zakapeiku/).
     # Do not hardcode RewriteBase — Apache uses the .htaccess directory.
 
