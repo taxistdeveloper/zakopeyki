@@ -344,6 +344,27 @@ class Api {
   Future<Order> orderAction(int id, String action, [Map<String, dynamic>? body]) async =>
       Order.fromJson((await _post('/orders/$id/$action', body)).data['order'] as Map<String, dynamic>);
 
+  /// Ссылка на форму оплаты картой для заказа в статусе awaiting_payment.
+  Future<String> payOrder(int id) async => (await _post('/orders/$id/pay')).data['payment_url'] as String;
+
+  Future<Order> reviewOrder(int id, int rating, String body) async =>
+      Order.fromJson((await _post('/orders/$id/review', {'rating': rating, 'body': body})).data['order'] as Map<String, dynamic>);
+
+  // --- удаление аккаунта, подтверждение email -------------------------------
+
+  Future<Map<String, dynamic>> deletionStatus() async => (await _get('/me/deletion')).data;
+
+  Future<void> deleteAccount({String? password}) async {
+    await _post('/me/delete', {'confirm': true, 'password': ?password});
+  }
+
+  /// Повторно отправить письмо подтверждения. Возвращает текст для пользователя.
+  Future<String> resendVerification() async {
+    final e = await _post('/me/email/resend-verification');
+    if (e.data['already_verified'] == true) return 'Email уже подтверждён';
+    return e.data['message']?.toString() ?? 'Письмо отправлено';
+  }
+
   // --- объявления --------------------------------------------------------
 
   Future<ListingForm> listingForm() async => ListingForm.fromJson((await _get('/listings/form')).data);

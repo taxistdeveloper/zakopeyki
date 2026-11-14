@@ -194,6 +194,17 @@ class Session extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Выход без запроса к серверу (аккаунт удалён — токены уже отозваны).
+  Future<void> signOutLocally() async {
+    await _clear();
+    cartCount = 0;
+    chatUnread = 0;
+    siteAccess = false;
+    await WebViewCookieManager().clearCookies();
+    await _checkSiteAccess();
+    notifyListeners();
+  }
+
   Future<void> refreshUser() async {
     if (!loggedIn) return;
     try {

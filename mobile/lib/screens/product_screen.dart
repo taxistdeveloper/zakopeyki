@@ -257,8 +257,10 @@ class _ProductScreenState extends State<ProductScreen> {
         children: [
           CircleAvatar(
             radius: 22,
-            backgroundImage: s.avatar != null ? NetworkImage(s.avatar!) : null,
-            child: s.avatar == null ? Text(s.name.isEmpty ? '?' : s.name.characters.first) : null,
+            backgroundColor: const Color(0xFFDBEAFE),
+            foregroundImage: s.avatar != null ? NetworkImage(s.avatar!) : null,
+            child: Text(s.name.isEmpty ? '?' : s.name.characters.first,
+                style: const TextStyle(color: Color(0xFF2563EB), fontWeight: FontWeight.w700)),
           ),
           const SizedBox(width: 12),
           Expanded(

@@ -670,104 +670,102 @@ $vipIso = $vipOn
             <?php endif; ?>
         </section>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <section class="<?= $pdpPanel ?> flex flex-col">
-                <div class="<?= $pdpHead ?>">
-                    <span class="<?= $pdpIcon ?>" aria-hidden="true">
-                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
-                    </span>
-                    <h2 class="<?= $pdpTitle ?>"><?= htmlspecialchars(t('product.chars')) ?></h2>
-                </div>
-                <dl class="flex-1">
-                    <?php foreach ($charsVisible as [$label, $value]): ?>
+        <section class="<?= $pdpPanel ?> flex flex-col">
+            <div class="<?= $pdpHead ?>">
+                <span class="<?= $pdpIcon ?>" aria-hidden="true">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+                </span>
+                <h2 class="<?= $pdpTitle ?>"><?= htmlspecialchars(t('product.chars')) ?></h2>
+            </div>
+            <dl class="flex-1">
+                <?php foreach ($charsVisible as [$label, $value]): ?>
+                    <div class="<?= $pdpCharRow ?>">
+                        <dt class="text-gray-400 shrink-0"><?= htmlspecialchars($label) ?></dt>
+                        <dd class="ml-auto min-w-0 text-ink-800 dark:text-gray-100 font-semibold text-right"><?= htmlspecialchars((string) $value) ?></dd>
+                    </div>
+                <?php endforeach; ?>
+            </dl>
+            <?php if ($charsHidden): ?>
+                <div id="pdp-chars-more" class="hidden">
+                    <?php foreach ($charsHidden as [$label, $value]): ?>
                         <div class="<?= $pdpCharRow ?>">
-                            <dt class="text-gray-400 shrink-0"><?= htmlspecialchars($label) ?></dt>
-                            <dd class="ml-auto min-w-0 text-ink-800 dark:text-gray-100 font-semibold text-right"><?= htmlspecialchars((string) $value) ?></dd>
+                            <span class="text-gray-400 shrink-0 text-[13px]"><?= htmlspecialchars($label) ?></span>
+                            <span class="ml-auto min-w-0 text-[13px] text-ink-800 dark:text-gray-100 font-semibold text-right"><?= htmlspecialchars((string) $value) ?></span>
                         </div>
                     <?php endforeach; ?>
-                </dl>
-                <?php if ($charsHidden): ?>
-                    <div id="pdp-chars-more" class="hidden">
-                        <?php foreach ($charsHidden as [$label, $value]): ?>
-                            <div class="<?= $pdpCharRow ?>">
-                                <span class="text-gray-400 shrink-0 text-[13px]"><?= htmlspecialchars($label) ?></span>
-                                <span class="ml-auto min-w-0 text-[13px] text-ink-800 dark:text-gray-100 font-semibold text-right"><?= htmlspecialchars((string) $value) ?></span>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                    <button type="button" data-toggle="pdp-chars-more" data-more="<?= htmlspecialchars(t('product.all_chars')) ?>" data-less="<?= htmlspecialchars(t('product.show_less')) ?>" class="<?= $pdpLink ?> mt-auto">
-                        <span data-toggle-label><?= htmlspecialchars(t('product.all_chars')) ?></span>
-                        <svg class="w-3.5 h-3.5 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
-                    </button>
-                <?php endif; ?>
-            </section>
-
-            <section class="<?= $pdpPanel ?> flex flex-col">
-                <div class="<?= $pdpHead ?>">
-                    <span class="<?= $pdpIcon ?>" aria-hidden="true">
-                        <?= IconHelper::svg('package', 'w-4 h-4') ?>
-                    </span>
-                    <h2 class="<?= $pdpTitle ?>"><?= htmlspecialchars(t('product.delivery')) ?></h2>
                 </div>
-                <div class="space-y-3 text-[13px] flex-1">
-                    <?php if (!empty($listingShipping)): ?>
-                        <?php if (!empty($listingShipping['has_pickup']) && !empty($item['location'])): ?>
-                            <div class="rounded-2xl bg-ink-900/[0.03] dark:bg-white/[0.04] px-3.5 py-3">
-                                <p class="font-semibold text-ink-800 dark:text-gray-100"><?= htmlspecialchars(t('product.delivery_city')) ?></p>
-                                <p class="text-gray-500 dark:text-gray-400 mt-1 leading-relaxed"><?= htmlspecialchars(t('product.delivery_city_hint', ['city' => $item['location']])) ?></p>
-                            </div>
-                        <?php endif; ?>
-                        <?php if (!empty($listingShipping['has_delivery'])): ?>
-                            <div class="rounded-2xl bg-ink-900/[0.03] dark:bg-white/[0.04] px-3.5 py-3 space-y-1.5">
-                                <p class="font-semibold text-ink-800 dark:text-gray-100"><?= htmlspecialchars(t('listing_shipping.buyer_delivery_title')) ?></p>
-                                <?php if (!empty($listingShipping['from_city'])): ?>
-                                    <p class="text-gray-500 dark:text-gray-400"><?= htmlspecialchars(t('listing_shipping.buyer_from_city', ['city' => $listingShipping['from_city']])) ?></p>
-                                <?php endif; ?>
-                                <?php if (!empty($listingShipping['packaging'])): ?>
-                                    <p class="text-gray-500 dark:text-gray-400"><?= htmlspecialchars(t('listing_shipping.buyer_packaging', ['name' => $listingShipping['packaging']])) ?></p>
-                                <?php endif; ?>
-                                <?php if (!empty($listingShipping['package_dims']) || !empty($listingShipping['gross_weight'])): ?>
-                                    <p class="text-gray-500 dark:text-gray-400">
-                                        <?php if (!empty($listingShipping['package_dims'])): ?>
-                                            <?= htmlspecialchars($listingShipping['package_dims']) ?>
-                                        <?php endif; ?>
-                                        <?php if (!empty($listingShipping['gross_weight'])): ?>
-                                            <?= !empty($listingShipping['package_dims']) ? ' · ' : '' ?><?= htmlspecialchars(t('listing_shipping.buyer_weight', ['weight' => rtrim(rtrim(number_format((float) $listingShipping['gross_weight'], 2, '.', ''), '0'), '.')])) ?>
-                                        <?php endif; ?>
-                                    </p>
-                                <?php endif; ?>
-                            </div>
-                            <p class="rounded-2xl border border-amber-200/70 dark:border-amber-500/20 bg-amber-50/80 dark:bg-amber-500/10 px-3.5 py-2.5 text-amber-800 dark:text-amber-200 font-medium leading-relaxed">
-                                <?= htmlspecialchars($listingShipping['price_note'] ?? t('listing_shipping.buyer_price_after_address')) ?>
-                            </p>
-                        <?php elseif (!empty($listingShipping['has_pickup'])): ?>
-                            <div class="rounded-2xl bg-ink-900/[0.03] dark:bg-white/[0.04] px-3.5 py-3">
-                                <p class="font-semibold text-ink-800 dark:text-gray-100"><?= htmlspecialchars(t('listing_shipping.fulfillment_pickup')) ?></p>
-                                <p class="text-gray-500 dark:text-gray-400 mt-1 leading-relaxed"><?= htmlspecialchars(t('product.delivery_city_hint', ['city' => $item['location'] ?? ($listingShipping['from_city'] ?? '')])) ?></p>
-                            </div>
-                        <?php endif; ?>
-                    <?php else: ?>
-                        <?php if (!empty($item['location'])): ?>
-                            <div class="rounded-2xl bg-ink-900/[0.03] dark:bg-white/[0.04] px-3.5 py-3">
-                                <p class="font-semibold text-ink-800 dark:text-gray-100"><?= htmlspecialchars(t('product.delivery_city')) ?></p>
-                                <p class="text-gray-500 dark:text-gray-400 mt-1 leading-relaxed"><?= htmlspecialchars(t('product.delivery_city_hint', ['city' => $item['location']])) ?></p>
-                            </div>
-                        <?php endif; ?>
-                        <div class="rounded-2xl bg-ink-900/[0.03] dark:bg-white/[0.04] px-3.5 py-3">
-                            <p class="font-semibold text-ink-800 dark:text-gray-100"><?= htmlspecialchars(t('product.delivery_kz')) ?></p>
-                            <p class="text-gray-500 dark:text-gray-400 mt-1 leading-relaxed"><?= htmlspecialchars(t('listing_shipping.buyer_price_after_address')) ?></p>
-                        </div>
-                    <?php endif; ?>
-                    <div id="pdp-delivery-more" class="hidden rounded-2xl bg-ink-900/[0.03] dark:bg-white/[0.04] px-3.5 py-3 text-gray-500 dark:text-gray-400 leading-relaxed">
-                        <?= htmlspecialchars(t('product.delivery_escrow')) ?>
-                    </div>
-                </div>
-                <button type="button" data-toggle="pdp-delivery-more" data-more="<?= htmlspecialchars(t('product.delivery_more')) ?>" data-less="<?= htmlspecialchars(t('product.show_less')) ?>" class="<?= $pdpLink ?> mt-auto">
-                    <span data-toggle-label><?= htmlspecialchars(t('product.delivery_more')) ?></span>
+                <button type="button" data-toggle="pdp-chars-more" data-more="<?= htmlspecialchars(t('product.all_chars')) ?>" data-less="<?= htmlspecialchars(t('product.show_less')) ?>" class="<?= $pdpLink ?> mt-auto">
+                    <span data-toggle-label><?= htmlspecialchars(t('product.all_chars')) ?></span>
                     <svg class="w-3.5 h-3.5 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                 </button>
-            </section>
-        </div>
+            <?php endif; ?>
+        </section>
+
+        <section class="<?= $pdpPanel ?> flex flex-col">
+            <div class="<?= $pdpHead ?>">
+                <span class="<?= $pdpIcon ?>" aria-hidden="true">
+                    <?= IconHelper::svg('package', 'w-4 h-4') ?>
+                </span>
+                <h2 class="<?= $pdpTitle ?>"><?= htmlspecialchars(t('product.delivery')) ?></h2>
+            </div>
+            <div class="space-y-3 text-[13px] flex-1">
+                <?php if (!empty($listingShipping)): ?>
+                    <?php if (!empty($listingShipping['has_pickup']) && !empty($item['location'])): ?>
+                        <div class="rounded-2xl bg-ink-900/[0.03] dark:bg-white/[0.04] px-3.5 py-3">
+                            <p class="font-semibold text-ink-800 dark:text-gray-100"><?= htmlspecialchars(t('product.delivery_city')) ?></p>
+                            <p class="text-gray-500 dark:text-gray-400 mt-1 leading-relaxed"><?= htmlspecialchars(t('product.delivery_city_hint', ['city' => $item['location']])) ?></p>
+                        </div>
+                    <?php endif; ?>
+                    <?php if (!empty($listingShipping['has_delivery'])): ?>
+                        <div class="rounded-2xl bg-ink-900/[0.03] dark:bg-white/[0.04] px-3.5 py-3 space-y-1.5">
+                            <p class="font-semibold text-ink-800 dark:text-gray-100"><?= htmlspecialchars(t('listing_shipping.buyer_delivery_title')) ?></p>
+                            <?php if (!empty($listingShipping['from_city'])): ?>
+                                <p class="text-gray-500 dark:text-gray-400"><?= htmlspecialchars(t('listing_shipping.buyer_from_city', ['city' => $listingShipping['from_city']])) ?></p>
+                            <?php endif; ?>
+                            <?php if (!empty($listingShipping['packaging'])): ?>
+                                <p class="text-gray-500 dark:text-gray-400"><?= htmlspecialchars(t('listing_shipping.buyer_packaging', ['name' => $listingShipping['packaging']])) ?></p>
+                            <?php endif; ?>
+                            <?php if (!empty($listingShipping['package_dims']) || !empty($listingShipping['gross_weight'])): ?>
+                                <p class="text-gray-500 dark:text-gray-400">
+                                    <?php if (!empty($listingShipping['package_dims'])): ?>
+                                        <?= htmlspecialchars($listingShipping['package_dims']) ?>
+                                    <?php endif; ?>
+                                    <?php if (!empty($listingShipping['gross_weight'])): ?>
+                                        <?= !empty($listingShipping['package_dims']) ? ' · ' : '' ?><?= htmlspecialchars(t('listing_shipping.buyer_weight', ['weight' => rtrim(rtrim(number_format((float) $listingShipping['gross_weight'], 2, '.', ''), '0'), '.')])) ?>
+                                    <?php endif; ?>
+                                </p>
+                            <?php endif; ?>
+                        </div>
+                        <p class="rounded-2xl border border-amber-200/70 dark:border-amber-500/20 bg-amber-50/80 dark:bg-amber-500/10 px-3.5 py-2.5 text-amber-800 dark:text-amber-200 font-medium leading-relaxed">
+                            <?= htmlspecialchars($listingShipping['price_note'] ?? t('listing_shipping.buyer_price_after_address')) ?>
+                        </p>
+                    <?php elseif (!empty($listingShipping['has_pickup'])): ?>
+                        <div class="rounded-2xl bg-ink-900/[0.03] dark:bg-white/[0.04] px-3.5 py-3">
+                            <p class="font-semibold text-ink-800 dark:text-gray-100"><?= htmlspecialchars(t('listing_shipping.fulfillment_pickup')) ?></p>
+                            <p class="text-gray-500 dark:text-gray-400 mt-1 leading-relaxed"><?= htmlspecialchars(t('product.delivery_city_hint', ['city' => $item['location'] ?? ($listingShipping['from_city'] ?? '')])) ?></p>
+                        </div>
+                    <?php endif; ?>
+                <?php else: ?>
+                    <?php if (!empty($item['location'])): ?>
+                        <div class="rounded-2xl bg-ink-900/[0.03] dark:bg-white/[0.04] px-3.5 py-3">
+                            <p class="font-semibold text-ink-800 dark:text-gray-100"><?= htmlspecialchars(t('product.delivery_city')) ?></p>
+                            <p class="text-gray-500 dark:text-gray-400 mt-1 leading-relaxed"><?= htmlspecialchars(t('product.delivery_city_hint', ['city' => $item['location']])) ?></p>
+                        </div>
+                    <?php endif; ?>
+                    <div class="rounded-2xl bg-ink-900/[0.03] dark:bg-white/[0.04] px-3.5 py-3">
+                        <p class="font-semibold text-ink-800 dark:text-gray-100"><?= htmlspecialchars(t('product.delivery_kz')) ?></p>
+                        <p class="text-gray-500 dark:text-gray-400 mt-1 leading-relaxed"><?= htmlspecialchars(t('listing_shipping.buyer_price_after_address')) ?></p>
+                    </div>
+                <?php endif; ?>
+                <div id="pdp-delivery-more" class="hidden rounded-2xl bg-ink-900/[0.03] dark:bg-white/[0.04] px-3.5 py-3 text-gray-500 dark:text-gray-400 leading-relaxed">
+                    <?= htmlspecialchars(t('product.delivery_escrow')) ?>
+                </div>
+            </div>
+            <button type="button" data-toggle="pdp-delivery-more" data-more="<?= htmlspecialchars(t('product.delivery_more')) ?>" data-less="<?= htmlspecialchars(t('product.show_less')) ?>" class="<?= $pdpLink ?> mt-auto">
+                <span data-toggle-label><?= htmlspecialchars(t('product.delivery_more')) ?></span>
+                <svg class="w-3.5 h-3.5 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+        </section>
     </div>
     
 

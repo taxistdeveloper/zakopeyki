@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../api.dart';
 import '../main.dart';
 import '../theme.dart';
 import 'account_screens.dart';
 import 'cart_screen.dart';
+import 'delete_account_screen.dart';
 import 'home_shell.dart';
 import 'my_listings_screen.dart';
 import 'notifications_screen.dart';
@@ -71,6 +73,7 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
+            if (!user.emailVerified) const _VerifyEmailBanner(),
             _group([
               _tile(context, Icons.sell_outlined, 'Мои объявления',
                   () => _push(context, const MyListingsScreen())),
@@ -121,7 +124,14 @@ class ProfileScreen extends StatelessWidget {
                 },
               ),
             ),
-            const SizedBox(height: 24),
+            Center(
+              child: TextButton(
+                onPressed: () => _push(context, const DeleteAccountScreen()),
+                style: TextButton.styleFrom(foregroundColor: Colors.black45),
+                child: const Text('Удалить аккаунт'),
+              ),
+            ),
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -159,4 +169,64 @@ class ProfileScreen extends StatelessWidget {
         ),
         onTap: onTap,
       );
+}
+
+
+/// «Подтвердите email» + повторная отправка письма.
+class _VerifyEmailBanner extends StatefulWidget {
+  const _VerifyEmailBanner();
+
+  @override
+  State<_VerifyEmailBanner> createState() => _VerifyEmailBannerState();
+}
+
+class _VerifyEmailBannerState extends State<_VerifyEmailBanner> {
+  bool _busy = false;
+  bool _sent = false;
+
+  Future<void> _resend() async {
+    setState(() => _busy = true);
+    final session = SessionScope.read(context);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final msg = await session.api.resendVerification();
+      if (!mounted) return;
+      setState(() => _sent = true);
+      messenger.showSnackBar(SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating));
+      session.refreshUser();
+    } on ApiException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message), behavior: SnackBarBehavior.floating));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFDE68A)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.mark_email_unread_outlined, color: Color(0xFFD97706)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              _sent ? 'Письмо отправлено — откройте ссылку из него' : 'Подтвердите email, чтобы не потерять доступ к аккаунту',
+              style: const TextStyle(fontSize: 13.5),
+            ),
+          ),
+          TextButton(
+            onPressed: _busy ? null : _resend,
+            child: Text(_sent ? 'Ещё раз' : 'Отправить'),
+          ),
+        ],
+      ),
+    );
+  }
 }

@@ -190,6 +190,9 @@ class Order {
   final String? inspectUntil;
   final int? sellerPayout;
   final List<String> disputeReasons;
+  final bool canReview;
+  final int? myRating;
+  final String? myReviewText;
 
   Order({
     required this.id,
@@ -214,6 +217,9 @@ class Order {
     this.inspectUntil,
     this.sellerPayout,
     this.disputeReasons = const [],
+    this.canReview = false,
+    this.myRating,
+    this.myReviewText,
   });
 
   bool get isBuyer => role == 'buyer';
@@ -243,6 +249,9 @@ class Order {
       inspectUntil: j['inspect_until'] as String?,
       sellerPayout: j['seller_payout'] == null ? null : _money(j['seller_payout']),
       disputeReasons: ((j['dispute_reasons'] as List?) ?? []).map((e) => e.toString()).toList(),
+      canReview: j['can_review'] == true,
+      myRating: (j['my_review'] as Map?)?['rating'] == null ? null : _int((j['my_review'] as Map)['rating']),
+      myReviewText: (j['my_review'] as Map?)?['body'] as String?,
     );
   }
 }

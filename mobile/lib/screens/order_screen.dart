@@ -8,6 +8,7 @@ import '../theme.dart';
 import '../widgets/common.dart';
 import 'chats_screen.dart';
 import 'orders_screen.dart';
+import 'payment_screen.dart';
 
 /// Карточка сделки и действия сторон (отправил / получил / подтвердить / спор / отмена).
 class OrderScreen extends StatefulWidget {
@@ -47,6 +48,24 @@ class _OrderScreenState extends State<OrderScreen> {
       if (!mounted) return;
       setState(() => _o = o);
       if (done != null) showSnack(context, done);
+    } on ApiException catch (e) {
+      if (mounted) showSnack(context, e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _pay() async {
+    setState(() => _busy = true);
+    try {
+      final url = await SessionScope.read(context).api.payOrder(widget.id);
+      if (!mounted) return;
+      final status = await Navigator.of(context).push<String>(
+        MaterialPageRoute(fullscreenDialog: true, builder: (_) => PaymentScreen(url: url)),
+      );
+      if (!mounted) return;
+      showSnack(context, status == 'success' ? 'Оплата прошла' : 'Оплата не завершена');
+      await _load();
     } on ApiException catch (e) {
       if (mounted) showSnack(context, e.message);
     } finally {
@@ -249,6 +268,22 @@ class _OrderScreenState extends State<OrderScreen> {
                       ],
                     ),
                   ),
+                  if (o.canReview) _ReviewForm(order: o, onSaved: (u) => setState(() => _o = u)),
+                  if (o.myRating != null)
+                    SectionCard(
+                      title: 'Ваш отзыв',
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(children: [
+                            for (var i = 1; i <= 5; i++)
+                              Icon(Icons.star_rounded,
+                                  color: i <= o.myRating! ? const Color(0xFFF59E0B) : Colors.black12),
+                          ]),
+                          if (o.myReviewText != null) ...[const SizedBox(height: 6), Text(o.myReviewText!)],
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -262,7 +297,7 @@ class _OrderScreenState extends State<OrderScreen> {
     if (o.isFinal) return null;
     if (o.isBuyer) {
       return switch (o.status) {
-        'awaiting_payment' => 'Заказ ещё не оплачен.',
+        'awaiting_payment' => 'Заказ ещё не оплачен. Оплатите его в течение суток или отмените.',
         'escrowed' => 'Оплата получена и хранится на безопасной сделке. Ждём, когда продавец отправит товар.',
         'shipped' => 'Продавец отправил товар. Когда получите — отметьте получение и проверьте товар.',
         'delivered' => 'Проверьте товар. Если всё в порядке — подтвердите, и деньги уйдут продавцу.',
@@ -306,6 +341,8 @@ class _OrderScreenState extends State<OrderScreen> {
             style: TextButton.styleFrom(foregroundColor: const Color(0xFFDC2626)),
             child: const Text('Есть проблема'),
           ));
+        case 'pay':
+          buttons.add(FilledButton(onPressed: _busy ? null : _pay, child: busyLabel(_busy, 'Оплатить ${formatMoney(o.total)}')));
         case 'cancel':
           buttons.add(OutlinedButton(
             onPressed: _busy
@@ -330,6 +367,83 @@ class _OrderScreenState extends State<OrderScreen> {
           buttons[i],
         ],
       ],
+    );
+  }
+}
+
+
+/// Оценка и текст после завершённой сделки (один раз).
+class _ReviewForm extends StatefulWidget {
+  const _ReviewForm({required this.order, required this.onSaved});
+
+  final Order order;
+  final ValueChanged<Order> onSaved;
+
+  @override
+  State<_ReviewForm> createState() => _ReviewFormState();
+}
+
+class _ReviewFormState extends State<_ReviewForm> {
+  int _rating = 0;
+  bool _busy = false;
+  final _text = TextEditingController();
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    setState(() => _busy = true);
+    try {
+      final o = await SessionScope.read(context).api.reviewOrder(widget.order.id, _rating, _text.text.trim());
+      if (!mounted) return;
+      showSnack(context, 'Спасибо за отзыв!');
+      widget.onSaved(o);
+    } on ApiException catch (e) {
+      if (mounted) showSnack(context, e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final whom = widget.order.isBuyer ? 'продавца' : 'покупателя';
+    return SectionCard(
+      title: 'Оцените $whom',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('${widget.order.counterparty} · отзыв увидят другие пользователи',
+              style: const TextStyle(color: Colors.black54, fontSize: 13)),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (var i = 1; i <= 5; i++)
+                IconButton(
+                  onPressed: () => setState(() => _rating = i),
+                  iconSize: 38,
+                  icon: Icon(Icons.star_rounded, color: i <= _rating ? const Color(0xFFF59E0B) : Colors.black12),
+                ),
+            ],
+          ),
+          if (_rating > 0) ...[
+            TextField(
+              controller: _text,
+              minLines: 2,
+              maxLines: 6,
+              maxLength: 2000,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(hintText: 'Что понравилось или нет (необязательно)'),
+            ),
+            const SizedBox(height: 8),
+            FilledButton(onPressed: _busy ? null : _submit, child: busyLabel(_busy, 'Отправить отзыв')),
+          ],
+        ],
+      ),
     );
   }
 }
