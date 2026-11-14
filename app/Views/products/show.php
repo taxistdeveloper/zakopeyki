@@ -769,6 +769,7 @@ $vipIso = $vipOn
             </section>
         </div>
     </div>
+    asd
 
     <?php if (!$isOwnProduct): ?>
         <div class="pt-1 text-center">
