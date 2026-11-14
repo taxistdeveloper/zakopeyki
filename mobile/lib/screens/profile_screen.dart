@@ -39,10 +39,11 @@ class ProfileScreen extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 30,
-                    backgroundImage: user.avatar != null ? NetworkImage(user.avatar!) : null,
-                    child: user.avatar == null
-                        ? Text(user.avatarLetter, style: const TextStyle(fontSize: 22))
-                        : null,
+                    backgroundColor: const Color(0xFFDBEAFE),
+                    // буква под фото: видна, пока фото грузится или если его нет
+                    foregroundImage: user.avatar != null ? NetworkImage(user.avatar!) : null,
+                    child: Text(user.avatarLetter,
+                        style: const TextStyle(fontSize: 22, color: kBrand, fontWeight: FontWeight.w700)),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
