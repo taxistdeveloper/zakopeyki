@@ -1,24 +1,19 @@
 import 'package:flutter/material.dart';
 
 import '../main.dart';
-import '../nav.dart';
 import '../theme.dart';
+import 'account_screens.dart';
 import 'cart_screen.dart';
 import 'home_shell.dart';
 import 'my_listings_screen.dart';
+import 'notifications_screen.dart';
 import 'orders_screen.dart';
+import 'seller_screen.dart';
+import 'support_screens.dart';
+import 'wallet_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
-
-  /// Разделы, для которых в мобильном API пока нет методов, — открываются сайтом.
-  static const _webSections = [
-    (Icons.account_balance_wallet_outlined, 'Кошелёк', '/wallet'),
-    (Icons.notifications_none_rounded, 'Уведомления', '/profile?tab=notifications'),
-    (Icons.manage_accounts_outlined, 'Личные данные', '/profile?tab=personal'),
-    (Icons.lock_outline_rounded, 'Пароль и 2FA', '/profile?tab=password'),
-    (Icons.support_agent_rounded, 'Поддержка', '/support'),
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -91,8 +86,18 @@ class ProfileScreen extends StatelessWidget {
               child: Text('Ещё', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w600)),
             ),
             _group([
-              for (final (icon, title, path) in _webSections)
-                _tile(context, icon, title, () => openWeb(context, path, title: title)),
+              _tile(context, Icons.account_balance_wallet_outlined, 'Кошелёк',
+                  () => _push(context, const WalletScreen())),
+              _tile(context, Icons.notifications_none_rounded, 'Уведомления',
+                  () => _push(context, const NotificationsScreen())),
+              _tile(context, Icons.storefront_outlined, 'Мой профиль продавца',
+                  () => _push(context, SellerScreen(id: user.id))),
+              _tile(context, Icons.manage_accounts_outlined, 'Личные данные',
+                  () => _push(context, const PersonalDataScreen())),
+              _tile(context, Icons.lock_outline_rounded, 'Пароль и 2FA',
+                  () => _push(context, const SecurityScreen())),
+              _tile(context, Icons.support_agent_rounded, 'Поддержка',
+                  () => _push(context, const SupportListScreen())),
             ]),
             const SizedBox(height: 8),
             Container(

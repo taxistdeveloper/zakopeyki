@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../api.dart';
+import '../config.dart';
 import '../main.dart';
 import '../models.dart';
 import '../nav.dart';
 import '../widgets/product_tile.dart';
+import 'auction_screen.dart';
 import 'cart_screen.dart';
 import 'chats_screen.dart';
 import 'checkout_screen.dart';
 import 'my_listings_screen.dart';
+import 'seller_screen.dart';
 
 class ProductScreen extends StatefulWidget {
   const ProductScreen({super.key, required this.id});
@@ -71,9 +75,11 @@ class _ProductScreenState extends State<ProductScreen> {
             ),
           if (d != null)
             IconButton(
-              tooltip: 'Открыть на сайте',
-              onPressed: () => openWeb(context, '/product/${d.card.id}?full=1', title: d.card.title),
-              icon: const Icon(Icons.open_in_new_rounded),
+              tooltip: 'Поделиться',
+              onPressed: () => SharePlus.instance.share(ShareParams(
+                text: '${d.card.title} — ${d.card.priceText}\n${siteUri('/product/${d.card.id}')}',
+              )),
+              icon: const Icon(Icons.share_outlined),
             ),
         ],
       ),
@@ -283,7 +289,7 @@ class _ProductScreenState extends State<ProductScreen> {
             ),
           ),
           TextButton(
-            onPressed: () => openWeb(context, '/users/${s.id}', title: s.name),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => SellerScreen(id: s.id))),
             child: const Text('Профиль'),
           ),
         ],
@@ -349,7 +355,12 @@ class _ProductScreenState extends State<ProductScreen> {
           child: FilledButton(
             onPressed: () => requireLogin(
               context,
-              () => openWeb(context, '/auctions/$id/live', title: 'Аукцион'),
+              () async {
+                await Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => AuctionScreen(productId: id, title: d.card.title),
+                ));
+                if (mounted) _load();
+              },
             ),
             child: const Text('Сделать ставку'),
           ),

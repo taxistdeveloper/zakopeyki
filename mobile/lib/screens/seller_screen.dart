@@ -4,6 +4,7 @@ import '../account_models.dart';
 import '../api.dart';
 import '../main.dart';
 import '../nav.dart';
+import '../models.dart';
 import '../shop_models.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
