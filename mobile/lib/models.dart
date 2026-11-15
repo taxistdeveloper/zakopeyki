@@ -8,6 +8,7 @@ class AppUser {
   final String? avatar;
   final bool isBusiness;
   final bool emailVerified;
+  final String? bio;
 
   AppUser({
     required this.id,
@@ -17,6 +18,7 @@ class AppUser {
     this.avatar,
     this.isBusiness = false,
     this.emailVerified = false,
+    this.bio,
   });
 
   String get avatarLetter {
@@ -32,6 +34,7 @@ class AppUser {
         avatar: j['avatar_url'] as String?,
         isBusiness: j['is_business'] == true,
         emailVerified: j['email_verified'] == true,
+        bio: j['bio'] as String?,
       );
 }
 

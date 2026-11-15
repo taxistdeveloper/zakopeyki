@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../main.dart';
 import '../theme.dart';
 
 /// Полноэкранная ошибка с кнопкой «Повторить».
@@ -18,11 +19,18 @@ class ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 52, color: Colors.black26),
+            Icon(
+              Icons.cloud_off_rounded,
+              size: 52,
+              color: context.pal.faint2,
+            ),
             const SizedBox(height: 12),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 16),
-            FilledButton.tonal(onPressed: onRetry, child: const Text('Повторить')),
+            FilledButton.tonal(
+              onPressed: onRetry,
+              child: const Text('Повторить'),
+            ),
           ],
         ),
       ),
@@ -32,7 +40,13 @@ class ErrorView extends StatelessWidget {
 
 /// Пустой список.
 class EmptyView extends StatelessWidget {
-  const EmptyView({super.key, required this.icon, required this.title, this.text, this.action});
+  const EmptyView({
+    super.key,
+    required this.icon,
+    required this.title,
+    this.text,
+    this.action,
+  });
 
   final IconData icon;
   final String title;
@@ -48,17 +62,26 @@ class EmptyView extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(22),
-              decoration: const BoxDecoration(color: Color(0xFFEFF6FF), shape: BoxShape.circle),
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [context.pal.brandSoft, context.pal.brandSoft2]),
+                shape: BoxShape.circle,
+              ),
               child: Icon(icon, size: 40, color: kBrand),
             ),
-            const SizedBox(height: 16),
-            Text(title,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 18),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: display(18, weight: FontWeight.w700, color: context.pal.ink),
+            ),
             if (text != null) ...[
               const SizedBox(height: 6),
-              Text(text!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.black54)),
+              Text(
+                text!,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: context.pal.muted),
+              ),
             ],
             if (action != null) ...[const SizedBox(height: 20), action!],
           ],
@@ -70,7 +93,12 @@ class EmptyView extends StatelessWidget {
 
 /// Белая карточка-секция.
 class SectionCard extends StatelessWidget {
-  const SectionCard({super.key, this.title, required this.child, this.padding = const EdgeInsets.all(16)});
+  const SectionCard({
+    super.key,
+    this.title,
+    required this.child,
+    this.padding = const EdgeInsets.all(16),
+  });
 
   final String? title;
   final Widget child;
@@ -79,19 +107,18 @@ class SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      margin: const EdgeInsets.fromLTRB(14, 0, 14, 14),
       padding: padding,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
+      decoration: softCard(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (title != null) ...[
-            Text(title!, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 10),
+            Text(
+              title!,
+              style: display(16.5, weight: FontWeight.w700, color: context.pal.ink),
+            ),
+            const SizedBox(height: 12),
           ],
           child,
         ],
@@ -102,7 +129,13 @@ class SectionCard extends StatelessWidget {
 
 /// Строка «название — сумма».
 class AmountRow extends StatelessWidget {
-  const AmountRow(this.label, this.value, {super.key, this.bold = false, this.color});
+  const AmountRow(
+    this.label,
+    this.value, {
+    super.key,
+    this.bold = false,
+    this.color,
+  });
 
   final String label;
   final String value;
@@ -120,7 +153,12 @@ class AmountRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         children: [
-          Expanded(child: Text(label, style: bold ? style : style.copyWith(color: Colors.black54))),
+          Expanded(
+            child: Text(
+              label,
+              style: bold ? style : style.copyWith(color: context.pal.muted),
+            ),
+          ),
           Text(value, style: style),
         ],
       ),
@@ -138,18 +176,25 @@ class ProductThumb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final placeholder = Container(
-      color: const Color(0xFFEFF6FF),
+      color: context.pal.brandSoft,
       alignment: Alignment.center,
-      child: Icon(Icons.inventory_2_outlined, color: kBrand.withValues(alpha: 0.5)),
+      child: Icon(
+        Icons.inventory_2_outlined,
+        color: kBrand.withValues(alpha: 0.5),
+      ),
     );
     return ClipRRect(
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(size > 56 ? 16 : 12),
       child: SizedBox(
         width: size,
         height: size,
         child: url == null
             ? placeholder
-            : CachedNetworkImage(imageUrl: url!, fit: BoxFit.cover, errorWidget: (_, _, _) => placeholder),
+            : CachedNetworkImage(
+                imageUrl: url!,
+                fit: BoxFit.cover,
+                errorWidget: (_, _, _) => placeholder,
+              ),
       ),
     );
   }
@@ -170,7 +215,14 @@ class StatusPill extends StatelessWidget {
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(text, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 }
@@ -184,16 +236,68 @@ class BottomActionBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+      decoration: BoxDecoration(
+        color: context.pal.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(kRadiusLg)),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x1A1E3A8A),
+            blurRadius: 24,
+            offset: Offset(0, -6),
+            spreadRadius: -6,
+          ),
+        ],
       ),
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: SafeArea(top: false, child: child),
     );
   }
 }
 
 Widget busyLabel(bool busy, String text) => busy
-    ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+    ? const SizedBox(
+        width: 22,
+        height: 22,
+        child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+      )
     : Text(text);
+
+/// Выбор оформления: как в системе / светлая / тёмная.
+Future<void> showThemePicker(BuildContext context) {
+  final session = SessionScope.read(context);
+  return showModalBottomSheet<void>(
+    context: context,
+    builder: (ctx) => SafeArea(
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text('Оформление', style: display(18, weight: FontWeight.w700, color: ctx.pal.ink)),
+          ),
+        ),
+        for (final (mode, icon, title) in const [
+          (ThemeMode.system, Icons.brightness_auto_rounded, 'Как в системе'),
+          (ThemeMode.light, Icons.light_mode_rounded, 'Светлая'),
+          (ThemeMode.dark, Icons.dark_mode_rounded, 'Тёмная'),
+        ])
+          ListTile(
+            leading: Icon(icon, color: session.themeMode == mode ? kBrand : null),
+            title: Text(title),
+            trailing: session.themeMode == mode ? const Icon(Icons.check_rounded, color: kBrand) : null,
+            onTap: () {
+              session.setThemeMode(mode);
+              Navigator.pop(ctx);
+            },
+          ),
+        const SizedBox(height: 8),
+      ]),
+    ),
+  );
+}
+
+String themeModeLabel(ThemeMode m) => switch (m) {
+      ThemeMode.light => 'Светлая',
+      ThemeMode.dark => 'Тёмная',
+      ThemeMode.system => 'Как в системе',
+    };

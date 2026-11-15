@@ -700,7 +700,7 @@ $vipIso = $vipOn
                 </button>
             <?php endif; ?>
         </section>
-as
+
         <?php
         $deliveryTitle = t('product.delivery_kz');
         $deliveryHint = t('listing_shipping.buyer_price_after_address');

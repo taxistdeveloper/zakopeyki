@@ -1,14 +1,19 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../api.dart';
 import '../main.dart';
 import '../models.dart';
 import '../nav.dart';
+import '../theme.dart';
 import '../widgets/product_tile.dart';
 import 'app_drawer.dart';
+import 'assistant_screen.dart';
 import 'cart_screen.dart';
+import 'live_list_screen.dart';
+import 'stories.dart';
 
 class CatalogScreen extends StatefulWidget {
   const CatalogScreen({super.key});
@@ -31,6 +36,8 @@ class _CatalogScreenState extends State<CatalogScreen> {
   String? _error;
   int _requestId = 0;
   int? _loadedForUser;
+  final _stories = GlobalKey<StoriesBarState>();
+  final _lives = GlobalKey<LiveStripState>();
 
   @override
   void initState() {
@@ -77,11 +84,11 @@ class _CatalogScreenState extends State<CatalogScreen> {
     setState(() => _loading = true);
     try {
       final page = await SessionScope.read(context).api.products(
-            type: _type,
-            query: _search.text.trim(),
-            category: _category?.name,
-            cursor: _cursor,
-          );
+        type: _type,
+        query: _search.text.trim(),
+        category: _category?.name,
+        cursor: _cursor,
+      );
       if (!mounted || req != _requestId) return;
       setState(() {
         _items.addAll(page.items);
@@ -110,7 +117,9 @@ class _CatalogScreenState extends State<CatalogScreen> {
   Future<void> _toggleFavorite(ProductCard item) async {
     await requireLogin(context, () async {
       try {
-        final fav = await SessionScope.read(context).api.toggleFavorite(item.id);
+        final fav = await SessionScope.read(
+          context,
+        ).api.toggleFavorite(item.id);
         if (mounted) setState(() => item.favorited = fav);
       } on ApiException catch (e) {
         if (mounted) showSnack(context, e.message);
@@ -138,7 +147,10 @@ class _CatalogScreenState extends State<CatalogScreen> {
             ),
             for (final parent in categories)
               ExpansionTile(
-                title: Text(parent.label, style: const TextStyle(fontWeight: FontWeight.w600)),
+                title: Text(
+                  parent.label,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
                 children: [
                   ListTile(
                     contentPadding: const EdgeInsets.only(left: 32, right: 16),
@@ -147,7 +159,10 @@ class _CatalogScreenState extends State<CatalogScreen> {
                   ),
                   for (final child in parent.children)
                     ListTile(
-                      contentPadding: const EdgeInsets.only(left: 32, right: 16),
+                      contentPadding: const EdgeInsets.only(
+                        left: 32,
+                        right: 16,
+                      ),
                       title: Text(child.label),
                       onTap: () => Navigator.pop(ctx, child),
                     ),
@@ -167,74 +182,150 @@ class _CatalogScreenState extends State<CatalogScreen> {
     final types = SessionScope.of(context).config?.types ?? [];
     final categoriesApply = _type == null || _type == 'new' || _type == 'used';
 
-    return Scaffold(
-      drawer: AppDrawer(currentType: _type, onType: _setType),
-      body: SafeArea(
-        bottom: false,
-        child: RefreshIndicator(
-          onRefresh: _reload,
+    final cartCount = SessionScope.of(context).cartCount;
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light.copyWith(
+        statusBarColor: Colors.transparent,
+      ),
+      child: Scaffold(
+        drawer: AppDrawer(currentType: _type, onType: _setType),
+        floatingActionButton: const ZakFab(),
+        body: RefreshIndicator(
+          edgeOffset: MediaQuery.paddingOf(context).top + 120,
+          onRefresh: () async {
+            _stories.currentState?.reload();
+            _lives.currentState?.reload();
+            await _reload();
+          },
           child: CustomScrollView(
             controller: _scroll,
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
+              // Фирменная шапка: градиент, белый логотип, поиск
               SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 12, 4, 4),
-                  child: Row(
-                    children: [
-                      Builder(
-                        builder: (ctx) => IconButton(
-                          tooltip: 'Меню',
-                          onPressed: () => Scaffold.of(ctx).openDrawer(),
-                          icon: const Icon(Icons.menu_rounded, size: 28),
-                        ),
-                      ),
-                      Expanded(
-                        child: TextField(
-                    controller: _search,
-                    onChanged: _onSearchChanged,
-                    textInputAction: TextInputAction.search,
-                    onSubmitted: (_) => _reload(),
-                    decoration: InputDecoration(
-                      hintText: 'Поиск по объявлениям',
-                      prefixIcon: const Icon(Icons.search_rounded),
-                      suffixIcon: _search.text.isEmpty
-                          ? null
-                          : IconButton(
-                              icon: const Icon(Icons.close_rounded),
-                              onPressed: () {
-                                _search.clear();
-                                _reload();
-                              },
-                            ),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: kBrandGradient,
+                    borderRadius: BorderRadius.vertical(
+                      bottom: Radius.circular(28),
                     ),
                   ),
+                  padding: EdgeInsets.fromLTRB(
+                    6,
+                    MediaQuery.paddingOf(context).top + 4,
+                    6,
+                    18,
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Builder(
+                            builder: (ctx) => IconButton(
+                              tooltip: 'Меню',
+                              onPressed: () => Scaffold.of(ctx).openDrawer(),
+                              icon: const Icon(
+                                Icons.menu_rounded,
+                                size: 28,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Image.asset(
+                                'assets/img/logo_header_dark.png',
+                                height: 34,
+                                filterQuality: FilterQuality.medium,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Корзина',
+                            onPressed: () => requireLogin(
+                              context,
+                              () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const CartScreen(),
+                                ),
+                              ),
+                            ),
+                            icon: Badge(
+                              isLabelVisible: cartCount > 0,
+                              label: Text('$cartCount'),
+                              child: const Icon(
+                                Icons.shopping_bag_outlined,
+                                size: 28,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      IconButton(
-                        tooltip: 'Корзина',
-                        onPressed: () => requireLogin(
-                          context,
-                          () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CartScreen())),
-                        ),
-                        icon: Badge(
-                          isLabelVisible: SessionScope.of(context).cartCount > 0,
-                          label: Text('${SessionScope.of(context).cartCount}'),
-                          child: const Icon(Icons.shopping_bag_outlined, size: 28),
+                      const SizedBox(height: 10),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(18),
+                            boxShadow: kLiftShadow,
+                          ),
+                          child: TextField(
+                            controller: _search,
+                            onChanged: _onSearchChanged,
+                            textInputAction: TextInputAction.search,
+                            onSubmitted: (_) => _reload(),
+                            decoration: InputDecoration(
+                              hintText: 'Найти товары и услуги',
+                              prefixIcon: const Icon(
+                                Icons.search_rounded,
+                                color: kBrand,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(18),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(18),
+                                borderSide: BorderSide.none,
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(18),
+                                borderSide: const BorderSide(
+                                  color: kBrand300,
+                                  width: 2,
+                                ),
+                              ),
+                              suffixIcon: _search.text.isEmpty
+                                  ? null
+                                  : IconButton(
+                                      icon: const Icon(Icons.close_rounded),
+                                      onPressed: () {
+                                        _search.clear();
+                                        _reload();
+                                      },
+                                    ),
+                            ),
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
               ),
+              SliverToBoxAdapter(child: StoriesBar(key: _stories)),
+              SliverToBoxAdapter(child: LiveStrip(key: _lives)),
               SliverToBoxAdapter(
                 child: SizedBox(
-                  height: 52,
+                  height: 56,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.fromLTRB(14, 8, 14, 6),
                     children: [
                       _chip('Все', _type == null, () => _setType(null)),
-                      for (final t in types) _chip(t.label, _type == t.key, () => _setType(t.key)),
+                      for (final t in types)
+                        _chip(t.label, _type == t.key, () => _setType(t.key)),
                     ],
                   ),
                 ),
@@ -242,16 +333,17 @@ class _CatalogScreenState extends State<CatalogScreen> {
               if (categoriesApply)
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    padding: const EdgeInsets.fromLTRB(14, 4, 14, 0),
                     child: Row(
                       children: [
                         Expanded(
                           child: OutlinedButton.icon(
                             onPressed: _pickCategory,
                             style: OutlinedButton.styleFrom(
-                              minimumSize: const Size(0, 40),
+                              minimumSize: const Size(0, 44),
                               alignment: Alignment.centerLeft,
-                              backgroundColor: Colors.white,
+                              backgroundColor: context.pal.surface,
+                              side: BorderSide(color: context.pal.line),
                             ),
                             icon: const Icon(Icons.tune_rounded, size: 18),
                             label: Text(
@@ -273,7 +365,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
                   ),
                 ),
               SliverPadding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
                 sliver: SliverGrid.builder(
                   gridDelegate: productGridDelegate(context),
                   itemCount: _items.length,
@@ -333,15 +425,23 @@ class _CatalogScreenState extends State<CatalogScreen> {
           children: [
             Text(_error!, textAlign: TextAlign.center),
             const SizedBox(height: 12),
-            OutlinedButton(onPressed: _loadMore, child: const Text('Повторить')),
+            OutlinedButton(
+              onPressed: _loadMore,
+              child: const Text('Повторить'),
+            ),
           ],
         ),
       );
     }
     if (_items.isEmpty && !_hasMore) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.all(40),
-        child: Center(child: Text('Ничего не найдено', style: TextStyle(color: Colors.black54))),
+        child: Center(
+          child: Text(
+            'Ничего не найдено',
+            style: TextStyle(color: context.pal.muted),
+          ),
+        ),
       );
     }
     return const SizedBox(height: 24);

@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../theme.dart';
+
 import '../main.dart';
 import '../nav.dart';
 import 'catalog_screen.dart';
@@ -128,7 +130,7 @@ class LoginPrompt extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 56, color: Colors.black26),
+              Icon(icon, size: 56, color: context.pal.faint2),
               const SizedBox(height: 16),
               Text(text, textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 20),

@@ -103,10 +103,10 @@ class _SellerScreenState extends State<SellerScreen> {
             ),
             if (_tab == 0)
               p.items.isEmpty
-                  ? const SliverToBoxAdapter(
+                  ? SliverToBoxAdapter(
                       child: Padding(
                         padding: EdgeInsets.all(40),
-                        child: Text('Активных объявлений нет', textAlign: TextAlign.center, style: TextStyle(color: Colors.black45)),
+                        child: Text('Активных объявлений нет', textAlign: TextAlign.center, style: TextStyle(color: context.pal.muted2)),
                       ),
                     )
                   : SliverPadding(
@@ -123,10 +123,10 @@ class _SellerScreenState extends State<SellerScreen> {
                     )
             else
               p.reviews.isEmpty
-                  ? const SliverToBoxAdapter(
+                  ? SliverToBoxAdapter(
                       child: Padding(
                         padding: EdgeInsets.all(40),
-                        child: Text('Отзывов пока нет', textAlign: TextAlign.center, style: TextStyle(color: Colors.black45)),
+                        child: Text('Отзывов пока нет', textAlign: TextAlign.center, style: TextStyle(color: context.pal.muted2)),
                       ),
                     )
                   : SliverPadding(
@@ -144,7 +144,7 @@ class _SellerScreenState extends State<SellerScreen> {
 
   Widget _header(SellerProfile p) {
     return Container(
-      color: Colors.white,
+      color: context.pal.surface,
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       margin: const EdgeInsets.only(bottom: 8),
       child: Column(
@@ -154,7 +154,7 @@ class _SellerScreenState extends State<SellerScreen> {
             children: [
               CircleAvatar(
                 radius: 34,
-                backgroundColor: const Color(0xFFDBEAFE),
+                backgroundColor: context.pal.brandSoft2,
                 foregroundImage: p.avatar != null ? NetworkImage(p.avatar!) : null,
                 child: Text(p.initial, style: const TextStyle(color: kBrand, fontSize: 26, fontWeight: FontWeight.w700)),
               ),
@@ -182,13 +182,13 @@ class _SellerScreenState extends State<SellerScreen> {
                       children: [
                         const Icon(Icons.star_rounded, size: 18, color: Color(0xFFF59E0B)),
                         Text(p.ratingCount > 0 ? ' ${p.rating.toStringAsFixed(1)} (${p.ratingCount})' : ' нет оценок',
-                            style: const TextStyle(color: Colors.black54)),
+                            style: TextStyle(color: context.pal.muted)),
                       ],
                     ),
                     if (p.city != null || p.memberSince != null)
                       Text(
                         [if (p.city != null) p.city!, if (p.memberSince != null) 'с ${formatDate(p.memberSince)}'].join(' · '),
-                        style: const TextStyle(color: Colors.black45, fontSize: 12.5),
+                        style: TextStyle(color: context.pal.muted2, fontSize: 12.5),
                       ),
                   ],
                 ),
@@ -232,7 +232,7 @@ class _SellerScreenState extends State<SellerScreen> {
         child: Column(
           children: [
             Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-            Text(label, style: const TextStyle(color: Colors.black45, fontSize: 12.5)),
+            Text(label, style: TextStyle(color: context.pal.muted2, fontSize: 12.5)),
           ],
         ),
       );
@@ -246,7 +246,7 @@ class _SellerScreenState extends State<SellerScreen> {
               children: [
                 CircleAvatar(
                   radius: 16,
-                  backgroundColor: const Color(0xFFF1F5F9),
+                  backgroundColor: context.pal.subtle,
                   foregroundImage: r.authorAvatar != null ? NetworkImage(r.authorAvatar!) : null,
                   child: Text(r.author.isEmpty ? '?' : String.fromCharCode(r.author.runes.first),
                       style: const TextStyle(fontSize: 13)),
@@ -254,14 +254,14 @@ class _SellerScreenState extends State<SellerScreen> {
                 const SizedBox(width: 10),
                 Expanded(child: Text(r.author, style: const TextStyle(fontWeight: FontWeight.w600))),
                 for (var i = 1; i <= 5; i++)
-                  Icon(Icons.star_rounded, size: 16, color: i <= r.rating ? const Color(0xFFF59E0B) : Colors.black12),
+                  Icon(Icons.star_rounded, size: 16, color: i <= r.rating ? const Color(0xFFF59E0B) : context.pal.hairline),
               ],
             ),
             if (r.comment.isNotEmpty) ...[const SizedBox(height: 8), Text(r.comment)],
             const SizedBox(height: 6),
             Text(
               [if (r.productTitle != null) r.productTitle!, formatDate(r.createdAt)].join(' · '),
-              style: const TextStyle(color: Colors.black45, fontSize: 12),
+              style: TextStyle(color: context.pal.muted2, fontSize: 12),
             ),
           ],
         ),

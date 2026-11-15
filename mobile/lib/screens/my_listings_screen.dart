@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme.dart';
+
 import '../api.dart';
 import '../main.dart';
 import '../nav.dart';
@@ -154,18 +156,18 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
                             children: [
                               StatusPill(
                                 listingStatusLabel(l.status),
-                                color: l.status == 'active' ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+                                color: l.status == 'active' ? const Color(0xFF16A34A) : context.pal.muted,
                               ),
                               const SizedBox(width: 8),
-                              const Icon(Icons.visibility_outlined, size: 15, color: Colors.black38),
+                              Icon(Icons.visibility_outlined, size: 15, color: context.pal.faint),
                               const SizedBox(width: 3),
-                              Text('${l.views}', style: const TextStyle(color: Colors.black45, fontSize: 12.5)),
+                              Text('${l.views}', style: TextStyle(color: context.pal.muted2, fontSize: 12.5)),
                             ],
                           ),
                         ],
                       ),
                     ),
-                    const Icon(Icons.more_vert_rounded, color: Colors.black38),
+                    Icon(Icons.more_vert_rounded, color: context.pal.faint),
                   ],
                 ),
               ),

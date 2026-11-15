@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme.dart';
+
 import '../api.dart';
 import '../main.dart';
 import '../nav.dart';
@@ -148,7 +150,6 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final twoFactor = _challenge != null;
-    final text = Theme.of(context).textTheme;
 
     return Scaffold(
       appBar: AppBar(title: Text(twoFactor ? 'Подтверждение входа' : 'Вход')),
@@ -157,10 +158,10 @@ class _LoginScreenState extends State<LoginScreen> {
           padding: const EdgeInsets.all(20),
           children: [
             if (!twoFactor) ...[
-              Text('Закопейки', style: text.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
+              Image.asset((context.pal.dark ? 'assets/img/logo_header_dark.png' : 'assets/img/logo_header.png'), height: 52, alignment: Alignment.centerLeft),
               const SizedBox(height: 4),
-              const Text('Войдите, чтобы покупать, продавать и общаться',
-                  style: TextStyle(color: Colors.black54)),
+              Text('Войдите, чтобы покупать, продавать и общаться',
+                  style: TextStyle(color: context.pal.muted)),
               const SizedBox(height: 24),
               TextField(
                 controller: _email,
@@ -219,12 +220,12 @@ class _LoginScreenState extends State<LoginScreen> {
               )
             else ...[
               const SizedBox(height: 12),
-              const Row(
+              Row(
                 children: [
                   Expanded(child: Divider()),
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Text('или', style: TextStyle(color: Colors.black45)),
+                    child: Text('или', style: TextStyle(color: context.pal.muted2)),
                   ),
                   Expanded(child: Divider()),
                 ],
@@ -234,8 +235,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 onPressed: _busy ? null : _google,
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black87,
+                  backgroundColor: context.pal.surface,
+                  foregroundColor: context.pal.ink,
                 ),
                 icon: const Text('G',
                     style: TextStyle(

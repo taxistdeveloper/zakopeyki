@@ -140,7 +140,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final conv = _conv;
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F5F9),
+      backgroundColor: context.pal.subtle,
       appBar: AppBar(
         titleSpacing: 0,
         title: conv == null
@@ -168,14 +168,14 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   Widget _productBar(ChatConversation conv) {
     final p = conv.product!;
     return Material(
-      color: Colors.white,
+      color: context.pal.surface,
       child: InkWell(
         onTap: () => conv.orderId != null
             ? Navigator.of(context).push(MaterialPageRoute(builder: (_) => OrderScreen(id: conv.orderId!)))
             : openProduct(context, p.id),
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
-          decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0)))),
+          decoration: BoxDecoration(border: Border(bottom: BorderSide(color: context.pal.line))),
           child: Row(
             children: [
               ProductThumb(p.image, size: 40),
@@ -187,11 +187,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                     Text(p.title, maxLines: 1, overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontWeight: FontWeight.w600)),
                     Text(conv.orderId != null ? 'Заказ №${conv.orderId}' : 'Объявление',
-                        style: const TextStyle(color: Colors.black54, fontSize: 12.5)),
+                        style: TextStyle(color: context.pal.muted, fontSize: 12.5)),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: Colors.black38),
+              Icon(Icons.chevron_right_rounded, color: context.pal.faint),
             ],
           ),
         ),
@@ -247,14 +247,14 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
         decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(10)),
-        child: Text(label, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+        child: Text(label, style: TextStyle(fontSize: 12, color: context.pal.muted)),
       ),
     );
   }
 
   Widget _composer() {
     return Container(
-      color: Colors.white,
+      color: context.pal.surface,
       padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
       child: SafeArea(
         top: false,
@@ -272,7 +272,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 decoration: InputDecoration(
                   hintText: 'Сообщение',
                   counterText: '',
-                  fillColor: const Color(0xFFF1F5F9),
+                  fillColor: context.pal.subtle,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(22), borderSide: BorderSide.none),
                   enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(22), borderSide: BorderSide.none),
@@ -303,8 +303,8 @@ class _Bubble extends StatelessWidget {
     final m = message;
     final d = m.createdAt == null ? null : DateTime.tryParse(m.createdAt!)?.toLocal();
     final time = d == null ? '' : '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
-    final fg = m.mine ? Colors.white : const Color(0xFF0F172A);
-    final meta = m.mine ? Colors.white70 : Colors.black45;
+    final fg = m.mine ? Colors.white : context.pal.ink;
+    final meta = m.mine ? Colors.white70 : context.pal.muted2;
     return Align(
       alignment: m.mine ? Alignment.centerRight : Alignment.centerLeft,
       child: ConstrainedBox(
@@ -313,7 +313,7 @@ class _Bubble extends StatelessWidget {
           margin: const EdgeInsets.symmetric(vertical: 2),
           padding: const EdgeInsets.fromLTRB(12, 8, 10, 6),
           decoration: BoxDecoration(
-            color: m.mine ? kBrand : Colors.white,
+            color: m.mine ? kBrand : context.pal.surface,
             borderRadius: BorderRadius.only(
               topLeft: const Radius.circular(18),
               topRight: const Radius.circular(18),

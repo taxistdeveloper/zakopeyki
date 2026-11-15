@@ -113,18 +113,18 @@ class _SupportListScreenState extends State<SupportListScreen> {
                               ),
                               const SizedBox(height: 2),
                               Text('${t.number} · ${t.categoryLabel}',
-                                  style: const TextStyle(color: Colors.black45, fontSize: 12.5)),
+                                  style: TextStyle(color: context.pal.muted2, fontSize: 12.5)),
                               if (t.lastPreview != null) ...[
                                 const SizedBox(height: 6),
                                 Text(t.lastPreview!.replaceAll('\n', ' '),
-                                    maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.black54)),
+                                    maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: context.pal.muted)),
                               ],
                               const SizedBox(height: 8),
                               Row(
                                 children: [
                                   StatusPill(t.statusLabel, color: _statusColor(t.status)),
                                   const Spacer(),
-                                  Text(chatTime(t.lastMessageAt), style: const TextStyle(color: Colors.black45, fontSize: 12)),
+                                  Text(chatTime(t.lastMessageAt), style: TextStyle(color: context.pal.muted2, fontSize: 12)),
                                 ],
                               ),
                             ],
@@ -140,7 +140,7 @@ class _SupportListScreenState extends State<SupportListScreen> {
 
 Color _statusColor(String s) => switch (s) {
       'answered' => const Color(0xFF16A34A),
-      'closed' => Colors.black45,
+      'closed' => const Color(0xFF94A3B8),
       _ => kBrand,
     };
 
@@ -307,14 +307,14 @@ class _SupportTicketScreenState extends State<SupportTicketScreen> {
   Widget build(BuildContext context) {
     final t = _ticket;
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F5F9),
+      backgroundColor: context.pal.subtle,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(t?.subject ?? 'Обращение', maxLines: 1, overflow: TextOverflow.ellipsis),
             if (t != null)
-              Text('${t.number} · ${t.statusLabel}', style: const TextStyle(fontSize: 12.5, color: Colors.black54)),
+              Text('${t.number} · ${t.statusLabel}', style: TextStyle(fontSize: 12.5, color: context.pal.muted)),
           ],
         ),
       ),
@@ -335,7 +335,7 @@ class _SupportTicketScreenState extends State<SupportTicketScreen> {
           ),
           if (t != null && t.status != 'closed')
             Container(
-              color: Colors.white,
+              color: context.pal.surface,
               padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
               child: SafeArea(
                 top: false,
@@ -365,12 +365,12 @@ class _SupportTicketScreenState extends State<SupportTicketScreen> {
           else if (t != null)
             Container(
               width: double.infinity,
-              color: Colors.white,
+              color: context.pal.surface,
               padding: const EdgeInsets.all(16),
-              child: const SafeArea(
+              child: SafeArea(
                 top: false,
                 child: Text('Обращение закрыто. Если вопрос остался — создайте новое.',
-                    textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)),
+                    textAlign: TextAlign.center, style: TextStyle(color: context.pal.muted)),
               ),
             ),
         ],
@@ -389,7 +389,7 @@ class _SupportTicketScreenState extends State<SupportTicketScreen> {
           margin: const EdgeInsets.symmetric(vertical: 3),
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
           decoration: BoxDecoration(
-            color: mine ? kBrand : Colors.white,
+            color: mine ? kBrand : context.pal.surface,
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
@@ -397,12 +397,12 @@ class _SupportTicketScreenState extends State<SupportTicketScreen> {
             children: [
               if (label != null)
                 Text(label, style: const TextStyle(color: kBrand, fontWeight: FontWeight.w700, fontSize: 12.5)),
-              SelectableText(m.body, style: TextStyle(color: mine ? Colors.white : const Color(0xFF0F172A), height: 1.3)),
+              SelectableText(m.body, style: TextStyle(color: mine ? Colors.white : context.pal.ink, height: 1.3)),
               const SizedBox(height: 2),
               Align(
                 alignment: Alignment.centerRight,
                 child: Text(formatDate(m.createdAt, withTime: true),
-                    style: TextStyle(fontSize: 11, color: mine ? Colors.white70 : Colors.black45)),
+                    style: TextStyle(fontSize: 11, color: mine ? Colors.white70 : context.pal.muted2)),
               ),
             ],
           ),

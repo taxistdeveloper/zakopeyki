@@ -4,6 +4,7 @@ import '../api.dart';
 import '../main.dart';
 import '../nav.dart';
 import '../shop_models.dart';
+import '../theme.dart';
 import '../widgets/common.dart';
 import 'checkout_screen.dart';
 import 'home_shell.dart';
@@ -138,7 +139,7 @@ class _CartScreenState extends State<CartScreen> {
                                 onPressed: _busy.contains(line.product.id)
                                     ? null
                                     : () => _change(line.product.id, () => api.removeFromCart(line.product.id)),
-                                icon: const Icon(Icons.delete_outline_rounded, color: Colors.black45),
+                                icon: Icon(Icons.delete_outline_rounded, color: context.pal.muted2),
                               ),
                             ],
                           ),
@@ -170,13 +171,13 @@ class _CartScreenState extends State<CartScreen> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('${cart.count} шт.', style: const TextStyle(color: Colors.black54)),
+                        Text('${cart.count} шт.', style: TextStyle(color: context.pal.muted)),
                         Text(formatMoney(cart.total),
                             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
                       ],
                     ),
                   ),
-                  FilledButton(onPressed: _checkout, child: const Text('Оформить')),
+                  FilledButton(style: accentButton(), onPressed: _checkout, child: const Text('Оформить')),
                 ],
               ),
             )
@@ -197,7 +198,7 @@ class _QtyStepper extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
+        color: context.pal.subtle,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(

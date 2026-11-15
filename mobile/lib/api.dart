@@ -4,10 +4,14 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
+import 'assistant_models.dart';
 import 'config.dart';
+import 'extra_models.dart';
+import 'live_models.dart';
 import 'models.dart';
 import 'account_models.dart';
 import 'shop_models.dart';
+import 'social_models.dart';
 
 class ApiException implements Exception {
   final int status;
@@ -91,7 +95,8 @@ class Api {
     );
   }
 
-  Future<_Envelope> _multipart(String path, Map<String, String> fields, List<String> keep, List<String> files) {
+  Future<_Envelope> _multipart(String path, Map<String, String> fields, List<String> keep, List<String> files,
+      {String fileField = 'images[]'}) {
     final uri = siteUri('$kApiPrefix$path');
     return _send(() async {
       final req = http.MultipartRequest('POST', uri)
@@ -101,7 +106,7 @@ class Api {
         req.fields['keep_images[$i]'] = keep[i];
       }
       for (final f in files) {
-        req.files.add(await http.MultipartFile.fromPath('images[]', f));
+        req.files.add(await http.MultipartFile.fromPath(fileField, f));
       }
       return http.Response.fromStream(await _client.send(req));
     }, timeout: const Duration(seconds: 120));
@@ -365,6 +370,197 @@ class Api {
     return e.data['message']?.toString() ?? 'Письмо отправлено';
   }
 
+  // --- личный кабинет -------------------------------------------------------
+
+  Future<AppUser> uploadAvatar(String path) async {
+    final e = await _multipart('/me/avatar', const {}, const [], [path], fileField: 'avatar');
+    return AppUser.fromJson(e.data['user'] as Map<String, dynamic>);
+  }
+
+  Future<AppUser> saveBio(String bio) async =>
+      AppUser.fromJson((await _post('/me/bio', {'bio': bio})).data['user'] as Map<String, dynamic>);
+
+  Future<(double, int, List<ReviewItem>)> myReviews() async {
+    final e = await _get('/me/reviews');
+    final r = (e.data['rating'] as Map?) ?? const {};
+    return (
+      (r['average'] as num?)?.toDouble() ?? 0,
+      (r['count'] as num?)?.toInt() ?? 0,
+      ((e.data['items'] as List?) ?? []).map((x) => ReviewItem.fromJson(x as Map<String, dynamic>)).toList(),
+    );
+  }
+
+  Future<(List<Person>, List<Person>)> follows() async {
+    final e = await _get('/me/follows');
+    List<Person> list(Object? v) => ((v as List?) ?? []).map((x) => Person.fromJson(x as Map<String, dynamic>)).toList();
+    return (list(e.data['following']), list(e.data['followers']));
+  }
+
+  Future<ReferralInfo> referral() async => ReferralInfo.fromJson((await _get('/me/referral')).data);
+
+  Future<BonusInfo> bonuses() async => BonusInfo.fromJson((await _get('/me/bonuses')).data);
+
+  // --- истории ---------------------------------------------------------------
+
+  Future<List<StoryGroup>> stories() async => (((await _get('/stories')).data['groups'] as List?) ?? [])
+      .map((g) => StoryGroup.fromJson(g as Map<String, dynamic>))
+      .toList();
+
+  Future<void> createStory({
+    required String mediaPath,
+    String caption = '',
+    bool followersOnly = false,
+    bool commentsEnabled = true,
+    String productMode = 'auto',
+    int? productId,
+    bool notifySubs = true,
+  }) async {
+    await _multipart('/stories', {
+      'caption': caption,
+      'audience': followersOnly ? 'followers' : 'all',
+      'comments_enabled': commentsEnabled ? '1' : '0',
+      'product_mode': productMode,
+      'product_id': ?productId?.toString(),
+      'notify_subs': notifySubs ? '1' : '0',
+    }, const [], [mediaPath], fileField: 'media');
+  }
+
+  Future<void> deleteStory(int id) async {
+    await _post('/stories/$id/delete');
+  }
+
+  /// Ответ на историю — сообщение автору в личный чат. Возвращает id диалога.
+  Future<int> replyStory(int id, String body) async =>
+      ((await _post('/stories/$id/reply', {'body': body})).data['conversation_id'] as num).toInt();
+
+  // --- прямые эфиры --------------------------------------------------------
+
+  Future<List<LiveSummary>> streams() async => (((await _get('/streams')).data['items'] as List?) ?? [])
+      .map((e) => LiveSummary.fromJson(e as Map<String, dynamic>))
+      .toList();
+
+  Future<LiveState> stream(int id, {String? viewerKey}) async {
+    final e = await _get('/streams/$id', viewerKey != null ? {'viewer_key': viewerKey} : null);
+    return LiveState.fromJson(e.data['stream'] as Map<String, dynamic>);
+  }
+
+  Future<void> liveSignal(int id,
+      {required String role, required String peerId, required String type, Map<String, dynamic>? payload}) async {
+    await _post('/streams/$id/signal', {'role': role, 'peer_id': peerId, 'type': type, 'payload': ?payload});
+  }
+
+  Future<List<LiveSignal>> liveSignals(int id, {required String role, String? peerId, int after = 0}) async {
+    final e = await _get('/streams/$id/signals', {'role': role, 'peer_id': ?peerId, 'after': '$after'});
+    return ((e.data['signals'] as List?) ?? []).map((x) => LiveSignal.fromJson(x as Map<String, dynamic>)).toList();
+  }
+
+  Future<List<LiveComment>> liveComments(int id, {int after = 0}) async {
+    final e = await _get('/streams/$id/comments', {'after': '$after'});
+    return ((e.data['comments'] as List?) ?? []).map((x) => LiveComment.fromJson(x as Map<String, dynamic>)).toList();
+  }
+
+  Future<LiveComment> liveComment(int id, String body) async =>
+      LiveComment.fromJson((await _post('/streams/$id/comments', {'body': body})).data['comment'] as Map<String, dynamic>);
+
+  Future<int> liveLike(int id) async => ((await _post('/streams/$id/like')).data['likes'] as num?)?.toInt() ?? 0;
+
+  Future<int> liveJoinGiveaway(int id) async =>
+      ((await _post('/streams/$id/giveaway/join')).data['participants_count'] as num?)?.toInt() ?? 0;
+
+  Future<String?> liveDrawGiveaway(int id) async {
+    final d = (await _post('/streams/$id/giveaway/draw')).data;
+    final w = d['winner'];
+    return w is Map ? w['name']?.toString() : null;
+  }
+
+  Future<LiveSetupOptions> liveSetupOptions() async {
+    final d = (await _get('/streams/my-products')).data;
+    return LiveSetupOptions(
+      ((d['items'] as List?) ?? []).map(LiveProduct.fromJson).whereType<LiveProduct>().toList(),
+      ((d['durations'] as List?) ?? []).map((x) => (x as num).toInt()).toList(),
+      d['giveaway_enabled'] == true,
+    );
+  }
+
+  /// Запуск эфира. Возвращает id эфира.
+  Future<int> startLive(Map<String, dynamic> setup, {String? coverPath}) async {
+    final e = await _multipart('/streams', {'setup': jsonEncode(setup)}, const [], [?coverPath], fileField: 'cover');
+    return (e.data['stream_id'] as num).toInt();
+  }
+
+  Future<bool> liveHeartbeat(int id) async => (await _post('/streams/$id/heartbeat')).data['live'] == true;
+
+  Future<void> endLive(int id) async {
+    await _post('/streams/$id/end');
+  }
+
+  Future<LiveProduct?> liveFeature(int id, int productId) async =>
+      LiveProduct.fromJson((await _post('/streams/$id/feature', {'product_id': productId})).data['featured']);
+
+  // --- тексты страниц --------------------------------------------------------
+
+  Future<InfoPage> page(String slug) async =>
+      InfoPage.fromJson((await _get('/pages/$slug')).data['page'] as Map<String, dynamic>);
+
+  // --- конкурсы ----------------------------------------------------------------
+
+  Future<(bool, List<ContestCard>, bool)> contests({String status = '', String q = '', int page = 1}) async {
+    final e = await _get('/contests', {
+      if (status.isNotEmpty) 'status': status,
+      if (q.isNotEmpty) 'q': q,
+      'page': '$page',
+    });
+    return (
+      e.data['enabled'] != false,
+      ((e.data['items'] as List?) ?? []).map((c) => ContestCard.fromJson(c as Map<String, dynamic>)).toList(),
+      e.data['has_more'] == true,
+    );
+  }
+
+  Future<ContestDetail> contest(String slug) async =>
+      ContestDetail.fromJson((await _get('/contests/${Uri.encodeComponent(slug)}')).data['contest'] as Map<String, dynamic>);
+
+  Future<String> contestAction(String slug, String action, [Map<String, dynamic>? body]) async =>
+      (await _post('/contests/${Uri.encodeComponent(slug)}/$action', body)).data['message']?.toString() ?? 'Готово';
+
+  Future<MyContests> myContests() async {
+    final d = (await _get('/me/contests')).data;
+    List<Map<String, dynamic>> maps(Object? v) => ((v as List?) ?? []).map((e) => (e as Map).cast<String, dynamic>()).toList();
+    return MyContests(maps(d['participations']), maps(d['wins']),
+        maps(d['organized']).map(ContestCard.fromJson).toList());
+  }
+
+  // --- бизнес ------------------------------------------------------------------
+
+  Future<BizInfo> business() async => BizInfo.fromJson((await _get('/business')).data);
+
+  Future<String> buyBusinessPackage(int id, String idempotencyKey) async =>
+      (await _post('/business/packages/$id/buy', {'idempotency_key': idempotencyKey})).data['message']?.toString() ?? 'Готово';
+
+  Future<String> businessUpgrade(Map<String, String> fields, List<String> docs) async =>
+      (await _multipart('/business/upgrade', fields, const [], docs, fileField: 'docs[]')).data['message']?.toString() ??
+      'Заявка отправлена';
+
+  // --- реклама -----------------------------------------------------------------
+
+  Future<AdsData> ads() async => AdsData.fromJson((await _get('/ads')).data);
+
+  Future<String> createAd(Map<String, String> fields, String imagePath) async =>
+      (await _multipart('/ads', fields, const [], [imagePath], fileField: 'image')).data['message']?.toString() ?? 'Отправлено';
+
+  Future<String> resubmitAd(int id, Map<String, String> fields, String? imagePath) async =>
+      (await _multipart('/ads/$id/resubmit', fields, const [], [?imagePath], fileField: 'image')).data['message']?.toString() ??
+      'Отправлено';
+
+  /// Оплата кампании: ссылка на форму банка или null, если уже идёт показ.
+  Future<String?> payAd(int id, String idempotencyKey) async {
+    final d = (await _post('/ads/$id/pay', {'idempotency_key': idempotencyKey})).data;
+    return d['payment_url'] as String?;
+  }
+
+  Future<String> adRunning(int id, {required bool pause}) async =>
+      (await _post('/ads/$id/${pause ? 'pause' : 'resume'}')).data['message']?.toString() ?? 'Готово';
+
   // --- объявления --------------------------------------------------------
 
   Future<ListingForm> listingForm() async => ListingForm.fromJson((await _get('/listings/form')).data);
@@ -539,6 +735,26 @@ class Api {
   List<ProductCard> _cards(Object? list) => ((list as List?) ?? [])
       .map((e) => ProductCard.fromJson(e as Map<String, dynamic>))
       .toList();
+
+  // ---------------------------------------------------------------- ИИ-помощник ZAK
+
+  Future<ZakInfo> assistant() async => ZakInfo.fromJson((await _get('/assistant')).data);
+
+  Future<ZakReply> assistantSend(String message) async =>
+      ZakReply.fromJson((await _post('/assistant/messages', {'message': message})).data);
+
+  Future<(String, List<ZakMessage>)> assistantPoll(int afterId) async {
+    final e = await _get('/assistant/messages', {'after_id': '$afterId'});
+    final list = ((e.data['messages'] as List?) ?? [])
+        .map((m) => ZakMessage.fromJson((m as Map).cast<String, dynamic>()))
+        .toList();
+    return ((e.data['conversation'] as Map?)?['status']?.toString() ?? 'ai_active', list);
+  }
+
+  Future<void> assistantClear() => _post('/assistant/clear');
+
+  Future<void> assistantFeedback(int messageId, int rating) =>
+      _post('/assistant/feedback', {'message_id': messageId, 'rating': rating});
 }
 
 class _Envelope {

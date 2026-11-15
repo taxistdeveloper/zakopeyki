@@ -12,6 +12,7 @@ import '../nav.dart';
 import '../shop_models.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import 'info_page_screen.dart';
 
 /// Подача / редактирование объявления. Типы и правила — из GET /listings/form.
 /// Возвращает id сохранённого объявления.
@@ -392,7 +393,7 @@ class _ListingFormScreenState extends State<ListingFormScreen> {
                       suffixIcon: const Icon(Icons.expand_more_rounded),
                     ),
                     child: Text(_categoryLabel ?? 'Выберите',
-                        style: TextStyle(color: _categoryLabel == null ? Colors.black45 : null)),
+                        style: TextStyle(color: _categoryLabel == null ? context.pal.muted2 : null)),
                   ),
                 ),
               ],
@@ -430,7 +431,7 @@ class _ListingFormScreenState extends State<ListingFormScreen> {
                           _specs.remove(s);
                           s.dispose();
                         }),
-                        icon: const Icon(Icons.close_rounded, color: Colors.black38),
+                        icon: Icon(Icons.close_rounded, color: context.pal.faint),
                       ),
                     ],
                   ),
@@ -468,13 +469,13 @@ class _ListingFormScreenState extends State<ListingFormScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Row(
+              Row(
                 children: [
-                  Icon(Icons.storefront_rounded, size: 18, color: Colors.black45),
+                  Icon(Icons.storefront_rounded, size: 18, color: context.pal.muted2),
                   SizedBox(width: 8),
                   Expanded(
                     child: Text('Передача: самовывоз. Доставку СДЭК можно настроить на сайте.',
-                        style: TextStyle(color: Colors.black54, fontSize: 13)),
+                        style: TextStyle(color: context.pal.muted, fontSize: 13)),
                   ),
                 ],
               ),
@@ -505,7 +506,7 @@ class _ListingFormScreenState extends State<ListingFormScreen> {
                     controlAffinity: ListTileControlAffinity.leading,
                     contentPadding: EdgeInsets.zero,
                     title: GestureDetector(
-                      onTap: () => openWeb(context, '/rules', title: 'Правила размещения'),
+                      onTap: () => openInfoPage(context, 'listing-rules', title: 'Правила размещения'),
                       child: const Text.rich(TextSpan(children: [
                         TextSpan(text: 'Согласен с '),
                         TextSpan(text: 'правилами размещения', style: TextStyle(color: kBrand, fontWeight: FontWeight.w600)),
@@ -541,7 +542,7 @@ class _ListingFormScreenState extends State<ListingFormScreen> {
                   width: 92,
                   height: 92,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEFF6FF),
+                    color: context.pal.brandSoft,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: kBrand.withValues(alpha: 0.4)),
                   ),
@@ -559,7 +560,7 @@ class _ListingFormScreenState extends State<ListingFormScreen> {
         ),
         const SizedBox(height: 8),
         Text('До $max фото. Первое — обложка; нажмите на фото, чтобы сделать его обложкой.',
-            style: const TextStyle(color: Colors.black54, fontSize: 12.5)),
+            style: TextStyle(color: context.pal.muted, fontSize: 12.5)),
       ],
     );
   }
@@ -599,7 +600,7 @@ class _ListingFormScreenState extends State<ListingFormScreen> {
               onTap: () => setState(() => _photos.removeAt(i)),
               child: Container(
                 padding: const EdgeInsets.all(3),
-                decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
                 child: const Icon(Icons.close_rounded, size: 14, color: Colors.white),
               ),
             ),

@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -24,6 +24,22 @@ class Session extends ChangeNotifier {
 
   static const _refreshKey = 'refresh_token';
   static const _deviceKey = 'device_id';
+  static const _themeKey = 'theme_mode';
+
+  /// Оформление: системное / светлое / тёмное. Хранится на устройстве.
+  ThemeMode themeMode = ThemeMode.system;
+
+  Future<void> loadThemeMode() async {
+    final v = await _storage.read(key: _themeKey);
+    themeMode = ThemeMode.values.where((m) => m.name == v).firstOrNull ?? ThemeMode.system;
+    notifyListeners();
+  }
+
+  Future<void> setThemeMode(ThemeMode mode) async {
+    themeMode = mode;
+    notifyListeners();
+    await _storage.write(key: _themeKey, value: mode.name);
+  }
 
   String? _refreshToken;
   Future<bool>? _refreshing;

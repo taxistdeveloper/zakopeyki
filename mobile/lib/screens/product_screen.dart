@@ -6,6 +6,7 @@ import '../config.dart';
 import '../main.dart';
 import '../models.dart';
 import '../nav.dart';
+import '../theme.dart';
 import '../widgets/product_tile.dart';
 import 'auction_screen.dart';
 import 'cart_screen.dart';
@@ -61,7 +62,7 @@ class _ProductScreenState extends State<ProductScreen> {
   Widget build(BuildContext context) {
     final d = _data;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.pal.surface,
       appBar: AppBar(
         title: Text(d?.card.title ?? ''),
         actions: [
@@ -165,7 +166,7 @@ class _ProductScreenState extends State<ProductScreen> {
                   ],
                 ),
                 const SizedBox(height: 10),
-                Text(d.card.priceText, style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                Text(d.card.priceText, style: display(26, weight: FontWeight.w800, color: context.pal.ink)),
                 const SizedBox(height: 6),
                 Text(d.card.title, style: text.titleLarge),
                 const SizedBox(height: 8),
@@ -197,7 +198,7 @@ class _ProductScreenState extends State<ProductScreen> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(child: Text(c.name, style: const TextStyle(color: Colors.black54))),
+                          Expanded(child: Text(c.name, style: TextStyle(color: context.pal.muted))),
                           const SizedBox(width: 12),
                           Expanded(child: Text(c.value)),
                         ],
@@ -218,9 +219,9 @@ class _ProductScreenState extends State<ProductScreen> {
   Widget _meta(IconData icon, String label) => Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: Colors.black45),
+          Icon(icon, size: 16, color: context.pal.muted2),
           const SizedBox(width: 4),
-          Flexible(child: Text(label, style: const TextStyle(color: Colors.black54))),
+          Flexible(child: Text(label, style: TextStyle(color: context.pal.muted))),
         ],
       );
 
@@ -229,7 +230,7 @@ class _ProductScreenState extends State<ProductScreen> {
       margin: const EdgeInsets.only(top: 16),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFEF2F2),
+        color: const Color(0x1FDC2626),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -250,14 +251,14 @@ class _ProductScreenState extends State<ProductScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: context.pal.subtle,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
           CircleAvatar(
             radius: 22,
-            backgroundColor: const Color(0xFFDBEAFE),
+            backgroundColor: context.pal.brandSoft2,
             foregroundImage: s.avatar != null ? NetworkImage(s.avatar!) : null,
             child: Text(s.name.isEmpty ? '?' : s.name.characters.first,
                 style: const TextStyle(color: Color(0xFF2563EB), fontWeight: FontWeight.w700)),
@@ -283,10 +284,10 @@ class _ProductScreenState extends State<ProductScreen> {
                 ),
                 if (s.ratingCount > 0)
                   Text('★ ${s.rating.toStringAsFixed(1)} · отзывов: ${s.ratingCount}',
-                      style: const TextStyle(color: Colors.black54, fontSize: 12)),
+                      style: TextStyle(color: context.pal.muted, fontSize: 12)),
                 if (s.since != null)
                   Text('На сайте с ${_date(s.since!)}',
-                      style: const TextStyle(color: Colors.black54, fontSize: 12)),
+                      style: TextStyle(color: context.pal.muted, fontSize: 12)),
               ],
             ),
           ),
@@ -378,6 +379,7 @@ class _ProductScreenState extends State<ProductScreen> {
         ),
         Expanded(
           child: FilledButton(
+            style: accentButton(),
             onPressed: () => requireLogin(
               context,
               () async {
@@ -404,9 +406,9 @@ class _ProductScreenState extends State<ProductScreen> {
     return SafeArea(
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+        decoration: BoxDecoration(
+          color: context.pal.surface,
+          border: Border(top: BorderSide(color: context.pal.line)),
         ),
         child: Row(children: withGaps),
       ),

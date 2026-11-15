@@ -8,11 +8,10 @@ import 'theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.dark,
-  ));
-  final session = Session()..start();
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(statusBarColor: Colors.transparent));
+  final session = Session()
+    ..loadThemeMode()
+    ..start();
   runApp(ZakopeykiApp(session: session));
 }
 
@@ -33,15 +32,23 @@ class ZakopeykiApp extends StatelessWidget {
 
   final Session session;
 
+  static final _light = buildTheme();
+  static final _dark = buildTheme(Brightness.dark);
+
   @override
   Widget build(BuildContext context) {
     return SessionScope(
       session: session,
-      child: MaterialApp(
-        title: 'Закопейки',
-        debugShowCheckedModeBanner: false,
-        theme: buildTheme(),
-        home: const _Root(),
+      child: ListenableBuilder(
+        listenable: session,
+        builder: (_, _) => MaterialApp(
+          title: 'Закопейки',
+          debugShowCheckedModeBanner: false,
+          theme: _light,
+          darkTheme: _dark,
+          themeMode: session.themeMode,
+          home: const _Root(),
+        ),
       ),
     );
   }
@@ -54,7 +61,15 @@ class _Root extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = SessionScope.of(context);
     if (s.loading && s.config == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        body: Center(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Image.asset(context.pal.dark ? 'assets/img/logo_header_dark.png' : 'assets/img/logo_header.png', width: 220),
+            const SizedBox(height: 28),
+            const SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 3)),
+          ]),
+        ),
+      );
     }
     if (s.config == null) {
       return Scaffold(
@@ -65,7 +80,7 @@ class _Root extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.wifi_off_rounded, size: 56, color: Colors.black38),
+                  Icon(Icons.wifi_off_rounded, size: 56, color: context.pal.faint),
                   const SizedBox(height: 16),
                   Text(s.startupError ?? 'Нет соединения',
                       textAlign: TextAlign.center,

@@ -81,7 +81,7 @@ class _ChatsScreenState extends State<ChatsScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Сообщения')),
-      backgroundColor: Colors.white,
+      backgroundColor: context.pal.surface,
       body: body,
     );
   }
@@ -115,7 +115,7 @@ class _ChatTile extends StatelessWidget {
                       bottom: 0,
                       child: Container(
                         decoration: BoxDecoration(
-                          border: Border.all(color: Colors.white, width: 2),
+                          border: Border.all(color: context.pal.surface, width: 2),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: ProductThumb(c.product!.image, size: 24),
@@ -138,7 +138,7 @@ class _ChatTile extends StatelessWidget {
                             style: TextStyle(fontWeight: unread ? FontWeight.w800 : FontWeight.w600, fontSize: 15.5)),
                       ),
                       Text(chatTime(c.lastMessageAt),
-                          style: TextStyle(color: unread ? kBrand : Colors.black45, fontSize: 12.5)),
+                          style: TextStyle(color: unread ? kBrand : context.pal.muted2, fontSize: 12.5)),
                     ],
                   ),
                   if (c.product != null)
@@ -155,7 +155,7 @@ class _ChatTile extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: unread ? Colors.black87 : Colors.black54,
+                            color: unread ? context.pal.ink : context.pal.muted,
                             fontWeight: unread ? FontWeight.w600 : FontWeight.w400,
                           ),
                         ),
@@ -190,7 +190,7 @@ class PeerAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     return CircleAvatar(
       radius: radius,
-      backgroundColor: const Color(0xFFDBEAFE),
+      backgroundColor: context.pal.brandSoft2,
       foregroundImage: peer.avatar != null ? NetworkImage(peer.avatar!) : null,
       child: Text(peer.initial, style: TextStyle(color: kBrand, fontWeight: FontWeight.w700, fontSize: radius * 0.8)),
     );

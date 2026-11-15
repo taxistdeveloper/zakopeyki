@@ -107,8 +107,8 @@ class _OrderScreenState extends State<OrderScreen> {
           children: [
             Text('Товар отправлен', style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 6),
-            const Text('Укажите трек-номер — покупатель сможет отследить посылку.',
-                style: TextStyle(color: Colors.black54)),
+            Text('Укажите трек-номер — покупатель сможет отследить посылку.',
+                style: TextStyle(color: context.pal.muted)),
             const SizedBox(height: 16),
             TextField(controller: tracking, autofocus: true, decoration: const InputDecoration(labelText: 'Трек-номер')),
             const SizedBox(height: 12),
@@ -144,8 +144,8 @@ class _OrderScreenState extends State<OrderScreen> {
                 Text('Проблема с заказом',
                     style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 6),
-                const Text('Деньги останутся заблокированы, пока вы не договоритесь с продавцом или не решит арбитраж.',
-                    style: TextStyle(color: Colors.black54)),
+                Text('Деньги останутся заблокированы, пока вы не договоритесь с продавцом или не решит арбитраж.',
+                    style: TextStyle(color: context.pal.muted)),
                 const SizedBox(height: 8),
                 RadioGroup<String>(
                   groupValue: reason,
@@ -211,7 +211,7 @@ class _OrderScreenState extends State<OrderScreen> {
                                 Text(o.productTitle, style: const TextStyle(fontWeight: FontWeight.w600)),
                                 const SizedBox(height: 4),
                                 Text('${o.quantity} шт. · ${o.isBuyer ? 'Продавец' : 'Покупатель'}: ${o.counterparty}',
-                                    style: const TextStyle(color: Colors.black54, fontSize: 13)),
+                                    style: TextStyle(color: context.pal.muted, fontSize: 13)),
                                 const SizedBox(height: 6),
                                 StatusPill(o.statusLabel, color: orderStatusColor(o)),
                               ],
@@ -225,7 +225,7 @@ class _OrderScreenState extends State<OrderScreen> {
                     padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                     child: OutlinedButton.icon(
                       onPressed: () => openChatFor(context, orderId: o.id),
-                      style: OutlinedButton.styleFrom(backgroundColor: Colors.white),
+                      style: OutlinedButton.styleFrom(backgroundColor: context.pal.surface),
                       icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
                       label: Text(o.isBuyer ? 'Написать продавцу' : 'Написать покупателю'),
                     ),
@@ -278,7 +278,7 @@ class _OrderScreenState extends State<OrderScreen> {
                           Row(children: [
                             for (var i = 1; i <= 5; i++)
                               Icon(Icons.star_rounded,
-                                  color: i <= o.myRating! ? const Color(0xFFF59E0B) : Colors.black12),
+                                  color: i <= o.myRating! ? const Color(0xFFF59E0B) : context.pal.hairline),
                           ]),
                           if (o.myReviewText != null) ...[const SizedBox(height: 6), Text(o.myReviewText!)],
                         ],
@@ -417,7 +417,7 @@ class _ReviewFormState extends State<_ReviewForm> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text('${widget.order.counterparty} · отзыв увидят другие пользователи',
-              style: const TextStyle(color: Colors.black54, fontSize: 13)),
+              style: TextStyle(color: context.pal.muted, fontSize: 13)),
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -426,7 +426,7 @@ class _ReviewFormState extends State<_ReviewForm> {
                 IconButton(
                   onPressed: () => setState(() => _rating = i),
                   iconSize: 38,
-                  icon: Icon(Icons.star_rounded, color: i <= _rating ? const Color(0xFFF59E0B) : Colors.black12),
+                  icon: Icon(Icons.star_rounded, color: i <= _rating ? const Color(0xFFF59E0B) : context.pal.hairline),
                 ),
             ],
           ),

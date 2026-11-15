@@ -3,7 +3,12 @@ import 'package:flutter/material.dart';
 import '../api.dart';
 import '../main.dart';
 import '../theme.dart';
+import '../widgets/common.dart';
 import 'account_screens.dart';
+import 'ads_screen.dart';
+import 'business_screen.dart';
+import 'cabinet_screens.dart';
+import 'contests_screen.dart';
 import 'cart_screen.dart';
 import 'delete_account_screen.dart';
 import 'home_shell.dart';
@@ -35,13 +40,18 @@ class ProfileScreen extends StatelessWidget {
         child: ListView(
           children: [
             Container(
-              color: Colors.white,
-              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.fromLTRB(14, 4, 14, 0),
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                gradient: kBrandGradient,
+                borderRadius: BorderRadius.circular(kRadiusLg),
+                boxShadow: kLiftShadow,
+              ),
               child: Row(
                 children: [
                   CircleAvatar(
-                    radius: 30,
-                    backgroundColor: const Color(0xFFDBEAFE),
+                    radius: 32,
+                    backgroundColor: Colors.white,
                     // буква под фото: видна, пока фото грузится или если его нет
                     foregroundImage: user.avatar != null ? NetworkImage(user.avatar!) : null,
                     child: Text(user.avatarLetter,
@@ -52,19 +62,15 @@ class ProfileScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(user.name,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w700)),
-                        Text(user.email, style: const TextStyle(color: Colors.black54)),
+                        Text(user.name, style: display(19, weight: FontWeight.w700, color: Colors.white)),
+                        Text(user.email, style: const TextStyle(color: Colors.white70)),
                         if (user.isBusiness)
-                          const Padding(
-                            padding: EdgeInsets.only(top: 4),
-                            child: Text(
-                              'Бизнес-аккаунт',
-                              style: TextStyle(color: Color(0xFF2563EB), fontSize: 12),
-                            ),
+                          Container(
+                            margin: const EdgeInsets.only(top: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(999)),
+                            child: const Text('✓ Бизнес-аккаунт',
+                                style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
                           ),
                       ],
                     ),
@@ -72,9 +78,9 @@ class ProfileScreen extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 14),
             if (!user.emailVerified) const _VerifyEmailBanner(),
-            _group([
+            _group(context, [
               _tile(context, Icons.sell_outlined, 'Мои объявления',
                   () => _push(context, const MyListingsScreen())),
               _tile(context, Icons.shopping_bag_outlined, 'Мои покупки',
@@ -85,27 +91,42 @@ class ProfileScreen extends StatelessWidget {
                   () => _push(context, const CartScreen()),
                   badge: session.cartCount),
             ]),
-            const Padding(
+            Padding(
               padding: EdgeInsets.fromLTRB(16, 16, 16, 6),
-              child: Text('Ещё', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w600)),
+              child: Text('Ещё', style: TextStyle(color: context.pal.muted, fontWeight: FontWeight.w600)),
             ),
-            _group([
+            _group(context, [
               _tile(context, Icons.account_balance_wallet_outlined, 'Кошелёк',
                   () => _push(context, const WalletScreen())),
               _tile(context, Icons.notifications_none_rounded, 'Уведомления',
                   () => _push(context, const NotificationsScreen())),
               _tile(context, Icons.storefront_outlined, 'Мой профиль продавца',
                   () => _push(context, SellerScreen(id: user.id))),
+              _tile(context, Icons.star_outline_rounded, 'Отзывы обо мне',
+                  () => _push(context, const MyReviewsScreen())),
+              _tile(context, Icons.people_outline_rounded, 'Подписки',
+                  () => _push(context, const FollowsScreen())),
+              _tile(context, Icons.card_giftcard_rounded, 'Бонусы',
+                  () => _push(context, const BonusesScreen())),
+              _tile(context, Icons.person_add_alt_rounded, 'Пригласить друзей',
+                  () => _push(context, const ReferralScreen())),
+              _tile(context, Icons.emoji_events_outlined, 'Конкурсы и розыгрыши',
+                  () => _push(context, const ContestsScreen())),
+              _tile(context, Icons.workspace_premium_outlined, 'Бизнес-аккаунт',
+                  () => _push(context, const BusinessScreen())),
+              _tile(context, Icons.campaign_outlined, 'Реклама', () => _push(context, const AdsScreen())),
               _tile(context, Icons.manage_accounts_outlined, 'Личные данные',
                   () => _push(context, const PersonalDataScreen())),
               _tile(context, Icons.lock_outline_rounded, 'Пароль и 2FA',
                   () => _push(context, const SecurityScreen())),
               _tile(context, Icons.support_agent_rounded, 'Поддержка',
                   () => _push(context, const SupportListScreen())),
+              _tile(context, Icons.dark_mode_outlined, 'Оформление · ${themeModeLabel(SessionScope.of(context).themeMode)}',
+                  () => showThemePicker(context)),
             ]),
             const SizedBox(height: 8),
             Container(
-              color: Colors.white,
+              color: context.pal.surface,
               child: ListTile(
                 leading: const Icon(Icons.logout_rounded, color: Colors.redAccent),
                 title: const Text('Выйти', style: TextStyle(color: Colors.redAccent)),
@@ -127,7 +148,7 @@ class ProfileScreen extends StatelessWidget {
             Center(
               child: TextButton(
                 onPressed: () => _push(context, const DeleteAccountScreen()),
-                style: TextButton.styleFrom(foregroundColor: Colors.black45),
+                style: TextButton.styleFrom(foregroundColor: context.pal.muted2),
                 child: const Text('Удалить аккаунт'),
               ),
             ),
@@ -141,13 +162,9 @@ class ProfileScreen extends StatelessWidget {
   static Future<void> _push(BuildContext context, Widget screen) =>
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
 
-  static Widget _group(List<Widget> tiles) => Container(
-        margin: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-        ),
+  static Widget _group(BuildContext context, List<Widget> tiles) => Container(
+        margin: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: softCard(context),
         clipBehavior: Clip.antiAlias,
         child: Column(children: tiles),
       );
@@ -156,7 +173,7 @@ class ProfileScreen extends StatelessWidget {
       ListTile(
         leading: Container(
           padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(10)),
+          decoration: BoxDecoration(color: context.pal.brandSoft, borderRadius: BorderRadius.circular(10)),
           child: Icon(icon, color: kBrand, size: 20),
         ),
         title: Text(title),
@@ -207,9 +224,9 @@ class _VerifyEmailBannerState extends State<_VerifyEmailBanner> {
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
       padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFBEB),
+        color: const Color(0x1FF59E0B),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFDE68A)),
+        border: Border.all(color: const Color(0x66F59E0B)),
       ),
       child: Row(
         children: [
