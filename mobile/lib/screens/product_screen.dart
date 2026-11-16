@@ -205,6 +205,7 @@ class _ProductScreenState extends State<ProductScreen> {
                       ),
                     ),
                 ],
+                if (d.delivery != null) _DeliveryBox(d.delivery!),
                 const SizedBox(height: 20),
                 _sellerCard(d.card.seller),
               ],
@@ -456,5 +457,92 @@ class _ProductScreenState extends State<ProductScreen> {
       buf.write(s[i]);
     }
     return '$buf ₸';
+  }
+}
+
+/// «Доставка» после характеристик — как на странице товара сайта: заголовок, подсказка, «Подробнее».
+class _DeliveryBox extends StatefulWidget {
+  const _DeliveryBox(this.info);
+
+  final DeliveryInfo info;
+
+  @override
+  State<_DeliveryBox> createState() => _DeliveryBoxState();
+}
+
+class _DeliveryBoxState extends State<_DeliveryBox> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.pal;
+    final info = widget.info;
+    return Container(
+      margin: const EdgeInsets.only(top: 20),
+      decoration: softCard(context, radius: 18),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: info.details.isEmpty ? null : () => setState(() => _open = !_open),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(color: p.brandSoft, borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.local_shipping_outlined, color: kBrand, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text.rich(TextSpan(children: [
+                      const TextSpan(text: 'Доставка', style: TextStyle(fontWeight: FontWeight.w700)),
+                      TextSpan(text: '  ·  ${info.title}', style: TextStyle(color: p.ink2)),
+                    ])),
+                    const SizedBox(height: 2),
+                    Text(info.hint, style: TextStyle(fontSize: 12.5, color: p.muted)),
+                  ]),
+                ),
+                if (info.details.isNotEmpty)
+                  AnimatedRotation(
+                    turns: _open ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(Icons.expand_more_rounded, color: p.muted),
+                  ),
+              ]),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 200),
+                alignment: Alignment.topCenter,
+                child: !_open
+                    ? const SizedBox(width: double.infinity)
+                    : Padding(
+                        padding: const EdgeInsets.only(top: 10, left: 48),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          for (final line in info.details)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 6),
+                              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 6, right: 8),
+                                  child: Container(
+                                    width: 5,
+                                    height: 5,
+                                    decoration: BoxDecoration(color: p.faint, shape: BoxShape.circle),
+                                  ),
+                                ),
+                                Expanded(child: Text(line, style: TextStyle(fontSize: 13, color: p.muted, height: 1.35))),
+                              ]),
+                            ),
+                        ]),
+                      ),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
   }
 }

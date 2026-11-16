@@ -196,6 +196,7 @@ class ProductDetail {
   final String? exchangeFor;
   final int views;
   final AuctionInfo? auction;
+  final DeliveryInfo? delivery;
 
   ProductDetail({
     required this.card,
@@ -207,6 +208,7 @@ class ProductDetail {
     required this.exchangeFor,
     required this.views,
     required this.auction,
+    this.delivery,
   });
 
   factory ProductDetail.fromJson(Map<String, dynamic> root) {
@@ -226,8 +228,32 @@ class ProductDetail {
       auction: j['auction'] is Map<String, dynamic>
           ? AuctionInfo.fromJson(j['auction'] as Map<String, dynamic>)
           : null,
+      // Нет ключа — сервер старой версии: показываем общий блок, как на сайте без настроек доставки.
+      delivery: !j.containsKey('delivery')
+          ? DeliveryInfo.fallback
+          : (j['delivery'] is Map<String, dynamic> ? DeliveryInfo.fromJson(j['delivery'] as Map<String, dynamic>) : null),
     );
   }
+}
+
+/// Блок «Доставка» карточки товара (тексты считает сервер, как на сайте).
+class DeliveryInfo {
+  final String title;
+  final String hint;
+  final List<String> details;
+  const DeliveryInfo(this.title, this.hint, this.details);
+
+  factory DeliveryInfo.fromJson(Map<String, dynamic> j) => DeliveryInfo(
+        _str(j['title']),
+        _str(j['hint']),
+        ((j['details'] as List?) ?? []).map((e) => e.toString()).where((e) => e.isNotEmpty).toList(),
+      );
+
+  static const fallback = DeliveryInfo(
+    'Доставка по Казахстану',
+    'Стоимость рассчитывается после указания адреса доставки.',
+    ['Оплата через эскроу — деньги у площадки до получения'],
+  );
 }
 
 class ProductPage {
