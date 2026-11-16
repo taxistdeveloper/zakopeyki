@@ -5,7 +5,12 @@ import '../models.dart';
 import '../theme.dart';
 
 class ProductTile extends StatelessWidget {
-  const ProductTile({super.key, required this.item, required this.onTap, this.onFavorite});
+  const ProductTile({
+    super.key,
+    required this.item,
+    required this.onTap,
+    this.onFavorite,
+  });
 
   final ProductCard item;
   final VoidCallback onTap;
@@ -14,72 +19,95 @@ class ProductTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AspectRatio(
-              aspectRatio: 1,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  ProductImage(url: item.image, type: item.type),
-                  Positioned(
-                    left: 8,
-                    top: 8,
-                    child: TypeBadge(type: item.type, label: item.typeLabel),
-                  ),
-                  if (onFavorite != null)
+    return DecoratedBox(
+      decoration: softCard(context, radius: kRadius),
+      child: Material(
+        color: context.pal.surface,
+        borderRadius: BorderRadius.circular(kRadius),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AspectRatio(
+                aspectRatio: 1,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ProductImage(url: item.image, type: item.type),
                     Positioned(
-                      right: 4,
-                      top: 4,
-                      child: IconButton(
-                        onPressed: onFavorite,
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.white.withValues(alpha: 0.9),
-                          minimumSize: const Size(36, 36),
-                        ),
-                        icon: Icon(
-                          item.favorited ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                          size: 20,
-                          color: item.favorited ? Colors.redAccent : Colors.black54,
+                      left: 8,
+                      top: 8,
+                      child: TypeBadge(type: item.type, label: item.typeLabel),
+                    ),
+                    if (onFavorite != null)
+                      Positioned(
+                        right: 4,
+                        top: 4,
+                        child: IconButton(
+                          onPressed: onFavorite,
+                          style: IconButton.styleFrom(
+                            backgroundColor: context.pal.surface.withValues(
+                              alpha: 0.92,
+                            ),
+                            minimumSize: const Size(36, 36),
+                            elevation: 1,
+                            shadowColor: const Color(0x331E3A8A),
+                          ),
+                          icon: Icon(
+                            item.favorited
+                                ? Icons.favorite_rounded
+                                : Icons.favorite_border_rounded,
+                            size: 20,
+                            color: item.favorited
+                                ? Colors.redAccent
+                                : context.pal.muted,
+                          ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.priceText,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: text.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(item.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: text.bodyMedium),
-                  if (item.location.isNotEmpty) ...[
-                    const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      item.location,
+                      item.priceText,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: text.bodySmall?.copyWith(color: Colors.black45),
+                      style: display(
+                        16.5,
+                        weight: FontWeight.w800,
+                        color: context.pal.ink,
+                      ),
                     ),
+                    const SizedBox(height: 3),
+                    Text(
+                      item.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: text.bodyMedium?.copyWith(
+                        color: context.pal.ink2,
+                        height: 1.25,
+                      ),
+                    ),
+                    if (item.location.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        item.location,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: text.bodySmall?.copyWith(color: context.pal.muted2),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -87,7 +115,12 @@ class ProductTile extends StatelessWidget {
 }
 
 class ProductImage extends StatelessWidget {
-  const ProductImage({super.key, required this.url, required this.type, this.fit = BoxFit.cover});
+  const ProductImage({
+    super.key,
+    required this.url,
+    required this.type,
+    this.fit = BoxFit.cover,
+  });
 
   final String? url;
   final String type;
@@ -96,27 +129,31 @@ class ProductImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final placeholder = Container(
-      color: const Color(0xFFEFF6FF),
+      color: context.pal.brandSoft,
       alignment: Alignment.center,
-      child: Icon(_typeIcon(type), size: 40, color: kBrand.withValues(alpha: 0.5)),
+      child: Icon(
+        _typeIcon(type),
+        size: 40,
+        color: kBrand.withValues(alpha: 0.5),
+      ),
     );
     if (url == null) return placeholder;
     return CachedNetworkImage(
       imageUrl: url!,
       fit: fit,
-      placeholder: (_, _) => Container(color: const Color(0xFFF1F5F9)),
+      placeholder: (_, _) => Container(color: context.pal.subtle),
       errorWidget: (_, _, _) => placeholder,
     );
   }
 }
 
 IconData _typeIcon(String type) => switch (type) {
-      'auction' => Icons.gavel_rounded,
-      'service' => Icons.handyman_rounded,
-      'exchange' => Icons.swap_horiz_rounded,
-      'free' => Icons.volunteer_activism_rounded,
-      _ => Icons.inventory_2_outlined,
-    };
+  'auction' => Icons.gavel_rounded,
+  'service' => Icons.handyman_rounded,
+  'exchange' => Icons.swap_horiz_rounded,
+  'free' => Icons.volunteer_activism_rounded,
+  _ => Icons.inventory_2_outlined,
+};
 
 class TypeBadge extends StatelessWidget {
   const TypeBadge({super.key, required this.type, required this.label});
@@ -137,14 +174,25 @@ class TypeBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
         color: _colors[type] ?? const Color(0xFFF59E0B),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(999),
+        boxShadow: [
+          BoxShadow(
+            color: (_colors[type] ?? kGold).withValues(alpha: 0.35),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Text(
         label,
-        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -156,8 +204,8 @@ SliverGridDelegate productGridDelegate(BuildContext context) {
   final columns = width > 900 ? 4 : (width > 600 ? 3 : 2);
   return SliverGridDelegateWithFixedCrossAxisCount(
     crossAxisCount: columns,
-    mainAxisSpacing: 10,
-    crossAxisSpacing: 10,
-    childAspectRatio: 0.62,
+    mainAxisSpacing: 12,
+    crossAxisSpacing: 12,
+    childAspectRatio: 0.63,
   );
 }

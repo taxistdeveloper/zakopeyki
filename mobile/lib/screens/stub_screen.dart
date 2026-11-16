@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../theme.dart';
+
 import '../main.dart';
 import '../nav.dart';
-import '../theme.dart';
 
 /// Сайт закрыт до открытия (stub_mode), у пользователя нет раннего доступа.
 class StubScreen extends StatelessWidget {
@@ -15,7 +16,7 @@ class StubScreen extends StatelessWidget {
     final opensAt = raw.length >= 10 ? DateTime.tryParse(raw.substring(0, 10)) : null;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.pal.surface,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(28),
@@ -23,7 +24,9 @@ class StubScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(Icons.storefront_rounded, size: 72, color: kBrand),
+              Image.asset('assets/img/coin_small.png', height: 96),
+              const SizedBox(height: 16),
+              Image.asset((context.pal.dark ? 'assets/img/logo_header_dark.png' : 'assets/img/logo_header.png'), height: 48),
               const SizedBox(height: 20),
               Text(
                 'Закопейки скоро откроются',
@@ -36,7 +39,7 @@ class StubScreen extends StatelessWidget {
                     ? 'Открытие ${opensAt.day.toString().padLeft(2, '0')}.${opensAt.month.toString().padLeft(2, '0')}.${opensAt.year}'
                     : 'Совсем скоро',
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.black54, fontSize: 16),
+                style: TextStyle(color: context.pal.muted, fontSize: 16),
               ),
               const SizedBox(height: 32),
               if (session.loggedIn) ...[

@@ -69,7 +69,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             IconButton(tooltip: 'Очистить', onPressed: _clear, icon: const Icon(Icons.delete_sweep_outlined)),
         ],
       ),
-      backgroundColor: Colors.white,
+      backgroundColor: context.pal.surface,
       body: items == null
           ? (_error != null ? ErrorView(message: _error!, onRetry: _load) : const Center(child: CircularProgressIndicator()))
           : items.isEmpty
@@ -84,14 +84,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       return ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                         leading: CircleAvatar(
-                          backgroundColor: n.read ? const Color(0xFFF1F5F9) : const Color(0xFFDBEAFE),
-                          child: Icon(_icon(n), color: n.read ? Colors.black38 : kBrand, size: 20),
+                          backgroundColor: n.read ? context.pal.subtle : context.pal.brandSoft2,
+                          child: Icon(_icon(n), color: n.read ? context.pal.faint : kBrand, size: 20),
                         ),
                         title: Text(n.message,
                             style: TextStyle(fontWeight: n.read ? FontWeight.w400 : FontWeight.w600, fontSize: 14.5)),
                         subtitle: Text(formatDate(n.createdAt, withTime: true),
-                            style: const TextStyle(fontSize: 12, color: Colors.black45)),
-                        trailing: n.link != null ? const Icon(Icons.chevron_right_rounded, color: Colors.black26) : null,
+                            style: TextStyle(fontSize: 12, color: context.pal.muted2)),
+                        trailing: n.link != null ? Icon(Icons.chevron_right_rounded, color: context.pal.faint2) : null,
                         onTap: n.link == null ? null : () => openSiteLink(context, n.link!),
                       );
                     },

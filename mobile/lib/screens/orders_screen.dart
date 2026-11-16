@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme.dart';
+
 import '../api.dart';
 import '../main.dart';
 import '../shop_models.dart';
@@ -124,7 +126,7 @@ class OrderTile extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text('№${o.id} · ${formatDate(o.createdAt)} · ${o.counterparty}',
                       maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.black54, fontSize: 12.5)),
+                      style: TextStyle(color: context.pal.muted, fontSize: 12.5)),
                   const SizedBox(height: 6),
                   Row(
                     children: [
@@ -147,7 +149,7 @@ Color orderStatusColor(Order o) {
   if (o.actions.isNotEmpty) return const Color(0xFFF59E0B);
   return switch (o.status) {
     'completed' => const Color(0xFF16A34A),
-    'cancelled' || 'refunded' || 'partial_refunded' => Colors.black45,
+    'cancelled' || 'refunded' || 'partial_refunded' => const Color(0xFF94A3B8),
     'disputed' || 'return_requested' => const Color(0xFFDC2626),
     _ => const Color(0xFF2563EB),
   };

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme.dart';
+
 import '../api.dart';
 import '../main.dart';
 import '../models.dart';
@@ -68,10 +70,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             else if (_error != null && items == null)
               SliverFillRemaining(child: Center(child: Text(_error!)))
             else if (items!.isEmpty)
-              const SliverFillRemaining(
+              SliverFillRemaining(
                 child: Center(
                   child: Text('Здесь появятся объявления, отмеченные ♥',
-                      style: TextStyle(color: Colors.black54)),
+                      style: TextStyle(color: context.pal.muted)),
                 ),
               )
             else

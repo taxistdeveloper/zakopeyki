@@ -6,6 +6,7 @@ import '../main.dart';
 import '../nav.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import 'info_page_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -77,8 +78,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           children: [
             Text('Создайте аккаунт', style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
             const SizedBox(height: 4),
-            const Text('Покупайте с безопасной сделкой и продавайте свои вещи',
-                style: TextStyle(color: Colors.black54)),
+            Text('Покупайте с безопасной сделкой и продавайте свои вещи',
+                style: TextStyle(color: context.pal.muted)),
             const SizedBox(height: 20),
             TextField(
               controller: _name,
@@ -137,14 +138,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     text: 'оферту',
                     style: link,
                     recognizer: TapGestureRecognizer()
-                      ..onTap = () => openWeb(context, '/offer', title: 'Оферта'),
+                      ..onTap = () => openInfoPage(context, 'offer', title: 'Оферта'),
                   ),
                   const TextSpan(text: ' и '),
                   TextSpan(
                     text: 'политику конфиденциальности',
                     style: link,
                     recognizer: TapGestureRecognizer()
-                      ..onTap = () => openWeb(context, '/privacy', title: 'Конфиденциальность'),
+                      ..onTap = () => openInfoPage(context, 'privacy', title: 'Конфиденциальность'),
                   ),
                 ],
               )),

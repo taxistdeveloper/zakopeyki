@@ -191,9 +191,9 @@ class _AuctionScreenState extends State<AuctionScreen> {
                           ),
                         ],
                         const SizedBox(height: 8),
-                        const Text(
+                        Text(
                           'Сумма ставки резервируется на кошельке и возвращается, если вашу ставку перебьют.',
-                          style: TextStyle(color: Colors.black54, fontSize: 12.5),
+                          style: TextStyle(color: context.pal.muted, fontSize: 12.5),
                         ),
                       ],
                     ),
@@ -201,7 +201,7 @@ class _AuctionScreenState extends State<AuctionScreen> {
                 SectionCard(
                   title: 'Ставки',
                   child: a.bids.isEmpty
-                      ? const Text('Ставок пока нет — станьте первым', style: TextStyle(color: Colors.black54))
+                      ? Text('Ставок пока нет — станьте первым', style: TextStyle(color: context.pal.muted))
                       : Column(
                           children: [
                             for (var i = 0; i < a.bids.length; i++)
@@ -210,11 +210,11 @@ class _AuctionScreenState extends State<AuctionScreen> {
                                 child: Row(
                                   children: [
                                     Icon(i == 0 ? Icons.emoji_events_rounded : Icons.person_outline_rounded,
-                                        size: 18, color: i == 0 ? const Color(0xFFF59E0B) : Colors.black38),
+                                        size: 18, color: i == 0 ? const Color(0xFFF59E0B) : context.pal.faint),
                                     const SizedBox(width: 8),
                                     Expanded(child: Text(a.bids[i].user)),
                                     Text(chatTime(a.bids[i].createdAt),
-                                        style: const TextStyle(color: Colors.black45, fontSize: 12)),
+                                        style: TextStyle(color: context.pal.muted2, fontSize: 12)),
                                     const SizedBox(width: 10),
                                     Text(formatMoney(a.bids[i].amount),
                                         style: TextStyle(fontWeight: FontWeight.w700, color: i == 0 ? kBrand : null)),

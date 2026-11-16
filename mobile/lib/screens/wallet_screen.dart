@@ -214,17 +214,17 @@ class _WalletScreenState extends State<WalletScreen> {
                     child: Text('История операций', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
                   ),
                   if (w.transactions.isEmpty)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.all(32),
-                      child: Text('Операций пока нет', textAlign: TextAlign.center, style: TextStyle(color: Colors.black45)),
+                      child: Text('Операций пока нет', textAlign: TextAlign.center, style: TextStyle(color: context.pal.muted2)),
                     )
                   else
                     Container(
                       margin: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: context.pal.surface,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        border: Border.all(color: context.pal.line),
                       ),
                       clipBehavior: Clip.antiAlias,
                       child: Column(
@@ -244,20 +244,20 @@ class _WalletScreenState extends State<WalletScreen> {
 
   Widget _txTile(WalletTx t) {
     final incoming = t.amount >= 0;
-    final color = incoming ? const Color(0xFF16A34A) : const Color(0xFF0F172A);
+    final color = incoming ? const Color(0xFF16A34A) : context.pal.ink;
     return ListTile(
       onTap: t.orderId == null
           ? null
           : () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => OrderScreen(id: t.orderId!))),
       leading: CircleAvatar(
-        backgroundColor: incoming ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
+        backgroundColor: incoming ? const Color(0x2916A34A) : context.pal.subtle,
         child: Icon(incoming ? Icons.south_west_rounded : Icons.north_east_rounded,
-            color: incoming ? const Color(0xFF16A34A) : Colors.black54, size: 20),
+            color: incoming ? const Color(0xFF16A34A) : context.pal.muted, size: 20),
       ),
       title: Text(t.label, maxLines: 2, overflow: TextOverflow.ellipsis),
       subtitle: Text(
         '${formatDate(t.createdAt, withTime: true)}${t.orderId != null ? ' · заказ №${t.orderId}' : ''}',
-        style: const TextStyle(fontSize: 12, color: Colors.black45),
+        style: TextStyle(fontSize: 12, color: context.pal.muted2),
       ),
       trailing: Text('${incoming ? '+' : ''}${formatMoney(t.amount)}',
           style: TextStyle(fontWeight: FontWeight.w700, color: color)),

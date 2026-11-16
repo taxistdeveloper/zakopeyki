@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../account_models.dart';
 import '../api.dart';
 import '../main.dart';
 import '../nav.dart';
+import '../social_models.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 
@@ -26,16 +28,19 @@ class _PersonalDataScreenState extends State<PersonalDataScreen> {
   final _last = TextEditingController();
   final _login = TextEditingController();
   final _phone = TextEditingController();
+  final _bio = TextEditingController();
+  bool _uploading = false;
 
   @override
   void initState() {
     super.initState();
+    _bio.text = SessionScope.read(context).user?.bio ?? '';
     _load();
   }
 
   @override
   void dispose() {
-    for (final c in [_first, _last, _login, _phone]) {
+    for (final c in [_first, _last, _login, _phone, _bio]) {
       c.dispose();
     }
     super.dispose();
@@ -73,6 +78,9 @@ class _PersonalDataScreenState extends State<PersonalDataScreen> {
         'phone': _phone.text.trim(),
       });
       session.user = user;
+      if (_bio.text.trim() != (user.bio ?? '')) {
+        session.user = await session.api.saveBio(_bio.text.trim());
+      }
       session.refreshUser();
       if (!mounted) return;
       setState(() => _p = p);
@@ -86,9 +94,45 @@ class _PersonalDataScreenState extends State<PersonalDataScreen> {
     }
   }
 
+  Future<void> _changePhoto() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(
+            leading: const Icon(Icons.photo_camera_outlined),
+            title: const Text('Сделать фото'),
+            onTap: () => Navigator.pop(ctx, ImageSource.camera),
+          ),
+          ListTile(
+            leading: const Icon(Icons.photo_library_outlined),
+            title: const Text('Выбрать из галереи'),
+            onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+          ),
+        ]),
+      ),
+    );
+    if (source == null) return;
+    final file = await ImagePicker().pickImage(source: source, maxWidth: 800, imageQuality: 85);
+    if (file == null || !mounted) return;
+    setState(() => _uploading = true);
+    final session = SessionScope.read(context);
+    try {
+      session.user = await session.api.uploadAvatar(file.path);
+      session.refreshUser();
+      if (mounted) showSnack(context, 'Фото обновлено');
+    } on ApiException catch (e) {
+      if (mounted) showSnack(context, e.message);
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = _p;
+    final user = SessionScope.of(context).user;
     return Scaffold(
       appBar: AppBar(title: const Text('Личные данные')),
       body: p == null
@@ -96,6 +140,47 @@ class _PersonalDataScreenState extends State<PersonalDataScreen> {
           : ListView(
               padding: const EdgeInsets.only(top: 12),
               children: [
+                SectionCard(
+                  child: Row(
+                    children: [
+                      GestureDetector(
+                        onTap: _uploading ? null : _changePhoto,
+                        child: Stack(
+                          children: [
+                            CircleAvatar(
+                              radius: 38,
+                              backgroundColor: context.pal.brandSoft2,
+                              foregroundImage: user?.avatar != null ? NetworkImage(user!.avatar!) : null,
+                              child: Text(initialOf(user?.name ?? ''),
+                                  style: const TextStyle(color: kBrand, fontSize: 28, fontWeight: FontWeight.w700)),
+                            ),
+                            Positioned(
+                              right: 0,
+                              bottom: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(5),
+                                decoration: BoxDecoration(
+                                  color: kBrand,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: context.pal.surface, width: 2),
+                                ),
+                                child: _uploading
+                                    ? const SizedBox(
+                                        width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                    : const Icon(Icons.photo_camera_rounded, size: 14, color: Colors.white),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Text('Фото видят покупатели и продавцы в объявлениях и чатах',
+                            style: TextStyle(color: context.pal.muted)),
+                      ),
+                    ],
+                  ),
+                ),
                 SectionCard(
                   child: Column(
                     children: [
@@ -126,13 +211,26 @@ class _PersonalDataScreenState extends State<PersonalDataScreen> {
                         keyboardType: TextInputType.phone,
                         decoration: const InputDecoration(labelText: 'Телефон'),
                       ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _bio,
+                        minLines: 2,
+                        maxLines: 5,
+                        maxLength: 500,
+                        textCapitalization: TextCapitalization.sentences,
+                        decoration: const InputDecoration(
+                          labelText: 'О себе',
+                          hintText: 'Чем занимаетесь, как удобнее связаться…',
+                          alignLabelWithHint: true,
+                        ),
+                      ),
                     ],
                   ),
                 ),
                 SectionCard(
                   child: Row(
                     children: [
-                      const Icon(Icons.mail_outline_rounded, color: Colors.black45),
+                      Icon(Icons.mail_outline_rounded, color: context.pal.muted2),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -308,7 +406,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(10)),
+              decoration: BoxDecoration(color: context.pal.subtle, borderRadius: BorderRadius.circular(10)),
               child: SelectableText(codes.join('\n'),
                   style: const TextStyle(fontFamily: 'monospace', fontSize: 15, height: 1.5)),
             ),
@@ -347,7 +445,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
             children: [
               Text('Отключить 2FA', style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: 6),
-              const Text('Аккаунт станет защищён только паролем.', style: TextStyle(color: Colors.black54)),
+              Text('Аккаунт станет защищён только паролем.', style: TextStyle(color: context.pal.muted)),
               const SizedBox(height: 16),
               if (p.hasPassword) ...[
                 TextField(controller: password, obscureText: true, decoration: const InputDecoration(labelText: 'Пароль')),
@@ -421,7 +519,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.shield_outlined, color: p.twoFactor ? const Color(0xFF16A34A) : Colors.black45),
+                          Icon(Icons.shield_outlined, color: p.twoFactor ? const Color(0xFF16A34A) : context.pal.muted2),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -429,17 +527,17 @@ class _SecurityScreenState extends State<SecurityScreen> {
                               children: [
                                 const Text('Двухфакторная аутентификация', style: TextStyle(fontWeight: FontWeight.w600)),
                                 Text(p.twoFactor ? 'Включена' : 'Выключена',
-                                    style: TextStyle(color: p.twoFactor ? const Color(0xFF16A34A) : Colors.black45)),
+                                    style: TextStyle(color: p.twoFactor ? const Color(0xFF16A34A) : context.pal.muted2)),
                               ],
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 8),
-                      const Text(
+                      Text(
                         'При входе кроме пароля понадобится код из приложения-аутентификатора '
                         '(Google Authenticator, Microsoft Authenticator и др.).',
-                        style: TextStyle(color: Colors.black54, fontSize: 13),
+                        style: TextStyle(color: context.pal.muted, fontSize: 13),
                       ),
                       const SizedBox(height: 12),
                       p.twoFactor
@@ -518,7 +616,7 @@ class _TwoFactorSetupScreenState extends State<_TwoFactorSetupScreen> {
                   label: const Text('Открыть аутентификатор'),
                 ),
                 const SizedBox(height: 12),
-                const Text('или введите ключ вручную:', style: TextStyle(color: Colors.black54)),
+                Text('или введите ключ вручную:', style: TextStyle(color: context.pal.muted)),
                 const SizedBox(height: 6),
                 InkWell(
                   onTap: () {
@@ -527,14 +625,14 @@ class _TwoFactorSetupScreenState extends State<_TwoFactorSetupScreen> {
                   },
                   child: Container(
                     padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(10)),
+                    decoration: BoxDecoration(color: context.pal.subtle, borderRadius: BorderRadius.circular(10)),
                     child: Row(
                       children: [
                         Expanded(
                           child: Text(grouped,
                               style: const TextStyle(fontFamily: 'monospace', fontSize: 15, fontWeight: FontWeight.w600)),
                         ),
-                        const Icon(Icons.copy_rounded, size: 18, color: Colors.black45),
+                        Icon(Icons.copy_rounded, size: 18, color: context.pal.muted2),
                       ],
                     ),
                   ),

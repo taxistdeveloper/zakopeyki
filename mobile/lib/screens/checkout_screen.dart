@@ -143,7 +143,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(l.product.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-                                    Text('${l.qty} шт.', style: const TextStyle(color: Colors.black54, fontSize: 13)),
+                                    Text('${l.qty} шт.', style: TextStyle(color: context.pal.muted, fontSize: 13)),
                                   ],
                                 ),
                               ),
@@ -250,6 +250,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ? null
           : BottomActionBar(
               child: FilledButton(
+                style: accentButton(),
                 onPressed: _busy || _delivery == null || _payment == null ? null : _submit,
                 child: busyLabel(_busy, 'Оплатить ${formatMoney(_mode?.total ?? o.subtotal)}'),
               ),
@@ -288,13 +289,13 @@ class _Choice extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: active ? const Color(0xFFEFF6FF) : Colors.white,
+              color: active ? context.pal.brandSoft : context.pal.surface,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: active ? kBrand : const Color(0xFFE2E8F0), width: active ? 1.5 : 1),
+              border: Border.all(color: active ? kBrand : context.pal.line, width: active ? 1.5 : 1),
             ),
             child: Row(
               children: [
-                Icon(icon, color: active ? kBrand : Colors.black54),
+                Icon(icon, color: active ? kBrand : context.pal.muted),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -302,12 +303,12 @@ class _Choice extends StatelessWidget {
                     children: [
                       Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
                       if (subtitle != null)
-                        Text(subtitle!, style: const TextStyle(color: Colors.black54, fontSize: 12.5)),
+                        Text(subtitle!, style: TextStyle(color: context.pal.muted, fontSize: 12.5)),
                     ],
                   ),
                 ),
                 Icon(active ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
-                    color: active ? kBrand : Colors.black26),
+                    color: active ? kBrand : context.pal.faint2),
               ],
             ),
           ),
