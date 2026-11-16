@@ -10,7 +10,6 @@ import '../nav.dart';
 import '../theme.dart';
 import '../widgets/product_tile.dart';
 import 'app_drawer.dart';
-import 'assistant_screen.dart';
 import 'cart_screen.dart';
 import 'live_list_screen.dart';
 import 'stories.dart';
@@ -189,7 +188,14 @@ class _CatalogScreenState extends State<CatalogScreen> {
       ),
       child: Scaffold(
         drawer: AppDrawer(currentType: _type, onType: _setType),
-        floatingActionButton: const ZakFab(),
+        floatingActionButton: Builder(
+          builder: (ctx) => FloatingActionButton.extended(
+            heroTag: 'menu',
+            onPressed: () => Scaffold.of(ctx).openDrawer(),
+            icon: const Icon(Icons.menu_rounded),
+            label: const Text('Меню'),
+          ),
+        ),
         body: RefreshIndicator(
           edgeOffset: MediaQuery.paddingOf(context).top + 120,
           onRefresh: () async {

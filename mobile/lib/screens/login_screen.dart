@@ -158,10 +158,14 @@ class _LoginScreenState extends State<LoginScreen> {
           padding: const EdgeInsets.all(20),
           children: [
             if (!twoFactor) ...[
-              Image.asset((context.pal.dark ? 'assets/img/logo_header_dark.png' : 'assets/img/logo_header.png'), height: 52, alignment: Alignment.centerLeft),
-              const SizedBox(height: 4),
+              Center(
+                child: Image.asset(
+                    context.pal.dark ? 'assets/img/logo_header_dark.png' : 'assets/img/logo_header.png',
+                    height: 52),
+              ),
+              const SizedBox(height: 8),
               Text('Войдите, чтобы покупать, продавать и общаться',
-                  style: TextStyle(color: context.pal.muted)),
+                  textAlign: TextAlign.center, style: TextStyle(color: context.pal.muted)),
               const SizedBox(height: 24),
               TextField(
                 controller: _email,

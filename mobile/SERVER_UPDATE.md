@@ -25,6 +25,7 @@
 - `lang/modules/ru/mobile_api.php`, `lang/modules/kk/mobile_api.php` — тексты `order_not_payable`, `payment_expired`
 - `app/Services/Security/AuthThrottle.php` — лимиты `stream_like` (30/мин) и `stream_comment` (20/мин)
 - `app/Controllers/Api/Mobile/CatalogApiController.php` — в карточке товара блок `delivery` (заголовок, подсказка, подробности), как «Доставка» на странице товара сайта
+- `config/mobile.php` — client id Google (web-клиент сайта и Android-клиент) для входа через Google в приложении; без них API отвечает «Этот способ входа пока недоступен»
 - `app/Services/AI/Core/PermissionChecker.php` — `roleFor()`: вошедший через приложение пользователь получает роль `user` (раньше проверялась только сессия сайта и приложение считалось гостем)
 
 > Эфиры идут P2P (как на сайте), сервер передаёт только сигналы. Сейчас используются только STUN-серверы Google.
