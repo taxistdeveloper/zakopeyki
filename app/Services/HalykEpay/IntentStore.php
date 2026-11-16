@@ -80,6 +80,23 @@ final class IntentStore
         return self::get((string) $meta['token']);
     }
 
+    /**
+     * Атомарно «занять» обработку postLink по invoiceId (защита от повторной/параллельной доставки).
+     * true — вызывающий первый и должен обработать; false — уже обработано/обрабатывается.
+     */
+    public static function claimInvoice(string $invoiceId): bool
+    {
+        $path = self::dir() . '/done_' . self::safe($invoiceId) . '.lock';
+        $fh = @fopen($path, 'x');
+        if ($fh === false) {
+            return false;
+        }
+        fwrite($fh, (string) time());
+        fclose($fh);
+
+        return true;
+    }
+
     public static function forget(string $token): void
     {
         $intent = self::get($token);

@@ -1,0 +1,7 @@
+# Скопируйте в android/key.properties (файл в .gitignore) и заполните.
+# Ключ загрузки (upload key) для Google Play создаётся один раз:
+#   keytool -genkey -v -keystore ~/zakopeyki-upload.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+storeFile=/Users/<you>/zakopeyki-upload.jks
+storePassword=
+keyAlias=upload
+keyPassword=

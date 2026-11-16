@@ -149,21 +149,8 @@ class ActivityLogger
 
     public static function clientIp(): ?string
     {
-        $candidates = [
-            $_SERVER['HTTP_CF_CONNECTING_IP'] ?? null,
-            $_SERVER['HTTP_X_FORWARDED_FOR'] ?? null,
-            $_SERVER['REMOTE_ADDR'] ?? null,
-        ];
-        foreach ($candidates as $raw) {
-            if (!is_string($raw) || $raw === '') {
-                continue;
-            }
-            $ip = trim(explode(',', $raw)[0]);
-            if (filter_var($ip, FILTER_VALIDATE_IP)) {
-                return $ip;
-            }
-        }
-        return null;
+        // M-01 / B0.8: заголовки прокси учитываются только от доверенных источников
+        return ClientIp::resolve();
     }
 
     public static function userAgent(): ?string

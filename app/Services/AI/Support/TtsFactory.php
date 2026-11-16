@@ -6,6 +6,7 @@ namespace App\Services\AI\Support;
 
 use App\Services\AI\Contracts\TextToSpeechInterface;
 use App\Services\AI\Core\AiConfig;
+use App\Services\AI\Providers\AzureTtsProvider;
 use App\Services\AI\Providers\BrowserTtsProvider;
 use App\Services\AI\Providers\EdgeTtsProvider;
 use App\Services\AI\Providers\MockTtsProvider;
@@ -28,6 +29,10 @@ final class TtsFactory
 
         if ($provider === 'mock') {
             return new MockTtsProvider();
+        }
+
+        if ($provider === 'azure' || $provider === 'azure_speech') {
+            return new AzureTtsProvider(config: $ttsConfig);
         }
 
         if ($provider === 'edge' || $provider === 'edge_neural' || $provider === 'server') {

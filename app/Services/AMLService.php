@@ -38,9 +38,10 @@ class AMLService
         if ($cfg === false) {
             return false;
         }
-        $host = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
-
-        return str_contains($host, 'localhost') || str_contains($host, '127.0.0.1');
+        // Безопасность: пропуск AML-проверок только по конфигурации окружения (env=local),
+        // НЕ по заголовку Host — его задаёт клиент (`Host: localhost` в production обходил бы
+        // проверку ИИН/БИН по перечню АФМ). Аналогично M-01 / B0.4.
+        return (string) ($GLOBALS['appConfig']['env'] ?? 'production') === 'local';
     }
 
     public static function skipFormatCheck(): bool

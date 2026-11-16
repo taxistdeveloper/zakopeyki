@@ -596,6 +596,41 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                 }
                 </script>
 
+                <?php if (array_key_exists('email_verified_at', (array) $user)): ?>
+                <div class="mt-10 pt-8 border-t border-black/[0.08] dark:border-white/10" id="email-verify">
+                    <h2 class="font-display text-xl font-bold"><?= htmlspecialchars(t('auth.verify_title')) ?></h2>
+                    <?php if (!empty($user['email_verified_at'])): ?>
+                        <p class="text-sm text-emerald-600 mt-2 font-semibold"><?= htmlspecialchars(t('auth.verify_done')) ?></p>
+                    <?php else: ?>
+                        <p class="text-sm text-gray-400 mt-1"><?= htmlspecialchars(t('auth.verify_hint')) ?></p>
+                        <button type="button" id="email-verify-resend"
+                                class="mt-3 h-10 px-4 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-xs font-bold transition"
+                                data-url="<?= htmlspecialchars(ProductHelper::url('/profile/email/verify-resend')) ?>">
+                            <?= htmlspecialchars(t('auth.verify_resend')) ?>
+                        </button>
+                        <p class="text-xs mt-2 text-gray-500" id="email-verify-status" aria-live="polite"></p>
+                        <script>
+                        (function () {
+                            var btn = document.getElementById('email-verify-resend');
+                            var out = document.getElementById('email-verify-status');
+                            if (!btn) return;
+                            btn.addEventListener('click', function () {
+                                btn.disabled = true;
+                                var meta = document.querySelector('meta[name="csrf-token"]');
+                                var body = new FormData();
+                                body.append('_csrf', meta ? meta.getAttribute('content') : '');
+                                fetch(btn.getAttribute('data-url'), { method: 'POST', body: body, credentials: 'same-origin' })
+                                    .then(function (r) { return r.json(); })
+                                    .then(function (d) { out.textContent = d.message || ''; })
+                                    .catch(function () { out.textContent = ''; })
+                                    .finally(function () { setTimeout(function () { btn.disabled = false; }, 30000); });
+                            });
+                        })();
+                        </script>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
+
                 <div class="mt-10 pt-8 border-t border-black/[0.08] dark:border-white/10">
                     <div class="mb-5 flex items-start gap-3">
                         <div class="w-11 h-11 rounded-2xl bg-brand-500 text-white flex items-center justify-center">
@@ -642,7 +677,9 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                         <div class="space-y-5 max-w-md">
                             <p class="text-sm text-gray-500 leading-relaxed"><?= htmlspecialchars(t('profile.two_factor_scan')) ?></p>
                             <div class="flex justify-center">
+                                <?php if (($twoFactorSetup['qr'] ?? '') !== ''): ?>
                                 <img src="<?= htmlspecialchars($twoFactorSetup['qr']) ?>" alt="QR" width="200" height="200" class="rounded-2xl border border-black/10 bg-white p-2">
+                                <?php endif; ?>
                             </div>
                             <div>
                                 <p class="text-xs text-gray-400 mb-1.5"><?= htmlspecialchars(t('profile.two_factor_manual')) ?></p>
@@ -1013,6 +1050,36 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                             </div>
                         </div>
                     </div>
+                    <?php
+                    // AI Virtual Try-On: тип примерки (docs/tryon). Поле видно, только если модуль доступен пользователю.
+                    $tryonSettings = new \App\Services\TryOn\TryOnSettings();
+                    $tryonFieldOn = $tryonSettings->isEnabledFor((int) \App\Core\Auth::id());
+                    $tryonCurrent = (string) ($editing['tryon_type'] ?? '');
+                    $tryonOptions = $tryonSettings->enabledTypes();
+                    if ($tryonCurrent !== '' && !in_array($tryonCurrent, $tryonOptions, true) && \App\Services\TryOn\TryOnTypes::isValid($tryonCurrent)) {
+                        $tryonOptions[] = $tryonCurrent;
+                    }
+                    $tryonShow = $tryonFieldOn && $showCategory && in_array($currentParent, \App\Services\TryOn\TryOnTypes::CATEGORY_PARENTS, true);
+                    ?>
+                    <?php if ($tryonFieldOn): ?>
+                    <div id="lot-tryon-wrap" class="<?= $tryonShow ? '' : 'hidden' ?>" data-tryon-parents="<?= htmlspecialchars(js_encode(\App\Services\TryOn\TryOnTypes::CATEGORY_PARENTS)) ?>">
+                        <label class="block text-[13px] font-semibold text-ink-800 dark:text-gray-200 mb-1.5"><?= htmlspecialchars(t('tryon.listing_label')) ?></label>
+                        <div class="relative sm:max-w-[calc(50%-0.5rem)]" data-lot-select-wrap>
+                            <select name="tryon_type" id="lot-tryon-type" class="hidden" <?= $tryonShow ? '' : 'disabled' ?>>
+                                <option value=""><?= htmlspecialchars(t('tryon.listing_none')) ?></option>
+                                <?php foreach ($tryonOptions as $tt): ?>
+                                    <option value="<?= htmlspecialchars($tt) ?>" <?= $tryonCurrent === $tt ? 'selected' : '' ?>><?= htmlspecialchars(t('tryon.type.' . $tt)) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <button type="button" data-lot-trigger class="<?= $selectTrigger ?>" aria-haspopup="listbox" aria-expanded="false" <?= $tryonShow ? '' : 'disabled' ?>>
+                                <span data-lot-label class="truncate"><?= htmlspecialchars($tryonCurrent !== '' ? t('tryon.type.' . $tryonCurrent) : t('tryon.listing_none')) ?></span>
+                                <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div data-lot-menu class="hidden absolute z-30 mt-1.5 w-full max-h-64 overflow-y-auto bg-white dark:bg-ink-800 border border-black/[0.08] dark:border-white/10 rounded-2xl shadow-lift py-1.5" role="listbox"></div>
+                        </div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1.5"><?= htmlspecialchars(t('tryon.listing_hint')) ?></p>
+                    </div>
+                    <?php endif; ?>
                     <div id="lot-title-wrap" class="<?= $currentType === 'gig' ? 'hidden' : '' ?>">
                         <label class="block text-xs font-bold mb-1"><?= htmlspecialchars(t('profile.title_field')) ?></label>
                         <input type="text" name="title" id="lot-title" <?= $currentType === 'gig' ? '' : 'required' ?> class="<?= $input ?>" value="<?= htmlspecialchars($editing['title'] ?? '') ?>" placeholder="<?= htmlspecialchars(t('profile.title_example')) ?>">
@@ -1462,6 +1529,18 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                         bindLotSelect(gigLeaf);
                         bindLotSelect(document.getElementById('lot-auction-hours'));
                         bindLotSelect(document.getElementById('lot-inactivity-hours'));
+                        const tryonSelect = document.getElementById('lot-tryon-type');
+                        const tryonWrap = document.getElementById('lot-tryon-wrap');
+                        bindLotSelect(tryonSelect);
+                        function syncTryonField() {
+                            if (!tryonWrap || !tryonSelect || !parentSelect) return;
+                            let parents = [];
+                            try { parents = JSON.parse(tryonWrap.getAttribute('data-tryon-parents') || '[]'); } catch (e) { parents = []; }
+                            const show = withCategory.indexOf(typeSelect.value) !== -1 && parents.indexOf(parentSelect.value) !== -1;
+                            tryonWrap.classList.toggle('hidden', !show);
+                            tryonSelect.disabled = !show;
+                            if (typeof tryonSelect.refreshLotUI === 'function') tryonSelect.refreshLotUI();
+                        }
 
                         function fillGigSelect(select, items, placeholder) {
                             if (!select) return;
@@ -1737,6 +1816,7 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                         if (parentSelect) {
                             parentSelect.addEventListener('change', function () {
                                 fillSubcategories('');
+                                syncTryonField();
                             });
                         }
 
@@ -1744,6 +1824,7 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                             syncTypeCards();
                             syncPriceField();
                             syncCategoryField();
+                            syncTryonField();
                         });
                         document.querySelectorAll('.auction-kind-radio').forEach(function (radio) {
                             radio.addEventListener('change', syncAuctionKind);
@@ -1751,6 +1832,7 @@ $isBusinessAccount = !empty($accountLimit['is_business']);
                         syncTypeCards();
                         syncPriceField();
                         syncCategoryField();
+                        syncTryonField();
                         restoreGigPath();
 
                         function qtyValid() {

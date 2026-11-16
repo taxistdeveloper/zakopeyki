@@ -213,8 +213,39 @@ class CloudflareStreamClient
         if ($secret === '') {
             return false;
         }
+        return self::verifySignatureWithSecret($rawBody, $headerSignature, $secret, time());
+    }
+
+    /**
+     * M-01 / B0.7: формат Cloudflare Stream — заголовок `Webhook-Signature: time=<unix>,sig1=<hex>`,
+     * подписывается строка "<time>.<body>" (HMAC-SHA256). Допуск по времени — 5 минут.
+     * Для совместимости принимается и прежний формат (hex HMAC от тела).
+     */
+    public static function verifySignatureWithSecret(string $rawBody, string $headerSignature, string $secret, int $now): bool
+    {
+        if ($secret === '') {
+            return false;
+        }
+        $header = trim($headerSignature);
+        $parts = [];
+        foreach (explode(',', $header) as $chunk) {
+            $kv = explode('=', trim($chunk), 2);
+            if (count($kv) === 2) {
+                $parts[strtolower(trim($kv[0]))] = trim($kv[1]);
+            }
+        }
+        if (isset($parts['time'], $parts['sig1']) && ctype_digit($parts['time'])) {
+            if (abs($now - (int) $parts['time']) > 300) {
+                return false;
+            }
+            $calc = hash_hmac('sha256', $parts['time'] . '.' . $rawBody, $secret);
+
+            return hash_equals($calc, strtolower($parts['sig1']));
+        }
+
         $calc = hash_hmac('sha256', $rawBody, $secret);
-        return hash_equals($calc, strtolower(trim($headerSignature)));
+
+        return hash_equals($calc, strtolower($header));
     }
 
     /**

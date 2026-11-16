@@ -91,6 +91,23 @@ class Stream extends Model
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
         );
 
+        // Результат розыгрыша хранится после окончания эфира (не чистится clearLiveData):
+        // одна запись на эфир, повторный выбор победителя невозможен.
+        $this->db->exec(
+            "CREATE TABLE IF NOT EXISTS stream_giveaway_draws (
+                id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                stream_id INT UNSIGNED NOT NULL,
+                host_user_id INT UNSIGNED NOT NULL,
+                winner_user_id INT UNSIGNED NOT NULL,
+                participants_count INT UNSIGNED NOT NULL,
+                participants_hash CHAR(64) NOT NULL,
+                title VARCHAR(120) NULL,
+                drawn_at DATETIME NOT NULL,
+                UNIQUE KEY uq_stream_draw (stream_id),
+                INDEX idx_draw_host (host_user_id, drawn_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+        );
+
         foreach ([
             'featured_product_id' => 'INT UNSIGNED NULL AFTER last_heartbeat',
             'likes_count' => 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER featured_product_id',
@@ -448,30 +465,93 @@ class Stream extends Model
             return ['ok' => false, 'message' => 'forbidden'];
         }
 
-        $stmt = $this->db->prepare(
-            'SELECT p.user_id, u.name, u.avatar
-             FROM stream_giveaway_participants p
-             JOIN users u ON u.id = p.user_id
-             WHERE p.stream_id = ?
-             ORDER BY RAND()
-             LIMIT 1'
-        );
-        $stmt->execute([$streamId]);
-        $winner = $stmt->fetch();
-        if (!$winner) {
+        $existing = $this->giveawayDraw($streamId);
+        if ($existing !== null) {
+            return ['ok' => false, 'message' => 'already_drawn', 'winner' => $existing];
+        }
+
+        $this->db->beginTransaction();
+        try {
+            // Блокируем строку эфира, чтобы два одновременных запроса не выбрали двух победителей
+            $lock = $this->db->prepare('SELECT id, live_setup FROM streams WHERE id = ? FOR UPDATE');
+            $lock->execute([$streamId]);
+            $streamRow = $lock->fetch();
+
+            $stmt = $this->db->prepare(
+                'SELECT user_id FROM stream_giveaway_participants WHERE stream_id = ? ORDER BY id ASC'
+            );
+            $stmt->execute([$streamId]);
+            $ids = array_map('intval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
+            if ($ids === []) {
+                $this->db->rollBack();
+                return ['ok' => false, 'message' => 'no_participants'];
+            }
+
+            // Криптографически стойкий выбор вместо ORDER BY RAND()
+            $winnerId = $ids[random_int(0, count($ids) - 1)];
+            $setup = json_decode((string) ($streamRow['live_setup'] ?? ''), true);
+            $title = is_array($setup) ? mb_substr(trim((string) ($setup['giveaway']['title'] ?? '')), 0, 120) : '';
+
+            $ins = $this->db->prepare(
+                'INSERT INTO stream_giveaway_draws
+                    (stream_id, host_user_id, winner_user_id, participants_count, participants_hash, title, drawn_at)
+                 VALUES (?, ?, ?, ?, ?, ?, NOW())'
+            );
+            $ins->execute([
+                $streamId,
+                $hostUserId,
+                $winnerId,
+                count($ids),
+                hash('sha256', implode(',', $ids)),
+                $title !== '' ? $title : null,
+            ]);
+            $this->db->commit();
+        } catch (\PDOException $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            $existing = $this->giveawayDraw($streamId);
+            if ($existing !== null) {
+                return ['ok' => false, 'message' => 'already_drawn', 'winner' => $existing];
+            }
+            throw $e;
+        }
+
+        $winner = $this->giveawayDraw($streamId);
+        if ($winner === null) {
             return ['ok' => false, 'message' => 'no_participants'];
         }
 
-        $winnerName = (string) ($winner['name'] ?? 'Участник');
-        $this->addComment($streamId, null, 'Zakopeyki Live', '🎉 Победитель розыгрыша: ' . $winnerName . '!', true);
+        \App\Helpers\ActivityLogger::info('stream.giveaway_draw', 'Розыгрыш в эфире проведён', 'stream', $streamId, [
+            'winner_user_id' => $winner['user_id'],
+            'participants' => $winner['participants_count'],
+        ]);
+        $this->addComment($streamId, null, 'Zakopeyki Live', '🎉 Победитель розыгрыша: ' . $winner['name'] . '!', true);
 
+        return ['ok' => true, 'winner' => $winner];
+    }
+
+    /** Сохранённый результат розыгрыша эфира (или null). */
+    public function giveawayDraw(int $streamId): ?array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT d.winner_user_id, d.participants_count, d.drawn_at, u.name, u.avatar
+             FROM stream_giveaway_draws d
+             LEFT JOIN users u ON u.id = d.winner_user_id
+             WHERE d.stream_id = ?
+             LIMIT 1'
+        );
+        $stmt->execute([$streamId]);
+        $row = $stmt->fetch();
+        if (!$row) {
+            return null;
+        }
         return [
-            'ok' => true,
-            'winner' => [
-                'user_id' => (int) $winner['user_id'],
-                'name' => $winnerName,
-                'avatar' => $winner['avatar'] ?? null,
-            ],
+            'user_id' => (int) $row['winner_user_id'],
+            'name' => (string) ($row['name'] ?? 'Участник'),
+            'avatar' => $row['avatar'] ?? null,
+            'participants_count' => (int) $row['participants_count'],
+            'drawn_at' => (string) $row['drawn_at'],
         ];
     }
 

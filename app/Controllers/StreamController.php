@@ -9,6 +9,7 @@ use App\Helpers\UploadHelper;
 use App\Models\Follow;
 use App\Models\Product;
 use App\Models\Stream;
+use App\Services\Streaming\LiveGiveawayPolicy;
 
 class StreamController extends Controller
 {
@@ -259,13 +260,14 @@ class StreamController extends Controller
         }
 
         $giveaway = null;
-        if (!empty($setup['giveaway']) && is_array($setup['giveaway'])) {
+        if (LiveGiveawayPolicy::isEnabled() && !empty($setup['giveaway']) && is_array($setup['giveaway'])) {
             $gTitle = trim((string) ($setup['giveaway']['title'] ?? ''));
             if ($gTitle !== '') {
                 $giveaway = [
                     'title' => mb_substr($gTitle, 0, 120),
                     'goal' => max(50, min(5000, (int) ($setup['giveaway']['goal'] ?? 500))),
                     'participants_count' => $model->countGiveawayParticipants($streamId),
+                    'winner' => $model->giveawayDraw($streamId),
                 ];
             }
         }
@@ -347,6 +349,9 @@ class StreamController extends Controller
 
     public function joinGiveaway(): void
     {
+        if (!LiveGiveawayPolicy::isEnabled()) {
+            $this->json(['ok' => false, 'message' => 'giveaway_disabled'], 403);
+        }
         if (!Auth::check()) {
             $this->json(['ok' => false, 'message' => 'unauthorized'], 401);
         }
@@ -361,6 +366,9 @@ class StreamController extends Controller
 
     public function drawGiveaway(): void
     {
+        if (!LiveGiveawayPolicy::isEnabled()) {
+            $this->json(['ok' => false, 'message' => 'giveaway_disabled'], 403);
+        }
         if (!Auth::check()) {
             $this->json(['ok' => false, 'message' => 'unauthorized'], 401);
         }
@@ -506,7 +514,7 @@ class StreamController extends Controller
         $notifySubs = !isset($data['notify_subs']) || (bool) $data['notify_subs'];
 
         $giveaway = null;
-        if (!empty($data['giveaway']) && is_array($data['giveaway'])) {
+        if (LiveGiveawayPolicy::isEnabled() && !empty($data['giveaway']) && is_array($data['giveaway'])) {
             $gTitle = trim((string) ($data['giveaway']['title'] ?? ''));
             if ($gTitle !== '') {
                 $giveaway = [

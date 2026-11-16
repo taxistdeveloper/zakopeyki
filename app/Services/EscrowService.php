@@ -207,6 +207,8 @@ class EscrowService
         $productId = (int) $order['product_id'];
         $needsRefund = $status === 'escrowed' && ($order['escrow_hold'] ?? '') === 'holding';
         $cancelledOrderIds = [$orderId];
+        // Модель создаётся до транзакции: её конструктор может выполнять DDL (неявный COMMIT)
+        $paymentModel = new \App\Models\Payment();
 
         try {
             $db = Database::connect();
@@ -240,7 +242,6 @@ class EscrowService
             $ordersToRestore = [$order];
 
             if (($locked['status'] ?? '') === 'awaiting_payment') {
-                $paymentModel = new \App\Models\Payment();
                 $payment = $paymentModel->findByOrderId($orderId);
                 if (
                     !$payment
@@ -498,6 +499,27 @@ class EscrowService
         try {
             $db = Database::connect();
             $db->beginTransaction();
+
+            // M-01 / B0.5: блокируем строку заказа и перепроверяем состояние внутри транзакции,
+            // чтобы cron, просмотр заказа и действия пользователей не рассчитали сделку дважды.
+            $lockStmt = $db->prepare('SELECT status, escrow_hold FROM orders WHERE id = ? FOR UPDATE');
+            $lockStmt->execute([$orderId]);
+            $current = $lockStmt->fetch(\PDO::FETCH_ASSOC);
+            if (!$current
+                || (string) ($current['status'] ?? '') !== $status
+                || (string) ($current['escrow_hold'] ?? '') !== $hold
+            ) {
+                $db->rollBack();
+                $nowStatus = (string) ($current['status'] ?? '');
+                $nowHold = (string) ($current['escrow_hold'] ?? '');
+                if (in_array($nowStatus, ['completed', 'refunded', 'partial_refunded', 'cancelled'], true)
+                    || in_array($nowHold, ['released_seller', 'refunded_buyer', 'split_settled'], true)
+                ) {
+                    return ['ok' => true];
+                }
+
+                return ['ok' => false, 'error' => t('escrow.bad_status')];
+            }
 
             $holdValue = $amountToBuyer === $total
                 ? 'refunded_buyer'

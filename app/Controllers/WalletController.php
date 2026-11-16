@@ -78,7 +78,8 @@ class WalletController extends Controller
         if ($client->isConfigured()) {
             $user = Auth::user();
             $pgOrderId = 'WALLET-' . Auth::id() . '-' . time() . '-' . bin2hex(random_bytes(3));
-            $intent = $client->createPaymentIntent([
+            // M-01 / B0.3: у HalykEpay\Client нет createPaymentIntent — вызов падал fatal error
+            $intent = $client->initPayment([
                 'order_id' => $pgOrderId,
                 'amount' => $amount,
                 'description' => 'Пополнение баланса кошелька Zakopeyki.kz',

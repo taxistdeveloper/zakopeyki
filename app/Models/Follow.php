@@ -135,6 +135,9 @@ class Follow extends Model
                 'DELETE FROM user_follows WHERE follower_id = ? AND following_id = ?'
             );
             $stmt->execute([$followerId, $followingId]);
+            if ($stmt->rowCount() > 0) {
+                \App\Services\Contest\ContestEventRecorder::followChanged($followerId, $followingId, false);
+            }
             return [
                 'ok' => true,
                 'following' => false,
@@ -149,6 +152,7 @@ class Follow extends Model
 
         if ($stmt->rowCount() > 0) {
             (new Bonus())->awardFollower($followingId, $followerId);
+            \App\Services\Contest\ContestEventRecorder::followChanged($followerId, $followingId, true);
         }
 
         return [

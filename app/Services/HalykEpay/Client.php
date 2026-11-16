@@ -207,13 +207,15 @@ class Client
      * @param array<string, mixed> $intent
      * @return array<string, mixed>
      */
-    public function buildPayObject(array $intent): array
+    public function buildPayObject(array $intent, bool $forApp = false): array
     {
         $paymentType = (string) ($intent['payment_type'] ?? 'payment');
+        // Мобильное приложение: возврат на страницу, которая передаёт управление приложению
+        // (у встроенного браузера нет web-сессии сайта). Факт оплаты — только postLink.
         $obj = [
             'invoiceId' => (string) ($intent['invoice_id'] ?? ''),
-            'backLink' => ProductHelper::absoluteUrl('/payments/halyk/success'),
-            'failureBackLink' => ProductHelper::absoluteUrl('/payments/halyk/failure'),
+            'backLink' => ProductHelper::absoluteUrl($forApp ? '/payments/app-return?result=success' : '/payments/halyk/success'),
+            'failureBackLink' => ProductHelper::absoluteUrl($forApp ? '/payments/app-return?result=failure' : '/payments/halyk/failure'),
             'postLink' => ProductHelper::absoluteUrl('/payments/halyk/postlink'),
             'failurePostLink' => ProductHelper::absoluteUrl('/payments/halyk/postlink'),
             'language' => (string) ($this->config['language'] ?? 'rus'),

@@ -16,6 +16,12 @@ class Router
         $this->routes['POST'][$path] = $handler;
     }
 
+    /** REST DELETE (мобильные клиенты, /api/v1/try-on). CSRF проверяется так же, как для POST. */
+    public function delete(string $path, array $handler): void
+    {
+        $this->routes['DELETE'][$path] = $handler;
+    }
+
     public function dispatch(string $method, string $uri): void
     {
         $path = parse_url($uri, PHP_URL_PATH) ?: '/';
@@ -37,7 +43,7 @@ class Router
             $pattern = '#^' . $pattern . '$#';
 
             if (preg_match($pattern, $path, $matches)) {
-                if (strtoupper($method) === 'POST' && !$this->csrfExempt($path)) {
+                if (in_array(strtoupper($method), ['POST', 'DELETE'], true) && !$this->csrfExempt($path)) {
                     Csrf::enforce();
                 }
                 $params = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY);
@@ -49,6 +55,12 @@ class Router
         }
 
         http_response_code(404);
+        if (str_starts_with($path, '/api/mobile/')) {
+            \App\Controllers\Api\Mobile\BaseMobileController::send([
+                'success' => false,
+                'error' => ['code' => 'not_found', 'message' => \App\Controllers\Api\Mobile\BaseMobileController::message('not_found')],
+            ], 404);
+        }
         View::render('errors/404', ['title' => 'Страница не найдена']);
     }
 
@@ -63,6 +75,11 @@ class Router
         if (in_array($path, $exempt, true)) {
             return true;
         }
+        // Мобильное API (M-02): только Bearer-токены, cookie-сессия не используется → CSRF неприменим
+        if (str_starts_with($path, '/api/mobile/')) {
+            return true;
+        }
+
         // API endpoints: micro-tasks and business (bearer or session auth handled in controller)
         if (str_starts_with($path, '/api/v1/micro-tasks/')) {
             return true;

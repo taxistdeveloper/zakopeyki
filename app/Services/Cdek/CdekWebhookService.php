@@ -65,7 +65,9 @@ class CdekWebhookService
         $testMode = (int) ($this->config['test_mode'] ?? 1) === 1;
 
         if ($expected === '') {
-            if ($testMode) {
+            // M-01 / B0.7: открытый test-режим недопустим в production-окружении приложения
+            $appEnv = (string) ($GLOBALS['appConfig']['env'] ?? 'local');
+            if ($testMode && $appEnv !== 'production') {
                 return ['ok' => true, 'mode' => 'test_open'];
             }
             return ['ok' => false, 'error' => 'webhook_token_not_configured'];

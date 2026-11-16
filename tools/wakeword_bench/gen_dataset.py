@@ -41,16 +41,22 @@ SPEAKERS = {
     "ru": {
         "train": [("piper", "ru_RU-denis-medium", None), ("piper", "kk_KZ-issai-high", None)],
         "test": [("say", "Milena", None), ("piper", "ru_RU-dmitri-medium", None)],
+        # акцент: казахский голос говорит по-русски
+        "accent": [("piper", "kk_KZ-iseke-x_low", None)],
     },
     "kk": {
         "train": [("piper", "kk_KZ-issai-high", None), ("piper", "kk_KZ-raya-x_low", None)],
         "test": [("piper", "kk_KZ-iseke-x_low", None)],
+        # акцент: русский голос говорит по-казахски
+        "accent": [("say", "Milena", None)],
     },
     "en": {
         "train": [("piper", "en_US-libritts_r-medium", s) for s in range(0, 450, 9)]
         + [("say", v, None) for v in ("Samantha", "Daniel", "Fred", "Albert")],
         "test": [("piper", "en_US-libritts_r-medium", s) for s in range(455, 904, 15)]
         + [("say", v, None) for v in ("Karen", "Moira", "Rishi", "Tessa", "Kathy")],
+        # акцент: русский и казахский голоса произносят английские фразы
+        "accent": [("say", "Milena", None), ("piper", "kk_KZ-iseke-x_low", None), ("piper", "ru_RU-dmitri-medium", None)],
     },
 }
 
@@ -194,11 +200,13 @@ def build_clips(lang: str, split: str) -> list[dict]:
     """Короткие клипы: позитивы по фразам, негативы (похожие слова, речь)."""
     items = []
     speeds = [0.85, 1.0, 1.2]
-    for spk in SPEAKERS[lang][split]:
+    speakers = SPEAKERS[lang][split] + (SPEAKERS[lang].get("accent", []) if split == "test" else [])
+    test_speeds = speeds if lang in ("ru", "kk") else [1.0]
+    for spk in speakers:
         spk_id = f"{spk[0]}:{spk[1]}:{spk[2]}"
         for phrase, texts in WAKE[lang].items():
             for text in texts:
-                for sp in (speeds if split == "train" else [1.0]):
+                for sp in (speeds if split == "train" else test_speeds):
                     items.append({"label": phrase, "text": text, "spk": spk_id, "audio": speak(spk, text, sp)})
         for text in CONFUSABLE[lang] + SENTENCES[lang]:
             items.append({"label": "neg", "text": text, "spk": spk_id, "audio": speak(spk, text, 1.0)})
@@ -274,9 +282,13 @@ def build_stream(lang: str, cond: str, test_items: list[dict], other_speech: lis
 
 
 def main() -> None:
+    import sys
     OUT.mkdir(parents=True, exist_ok=True)
-    manifest = {"sr": SR, "streams": [], "clips": {}}
-    for lang in ("ru", "kk", "en"):
+    langs = sys.argv[1:] or ["ru", "kk", "en"]
+    mpath = OUT / "manifest.json"
+    manifest = json.loads(mpath.read_text()) if mpath.exists() else {"sr": SR, "streams": [], "clips": {}}
+    manifest["streams"] = [s for s in manifest["streams"] if s["lang"] not in langs]
+    for lang in langs:
         print(f"[{lang}] synthesizing clips…", flush=True)
         train = build_clips(lang, "train")
         test = build_clips(lang, "test")

@@ -38,8 +38,6 @@ class OrderController extends Controller
     {
         Auth::requireLogin();
         $orderId = (int) $id;
-        $escrow = new EscrowService();
-        $escrow->processDeadlines($orderId);
 
         $order = (new Order())->findWithDetails($orderId);
         if (!$order) {
@@ -57,6 +55,12 @@ class OrderController extends Controller
             $this->view('errors/404', ['title' => t('escrow.forbidden')]);
             return;
         }
+
+        // M-01 / B0.5: ленивая обработка сроков — только после проверки доступа
+        // (основной путь — scripts/cron_escrow.php; settle() защищён блокировкой строки).
+        $escrow = new EscrowService();
+        $escrow->processDeadlines($orderId);
+        $order = (new Order())->findWithDetails($orderId) ?: $order;
 
         // Перечитать после auto-release
         $order = (new Order())->findWithDetails($orderId) ?: $order;

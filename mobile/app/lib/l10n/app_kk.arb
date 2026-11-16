@@ -1,0 +1,317 @@
+{
+  "@@locale": "kk",
+  "appTitle": "Zakopeyki.kz",
+  "navHome": "Басты бет",
+  "navFavorites": "Таңдаулылар",
+  "navProfile": "Профиль",
+  "searchHint": "Тауарлар мен қызметтерді іздеу",
+  "allTypes": "Барлығы",
+  "retry": "Қайталау",
+  "loadError": "Деректерді жүктеу мүмкін болмады",
+  "networkError": "Сервермен байланыс жоқ. Интернетті тексеріңіз.",
+  "emptyFeed": "Ештеңе табылмады",
+  "emptyFavorites": "Таңдаулыларда әзірге ештеңе жоқ",
+  "loginTitle": "Кіру",
+  "loginSubtitle": "Таңдаулыларды сақтау және сатып алу үшін кіріңіз",
+  "email": "Email",
+  "password": "Құпиясөз",
+  "loginButton": "Кіру",
+  "fieldRequired": "Міндетті өріс",
+  "twoFactorTitle": "Кіруді растау",
+  "twoFactorHint": "Аутентификатор қолданбасындағы 6 таңбалы кодты немесе резервтік кодты енгізіңіз",
+  "code": "Код",
+  "confirm": "Растау",
+  "logout": "Шығу",
+  "logoutAll": "Барлық құрылғылардан шығу",
+  "language": "Тіл",
+  "loginRequired": "Аккаунтқа кіріңіз",
+  "loginRequiredFavorites": "Таңдаулыларды көру үшін кіріңіз",
+  "description": "Сипаттама",
+  "characteristics": "Сипаттамалар",
+  "exchangeFor": "Айырбастаймын",
+  "seller": "Сатушы",
+  "business": "Бизнес",
+  "ratingCount": "{count, plural, =0{пікір жоқ} other{{count} пікір}}",
+  "@ratingCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "inStock": "Қоймада: {count}",
+  "@inStock": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "buyOnSite": "Сайтта сатып алу",
+  "openOnSite": "Сайтта ашу",
+  "safeDealInfo": "Қауіпсіз мәміле: ақша тауарды алғаныңызды растағанша ұсталады. Сатып алушы алымы {percent}%.",
+  "@safeDealInfo": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "auctionEnds": "Аукцион {date} дейін",
+  "@auctionEnds": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "siteClosedTitle": "Жақында ашылады",
+  "siteClosedText": "Zakopeyki.kz жақында ашылады. Әзірге қолжетімділік тек жабық тестілеуге қатысушыларға ғана ашық.",
+  "legalOffer": "Пайдаланушы келісімі",
+  "legalPrivacy": "Құпиялылық саясаты",
+  "views": "Қаралым: {count}",
+  "@views": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "addedToFavorites": "Таңдаулыларға қосылды",
+  "removedFromFavorites": "Таңдаулылардан өшірілді",
+  "sessionExpired": "Сеанс аяқталды. Қайта кіріңіз.",
+  "registerTitle": "Тіркелу",
+  "registerButton": "Тіркелу",
+  "name": "Аты",
+  "phoneOptional": "Телефон (міндетті емес)",
+  "passwordHint": "Кемінде 8 таңба",
+  "acceptOfferPrefix": "Мен қабылдаймын:",
+  "offerLink": "пайдаланушы келісімі",
+  "noAccount": "Аккаунтыңыз жоқ па?",
+  "createAccount": "Тіркелу",
+  "haveAccount": "Аккаунтыңыз бар ма? Кіру",
+  "forgotPassword": "Құпиясөзді ұмыттыңыз ба?",
+  "forgotTitle": "Құпиясөзді қалпына келтіру",
+  "forgotHint": "Аккаунт email-ін көрсетіңіз — жаңа құпиясөз жасау сілтемесін жібереміз.",
+  "sendLink": "Сілтемені жіберу",
+  "orDivider": "немесе",
+  "appleUnavailable": "Бұл құрылғыда Apple арқылы кіру қолжетімсіз",
+  "invalidEmail": "Дұрыс email енгізіңіз",
+  "passwordTooShort": "Құпиясөз кемінде 8 таңбадан тұруы керек",
+  "offerRequired": "Пайдаланушы келісімін қабылдаңыз",
+  "registrationBonus": "Тіркелгеніңіз үшін {points} бонус берілді!",
+  "@registrationBonus": {
+    "placeholders": {
+      "points": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "appleSignIn": "Apple арқылы кіру",
+  "typeNew": "Жаңа тауар",
+  "typeUsed": "Қолданылған тауар",
+  "typeAuction": "Аукцион",
+  "typeService": "Қызметтер",
+  "typeExchange": "Бартер",
+  "typeFree": "Тегін",
+  "typeGig": "Қызметтер биржасы",
+  "deleteAccount": "Аккаунтты жою",
+  "deleteAccountTitle": "Аккаунтты жою",
+  "deleteAccountIntro": "Аккаунт қалпына келтіру мүмкіндігінсіз жойылады:",
+  "deleteAccountPoint1": "аты, email, телефон, ЖСН/БСН, мекенжайлар, профиль суреті және құпиясөз өшіріледі;",
+  "deleteAccountPoint2": "хабарландырулар жариялаудан алынады, таңдаулылар мен жазылымдар жойылады;",
+  "deleteAccountPoint3": "аяқталған мәмілелер тарихы иесіз түрде сақталады — ол екінші тарапқа және төлемдер есебіне қажет;",
+  "deleteAccountPoint4": "бонус ұпайлары күйеді. Сол email-мен қайта тіркелуге болады.",
+  "deleteAccountBlocked": "Қазір аккаунтты жою мүмкін емес:",
+  "deleteAccountConfirm": "Жою қайтымсыз екенін түсінемін",
+  "deleteAccountPasswordHint": "Растау үшін құпиясөзді енгізіңіз",
+  "deleteAccountReauthHint": "Растау үшін қайта кіріп (мысалы, Apple арқылы), бірден осы экранға оралыңыз.",
+  "deleteAccountReauthButton": "Қайта кіру",
+  "deleteAccountButton": "Аккаунтты біржола жою",
+  "accountDeleted": "Аккаунт жойылды",
+  "myListings": "Менің хабарландыруларым",
+  "newListing": "Хабарландыру беру",
+  "editListing": "Хабарландыруды өңдеу",
+  "listingType": "Хабарландыру түрі",
+  "listingTitle": "Атауы",
+  "listingDescription": "Сипаттама",
+  "listingPrice": "Бағасы, ₸",
+  "listingCategory": "Санат",
+  "chooseCategory": "Санатты таңдаңыз",
+  "listingQuantity": "Саны",
+  "listingExchangeFor": "Орнына не алғыңыз келеді",
+  "listingLocation": "Қала",
+  "listingCharacteristics": "Сипаттамалар (міндетті емес)",
+  "listingCharacteristicsHint": "Әр жолға біреуден: «Түсі: қара»",
+  "photos": "Фото",
+  "photosHint": "{max} фотоға дейін. Мұқаба ету үшін фотоны басыңыз.",
+  "@photosHint": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "addPhotoGallery": "Галереядан",
+  "addPhotoCamera": "Камера",
+  "coverBadge": "Мұқаба",
+  "removePhoto": "Фотоны өшіру",
+  "iinLabel": "ЖСН (12 сан)",
+  "binLabel": "БСН (12 сан)",
+  "taxIdHint": "Сатушыны тексеру үшін бір рет қажет (ҚР ҚМА талабы). Серверде сақталады, сатып алушыларға көрсетілмейді.",
+  "acceptListingRules": "Хабарландыру орналастыру ережелерін қабылдаймын",
+  "pickupOnlyNote": "Қолданбадан хабарландыру өзі алып кету шартымен жарияланады. CDEK жеткізуін, аукциондарды және ақылы қызметтерді әзірге сайтта баптауға болады.",
+  "publish": "Жариялау",
+  "save": "Сақтау",
+  "listingPublished": "Хабарландыру жарияланды",
+  "listingSaved": "Өзгерістер сақталды",
+  "listingBonus": "Хабарландыру үшін +{points} бонус",
+  "@listingBonus": {
+    "placeholders": {
+      "points": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteListing": "Хабарландыруды жою",
+  "deleteListingConfirm": "Бұл хабарландыруды жою керек пе? Бұл әрекетті болдырмау мүмкін емес.",
+  "cancel": "Болдырмау",
+  "delete": "Жою",
+  "listingDeleted": "Хабарландыру жойылды",
+  "emptyMyListings": "Сізде әзірге хабарландыру жоқ",
+  "editOnSite": "Бұл хабарландыру түрі сайтта өңделеді",
+  "statusActive": "Белсенді",
+  "statusSold": "Сатылды",
+  "statusArchived": "Мұрағатта",
+  "statusReserved": "Броньдалған",
+  "statusOutOfStock": "Қоймада жоқ",
+  "needPhoto": "Кемінде бір фото қосыңыз",
+  "uploading": "Жүктелуде {percent}%",
+  "@uploading": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "publishBlocked": "Жариялау қолжетімсіз",
+  "listingRulesRequired": "Хабарландыру орналастыру ережелерін қабылдаңыз",
+  "navCart": "Себет",
+  "addToCart": "Себетке",
+  "inCart": "Себетте",
+  "buyNow": "Сатып алу",
+  "addedToCart": "Себетке қосылды",
+  "emptyCart": "Себет бос",
+  "cartTotal": "Барлығы",
+  "checkoutAll": "Тапсырысты рәсімдеу",
+  "remove": "Өшіру",
+  "checkoutTitle": "Тапсырысты рәсімдеу",
+  "dealSafe": "Қауіпсіз мәміле",
+  "dealSafeHint": "Алғаныңызды растағанша ақша платформада сақталады. Алғаннан кейін тексеруге және дауласуға {hours} сағат бар.",
+  "@dealSafeHint": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "dealDirect": "Сатушыға тікелей",
+  "dealDirectHint": "Мәміле қорғауынсыз және алымсыз. Ақша бірден сатушыға кетеді, оны платформа арқылы қайтару мүмкін емес.",
+  "dealFee": "Қауіпсіз мәміле алымы",
+  "subtotal": "Тауарлар",
+  "totalToPay": "Төлеуге",
+  "delivery": "Алу тәсілі",
+  "deliveryPickup": "Өзі алып кету",
+  "deliveryKazpost": "Қазпошта",
+  "deliveryCourier": "Курьер",
+  "deliveryOther": "Басқа",
+  "deliveryCdek": "CDEK",
+  "deliveryDigital": "Цифрлық тауар",
+  "deliveryCdekOnSite": "CDEK жеткізуін әзірге тек сайтта рәсімдеуге болады",
+  "payment": "Төлем",
+  "payCard": "Картамен (Halyk ePay)",
+  "payCardSimulated": "Картамен (сынақ режимі)",
+  "payWallet": "Әмияннан",
+  "walletBalance": "Баланс: {amount}",
+  "@walletBalance": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "walletNotEnough": "Әмиянда қаражат жеткіліксіз",
+  "payButton": "{amount} төлеу",
+  "@payButton": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "paymentOpening": "Төлем беті ашылуда…",
+  "paymentCheck": "Төлем тексерілуде…",
+  "paymentCancelled": "Төлем аяқталмады. Тапсырыс төлемді күтуде — оны «Менің тапсырыстарым» бөлімінде болдырмауға болады.",
+  "orderPlaced": "Тапсырыс рәсімделді",
+  "myOrders": "Менің тапсырыстарым",
+  "ordersBuying": "Сатып алулар",
+  "ordersSelling": "Сатулар",
+  "emptyOrders": "Әзірге тапсырыс жоқ",
+  "orderTitle": "№{id} тапсырыс",
+  "@orderTitle": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "orderSeller": "Сатушы",
+  "orderBuyer": "Сатып алушы",
+  "orderQty": "Саны: {qty}",
+  "@orderQty": {
+    "placeholders": {
+      "qty": {
+        "type": "int"
+      }
+    }
+  },
+  "orderTracking": "Трек-нөмір",
+  "orderInspectUntil": "{date} дейін тексеру",
+  "@orderInspectUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "orderPayout": "Сіз аласыз (10% комиссиясыз)",
+  "openOnSiteDetails": "Толығырақ сайтта",
+  "actionShip": "Тауарды жібердім",
+  "actionDelivered": "Тауарды алдым",
+  "actionConfirm": "Растау, бәрі дұрыс",
+  "actionCancel": "Тапсырысты болдырмау",
+  "actionDispute": "Қайтару немесе дау",
+  "shipTitle": "Тауарды жіберу",
+  "shipTracking": "Трек-нөмір немесе жүкқұжат нөмірі",
+  "shipCarrier": "Жеткізу қызметі (міндетті емес)",
+  "confirmTitle": "Алғаныңызды растайсыз ба?",
+  "confirmText": "Ақша сатушыға аударылады. Мұны болдырмау мүмкін емес.",
+  "cancelTitle": "Тапсырысты болдырмау керек пе?",
+  "cancelText": "Тапсырыс төленген болса, ақша Zakopeyki әмияныңызға қайтарылады.",
+  "deliveredTitle": "Тауарды алдыңыз ба?",
+  "deliveredText": "Тауарды тексеру мерзімі басталады. Бір нәрсе дұрыс болмаса — мерзім біткенге дейін дау ашыңыз.",
+  "disputeTitle": "Қайтару немесе дау",
+  "disputeReason": "Себебі",
+  "disputeComment": "Мәселені сипаттаңыз",
+  "disputeSend": "Жіберу",
+  "reason_not_as_described": "Сипаттамаға сәйкес емес",
+  "reason_not_received": "Тауарды алмадым",
+  "reason_changed_mind": "Ойымнан айныдым",
+  "reason_courier_void": "Курьер жеткізгенде бас тарту",
+  "reason_digital_defect": "Цифрлық тауардағы мәселе",
+  "confirmAction": "Растау",
+  "back": "Артқа",
+  "ordersOtherOnSite": "Қайтару бойынша келіссөздер және арбитраж — сайтта.",
+  "retryPayment": "Төлемді тексеру"
+}

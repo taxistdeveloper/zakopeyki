@@ -36,6 +36,7 @@ use App\Services\FreedomPay\Client as FreedomPayClient;
 use App\Services\HalykEpay\Client as HalykClient;
 use App\Services\HalykEpay\IntentStore;
 use App\Services\HalykEpay\SimStore;
+use App\Services\Payment\HalykEpayGateway;
 use App\Services\Payment\LocalCheckout;
 
 class PaymentController extends Controller
@@ -71,6 +72,40 @@ class PaymentController extends Controller
     }
 
     /**
+     * Запуск формы Halyk из мобильного приложения (M-07). Без web-сессии: доступ — по одноразовому
+     * токену intent (128 бит, TTL 24 ч), который получил только владелец заказа в ответе API checkout.
+     * Оплата подтверждается исключительно postLink (validatePostLink), не этой страницей.
+     */
+    public function halykAppLaunch(string $token): void
+    {
+        $client = new HalykClient();
+        $intent = preg_match('/^[a-f0-9]{32}$/', $token) ? (IntentStore::get($token) ?? SimStore::get($token)) : null;
+        if (!$client->isConfigured() || !$intent) {
+            http_response_code(404);
+            $this->view('payments/app-return', ['result' => 'expired'], '');
+            return;
+        }
+        header('Cache-Control: no-store');
+        header('Referrer-Policy: no-referrer');
+        $this->view('payments/halyk-sim', [
+            'token' => $token,
+            'orderId' => (string) ($intent['order_id'] ?? ''),
+            'amount' => (float) ($intent['amount'] ?? 0),
+            'description' => (string) ($intent['description'] ?? ''),
+            'payObject' => $client->buildPayObject($intent, true),
+            'jsUrl' => $client->jsUrl(),
+        ], '');
+    }
+
+    /** Возврат из платёжной формы в мобильное приложение (deep link zakopeyki://payment-result). */
+    public function appReturn(): void
+    {
+        $result = in_array($_GET['result'] ?? '', ['success', 'failure'], true) ? (string) $_GET['result'] : 'failure';
+        header('Cache-Control: no-store');
+        $this->view('payments/app-return', ['result' => $result], '');
+    }
+
+    /**
      * postLink от ePay (без CSRF / без логина).
      */
     public function halykPostLink(): void
@@ -92,38 +127,48 @@ class PaymentController extends Controller
         $invoiceId = (string) ($params['invoiceId'] ?? $params['invoiceID'] ?? '');
         $code = strtolower((string) ($params['code'] ?? ''));
         $reasonCode = (int) ($params['reasonCode'] ?? -1);
-        $amount = (string) ($params['amount'] ?? '0');
         $paymentId = (string) ($params['id'] ?? $params['reference'] ?? '');
-        $secretHash = (string) ($params['secret_hash'] ?? '');
 
-        $intent = $invoiceId !== '' ? IntentStore::getByInvoice($invoiceId) : null;
-        $pgOrderId = (string) ($intent['order_id'] ?? '');
-        if ($pgOrderId === '') {
-            $pgOrderId = (string) ($params['pg_order_id'] ?? '');
+        // M-01 / S1: принимаем только callback, сопоставленный с серверным intent
+        // (secret_hash, терминал, валюта, сумма). pg_order_id и сумма из запроса не используются.
+        $check = HalykEpayGateway::validatePostLink($params, (new HalykClient())->terminal());
+        if (empty($check['ok'])) {
+            ActivityLogger::warning('payment.halyk.postlink', 'Rejected: ' . ($check['error'] ?? 'invalid'), 'payment', null, [
+                'invoice_id' => $invoiceId,
+                'reason' => $check['error'] ?? 'invalid',
+            ]);
+            http_response_code(400);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['ok' => false]);
+            exit;
         }
-        if ($paymentId === '' && is_array($intent)) {
+
+        $intent = $check['intent'];
+        $pgOrderId = (string) $intent['order_id'];
+        if ($paymentId === '') {
             $paymentId = (string) ($intent['payment_id'] ?? '');
         }
-
         $ok = ($code === 'ok' || $reasonCode === 0);
-        if ($ok && is_array($intent) && $secretHash !== '' && $secretHash !== (string) ($intent['secret_hash'] ?? '')) {
-            // Несовпадение secret_hash — не подтверждаем оплату
-            $ok = false;
-            ActivityLogger::warning('payment.halyk.postlink', 'secret_hash mismatch', 'payment', null, [
+
+        // Идемпотентность: повторная/параллельная доставка того же invoice не обрабатывается дважды
+        if (!IntentStore::claimInvoice($invoiceId)) {
+            ActivityLogger::info('payment.halyk.postlink', 'Duplicate postLink ignored', 'payment', null, [
                 'invoice_id' => $invoiceId,
             ]);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['ok' => true]);
+            exit;
         }
 
-        if ($pgOrderId !== '') {
-            $this->applySimulatedGatewayResult(
-                $pgOrderId,
-                $paymentId !== '' ? $paymentId : ('halyk-' . $invoiceId),
-                $amount !== '' ? $amount : (string) ((int) ($intent['amount'] ?? 0)),
-                $ok ? 1 : 0
-            );
-            if (is_array($intent) && !empty($intent['token'])) {
-                IntentStore::forget((string) $intent['token']);
-            }
+        $this->applySimulatedGatewayResult(
+            $pgOrderId,
+            $paymentId !== '' ? $paymentId : ('halyk-' . $invoiceId),
+            // сумма — из серверного intent (для успеха она уже сверена с суммой ePay)
+            (string) ($intent['amount'] ?? '0'),
+            $ok ? 1 : 0
+        );
+        if (!empty($intent['token'])) {
+            IntentStore::forget((string) $intent['token']);
         }
 
         ActivityLogger::info('payment.halyk.postlink', $ok ? 'Halyk payment OK' : 'Halyk payment fail', 'payment', null, [
