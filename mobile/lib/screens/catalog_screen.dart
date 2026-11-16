@@ -233,7 +233,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
                           ),
                           Expanded(
                             child: Align(
-                              alignment: Alignment.centerLeft,
+                              alignment: Alignment.center,
                               child: Image.asset(
                                 'assets/img/logo_header_dark.png',
                                 height: 34,
