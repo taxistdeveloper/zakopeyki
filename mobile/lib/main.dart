@@ -5,6 +5,7 @@ import 'screens/home_shell.dart';
 import 'screens/stub_screen.dart';
 import 'session.dart';
 import 'theme.dart';
+import 'widgets/wake_word_ui.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,6 +13,7 @@ void main() {
   final session = Session()
     ..loadThemeMode()
     ..start();
+  session.wakeWord.load();
   runApp(ZakopeykiApp(session: session));
 }
 
@@ -32,6 +34,9 @@ class ZakopeykiApp extends StatelessWidget {
 
   final Session session;
 
+  /// Нужен, чтобы открыть ZAK по голосу «Зак» с любого экрана.
+  static final navigatorKey = GlobalKey<NavigatorState>();
+
   static final _light = buildTheme();
   static final _dark = buildTheme(Brightness.dark);
 
@@ -43,7 +48,9 @@ class ZakopeykiApp extends StatelessWidget {
         listenable: session,
         builder: (_, _) => MaterialApp(
           title: 'Закопейки',
+          navigatorKey: navigatorKey,
           debugShowCheckedModeBanner: false,
+          builder: (context, child) => WakeWordHost(navigatorKey: navigatorKey, child: child!),
           theme: _light,
           darkTheme: _dark,
           themeMode: session.themeMode,

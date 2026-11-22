@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "kz.zakopeyki.zakopeyki"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -42,4 +42,9 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Голосовое пробуждение «Зак»: офлайн-распознавание (см. WakeWordPlugin.kt)
+    implementation("com.alphacephei:vosk-android:0.3.75")
 }

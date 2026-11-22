@@ -8,6 +8,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'api.dart';
 import 'config.dart';
 import 'models.dart';
+import 'wake_word.dart';
 
 /// Состояние приложения: токены, пользователь, конфиг сайта.
 ///
@@ -15,12 +16,16 @@ import 'models.dart';
 class Session extends ChangeNotifier {
   Session({Api? api, FlutterSecureStorage? storage})
       : api = api ?? Api(),
-        _storage = storage ?? const FlutterSecureStorage() {
+        _storage = storage ?? const FlutterSecureStorage(),
+        wakeWord = WakeWord(storage: storage) {
     this.api.onUnauthorized = _refreshAccess;
   }
 
   final Api api;
   final FlutterSecureStorage _storage;
+
+  /// Голосовое пробуждение «Зак» (настройка устройства, не аккаунта).
+  final WakeWord wakeWord;
 
   static const _refreshKey = 'refresh_token';
   static const _deviceKey = 'device_id';

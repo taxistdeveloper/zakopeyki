@@ -4,6 +4,7 @@ import '../api.dart';
 import '../main.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import '../widgets/wake_word_ui.dart';
 import 'account_screens.dart';
 import 'ads_screen.dart';
 import 'business_screen.dart';
@@ -123,6 +124,11 @@ class ProfileScreen extends StatelessWidget {
                   () => _push(context, const SupportListScreen())),
               _tile(context, Icons.dark_mode_outlined, 'Оформление · ${themeModeLabel(SessionScope.of(context).themeMode)}',
                   () => showThemePicker(context)),
+              ListenableBuilder(
+                listenable: session.wakeWord,
+                builder: (context, _) => _tile(context, Icons.record_voice_over_outlined,
+                    'Голосовое пробуждение · ${session.wakeWord.label}', () => showWakeWordSettings(context)),
+              ),
             ]),
             const SizedBox(height: 8),
             Container(

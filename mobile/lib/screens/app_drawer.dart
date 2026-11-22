@@ -4,6 +4,7 @@ import '../main.dart';
 import '../nav.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import '../widgets/wake_word_ui.dart';
 import 'ads_screen.dart';
 import 'business_screen.dart';
 import 'cabinet_screens.dart';
@@ -119,6 +120,17 @@ class AppDrawer extends StatelessWidget {
                 Navigator.of(context).pop();
                 showThemePicker(context);
               },
+            ),
+            ListenableBuilder(
+              listenable: session.wakeWord,
+              builder: (context, _) => _Item(
+                icon: Icons.record_voice_over_outlined,
+                title: 'Голосовое пробуждение · ${session.wakeWord.label}',
+                onTap: () {
+                  Navigator.of(context).pop();
+                  showWakeWordSettings(context);
+                },
+              ),
             ),
             _Item(
               icon: Icons.info_outline_rounded,

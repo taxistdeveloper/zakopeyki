@@ -13,6 +13,9 @@ import '../nav.dart';
 import '../widgets/common.dart';
 import 'live_common.dart';
 
+/// Причина паузы голосового пробуждения, пока микрофон нужен эфиру.
+const _liveMicHold = 'live';
+
 // =============================================================== настройка эфира
 
 class LiveSetupScreen extends StatefulWidget {
@@ -75,6 +78,8 @@ class _LiveSetupScreenState extends State<LiveSetupScreen> {
       return;
     }
     // Доступ к камере и микрофону: проверяем до запуска эфира (flutter_webrtc сам покажет системный запрос)
+    final wake = SessionScope.read(context).wakeWord;
+    await wake.hold(_liveMicHold); // микрофон нужен эфиру, слушатель «Зак» мешал бы
     try {
       final probe = await navigator.mediaDevices.getUserMedia({'audio': true, 'video': true});
       for (final t in probe.getTracks()) {
@@ -84,6 +89,8 @@ class _LiveSetupScreenState extends State<LiveSetupScreen> {
     } catch (_) {
       if (mounted) showSnack(context, 'Для эфира нужен доступ к камере и микрофону — разрешите его в настройках телефона');
       return;
+    } finally {
+      wake.release(_liveMicHold);
     }
     if (!mounted) return;
     setState(() => _busy = true);
@@ -278,12 +285,14 @@ class _LiveHostScreenState extends State<LiveHostScreen> with WidgetsBindingObse
   Timer? _commentTimer;
   Timer? _clock;
   bool _pollingSignals = false;
+  late final _wake = SessionScope.read(context).wakeWord;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _local.initialize().then((_) => _startMedia());
+    // на время эфира микрофон занят трансляцией — голосовое пробуждение на паузе
+    _wake.hold(_liveMicHold).then((_) => _local.initialize()).then((_) => _startMedia());
   }
 
   @override
@@ -305,6 +314,7 @@ class _LiveHostScreenState extends State<LiveHostScreen> with WidgetsBindingObse
     _stream?.getTracks().forEach((t) => t.stop());
     _stream?.dispose();
     _local.dispose();
+    _wake.release(_liveMicHold);
     super.dispose();
   }
 

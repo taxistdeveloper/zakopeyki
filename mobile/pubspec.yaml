@@ -46,6 +46,8 @@ dependencies:
   video_player: ^2.14.1
   flutter_webrtc: ^1.6.3
   google_fonts: ^8.2.1
+  speech_to_text: ^7.5.0
+  permission_handler: ^13.0.2
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:speech_to_text/speech_recognition_result.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 
 import '../api.dart';
 import '../assistant_models.dart';
@@ -14,8 +16,16 @@ Future<void> openAssistant(BuildContext context) =>
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AssistantScreen()));
 
 /// ИИ-помощник ZAK: поиск по каталогу, ответы по сделкам и доставке, передача оператору.
+///
+/// Вопрос можно надиктовать (кнопка микрофона); [listenOnOpen] — сразу начать слушать,
+/// так экран открывается по голосовому пробуждению «Зак».
 class AssistantScreen extends StatefulWidget {
-  const AssistantScreen({super.key});
+  const AssistantScreen({super.key, this.listenOnOpen = false});
+
+  final bool listenOnOpen;
+
+  /// Экран ZAK сейчас открыт: «Зак» запускает диктовку здесь, а не открывает новый экран.
+  static bool get onScreen => _AssistantScreenState._open > 0;
 
   @override
   State<AssistantScreen> createState() => _AssistantScreenState();
@@ -33,14 +43,32 @@ class _AssistantScreenState extends State<AssistantScreen> {
   bool _thinking = false;
   Timer? _poll;
 
+  static int _open = 0;
+  static const _micHold = 'assistant_dictation';
+  final _speech = SpeechToText();
+  bool _speechReady = false;
+  bool _dictating = false;
+  StreamSubscription<void>? _wakeSub;
+  late final _wake = SessionScope.read(context).wakeWord;
+
   @override
   void initState() {
     super.initState();
-    _load();
+    _open++;
+    _wakeSub = _wake.onWake.listen((_) => _dictate());
+    _load().then((_) {
+      if (widget.listenOnOpen && mounted) _dictate();
+    });
   }
 
   @override
   void dispose() {
+    _open--;
+    _wakeSub?.cancel();
+    if (_dictating) {
+      _speech.cancel();
+      _wake.release(_micHold);
+    }
     _poll?.cancel();
     _input.dispose();
     _scroll.dispose();
@@ -104,6 +132,66 @@ class _AssistantScreenState extends State<AssistantScreen> {
             duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
       }
     });
+  }
+
+  /// Голосовой ввод вопроса: системное распознавание речи Android, по паузе отправляем текст.
+  Future<void> _dictate() async {
+    if (_dictating || _thinking || _info == null) return;
+    setState(() => _dictating = true);
+    // освобождаем микрофон от слушателя «Зак», иначе распознаватели помешают друг другу
+    await _wake.hold(_micHold);
+    try {
+      _speechReady = _speechReady ||
+          await _speech.initialize(
+            onStatus: (status) {
+              if (status == SpeechToText.doneStatus || status == SpeechToText.notListeningStatus) _finishDictation();
+            },
+            onError: (e) {
+              if (mounted && e.permanent && e.errorMsg != 'error_no_match' && e.errorMsg != 'error_speech_timeout') {
+                showSnack(context, 'Не удалось распознать речь');
+              }
+              _finishDictation();
+            },
+          );
+      if (!_speechReady) {
+        if (mounted) showSnack(context, 'Голосовой ввод недоступен: нужен доступ к микрофону и сервис распознавания речи');
+        _finishDictation();
+        return;
+      }
+      if (!mounted || !_dictating) return;
+      _input.clear();
+      await _speech.listen(
+        onResult: _onSpeech,
+        listenOptions: SpeechListenOptions(
+          localeId: 'ru_RU',
+          partialResults: true,
+          cancelOnError: true,
+          listenFor: const Duration(seconds: 30),
+          pauseFor: const Duration(seconds: 3),
+        ),
+      );
+    } catch (_) {
+      if (mounted) showSnack(context, 'Голосовой ввод недоступен');
+      _finishDictation();
+    }
+  }
+
+  void _onSpeech(SpeechRecognitionResult r) {
+    if (!mounted) return;
+    _input.text = r.recognizedWords;
+    _input.selection = TextSelection.collapsed(offset: _input.text.length);
+    if (r.finalResult) {
+      _finishDictation();
+      if (r.recognizedWords.trim().isNotEmpty) _send();
+    }
+  }
+
+  void _stopDictation() => _speech.stop();
+
+  void _finishDictation() {
+    if (!_dictating || !mounted) return;
+    setState(() => _dictating = false);
+    _wake.release(_micHold);
   }
 
   Future<void> _send([String? preset]) async {
@@ -260,7 +348,14 @@ class _AssistantScreenState extends State<AssistantScreen> {
                     ],
                   ),
                 ),
-              _InputBar(controller: _input, hint: info.placeholder, busy: _thinking, onSend: () => _send()),
+              _InputBar(
+                controller: _input,
+                hint: _dictating ? 'Говорите…' : info.placeholder,
+                busy: _thinking,
+                onSend: () => _send(),
+                dictating: _dictating,
+                onMic: _dictating ? _stopDictation : _dictate,
+              ),
             ]),
     );
   }
@@ -457,12 +552,21 @@ class _Typing extends StatelessWidget {
 }
 
 class _InputBar extends StatelessWidget {
-  const _InputBar({required this.controller, required this.hint, required this.busy, required this.onSend});
+  const _InputBar({
+    required this.controller,
+    required this.hint,
+    required this.busy,
+    required this.onSend,
+    required this.dictating,
+    required this.onMic,
+  });
 
   final TextEditingController controller;
   final String hint;
   final bool busy;
   final VoidCallback onSend;
+  final bool dictating;
+  final VoidCallback onMic;
 
   @override
   Widget build(BuildContext context) {
@@ -484,7 +588,14 @@ class _InputBar extends StatelessWidget {
             decoration: InputDecoration(hintText: hint, counterText: '', fillColor: p.subtle, isDense: true),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 4),
+        IconButton(
+          tooltip: dictating ? 'Остановить' : 'Сказать голосом',
+          onPressed: busy ? null : onMic,
+          style: dictating ? IconButton.styleFrom(backgroundColor: kBrand.withValues(alpha: 0.12)) : null,
+          icon: Icon(dictating ? Icons.mic_rounded : Icons.mic_none_rounded, color: dictating ? kBrand : p.muted),
+        ),
+        const SizedBox(width: 4),
         IconButton.filled(
           style: IconButton.styleFrom(backgroundColor: kAccent, foregroundColor: Colors.white, fixedSize: const Size(48, 48)),
           onPressed: busy ? null : onSend,
@@ -520,8 +631,13 @@ class ZakFab extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
           decoration: BoxDecoration(color: kBrand, borderRadius: BorderRadius.circular(999), boxShadow: kLiftShadow),
-          child: const Text('Спросить ZAK',
-              style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+          child: ListenableBuilder(
+            listenable: SessionScope.of(context).wakeWord,
+            builder: (context, _) => Text(
+              SessionScope.of(context).wakeWord.listening ? 'Скажите «Зак»' : 'Спросить ZAK',
+              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+            ),
+          ),
         ),
       ]),
     );
