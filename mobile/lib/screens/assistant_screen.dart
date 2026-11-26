@@ -50,14 +50,19 @@ class _AssistantScreenState extends State<AssistantScreen> {
   bool _dictating = false;
   StreamSubscription<void>? _wakeSub;
   late final _wake = SessionScope.read(context).wakeWord;
+  late final _voice = SessionScope.read(context).zakVoice;
+
+  /// Последний вопрос задан голосом — ответ на него ZAK озвучит.
+  bool _askedByVoice = false;
 
   @override
   void initState() {
     super.initState();
     _open++;
-    _wakeSub = _wake.onWake.listen((_) => _dictate());
+    _wakeSub = _wake.onWake.listen((_) => _dictate(ack: true));
+    if (_wake.enabled) _voice.prefetchAck();
     _load().then((_) {
-      if (widget.listenOnOpen && mounted) _dictate();
+      if (widget.listenOnOpen && mounted) _dictate(ack: true);
     });
   }
 
@@ -65,6 +70,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
   void dispose() {
     _open--;
     _wakeSub?.cancel();
+    _voice.stop();
     if (_dictating) {
       _speech.cancel();
       _wake.release(_micHold);
@@ -113,11 +119,14 @@ class _AssistantScreenState extends State<AssistantScreen> {
       final (status, list) = await SessionScope.read(context).api.assistantPoll(_lastId);
       if (!mounted) return;
       final fresh = list.where((m) => !m.mine && !_messages.any((x) => x.id == m.id)).toList();
+      final wasThinking = _thinking;
       setState(() {
         _status = status;
         _messages.addAll(fresh);
         if (fresh.isNotEmpty) _thinking = false;
       });
+      // асинхронный ответ ИИ (или оператора) пришёл опросом
+      if (wasThinking && fresh.isNotEmpty) _maybeSpeak(fresh.last.text);
       if (fresh.isNotEmpty) _toBottom();
       _syncPolling();
     } catch (_) {
@@ -135,9 +144,15 @@ class _AssistantScreenState extends State<AssistantScreen> {
   }
 
   /// Голосовой ввод вопроса: системное распознавание речи Android, по паузе отправляем текст.
-  Future<void> _dictate() async {
+  /// [ack] — сначала ответить голосом «Да, слушаю вас» (после слова «Зак»).
+  Future<void> _dictate({bool ack = false}) async {
     if (_dictating || _thinking || _info == null) return;
     setState(() => _dictating = true);
+    await _voice.stop();
+    if (ack) {
+      await _voice.sayAck();
+      if (!mounted || !_dictating) return;
+    }
     // освобождаем микрофон от слушателя «Зак», иначе распознаватели помешают друг другу
     await _wake.hold(_micHold);
     try {
@@ -182,7 +197,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
     _input.selection = TextSelection.collapsed(offset: _input.text.length);
     if (r.finalResult) {
       _finishDictation();
-      if (r.recognizedWords.trim().isNotEmpty) _send();
+      if (r.recognizedWords.trim().isNotEmpty) _send(null, true);
     }
   }
 
@@ -194,9 +209,18 @@ class _AssistantScreenState extends State<AssistantScreen> {
     _wake.release(_micHold);
   }
 
-  Future<void> _send([String? preset]) async {
+  /// Озвучить ответ ZAK, если вопрос был голосом или включена озвучка всех ответов.
+  void _maybeSpeak(String reply) {
+    if (reply.trim().isEmpty || !mounted) return;
+    if (_askedByVoice || _voice.autoSpeak) _voice.speak(reply);
+    _askedByVoice = false;
+  }
+
+  Future<void> _send([String? preset, bool byVoice = false]) async {
     final text = (preset ?? _input.text).trim();
     if (text.isEmpty || _thinking) return;
+    _voice.stop();
+    _askedByVoice = byVoice;
     _input.clear();
     final mine = ZakMessage(from: 'user', text: text);
     setState(() {
@@ -226,6 +250,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
         _suggestions = r.suggestions;
         _thinking = r.pending;
       });
+      if (!r.pending) _maybeSpeak(r.reply);
       if (r.pending) {
         // асинхронный режим: ждём ответ опросом
         _poll ??= Timer.periodic(const Duration(seconds: 2), (_) => _pollNew());
@@ -308,6 +333,21 @@ class _AssistantScreenState extends State<AssistantScreen> {
           ),
         ]),
         actions: [
+          ListenableBuilder(
+            listenable: _voice,
+            builder: (context, _) => IconButton(
+              tooltip: _voice.speaking
+                  ? 'Остановить озвучку'
+                  : (_voice.autoSpeak ? 'Не озвучивать ответы' : 'Озвучивать все ответы'),
+              onPressed: () => _voice.speaking ? _voice.stop() : _voice.setAutoSpeak(!_voice.autoSpeak),
+              icon: Icon(
+                _voice.speaking
+                    ? Icons.stop_circle_outlined
+                    : (_voice.autoSpeak ? Icons.volume_up_rounded : Icons.volume_off_outlined),
+                color: _voice.autoSpeak || _voice.speaking ? kBrand : null,
+              ),
+            ),
+          ),
           IconButton(
             tooltip: 'Новый диалог',
             onPressed: _messages.isEmpty ? null : _clear,

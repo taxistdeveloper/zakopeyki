@@ -14,6 +14,7 @@ void main() {
     ..loadThemeMode()
     ..start();
   session.wakeWord.load();
+  session.zakVoice.load();
   runApp(ZakopeykiApp(session: session));
 }
 

@@ -9,6 +9,7 @@ import 'api.dart';
 import 'config.dart';
 import 'models.dart';
 import 'wake_word.dart';
+import 'zak_voice.dart';
 
 /// Состояние приложения: токены, пользователь, конфиг сайта.
 ///
@@ -19,6 +20,7 @@ class Session extends ChangeNotifier {
         _storage = storage ?? const FlutterSecureStorage(),
         wakeWord = WakeWord(storage: storage) {
     this.api.onUnauthorized = _refreshAccess;
+    zakVoice = ZakVoice(api: this.api, wakeWord: wakeWord, storage: storage);
   }
 
   final Api api;
@@ -26,6 +28,9 @@ class Session extends ChangeNotifier {
 
   /// Голосовое пробуждение «Зак» (настройка устройства, не аккаунта).
   final WakeWord wakeWord;
+
+  /// Голос ZAK (серверный, как на сайте): «Да, слушаю вас» и озвучка ответов.
+  late final ZakVoice zakVoice;
 
   static const _refreshKey = 'refresh_token';
   static const _deviceKey = 'device_id';

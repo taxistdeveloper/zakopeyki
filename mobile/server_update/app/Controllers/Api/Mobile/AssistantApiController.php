@@ -10,6 +10,8 @@ use App\Models\AiSupport;
 use App\Services\AI\Core\AiConfig;
 use App\Services\AI\Core\RateLimiter;
 use App\Services\AI\SelfLearningService;
+use App\Services\AI\Support\TtsAudioCache;
+use App\Services\AI\Support\TtsFactory;
 use App\Services\CatalogAiAssistant;
 use App\Services\MobileApi\Presenter;
 
@@ -171,6 +173,72 @@ final class AssistantApiController extends BaseMobileController
         }
         (new SelfLearningService())->recordFeedback($messageId, $rating, null, null, $uid);
         $this->ok(['message' => 'Спасибо за оценку!']);
+    }
+
+    /**
+     * POST /assistant/tts {text, language?} — озвучка голосом ZAK, тем же, что на сайте
+     * (config/ai.php tts: edge_neural ru-RU-SvetlanaNeural или Azure).
+     *
+     * Отдаёт сам MP3 (audio/mpeg), а не ссылку: ссылки /ai/tts/audio/{token} на сайте
+     * привязаны к PHP-сессии, которой у приложения нет. Если серверный голос недоступен
+     * (провайдер browser или сбой синтеза) — 503 tts_unavailable, приложение просто молчит.
+     */
+    public function tts(): void
+    {
+        [$uid, $guest] = $this->identity();
+        $ttsCfg = (array) (AiConfig::all()['tts'] ?? []);
+        if (empty($ttsCfg['enabled'])) {
+            $this->fail('tts_unavailable', 503, 'Озвучка отключена.');
+        }
+
+        $b = $this->body();
+        $text = trim((string) ($b['text'] ?? ''));
+        $language = strtolower(trim((string) ($b['language'] ?? 'ru'))) ?: 'ru';
+        $maxChars = (int) ($ttsCfg['max_text_chars'] ?? 1500);
+        if ($text === '') {
+            $this->fail('validation_failed', 422, 'Нет текста для озвучки.', ['text' => 'required']);
+        }
+        if (mb_strlen($text) > $maxChars) {
+            $text = mb_substr($text, 0, $maxChars);
+        }
+
+        // Отдельный ключ: озвучка не съедает лимит сообщений в чат
+        $limiter = new RateLimiter();
+        $rl = $limiter->attempt('tts:' . $limiter->clientKey($uid, $guest));
+        if (empty($rl['allowed'])) {
+            $retry = (int) ($rl['retry_after'] ?? 60);
+            $this->fail('rate_limited', 429, null, [], ['Retry-After' => (string) $retry]);
+        }
+
+        $owner = 'mobile:' . ($uid !== null ? 'u' . $uid : (string) $guest);
+        $result = TtsFactory::create()->synthesize($text, $language, [
+            'request_id' => 'tts_m_' . bin2hex(random_bytes(6)),
+            'audio_owner' => $owner,
+        ]);
+        $path = null;
+        if ($result->ok && !$result->useBrowser && $result->audioUrl
+            && preg_match('~/ai/tts/audio/([A-Za-z0-9.]+)$~', $result->audioUrl, $m)) {
+            $cache = new TtsAudioCache(
+                null,
+                null,
+                isset($ttsCfg['cache_ttl_seconds']) ? (int) $ttsCfg['cache_ttl_seconds'] : null,
+                isset($ttsCfg['url_ttl_seconds']) ? (int) $ttsCfg['url_ttl_seconds'] : null
+            );
+            $path = $cache->resolveToken($m[1], $owner);
+        }
+        if ($path === null || !is_file($path)) {
+            $this->fail('tts_unavailable', 503, 'Голос ZAK сейчас недоступен.');
+        }
+
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+        header('Content-Type: audio/mpeg');
+        header('Content-Length: ' . (string) filesize($path));
+        header('Cache-Control: private, max-age=86400');
+        header('X-Tts-Voice: ' . preg_replace('/[^A-Za-z0-9-]/', '', (string) $result->voice));
+        readfile($path);
+        exit;
     }
 
     // ---------------------------------------------------------------- helpers

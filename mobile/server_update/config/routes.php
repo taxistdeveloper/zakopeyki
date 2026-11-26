@@ -212,6 +212,7 @@ $router->get('/api/mobile/v1/assistant/messages', [MobileAssistantApi::class, 'p
 $router->post('/api/mobile/v1/assistant/messages', [MobileAssistantApi::class, 'sendMessage']);
 $router->post('/api/mobile/v1/assistant/clear', [MobileAssistantApi::class, 'clear']);
 $router->post('/api/mobile/v1/assistant/feedback', [MobileAssistantApi::class, 'feedback']);
+$router->post('/api/mobile/v1/assistant/tts', [MobileAssistantApi::class, 'tts']);
 $router->get('/api/mobile/v1/support/tickets', [MobileSupportApi::class, 'index']);
 $router->post('/api/mobile/v1/support/tickets', [MobileSupportApi::class, 'create']);
 $router->get('/api/mobile/v1/support/tickets/{id}', [MobileSupportApi::class, 'show']);

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
@@ -752,6 +753,29 @@ class Api {
   }
 
   Future<void> assistantClear() => _post('/assistant/clear');
+
+  /// Озвучка голосом ZAK (тот же серверный голос, что на сайте). MP3 или null, если голос недоступен.
+  Future<Uint8List?> assistantTts(String text) async {
+    Future<http.Response> call() => _client
+        .post(
+          siteUri('$kApiPrefix/assistant/tts'),
+          headers: {..._headers, 'Content-Type': 'application/json', 'Accept': 'audio/mpeg, application/json'},
+          body: jsonEncode({'text': text, 'language': 'ru'}),
+        )
+        .timeout(_timeout);
+    try {
+      var res = await call();
+      final refresher = onUnauthorized;
+      if (res.statusCode == 401 && accessToken != null && refresher != null && await refresher()) {
+        res = await call();
+      }
+      final type = res.headers['content-type'] ?? '';
+      if (res.statusCode == 200 && type.startsWith('audio/') && res.bodyBytes.isNotEmpty) return res.bodyBytes;
+    } catch (_) {
+      // нет сети / сервер без озвучки — ZAK просто промолчит
+    }
+    return null;
+  }
 
   Future<void> assistantFeedback(int messageId, int rating) =>
       _post('/assistant/feedback', {'message_id': messageId, 'rating': rating});
